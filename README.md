@@ -18,12 +18,26 @@ If necessary, refer to the setup instructions at the
 
 ### Build
 
+```
+rustup install nightly-2020-10-06
+rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
+```
+
 Once the development environment is set up, build the node template. This command will build the
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
 ```bash
-cargo build --release
+cargo +nightly-2020-10-06 build --release
+```
+
+## Polkadot JS types
+```
+{
+  "Address": "AccountId",
+  "LookupSource": "AccountId",
+  "RefCount": "u8"
+}
 ```
 
 ## Run
