@@ -1,4 +1,3 @@
-// Copyright 2020 Parity Technologies (UK) Ltd.
 use crate::{Error, mock::*};
 use frame_support::{assert_ok, assert_noop};
 

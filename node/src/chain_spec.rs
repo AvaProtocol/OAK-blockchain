@@ -1,18 +1,13 @@
-// Copyright 2020 Parity Technologies (UK) Ltd.
-
 use cumulus_primitives::ParaId;
-use parachain_runtime::{
-	AccountId, BalancesConfig, GenesisConfig, Signature, SudoConfig, SystemConfig,
-	ParachainInfoConfig, WASM_BINARY,
-};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
-use sc_service::{ChainType, Properties};
+use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use parachain_runtime::{AccountId, Signature};
 
-/// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
-pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig, Extensions>;
+/// Specialized `ChainSpec` for the normal parachain runtime.
+pub type ChainSpec = sc_service::GenericChainSpec<parachain_runtime::GenesisConfig, Extensions>;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -33,7 +28,7 @@ pub struct Extensions {
 
 impl Extensions {
 	/// Try to get the extension from the given `ChainSpec`.
-	pub fn try_get(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Option<&Self> {
+	pub fn try_get(chain_spec: &dyn sc_service::ChainSpec) -> Option<&Self> {
 		sc_chain_spec::get_extension(chain_spec.extensions())
 	}
 }
@@ -48,18 +43,45 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn get_chain_spec(id: ParaId) -> Result<ChainSpec, String> {
-	let mut properties = Properties::new();
-	properties.insert("tokenSymbol".into(), "DEV".into());
-	properties.insert("tokenDecimals".into(), 12.into());
+pub fn development_config(id: ParaId) -> ChainSpec {
+	ChainSpec::from_genesis(
+		// Name
+		"Development",
+		// ID
+		"dev",
+		ChainType::Local,
+		move || {
+			testnet_genesis(
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+					get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+				],
+				id,
+			)
+		},
+		vec![],
+		None,
+		None,
+		None,
+		Extensions {
+			relay_chain: "rococo-dev".into(),
+			para_id: id.into(),
+		},
+	)
+}
 
-	Ok(ChainSpec::from_genesis(
+pub fn local_testnet_config(id: ParaId) -> ChainSpec {
+	ChainSpec::from_genesis(
+		// Name
 		"Local Testnet",
+		// ID
 		"local_testnet",
 		ChainType::Local,
 		move || {
 			testnet_genesis(
-				WASM_BINARY,
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -81,61 +103,34 @@ pub fn get_chain_spec(id: ParaId) -> Result<ChainSpec, String> {
 		vec![],
 		None,
 		None,
-		Some(properties),
+		None,
 		Extensions {
-			relay_chain: "local_testnet".into(),
+			relay_chain: "rococo-local".into(),
 			para_id: id.into(),
 		},
-	))
-}
-
-pub fn staging_test_net(id: ParaId) -> Result<ChainSpec, String> {
-	let mut properties = Properties::new();
-	properties.insert("tokenSymbol".into(), "STG".into());
-	properties.insert("tokenDecimals".into(), 12.into());
-
-	Ok(ChainSpec::from_genesis(
-		"Staging Testnet",
-		"staging_testnet",
-		ChainType::Live,
-		move || {
-			testnet_genesis(
-				WASM_BINARY,
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				id,
-			)
-		},
-		Vec::new(),
-		None,
-		None,
-		Some(properties),
-		Extensions {
-			relay_chain: "rococo_local_testnet".into(),
-			para_id: id.into(),
-		},
-	))
+	)
 }
 
 fn testnet_genesis(
-	wasm_binary: &[u8],
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> GenesisConfig {
-	GenesisConfig {
-		frame_system: Some(SystemConfig {
-			code: wasm_binary.to_vec(),
+) -> parachain_runtime::GenesisConfig {
+	parachain_runtime::GenesisConfig {
+		frame_system: Some(parachain_runtime::SystemConfig {
+			code: parachain_runtime::WASM_BINARY
+				.expect("WASM binary was not build, please build it!")
+				.to_vec(),
 			changes_trie_config: Default::default(),
 		}),
-		pallet_balances: Some(BalancesConfig {
+		pallet_balances: Some(parachain_runtime::BalancesConfig {
 			balances: endowed_accounts
 				.iter()
 				.cloned()
 				.map(|k| (k, 1 << 60))
 				.collect(),
 		}),
-		pallet_sudo: Some(SudoConfig { key: root_key }),
-		parachain_info: Some(ParachainInfoConfig { parachain_id: id }),
+		pallet_sudo: Some(parachain_runtime::SudoConfig { key: root_key }),
+		parachain_info: Some(parachain_runtime::ParachainInfoConfig { parachain_id: id }),
 	}
 }

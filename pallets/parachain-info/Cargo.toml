@@ -4,14 +4,33 @@ edition = "2018"
 name = "parachain-info"
 version = "0.1.0"
 
-[dependencies]
-codec = { package = "parity-scale-codec", version = "1.3.0", default-features = false, features = ["derive"] }
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
+[dependencies.codec]
+default-features = false
+features = ['derive']
+package = 'parity-scale-codec'
+version = '1.3.6'
 
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "rococo-branch" }
+[dependencies.serde]
+features = ['derive']
+optional = true
+version = '1.0.101'
 
-cumulus-primitives = { git = "https://github.com/paritytech/cumulus",  default-features = false, rev = '4e7f138c828bcf118df1c988a400d4dac8e904d9' }
+[dependencies.frame-support]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-v1"
+version = '2.0.0'
+
+[dependencies.frame-system]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = "rococo-v1"
+version = '2.0.0'
+
+[dependencies.cumulus-primitives]
+git = 'https://github.com/paritytech/cumulus.git'
+branch = "rococo-v1"
+default-features = false
 
 [features]
 default = ["std"]

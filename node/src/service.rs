@@ -1,24 +1,20 @@
-// Copyright 2020 Parity Technologies (UK) Ltd.
-
-use ansi_term::Color;
-use cumulus_network::DelayedBlockAnnounceValidator;
+use cumulus_network::build_block_announce_validator;
 use cumulus_service::{
 	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
 };
+use parachain_runtime::{RuntimeApi, opaque::Block};
 use polkadot_primitives::v0::CollatorPair;
-use parachain_runtime::opaque::Block;
 use sc_executor::native_executor_instance;
 pub use sc_executor::NativeExecutor;
-use sc_informant::OutputFormat;
 use sc_service::{Configuration, PartialComponents, Role, TFullBackend, TFullClient, TaskManager};
-use sp_api::ConstructRuntimeApi;
+use sp_core::Pair;
 use sp_runtime::traits::BlakeTwo256;
 use sp_trie::PrefixedMemoryDB;
 use std::sync::Arc;
 
 // Native executor instance.
 native_executor_instance!(
-	pub RuntimeExecutor,
+	pub Executor,
 	parachain_runtime::api::dispatch,
 	parachain_runtime::native_version,
 );
@@ -27,8 +23,8 @@ native_executor_instance!(
 ///
 /// Use this macro if you don't actually need the full service, but just the builder in order to
 /// be able to perform chain operations.
-pub fn new_partial<RuntimeApi, Executor>(
-	config: &mut Configuration,
+pub fn new_partial(
+	config: &Configuration,
 ) -> Result<
 	PartialComponents<
 		TFullClient<Block, RuntimeApi, Executor>,
@@ -39,27 +35,10 @@ pub fn new_partial<RuntimeApi, Executor>(
 		(),
 	>,
 	sc_service::Error,
->
-where
-	RuntimeApi: ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
-		+ Send
-		+ Sync
-		+ 'static,
-	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-		+ sp_api::Metadata<Block>
-		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<
-			Block,
-			Error = sp_blockchain::Error,
-			StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>,
-		> + sp_offchain::OffchainWorkerApi<Block>
-		+ sp_block_builder::BlockBuilder<Block>,
-	sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
-	Executor: sc_executor::NativeExecutionDispatch + 'static,
-{
+> {
 	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
 
-	let (client, backend, keystore, task_manager) =
+	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, Executor>(&config)?;
 	let client = Arc::new(client);
 
@@ -84,7 +63,7 @@ where
 		backend,
 		client,
 		import_queue,
-		keystore,
+		keystore_container,
 		task_manager,
 		transaction_pool,
 		inherent_data_providers,
@@ -98,46 +77,37 @@ where
 /// Start a node with the given parachain `Configuration` and relay chain `Configuration`.
 ///
 /// This is the actual implementation that is abstract over the executor and the runtime api.
-fn start_node_impl<RuntimeApi, Executor>(
+#[sc_cli::prefix_logs_with("Parachain")]
+async fn start_node_impl<RB>(
 	parachain_config: Configuration,
-	collator_key: Arc<CollatorPair>,
-	mut polkadot_config: polkadot_collator::Configuration,
+	collator_key: CollatorPair,
+	polkadot_config: Configuration,
 	id: polkadot_primitives::v0::Id,
 	validator: bool,
+	rpc_ext_builder: RB,
 ) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)>
 where
-	RuntimeApi: ConstructRuntimeApi<Block, TFullClient<Block, RuntimeApi, Executor>>
+	RB: Fn(
+			Arc<TFullClient<Block, RuntimeApi, Executor>>,
+		) -> jsonrpc_core::IoHandler<sc_rpc::Metadata>
 		+ Send
-		+ Sync
 		+ 'static,
-	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
-		+ sp_api::Metadata<Block>
-		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<
-			Block,
-			Error = sp_blockchain::Error,
-			StateBackend = sc_client_api::StateBackendFor<TFullBackend<Block>, Block>,
-		> + sp_offchain::OffchainWorkerApi<Block>
-		+ sp_block_builder::BlockBuilder<Block>,
-	sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
-	Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
 	if matches!(parachain_config.role, Role::Light) {
 		return Err("Light client not supported!".into());
 	}
 
-	let mut parachain_config = prepare_node_config(parachain_config);
+	let parachain_config = prepare_node_config(parachain_config);
 
-	parachain_config.informant_output_format = OutputFormat {
-		enable_color: true,
-		prefix: format!("[{}] ", Color::Yellow.bold().paint("Parachain")),
-	};
-	polkadot_config.informant_output_format = OutputFormat {
-		enable_color: true,
-		prefix: format!("[{}] ", Color::Blue.bold().paint("Relaychain")),
-	};
+	let polkadot_full_node =
+		cumulus_service::build_polkadot_full_node(polkadot_config, collator_key.public()).map_err(
+			|e| match e {
+				polkadot_service::Error::Sub(x) => x,
+				s => format!("{}", s).into(),
+			},
+		)?;
 
-	let params = new_partial::<RuntimeApi, Executor>(&mut parachain_config)?;
+	let params = new_partial(&parachain_config)?;
 	params
 		.inherent_data_providers
 		.register_provider(sp_timestamp::InherentDataProvider)
@@ -145,11 +115,12 @@ where
 
 	let client = params.client.clone();
 	let backend = params.backend.clone();
-	let block_announce_validator = DelayedBlockAnnounceValidator::new();
-	let block_announce_validator_builder = {
-		let block_announce_validator = block_announce_validator.clone();
-		move |_| Box::new(block_announce_validator) as Box<_>
-	};
+	let block_announce_validator = build_block_announce_validator(
+		polkadot_full_node.client.clone(),
+		id,
+		Box::new(polkadot_full_node.network.clone()),
+		polkadot_full_node.backend.clone(),
+	);
 
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let transaction_pool = params.transaction_pool.clone();
@@ -163,35 +134,43 @@ where
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			on_demand: None,
-			block_announce_validator_builder: Some(Box::new(block_announce_validator_builder)),
-			finality_proof_request_builder: None,
-			finality_proof_provider: None,
+			block_announce_validator_builder: Some(Box::new(|_| block_announce_validator)),
 		})?;
+
+	let rpc_client = client.clone();
+	let rpc_extensions_builder = Box::new(move |_, _| rpc_ext_builder(rpc_client.clone()));
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
 		on_demand: None,
 		remote_blockchain: None,
-		rpc_extensions_builder: Box::new(|_| ()),
+		rpc_extensions_builder,
 		client: client.clone(),
 		transaction_pool: transaction_pool.clone(),
 		task_manager: &mut task_manager,
 		telemetry_connection_sinks: Default::default(),
 		config: parachain_config,
-		keystore: params.keystore,
-		backend,
+		keystore: params.keystore_container.sync_keystore(),
+		backend: backend.clone(),
 		network: network.clone(),
 		network_status_sinks,
 		system_rpc_tx,
 	})?;
 
-	let announce_block = Arc::new(move |hash, data| network.announce_block(hash, data));
+	let announce_block = {
+		let network = network.clone();
+		Arc::new(move |hash, data| network.announce_block(hash, data))
+	};
 
 	if validator {
 		let proposer_factory = sc_basic_authorship::ProposerFactory::new(
+			task_manager.spawn_handle(),
 			client.clone(),
 			transaction_pool,
 			prometheus_registry.as_ref(),
 		);
+		let spawner = task_manager.spawn_handle();
+
+		let polkadot_backend = polkadot_full_node.backend.clone();
 
 		let params = StartCollatorParams {
 			para_id: id,
@@ -201,22 +180,22 @@ where
 			block_status: client.clone(),
 			announce_block,
 			client: client.clone(),
-			block_announce_validator,
 			task_manager: &mut task_manager,
-			polkadot_config,
 			collator_key,
+			polkadot_full_node,
+			spawner,
+			backend,
+			polkadot_backend,
 		};
 
-		start_collator(params)?;
+		start_collator(params).await?;
 	} else {
 		let params = StartFullNodeParams {
 			client: client.clone(),
 			announce_block,
-			polkadot_config,
-			collator_key,
-			block_announce_validator,
 			task_manager: &mut task_manager,
 			para_id: id,
+			polkadot_full_node,
 		};
 
 		start_full_node(params)?;
@@ -228,21 +207,20 @@ where
 }
 
 /// Start a normal parachain node.
-pub fn start_node(
+pub async fn start_node(
 	parachain_config: Configuration,
-	collator_key: Arc<CollatorPair>,
-	polkadot_config: polkadot_collator::Configuration,
+	collator_key: CollatorPair,
+	polkadot_config: Configuration,
 	id: polkadot_primitives::v0::Id,
 	validator: bool,
-) -> sc_service::error::Result<(
-	TaskManager,
-	Arc<TFullClient<Block, parachain_runtime::RuntimeApi, RuntimeExecutor>>,
-)> {
-	start_node_impl::<parachain_runtime::RuntimeApi, RuntimeExecutor>(
+) -> sc_service::error::Result<(TaskManager, Arc<TFullClient<Block, RuntimeApi, Executor>>)> {
+	start_node_impl(
 		parachain_config,
 		collator_key,
 		polkadot_config,
 		id,
 		validator,
+		|_| Default::default(),
 	)
+	.await
 }

@@ -18,33 +18,18 @@ If necessary, refer to the setup instructions at the
 
 ### Build
 
-```
-rustup install nightly-2020-10-06
-rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
-```
-
 Once the development environment is set up, build the node template. This command will build the
 [Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
 [native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
 
 ```bash
-cargo +nightly-2020-10-06 build --release
+cargo build --release
 ```
-
-## Polkadot JS types
-```
-{
-  "Address": "AccountId",
-  "LookupSource": "AccountId",
-  "RefCount": "u8"
-}
-```
-
 ## Run
 
 ### Local Testnet
 
-Polkadot (rococo-branch):
+Polkadot (rococo-v1 branch):
 ```
 ./target/release/polkadot build-spec --chain rococo-local --raw --disable-default-bootnode > rococo_local.json
 
@@ -55,13 +40,7 @@ Polkadot (rococo-branch):
 Substrate Parachain Template:
 ```
 # this command assumes the chain spec is in a directory named polkadot that is a sibling of the working directory
-./target/release/parachain-collator -d local-test --validator --ws-port 9945 --parachain-id 200 -- --chain ../polkadot/rococo_local.json
-```
-
-Or, start a staging chain with detailed logging:
-
-```bash
-RUST_LOG=debug RUST_BACKTRACE=1 ./target/release/parachain-collator -lruntime=debug --chain staging -- --chain ../polkadot/rococo_local.json
+./target/release/parachain-collator -d local-test --collator --alice --ws-port 9945 --parachain-id 200 -- --chain ../polkadot/rococo_local.json
 ```
 
 ## Learn More

@@ -1,11 +1,9 @@
-[workspace]
-members = [
-	"runtime/",
-	"pallets/parachain-info",
-	"pallets/token-dealer",
-	"pallets/template",
-	"node/",
-]
-
 [profile.release]
 panic = 'unwind'
+
+[workspace]
+members = [
+    'node',
+    'pallets/*',
+    'runtime',
+]
