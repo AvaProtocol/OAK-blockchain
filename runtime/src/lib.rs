@@ -101,7 +101,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("cumulus-test-parachain"),
 	impl_name: create_runtime_str!("cumulus-test-parachain"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 100,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
@@ -113,7 +113,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// up by `pallet_aura` to implement `fn slot_duration()`.
 ///
 /// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 6000;
+pub const MILLISECS_PER_BLOCK: u64 = 12000;
 
 pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
 
@@ -271,13 +271,10 @@ impl pallet_sudo::Config for Runtime {
 	type Call = Call;
 }
 
-impl cumulus_parachain_upgrade::Config for Runtime {
+impl cumulus_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnValidationData = ();
 	type SelfParaId = parachain_info::Module<Runtime>;
-}
-
-impl cumulus_message_broker::Config for Runtime {
 	type DownwardMessageHandlers = ();
 	type HrmpMessageHandlers = ();
 }
@@ -332,8 +329,8 @@ impl Config for XcmConfig {
 impl xcm_handler::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type UpwardMessageSender = MessageBroker;
-	type HrmpMessageSender = MessageBroker;
+	type UpwardMessageSender = ParachainSystem;
+	type HrmpMessageSender = ParachainSystem;
 }
 
 /// Configure the pallet template in pallets/template.
@@ -353,8 +350,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
 		Sudo: pallet_sudo::{Module, Call, Storage, Config<T>, Event<T>},
 		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Call, Storage},
-		ParachainUpgrade: cumulus_parachain_upgrade::{Module, Call, Storage, Inherent, Event},
-		MessageBroker: cumulus_message_broker::{Module, Storage, Call, Inherent},
+		ParachainSystem: cumulus_parachain_system::{Module, Call, Storage, Inherent, Event},
 		TransactionPayment: pallet_transaction_payment::{Module, Storage},
 		ParachainInfo: parachain_info::{Module, Storage, Config},
 		XcmHandler: xcm_handler::{Module, Event<T>, Origin},
