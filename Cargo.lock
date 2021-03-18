@@ -1107,7 +1107,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-collator"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-client-consensus-common",
  "cumulus-client-network",
@@ -1131,7 +1131,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-common"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "async-trait",
  "dyn-clone",
@@ -1156,7 +1156,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-consensus-relay-chain"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "async-trait",
  "cumulus-client-consensus-common",
@@ -1181,7 +1181,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-network"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "derive_more 0.99.11",
  "futures 0.3.13",
@@ -1205,7 +1205,7 @@ dependencies = [
 [[package]]
 name = "cumulus-client-service"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-client-collator",
  "cumulus-client-consensus-common",
@@ -1229,7 +1229,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-parachain-system"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-primitives-core",
  "cumulus-primitives-parachain-inherent",
@@ -1258,7 +1258,7 @@ dependencies = [
 [[package]]
 name = "cumulus-pallet-xcm-handler"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -1273,7 +1273,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-core"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "impl-trait-for-tuples",
  "parity-scale-codec",
@@ -1288,7 +1288,7 @@ dependencies = [
 [[package]]
 name = "cumulus-primitives-parachain-inherent"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-primitives-core",
  "parity-scale-codec",
@@ -2968,7 +2968,7 @@ dependencies = [
 [[package]]
 name = "kusama-runtime"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-executive",
@@ -3748,7 +3748,7 @@ dependencies = [
 [[package]]
 name = "metered-channel"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -4762,7 +4762,7 @@ dependencies = [
 [[package]]
 name = "parachain-info"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#24b1ee6bd1d96f255889f167e59ef9c9399a6305"
+source = "git+https://github.com/paritytech/cumulus.git?branch=rococo-v1#8771d9431b66124d240c419f5300af671a82b5e5"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -5235,7 +5235,7 @@ checksum = "989d43012e2ca1c4a02507c67282691a0a3207f9dc67cec596b43fe925b3d325"
 [[package]]
 name = "polkadot-approval-distribution"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-network-protocol",
@@ -5244,13 +5244,12 @@ dependencies = [
  "polkadot-node-subsystem-util",
  "polkadot-primitives",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-availability-bitfield-distribution"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "parity-scale-codec",
@@ -5259,13 +5258,12 @@ dependencies = [
  "polkadot-node-subsystem-util",
  "polkadot-primitives",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-availability-distribution"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "lru",
@@ -5282,13 +5280,12 @@ dependencies = [
  "sp-keystore",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-availability-recovery"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -5302,13 +5299,12 @@ dependencies = [
  "streamunordered",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-cli"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-benchmarking-cli",
  "futures 0.3.13",
@@ -5322,14 +5318,13 @@ dependencies = [
  "structopt",
  "substrate-build-script-utils",
  "thiserror",
- "tracing-futures",
  "try-runtime-cli",
 ]
 
 [[package]]
 name = "polkadot-collator-protocol"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-network-protocol",
@@ -5339,13 +5334,12 @@ dependencies = [
  "polkadot-primitives",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-core-primitives"
 version = "0.7.30"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "parity-scale-codec",
  "parity-util-mem",
@@ -5357,7 +5351,7 @@ dependencies = [
 [[package]]
 name = "polkadot-erasure-coding"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -5370,7 +5364,7 @@ dependencies = [
 [[package]]
 name = "polkadot-gossip-support"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-network-protocol",
@@ -5379,13 +5373,12 @@ dependencies = [
  "polkadot-primitives",
  "rand 0.8.3",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-network-bridge"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "async-trait",
  "futures 0.3.13",
@@ -5397,13 +5390,12 @@ dependencies = [
  "sc-network",
  "strum",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-collation-generation"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-erasure-coding",
@@ -5414,13 +5406,12 @@ dependencies = [
  "sp-core",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-approval-voting"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "derive_more 0.99.11",
@@ -5444,13 +5435,12 @@ dependencies = [
  "sp-consensus-slots",
  "sp-runtime",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-av-store"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "futures 0.3.13",
@@ -5466,13 +5456,12 @@ dependencies = [
  "sc-service",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-backing"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "futures 0.3.13",
@@ -5485,13 +5474,12 @@ dependencies = [
  "sp-keystore",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-bitfield-signing"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-subsystem",
@@ -5500,14 +5488,13 @@ dependencies = [
  "sp-keystore",
  "thiserror",
  "tracing",
- "tracing-futures",
  "wasm-timer",
 ]
 
 [[package]]
 name = "polkadot-node-core-candidate-selection"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-primitives",
@@ -5517,13 +5504,12 @@ dependencies = [
  "sp-keystore",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-candidate-validation"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "parity-scale-codec",
@@ -5534,13 +5520,12 @@ dependencies = [
  "polkadot-primitives",
  "sp-core",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-chain-api"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-subsystem",
@@ -5548,13 +5533,12 @@ dependencies = [
  "polkadot-primitives",
  "sp-blockchain",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-proposer"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "futures-timer 3.0.2",
@@ -5578,7 +5562,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-core-provisioner"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "futures 0.3.13",
@@ -5588,13 +5572,12 @@ dependencies = [
  "polkadot-primitives",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-core-runtime-api"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "memory-lru",
@@ -5606,13 +5589,12 @@ dependencies = [
  "sp-consensus-babe",
  "sp-core",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-jaeger"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "async-std",
  "lazy_static",
@@ -5629,7 +5611,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-network-protocol"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "parity-scale-codec",
@@ -5645,7 +5627,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-primitives"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "parity-scale-codec",
@@ -5663,7 +5645,7 @@ dependencies = [
 [[package]]
 name = "polkadot-node-subsystem"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "async-std",
  "async-trait",
@@ -5688,13 +5670,12 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-node-subsystem-util"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "async-trait",
  "futures 0.3.13",
@@ -5715,13 +5696,12 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-overseer"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "async-trait",
  "futures 0.3.13",
@@ -5733,13 +5713,12 @@ dependencies = [
  "polkadot-primitives",
  "sc-client-api",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-parachain"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "derive_more 0.99.11",
  "futures 0.3.13",
@@ -5766,7 +5745,7 @@ dependencies = [
 [[package]]
 name = "polkadot-pov-distribution"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "futures 0.3.13",
  "polkadot-node-network-protocol",
@@ -5775,13 +5754,12 @@ dependencies = [
  "polkadot-primitives",
  "thiserror",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-primitives"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-system",
@@ -5809,7 +5787,7 @@ dependencies = [
 [[package]]
 name = "polkadot-procmacro-subsystem-dispatch-gen"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "assert_matches",
  "proc-macro2 1.0.24",
@@ -5820,7 +5798,7 @@ dependencies = [
 [[package]]
 name = "polkadot-rpc"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "jsonrpc-core",
  "pallet-transaction-payment-rpc",
@@ -5850,7 +5828,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-executive",
@@ -5916,7 +5894,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-common"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-support",
@@ -5952,7 +5930,7 @@ dependencies = [
 [[package]]
 name = "polkadot-runtime-parachains"
 version = "0.8.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "derive_more 0.99.11",
@@ -5989,7 +5967,7 @@ dependencies = [
 [[package]]
 name = "polkadot-service"
 version = "0.8.3"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-benchmarking",
  "frame-system-rpc-runtime-api",
@@ -6067,14 +6045,13 @@ dependencies = [
  "substrate-prometheus-endpoint",
  "thiserror",
  "tracing",
- "tracing-futures",
  "westend-runtime",
 ]
 
 [[package]]
 name = "polkadot-statement-distribution"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "arrayvec 0.5.2",
  "futures 0.3.13",
@@ -6086,13 +6063,12 @@ dependencies = [
  "polkadot-primitives",
  "sp-staking",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
 name = "polkadot-statement-table"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "parity-scale-codec",
  "polkadot-primitives",
@@ -6102,7 +6078,7 @@ dependencies = [
 [[package]]
 name = "polkadot-test-runtime"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-executive",
@@ -6157,7 +6133,7 @@ dependencies = [
 [[package]]
 name = "polkadot-test-service"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-benchmarking",
  "frame-system",
@@ -6204,7 +6180,6 @@ dependencies = [
  "substrate-test-client",
  "tempfile",
  "tracing",
- "tracing-futures",
 ]
 
 [[package]]
@@ -6842,7 +6817,7 @@ dependencies = [
 [[package]]
 name = "rococo-runtime"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-executive",
  "frame-support",
@@ -10440,7 +10415,7 @@ dependencies = [
 [[package]]
 name = "westend-runtime"
 version = "0.8.29"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "bitvec",
  "frame-executive",
@@ -10597,7 +10572,7 @@ dependencies = [
 [[package]]
 name = "xcm"
 version = "0.8.22"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -10605,7 +10580,7 @@ dependencies = [
 [[package]]
 name = "xcm-builder"
 version = "0.8.22"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -10621,7 +10596,7 @@ dependencies = [
 [[package]]
 name = "xcm-executor"
 version = "0.8.22"
-source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#72243baaedf3ded4226032949a23f8478f5565d9"
+source = "git+https://github.com/paritytech/polkadot?branch=rococo-v1#46c826f595021475fa5dbcd0987ed53f104e6e15"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
