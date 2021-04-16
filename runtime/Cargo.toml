@@ -17,6 +17,7 @@ substrate-wasm-builder = '4.0.0'
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 hex-literal = { optional = true, version = '0.3.1' }
 serde = { version = "1.0.119", optional = true, features = ["derive"] }
+static_assertions = "1.1.0"
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
@@ -33,6 +34,12 @@ pallet-sudo = { default-features = false, version = '3.0.0' }
 pallet-timestamp = { default-features = false, version = '3.0.0' }
 pallet-transaction-payment = { default-features = false, version = '3.0.0' }
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+pallet-collective = { version = "3.0.0", default-features = false }
+pallet-membership = { version = "3.0.0", default-features = false }
+pallet-elections-phragmen = { version = "3.0.0", default-features = false }
+pallet-treasury = { version = "3.0.0", default-features = false }
+pallet-tips = { version = "3.0.0", default-features = false }
+pallet-bounties = { version = "3.0.0", default-features = false }
 sp-api = { default-features = false, version = '3.0.0' }
 sp-block-builder = { default-features = false, version = '3.0.0' }
 sp-consensus-aura = { default-features = false, version = '0.9.0' }
@@ -76,6 +83,12 @@ std = [
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
+    "pallet-collective/std",
+    "pallet-membership/std",
+    "pallet-elections-phragmen/std",
+    "pallet-treasury/std",
+    "pallet-tips/std",
+    "pallet-bounties/std",
     'serde',
     'sp-api/std',
     'sp-block-builder/std',
