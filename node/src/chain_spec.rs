@@ -164,5 +164,6 @@ fn testnet_genesis(
 		pallet_membership_Instance1: Some(Default::default()),
 		pallet_elections_phragmen: Some(Default::default()),
 		pallet_treasury: Some(Default::default()),
+		pallet_democracy: Some(Default::default()),
 	}
 }

@@ -3566,10 +3566,12 @@ dependencies = [
  "pallet-balances",
  "pallet-bounties",
  "pallet-collective",
+ "pallet-democracy",
  "pallet-elections-phragmen",
  "pallet-grandpa",
  "pallet-membership",
  "pallet-randomness-collective-flip",
+ "pallet-scheduler",
  "pallet-sudo",
  "pallet-template",
  "pallet-timestamp",
@@ -3813,6 +3815,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-democracy"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f2be1b6b34f7208d4e85bb2129de6ed319e43e2cf7ae6fc8f3e32797f55724b"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-elections-phragmen"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3874,6 +3892,22 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "safe-mix",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-scheduler"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "11230ac868a04833d27a18f37d00572d26866f4718e9cce0557d698e3997b6d6"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "serde",
+ "sp-io",
  "sp-runtime",
  "sp-std",
 ]
