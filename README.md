@@ -1,142 +1,121 @@
-# Substrate Cumulus Parachain Template
+<a href="https://github.com/w3f/Open-Grants-Program/pull/268"><img src="https://user-images.githubusercontent.com/2616844/113636716-e3857f80-9627-11eb-842a-dcb1e1a96689.png" alt="oak-web3-open-grant" /></a>
+OAK(Onchain Autonomous Framework) is a unique blockchain built on Substrate framework with event-driven smart contract VM, autonomous transactions, and on-chain scheduler.
 
-A new Cumulus-based Substrate node, ready for hacking :cloud:
+Documentation
+----------
 
-## Upstream
+* [Website](https://oak.tech/)
+* [Documentation]()
 
-This project is a fork of the
-[Substrate Developer Hub Node Template](https://github.com/substrate-developer-hub/substrate-node-template).
+<!--- 
 
-## Build & Run
+Whitepaper
+----------
 
-Follow these steps to prepare a local Substrate development environment :hammer_and_wrench:
+* [Whitepaper]()
+-->
 
-### Setup
+Community
+--------- 
 
-If necessary, refer to the setup instructions at the
-[Substrate Developer Hub](https://substrate.dev/docs/en/knowledgebase/getting-started/#manual-installation).
+* General discussion: [Telegram (Coming Soon)]()
+* Technical discussion: [Discord (Coming Soon)]()
+* Subscribe on [OAK Twitter](https://twitter.com/OAKSubstrate)
+* Subscribe on [Founder's Twitter](https://twitter.com/chrisli2046)
 
-### Build
+Table of Contents
+-----------------
 
-Once the development environment is set up, build the node template. This command will build the
-[Wasm](https://substrate.dev/docs/en/knowledgebase/advanced/executor#wasm-execution) and
-[native](https://substrate.dev/docs/en/knowledgebase/advanced/executor#native-execution) code:
+* [Introduction]()
+* [Install OAK]()
+* [OAK Validator Program]()
 
-```bash
-cargo build --release
-```
-## Run
+Introduction
+============
 
-### Local Relay Chain Testnet
+**OAK, or Onchain Automation Framework, is equipped with a novel smart contract virtual machine that supports an event-driven execution model, enabling developers to build fully autonomous decentralized application. **By extending the current set of atomic operations, namely, opcodes of EVM, OAK introduces an innovative way for contracts to interact with each other. Contracts can emit signal events, on which other contracts can listen. Once an event is triggered, corresponding handler functions are automatically executed as a new type of transaction, signal transaction. Applications implemented with the new approach will eliminate the dependency of unreliable mechanisms like off-chain relay servers, and in return, to significantly simplify the execution flow of the application and can avoid security risks such as relay manipulation attacks.
 
-#### Relay Chain Network(Validators)
+Based on the above, OAK has some features.
+- **[OAK Virtual Machine]()**
+- **[Autonomous Transactions]()**
+- **[Onchain Relayer]()**
+- **[Validator Staking]()**
 
-We need to clone and install the Polkadot (rococo-v1 branch):
-```bash
-# Get a fresh clone, or `cd` to where you have polkadot already:
-git clone git@github.com:paritytech/polkadot.git
-cd polkadot
-git checkout rococo-v1
+Once Polkadot is launched, we will connect our root chain to Polkadot, and we aim to be one of the parachains.
 
-# build polkadot relay chain
-cargo build --release
+Install OAK Blockchain 
+=============
 
-# generaete the chainspec - note this file MUST be shared with all nodes!
-# Other nodes cannot generate it due to possible non-determanism 
-./target/release/polkadot build-spec --chain rococo-local --raw --disable-default-bootnode > rococo_local.json
+* OAK releases [releases]().
+* Node [custom types](). 
 
-# Start Relay `Alice` node
-./target/release/polkadot --chain ./rococo_local.json -d cumulus_relay0 --validator --alice --port 50556
-```
+> Latest version you can try to build from source.
 
-Open a new terminal, same directory: 
+Building from source
+--------------------
 
-```bash 
-# Start Relay `Bob` node
-./target/release/polkadot --chain ./rococo_local.json -d cumulus_relay1 --validator --bob --port 50555
-```
+Ensure you have Rust and the support software:
 
-> There _must_ be a minimum of 2 relay chain nodes per parachain node. Scale as needed!
+    curl https://sh.rustup.rs -sSf | sh
+    # on Windows download and run rustup-init.exe
+    # from https://rustup.rs instead
 
-#### Parachain Nodes (Collators)
+    rustup update nightly
+    rustup target add wasm32-unknown-unknown --toolchain nightly
 
-Substrate Parachain Template:
-```bash
-# NOTE: this command assumes the chain spec is in a directory named polkadot that is a sibling of the working directory
-./target/release/parachain-collator -d local-test --collator --alice --ws-port 9945 --parachain-id 200 -- --execution wasm --chain ../polkadot/rococo_local.json
-```
+You will also need to install the following dependencies:
 
-> Note: this chainspec file MUST be shared with all nodes genereated by _one_ validator node and passed around.
-> Other nodes cannot generate it due to possible non-determanism 
+* Linux: `sudo apt install cmake git clang libclang-dev build-essential`
+* Mac: `brew install cmake git llvm`
+* Windows: Download and install the Pre Build Windows binaries of LLVM from http://releases.llvm.org/download.html
 
-### Registering on Local Relay Chain
+Install additional build tools:
 
-#### Export the Parachain Genesis and Runtime
+    cargo +nightly install --git https://github.com/alexcrichton/wasm-gc
 
-The files you will need to register we will generate in a `./resources` folder, to build them because
-you modified the code you can use the following commands:
+Install the OAK node from git source:
 
-```bash
-# Build the parachain node (from it's top level dir)
-cargo build --release
+    
 
-# Build the Chain spec
-./target/release/parachain-collator build-spec \
---disable-default-bootnode > ./resources/template-local-plain.json
+Run node on [Dusty Network](https://telemetry.polkadot.io/#list/Dusty):
 
-# Build the raw file
-./target/release/parachain-collator build-spec \
---chain=./resources/template-local-plain.json \
---raw --disable-default-bootnode > ./resources/template-local.json
+    oak
+
+Or run on your local development network:
+
+    oak --dev
+
+Building with Nix
+-----------------
+
+Install Nix package manager:
+
+    curl https://nixos.org/nix/install | sh
+
+Run on your Nix shell:
+
+    git clone
 
 
-# Export genesis state to `./resources files
-./target/release/parachain-collator export-genesis-state --parachain-id 200 > ./resources/para-200-genesis
-# export runtime wasm
-./target/release/parachain-collator export-genesis-wasm > ./resources/para-200-wasm
-```
+Future Works
+------------
+Here are the key milestones.
 
-#### Register on the Relay with `sudo`
+1. Start the crowdloan with Kusama network
+1. Become a Kusama Parachain (TBA)
+1. Become a Polkadot Parachain. (TBA)
 
-In order to produce blocks you will need to register the parachain as detailed in the [Substrate Cumulus Worship](https://substrate.dev/cumulus-workshop/#/en/3-parachains/2-register) by going to 
+If you have any questions, please ask us on [Discord]()
 
-`Developer -> sudo -> paraSudoWrapper -> sudoScheduleParaInitialize(id, genesis)`
+Contacts
+--------
 
-> Note : When registering to Rococo, ensure you set a ParaId > 1000, below 1000 is meant for system parachains.
+**Maintainers**
 
-Ensure you set the `ParaId to 200` and the `parachain: Bool to Yes`.
+* [Chris Li](https://github.com/chrisli30)
+* [Xingyou Chen](https://github.com/imstar15)
+* [Zhongwei Shi](https://github.com/amazingbeerbelly)
 
-The files you will need are in the `./resources` folder, you just created.
+* * *
 
-#### Restart the Parachain (Collator) and Wait...
-
-The collator node may need to be restarted to get it functioning as expected. After a [new era](https://wiki.polkadot.network/docs/en/glossary#era) starts on the relay chain, your parachain will come online. Once this happens, you should see the
-collator start reporting _parachian_ blocks:
-
-```bash
-2021-04-01 16:31:06 [Relaychain] ✨ Imported #243 (0x46d8…f394)    
-2021-04-01 16:31:06 [Relaychain] 👴 Applying authority set change scheduled at block #191    
-2021-04-01 16:31:06 [Relaychain] 👴 Applying GRANDPA set change to new set [(Public(88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee (5FA9nQDV...)), 1), (Public(d17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69 (5GoNkf6W...)), 1)]    
-2021-04-01 16:31:06 [Relaychain] 👴 Imported justification for block #191 that triggers command Changing authorities, signaling voter.    
-2021-04-01 16:31:06 [Parachain] Starting collation. relay_parent=0x46d87d4b55ffcd2d2dde3ee2459524c41da48ac970fb1448feaa26777b14f394 at=0x85c655663ad333b1508d0e4a373e86c08eb5b5353a3eef532a572af6395c45be
-2021-04-01 16:31:06 [Parachain] 🙌 Starting consensus session on top of parent 0x85c655663ad333b1508d0e4a373e86c08eb5b5353a3eef532a572af6395c45be    
-2021-04-01 16:31:06 [Parachain] 🎁 Prepared block for proposing at 91 [hash: 0x078560513ac1862fed0caf5726b7ca024c2af6a28861c6c69776b61fcf5d3e1f; parent_hash: 0x85c6…45be; extrinsics (2): [0x8909…1c6c, 0x12ac…5583]]    
-2021-04-01 16:31:06 [Parachain] Produced proof-of-validity candidate. pov_hash=0x836cd0d72bf587343cdd5d4f8631ceb9b863faaa5e878498f833c7f656d05f71 block_hash=0x078560513ac1862fed0caf5726b7ca024c2af6a28861c6c69776b61fcf5d3e1f
-2021-04-01 16:31:06 [Parachain] ✨ Imported #91 (0x0785…3e1f)    
-2021-04-01 16:31:09 [Relaychain] 💤 Idle (2 peers), best: #243 (0x46d8…f394), finalized #192 (0x9fb4…4b28), ⬇ 1.0kiB/s ⬆ 3.2kiB/s    
-2021-04-01 16:31:09 [Parachain] 💤 Idle (0 peers), best: #90 (0x85c6…45be), finalized #64 (0x10af…4ede), ⬇ 1.1kiB/s ⬆ 1.0kiB/s    
-2021-04-01 16:31:12 [Relaychain] ✨ Imported #244 (0xe861…d99d)    
-2021-04-01 16:31:14 [Relaychain] 💤 Idle (2 peers), best: #244 (0xe861…d99d), finalized #193 (0x9225…85f1), ⬇ 2.0kiB/s ⬆ 1.6kiB/s    
-2021-04-01 16:31:14 [Parachain] 💤 Idle (0 peers), best: #90 (0x85c6…45be), finalized #65 (0xdd20…d44a), ⬇ 1.6kiB/s ⬆ 1.4kiB/s    
-``` 
-
-> Note the delay here! It may take some time for your relaychain to enter a new era. 
-
-## Learn More
-
-Refer to the upstream
-[Substrate Developer Hub Node Template](https://github.com/substrate-developer-hub/substrate-node-template)
-to learn more about the structure of this project, the capabilities it encapsulates and the way in
-which those capabilities are implemented. You can learn more about
-[The Path of Parachain Block](https://polkadot.network/the-path-of-a-parachain-block/) on the
-official Polkadot Blog.
+OAK blockchain is licensed under the GPLv3.0 by OAK Foundation.
