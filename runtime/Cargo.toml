@@ -151,6 +151,12 @@ git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
 version = '3.0.0'
 
+[dependencies.pallet-identity]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = 'rococo-v1'
+version = '3.0.0'
+
 [dependencies.serde]
 features = ['derive']
 optional = true
@@ -289,6 +295,11 @@ default-features = false
 package = 'pallet-template'
 path = '../pallets/template'
 
+[dependencies.pallet-open-grant]
+default-features = false
+package = 'pallet-open-grant'
+path = '../pallets/open-grant'
+
 [features]
 default = ['std']
 runtime-benchmarks = [
@@ -325,14 +336,15 @@ std = [
 	'pallet-timestamp/std',
 	'pallet-sudo/std',
 	'pallet-transaction-payment/std',
-	"pallet-collective/std",
-	"pallet-membership/std",
-	"pallet-elections-phragmen/std",
-	"pallet-treasury/std",
-	"pallet-tips/std",
-	"pallet-bounties/std",
-	"pallet-democracy/std",
-	"pallet-scheduler/std",
+	'pallet-collective/std',
+	'pallet-membership/std',
+	'pallet-elections-phragmen/std',
+	'pallet-treasury/std',
+	'pallet-tips/std',
+	'pallet-bounties/std',
+	'pallet-democracy/std',
+	'pallet-scheduler/std',
+	'pallet-identity/std',
 	'parachain-info/std',
 	'cumulus-pallet-parachain-system/std',
 	'cumulus-primitives-core/std',
