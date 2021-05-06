@@ -139,6 +139,18 @@ git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
 version = '3.0.0'
 
+[dependencies.pallet-democracy]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = 'rococo-v1'
+version = '3.0.0'
+
+[dependencies.pallet-scheduler]
+default-features = false
+git = 'https://github.com/paritytech/substrate.git'
+branch = 'rococo-v1'
+version = '3.0.0'
+
 [dependencies.serde]
 features = ['derive']
 optional = true
@@ -319,6 +331,8 @@ std = [
 	"pallet-treasury/std",
 	"pallet-tips/std",
 	"pallet-bounties/std",
+	"pallet-democracy/std",
+	"pallet-scheduler/std",
 	'parachain-info/std',
 	'cumulus-pallet-parachain-system/std',
 	'cumulus-primitives-core/std',
