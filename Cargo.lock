@@ -4823,6 +4823,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-open-grant"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "integer-sqrt",
+ "pallet-identity",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "pallet-proxy"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate.git?branch=rococo-v1#68cfc326fa0e3d96d0d92509e4db1a104b9da9bb"
@@ -5197,7 +5214,9 @@ dependencies = [
  "pallet-collective",
  "pallet-democracy",
  "pallet-elections-phragmen",
+ "pallet-identity",
  "pallet-membership",
+ "pallet-open-grant",
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-sudo",

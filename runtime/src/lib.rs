@@ -59,6 +59,9 @@ pub use sp_runtime::{Percent, Perbill, Permill, Perquintill};
 /// Import the template pallet.
 pub use template;
 
+/// Import the open grant pallet.
+pub use pallet_open_grant;
+
 /// An index to a block.
 pub type BlockNumber = u32;
 
@@ -690,6 +693,47 @@ impl template::Config for Runtime {
 	type Event = Event;
 }
 
+parameter_types! {
+	pub const BasicDeposit: u64 = 10;
+	pub const FieldDeposit: u64 = 10;
+	pub const SubAccountDeposit: u64 = 10;
+	pub const MaxSubAccounts: u32 = 2;
+	pub const MaxAdditionalFields: u32 = 2;
+	pub const MaxRegistrars: u32 = 20;
+}
+
+type EnsureRootOrHalfCouncil = EnsureOneOf<
+	AccountId,
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>
+>;
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type Slashed = ();
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+	type MaxSubAccounts = MaxSubAccounts;
+	type MaxAdditionalFields = MaxAdditionalFields;
+	type MaxRegistrars = MaxRegistrars;
+	type RegistrarOrigin = EnsureRootOrHalfCouncil;
+	type ForceOrigin = EnsureRootOrHalfCouncil;
+	type WeightInfo = ();
+}
+
+/// Configure the pallet open grant in pallets/open-grant.
+parameter_types! {
+	pub const OpenGrantPalletId: PalletId = PalletId(*b"py/opgrd");
+}
+
+impl pallet_open_grant::Config for Runtime {
+    type Event = Event;
+	type PalletId = OpenGrantPalletId;
+	type Currency = Balances;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -718,6 +762,8 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Origin},
 		Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
 		TemplatePallet: template::{Pallet, Call, Storage, Event<T>},
+        OpenGrant: pallet_open_grant::{Pallet, Call, Storage, Event<T>, Config<T>},
+        Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
 	}
 );
 

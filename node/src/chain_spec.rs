@@ -1,5 +1,5 @@
 use cumulus_primitives_core::ParaId;
-use parachain_runtime::{AccountId, Signature, CouncilConfig, TechnicalCommitteeConfig};
+use parachain_runtime::{AccountId, Signature, CouncilConfig, TechnicalCommitteeConfig, OpenGrantConfig};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -144,5 +144,10 @@ fn testnet_genesis(
 		pallet_elections_phragmen: Default::default(),
 		pallet_treasury: Default::default(),
 		pallet_democracy: Default::default(),
+		pallet_open_grant: OpenGrantConfig {
+			init_max_grant_count_per_round: 60,
+			init_withdrawal_expiration: 1000,
+			init_is_identity_required: false,
+		},
 	}
 }
