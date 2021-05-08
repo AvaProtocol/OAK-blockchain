@@ -119,7 +119,7 @@ version = '3.0.0'
 default-features = false
 git = 'https://github.com/paritytech/substrate.git'
 branch = 'rococo-v1'
-version = '3.0.0'
+version = '4.0.0'
 
 [dependencies.pallet-treasury]
 default-features = false
