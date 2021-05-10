@@ -1,4 +1,5 @@
 use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
 use parachain_runtime::{AccountId, Signature, CouncilConfig, TechnicalCommitteeConfig, OpenGrantConfig};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -112,6 +113,72 @@ pub fn local_testnet_config(id: ParaId) -> ChainSpec {
 }
 
 fn testnet_genesis(
+	root_key: AccountId,
+	endowed_accounts: Vec<AccountId>,
+	id: ParaId,
+) -> parachain_runtime::GenesisConfig {
+	parachain_runtime::GenesisConfig {
+		frame_system: parachain_runtime::SystemConfig {
+			code: parachain_runtime::WASM_BINARY
+				.expect("WASM binary was not build, please build it!")
+				.to_vec(),
+			changes_trie_config: Default::default(),
+		},
+		pallet_balances: parachain_runtime::BalancesConfig {
+			balances: endowed_accounts
+				.iter()
+				.cloned()
+				.map(|k| (k, 1 << 60))
+				.collect(),
+		},
+		pallet_sudo: parachain_runtime::SudoConfig { key: root_key },
+		parachain_info: parachain_runtime::ParachainInfoConfig { parachain_id: id },
+		pallet_collective_Instance1: CouncilConfig {
+			members: vec![],
+			phantom: Default::default(),
+		},
+		pallet_collective_Instance2: TechnicalCommitteeConfig {
+			members: vec![],
+			phantom: Default::default(),
+		},
+		pallet_membership_Instance1: Default::default(),
+		pallet_elections_phragmen: Default::default(),
+		pallet_treasury: Default::default(),
+		pallet_democracy: Default::default(),
+		pallet_open_grant: OpenGrantConfig {
+			init_max_grant_count_per_round: 60,
+			init_withdrawal_expiration: 1000,
+			init_is_identity_required: false,
+		},
+	}
+}
+
+pub fn oak_testnet_config(id: ParaId) -> ChainSpec {
+	ChainSpec::from_genesis(
+		// Name
+		"Oak Testnet",
+		// ID
+		"oak-testnet",
+		ChainType::Live,
+		move || {
+			oak_testnet_genesis(
+				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+				vec![hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into()],
+				id,
+			)
+		},
+		vec!["/ip4/64.227.105.198/tcp/30333/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP".parse().unwrap()],
+		None,
+		None,
+		None,
+		Extensions {
+			relay_chain: "rococo-local".into(),
+			para_id: id.into(),
+		},
+	)
+}
+
+fn oak_testnet_genesis(
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
