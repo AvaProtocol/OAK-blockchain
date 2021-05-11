@@ -167,7 +167,7 @@ pub fn oak_testnet_config(id: ParaId) -> ChainSpec {
 				id,
 			)
 		},
-		vec!["/ip4/64.227.105.198/tcp/30333/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP".parse().unwrap()],
+		vec!["/ip4/64.227.105.198/tcp/40335/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP".parse().unwrap()],
 		None,
 		None,
 		None,
