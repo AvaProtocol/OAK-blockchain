@@ -156,7 +156,7 @@ fn testnet_genesis(
 pub fn oak_testnet_config(id: ParaId) -> ChainSpec {
 	ChainSpec::from_genesis(
 		// Name
-		"Oak Testnet",
+		"OAK Testnet",
 		// ID
 		"oak-testnet",
 		ChainType::Live,
