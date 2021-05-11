@@ -3,13 +3,13 @@
   "id": "oak-testnet",
   "chainType": "Live",
   "bootNodes": [
-    "/ip4/64.227.105.198/tcp/30333/p2p/12D3KooWR47vTBHbDVaY86Dtwvn4ZNtsrLBvAzsKLMCJTbGtrAaq"
+    "/ip4/64.227.105.198/tcp/30333/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP"
   ],
   "telemetryEndpoints": null,
   "protocolId": null,
   "properties": null,
   "relay_chain": "rococo-local",
-  "para_id": 200,
+  "para_id": 1711,
   "consensusEngine": null,
   "lightSyncState": null,
   "genesis": {
@@ -44,7 +44,7 @@
       "palletTreasury": {},
       "palletDemocracy": {},
       "parachainInfo": {
-        "parachainId": 200
+        "parachainId": 1711
       },
       "palletSudo": {
         "key": "5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w"
