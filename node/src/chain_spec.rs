@@ -7,6 +7,8 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
 use sc_service::ChainType;
+use hex_literal::hex;
+use sp_core::crypto::UncheckedInto;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -127,6 +129,99 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 
 /// Configure initial storage state for FRAME modules.
 fn testnet_genesis(
+	wasm_binary: &[u8],
+	initial_authorities: Vec<(AuraId, GrandpaId)>,
+	root_key: AccountId,
+	endowed_accounts: Vec<AccountId>,
+	_enable_println: bool,
+) -> GenesisConfig {
+	GenesisConfig {
+		frame_system: Some(SystemConfig {
+			// Add Wasm runtime to storage.
+			code: wasm_binary.to_vec(),
+			changes_trie_config: Default::default(),
+		}),
+		pallet_balances: Some(BalancesConfig {
+			// Configure endowed accounts with initial balance of 1 << 60.
+			balances: endowed_accounts.iter().cloned().map(|k|(k, 1 << 60)).collect(),
+		}),
+		pallet_aura: Some(AuraConfig {
+			authorities: initial_authorities.iter().map(|x| (x.0.clone())).collect(),
+		}),
+		pallet_grandpa: Some(GrandpaConfig {
+			authorities: initial_authorities.iter().map(|x| (x.1.clone(), 1)).collect(),
+		}),
+		pallet_sudo: Some(SudoConfig {
+			// Assign network admin rights.
+			key: root_key,
+		}),
+		pallet_collective_Instance1: Some(CouncilConfig {
+			members: vec![],
+			phantom: Default::default(),
+		}),
+		pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+			members: vec![],
+			phantom: Default::default(),
+		}),
+		pallet_membership_Instance1: Some(Default::default()),
+		pallet_elections_phragmen: Some(Default::default()),
+		pallet_treasury: Some(Default::default()),
+		pallet_democracy: Some(Default::default()),
+		pallet_open_grant: Some(OpenGrantConfig {
+			init_max_grant_count_per_round: 60,
+			init_withdrawal_expiration: 1000,
+			init_is_identity_required: false,
+		}),
+	}
+}
+
+
+
+pub fn oak_testnet_config() -> Result<ChainSpec, String> {
+	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
+
+	Ok(ChainSpec::from_genesis(
+		// Name
+		"OAK Testnet",
+		// ID
+		"oak-testnet",
+		ChainType::Live,
+		move || oak_testnet_genesis(
+			wasm_binary,
+			// Initial PoA authorities
+			vec![
+				(
+					hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].unchecked_into(),
+					hex!["ef7073aafdaa412462686baf6b355e14effc10f3e0b0433b7efaf7702367d589"].unchecked_into(),
+				),
+				(
+					hex!["6eb196bf4d784b21e7ee0199bf93ab25c6705e86c770f63797ce53d2c7283372"].unchecked_into(),
+					hex!["851322015907e97ae237cb9af48cf58818c85a450f18acbacf7d9ad8299da16f"].unchecked_into(),
+				),
+			],
+			// Sudo account
+			hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+			// Pre-funded accounts
+			vec![
+				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+				hex!["6eb196bf4d784b21e7ee0199bf93ab25c6705e86c770f63797ce53d2c7283372"].into(),
+			],
+			true,
+		),
+		// Bootnodes
+		vec![],
+		// Telemetry
+		None,
+		// Protocol ID
+		None,
+		// Properties
+		None,
+		// Extensions
+		None,
+	))
+}
+/// Configure initial storage state for FRAME modules.
+fn oak_testnet_genesis(
 	wasm_binary: &[u8],
 	initial_authorities: Vec<(AuraId, GrandpaId)>,
 	root_key: AccountId,

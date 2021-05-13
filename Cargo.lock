@@ -3542,6 +3542,7 @@ version = "3.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-benchmarking-cli",
+ "hex-literal",
  "jsonrpc-core",
  "node-template-runtime",
  "pallet-transaction-payment-rpc",
