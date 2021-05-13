@@ -17,6 +17,7 @@ substrate-wasm-builder = '4.0.0'
 codec = { default-features = false, features = ['derive'], package = 'parity-scale-codec', version = '2.0.0' }
 hex-literal = { optional = true, version = '0.3.1' }
 serde = { version = "1.0.119", optional = true, features = ["derive"] }
+static_assertions = { version = "1.1.0", optional = false }
 
 # Substrate dependencies
 frame-benchmarking = { default-features = false, optional = true, version = '3.0.0' }
@@ -33,6 +34,15 @@ pallet-sudo = { default-features = false, version = '3.0.0' }
 pallet-timestamp = { default-features = false, version = '3.0.0' }
 pallet-transaction-payment = { default-features = false, version = '3.0.0' }
 pallet-transaction-payment-rpc-runtime-api = { default-features = false, version = '3.0.0' }
+pallet-collective = { default-features = false, version = '3.0.0' }
+pallet-membership = { default-features = false, version = '3.0.0' }
+pallet-elections-phragmen = { default-features = false, version = '3.0.0' }
+pallet-treasury = { default-features = false, version = '3.0.0' }
+pallet-tips = { default-features = false, version = '3.0.0' }
+pallet-bounties = { default-features = false, version = '3.0.0' }
+pallet-democracy = { default-features = false, version = '3.0.0' }
+pallet-scheduler = { default-features = false, version = '3.0.0' }
+pallet-identity = { default-features = false, version = '3.0.0' }
 sp-api = { default-features = false, version = '3.0.0' }
 sp-block-builder = { default-features = false, version = '3.0.0' }
 sp-consensus-aura = { default-features = false, version = '0.9.0' }
@@ -47,6 +57,7 @@ sp-version = { default-features = false, version = '3.0.0' }
 
 # local dependencies
 pallet-template = { default-features = false, path = '../pallets/template', version = '3.0.0' }
+pallet-open-grant = { default-features = false, path = '../pallets/open-grant', version = '3.0.0' }
 
 [features]
 default = ['std']
@@ -76,6 +87,15 @@ std = [
     'pallet-timestamp/std',
     'pallet-transaction-payment-rpc-runtime-api/std',
     'pallet-transaction-payment/std',
+    'pallet-collective/std',
+	'pallet-membership/std',
+	'pallet-elections-phragmen/std',
+	'pallet-treasury/std',
+	'pallet-tips/std',
+	'pallet-bounties/std',
+	'pallet-democracy/std',
+	'pallet-scheduler/std',
+	'pallet-identity/std',
     'serde',
     'sp-api/std',
     'sp-block-builder/std',
