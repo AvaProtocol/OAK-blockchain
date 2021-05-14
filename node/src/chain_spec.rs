@@ -209,7 +209,7 @@ pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 			true,
 		),
 		// Bootnodes
-		vec![],
+		vec!["/dns/testnet.oak.tech/tcp/30333/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP".parse().unwrap()],
 		// Telemetry
 		None,
 		// Protocol ID
