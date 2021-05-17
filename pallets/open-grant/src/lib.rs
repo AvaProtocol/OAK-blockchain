@@ -153,7 +153,7 @@ pub mod pallet {
 
 	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
 	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
-	type ProjectOf<T> = Project<AccountIdOf<T>>;
+	type ProjectOf<T> = Project<AccountIdOf<T>, <T as frame_system::Config>::BlockNumber>;
 	type ContributionOf<T> = Contribution<AccountIdOf<T>, BalanceOf<T>>;
 	type RoundOf<T> = Round<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
 	type GrantOf<T> = Grant<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
@@ -217,13 +217,14 @@ pub mod pallet {
 
 	/// Project struct
 	#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
-	pub struct Project<AccountId> {
+	pub struct Project<AccountId, BlockNumber> {
 		name: Vec<u8>,
 		logo: Vec<u8>,
 		description: Vec<u8>,
 		website: Vec<u8>,
 		/// The account that will receive the funds if the campaign is successful
 		owner: AccountId,
+		create_block_number: BlockNumber,
 	}
 
 	#[pallet::hooks]
@@ -306,6 +307,7 @@ pub mod pallet {
 				description: description,
 				website: website,
 				owner: who,
+				create_block_number: <frame_system::Module<T>>::block_number(),
 			};
 
 			// Add grant to list
@@ -740,9 +742,9 @@ pub mod pallet {
 		}
 	
 		/// Get all projects
-		pub fn get_projects() -> Vec<Project<AccountIdOf<T>>> {
+		pub fn get_projects() -> Vec<Project<AccountIdOf<T>, T::BlockNumber>> {
 			let len = ProjectCount::<T>::get();
-			let mut projects: Vec<Project<AccountIdOf<T>>> = Vec::new();
+			let mut projects: Vec<Project<AccountIdOf<T>, T::BlockNumber>> = Vec::new();
 			for i in 0..len {
 				let project = <Projects<T>>::get(i).unwrap();
 				projects.push(project);
