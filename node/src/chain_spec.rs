@@ -6,9 +6,10 @@ use node_template_runtime::{
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
 use sp_runtime::traits::{Verify, IdentifyAccount};
-use sc_service::ChainType;
+use sc_service::{ChainType, Properties};
 use hex_literal::hex;
 use sp_core::crypto::UncheckedInto;
+use serde_json::json;
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -180,6 +181,11 @@ fn testnet_genesis(
 pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm not available".to_string())?;
 
+	// Modify token name
+	let mut props : Properties = Properties::new();
+	let value = json!("OAK");
+	props.insert("tokenSymbol".to_string(), value);
+
 	Ok(ChainSpec::from_genesis(
 		// Name
 		"OAK Testnet",
@@ -215,7 +221,7 @@ pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 		// Protocol ID
 		None,
 		// Properties
-		None,
+		Some(props),
 		// Extensions
 		None,
 	))
