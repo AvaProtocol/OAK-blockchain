@@ -3,17 +3,21 @@
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
+
+#[cfg(feature = "std")]
+use frame_support::traits::GenesisBuild;
+use frame_support::{pallet_prelude::*, traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons}};
+use codec::{Encode, Decode};
+use sp_std::prelude::*;
+use integer_sqrt::IntegerSquareRoot;
+use sp_runtime::{traits::AccountIdConversion, ModuleId};
 pub use pallet::*;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons}};
 	use frame_system::pallet_prelude::*;
-	use codec::{Encode, Decode};
-	use sp_std::prelude::*;
-	use integer_sqrt::IntegerSquareRoot;
-	use sp_runtime::{traits::AccountIdConversion, ModuleId};
-	
+	use frame_support::pallet_prelude::*;
+	use super::*;
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
@@ -28,7 +32,7 @@ pub mod pallet {
 
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
-	pub struct Pallet<T>(_);
+	pub struct Pallet<T>(PhantomData<T>);
 
 	// The pallet's runtime storage items.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/storage
@@ -146,85 +150,6 @@ pub mod pallet {
 		WithdrawalExpirationExceed,
 		NotEnoughFund,
 		InvalidProjectIndexes,
-	}
-
-	pub type ProjectIndex = u32;
-	pub type RoundIndex = u32;
-
-	type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
-	type ProjectOf<T> = Project<AccountIdOf<T>, <T as frame_system::Config>::BlockNumber>;
-	type ContributionOf<T> = Contribution<AccountIdOf<T>, BalanceOf<T>>;
-	type RoundOf<T> = Round<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-	type GrantOf<T> = Grant<AccountIdOf<T>, BalanceOf<T>, BlockNumberFor<T>>;
-
-	/// Round struct
-	#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
-	pub struct Round<AccountId, Balance, BlockNumber> {
-		start: BlockNumber,
-		end: BlockNumber,
-		matching_fund: Balance,
-		grants: Vec<Grant<AccountId, Balance, BlockNumber>>,
-		is_canceled: bool,
-		is_finalized: bool,
-	}
-
-	impl<AccountId, Balance: From<u32>, BlockNumber: From<u32>> Round<AccountId, Balance, BlockNumber> {
-			fn new(start: BlockNumber, end: BlockNumber, matching_fund: Balance, project_indexes: Vec<ProjectIndex>) -> Round<AccountId, Balance, BlockNumber> { 
-			let mut grant_round  = Round {
-				start: start,
-				end: end,
-				matching_fund: matching_fund,
-				grants: Vec::new(),
-				is_canceled: false,
-				is_finalized: false,
-			};
-
-			// Fill in the grants structure in advance
-			for project_index in project_indexes {
-				grant_round.grants.push(Grant {
-					project_index: project_index,
-					contributions: Vec::new(),
-					is_approved: false,
-					is_canceled: false,
-					is_withdrawn: false,
-					withdrawal_expiration: (0 as u32).into(),
-					matching_fund: (0 as u32).into(),
-				});
-			}
-
-			grant_round
-		}
-	}
-	// Grant in round
-	#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
-	pub struct Grant<AccountId, Balance, BlockNumber> {
-		project_index: ProjectIndex,
-		contributions: Vec<Contribution<AccountId, Balance>>,
-		is_approved: bool,
-		is_canceled: bool,
-		is_withdrawn: bool,
-		withdrawal_expiration: BlockNumber,
-		matching_fund: Balance,
-	}
-
-	/// The contribution users made to a grant project.
-	#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
-	pub struct Contribution<AccountId, Balance> {
-		account_id: AccountId,
-		value: Balance,
-	}
-
-	/// Project struct
-	#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
-	pub struct Project<AccountId, BlockNumber> {
-		name: Vec<u8>,
-		logo: Vec<u8>,
-		description: Vec<u8>,
-		website: Vec<u8>,
-		/// The account that will receive the funds if the campaign is successful
-		owner: AccountId,
-		create_block_number: BlockNumber,
 	}
 
 	#[pallet::hooks]
@@ -727,70 +652,169 @@ pub mod pallet {
 			Ok(().into())
 		}
 	}
+}
 
-	impl<T: Config> Pallet<T> {
-		/// The account ID of the fund pot.
-		///
-		/// This actually does computation. If you need to keep using it, then make sure you cache the
-		/// value and only call this once.
-		pub fn account_id() -> T::AccountId {
-			T::ModuleId::get().into_account()
+impl<T: Config> Pallet<T> {
+	/// The account ID of the fund pot.
+	///
+	/// This actually does computation. If you need to keep using it, then make sure you cache the
+	/// value and only call this once.
+	pub fn account_id() -> T::AccountId {
+		T::ModuleId::get().into_account()
+	}
+
+	pub fn project_account_id(index: ProjectIndex) -> T::AccountId {
+		T::ModuleId::get().into_sub_account(index)
+	}
+
+	/// Get all projects
+	pub fn get_projects() -> Vec<Project<AccountIdOf<T>, T::BlockNumber>> {
+		let len = ProjectCount::<T>::get();
+		let mut projects: Vec<Project<AccountIdOf<T>, T::BlockNumber>> = Vec::new();
+		for i in 0..len {
+			let project = <Projects<T>>::get(i).unwrap();
+			projects.push(project);
 		}
-	
-		pub fn project_account_id(index: ProjectIndex) -> T::AccountId {
-			T::ModuleId::get().into_sub_account(index)
-		}
-	
-		/// Get all projects
-		pub fn get_projects() -> Vec<Project<AccountIdOf<T>, T::BlockNumber>> {
-			let len = ProjectCount::<T>::get();
-			let mut projects: Vec<Project<AccountIdOf<T>, T::BlockNumber>> = Vec::new();
-			for i in 0..len {
-				let project = <Projects<T>>::get(i).unwrap();
-				projects.push(project);
+		projects
+	}
+
+	// Calculate used funds
+	pub fn get_used_fund() -> BalanceOf<T> {
+		let now = <frame_system::Pallet<T>>::block_number();
+		let mut used_fund: BalanceOf<T> = (0 as u32).into();
+		let count = RoundCount::<T>::get();
+
+		for i in 0..count {
+			let round = <Rounds<T>>::get(i).unwrap();
+
+			// The cancelled round does not occupy funds
+			if round.is_canceled {
+				continue;
 			}
-			projects
-		}
-	
-		// Calculate used funds
-		pub fn get_used_fund() -> BalanceOf<T> {
-			let now = <frame_system::Pallet<T>>::block_number();
-			let mut used_fund: BalanceOf<T> = (0 as u32).into();
-			let count = RoundCount::<T>::get();
-	
-			for i in 0..count {
-				let round = <Rounds<T>>::get(i).unwrap();
-	
-				// The cancelled round does not occupy funds
-				if round.is_canceled {
+
+			let grants = &round.grants;
+
+			// Rounds that are not finalized always occupy funds
+			if !round.is_finalized {
+				used_fund += round.matching_fund;
+				continue;
+			}
+
+			for grant in grants.iter() {
+				// If the undrawn funds expire, they will be returned to the foundation.
+				if grant.is_approved && !grant.is_withdrawn && grant.withdrawal_expiration > now {
 					continue;
 				}
-	
-				let grants = &round.grants;
-	
-				// Rounds that are not finalized always occupy funds
-				if !round.is_finalized {
-					used_fund += round.matching_fund;
+
+				// Because the funds that have been withdrawn are no longer in the foundation account, they will not be recorded.
+				if grant.is_withdrawn {
 					continue;
 				}
-	
-				for grant in grants.iter() {
-					// If the undrawn funds expire, they will be returned to the foundation.
-					if grant.is_approved && !grant.is_withdrawn && grant.withdrawal_expiration > now {
-						continue;
-					}
-	
-					// Because the funds that have been withdrawn are no longer in the foundation account, they will not be recorded.
-					if grant.is_withdrawn {
-						continue;
-					}
-	
-					used_fund += grant.matching_fund;
-				}
+
+				used_fund += grant.matching_fund;
 			}
-	
-			used_fund
 		}
+
+		used_fund
+	}
+}
+
+pub type ProjectIndex = u32;
+pub type RoundIndex = u32;
+
+type AccountIdOf<T> = <T as frame_system::Config>::AccountId;
+type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountIdOf<T>>>::Balance;
+type ProjectOf<T> = Project<AccountIdOf<T>, <T as frame_system::Config>::BlockNumber>;
+type ContributionOf<T> = Contribution<AccountIdOf<T>, BalanceOf<T>>;
+type RoundOf<T> = Round<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
+type GrantOf<T> = Grant<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
+
+/// Round struct
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+pub struct Round<AccountId, Balance, BlockNumber> {
+	start: BlockNumber,
+	end: BlockNumber,
+	matching_fund: Balance,
+	grants: Vec<Grant<AccountId, Balance, BlockNumber>>,
+	is_canceled: bool,
+	is_finalized: bool,
+}
+
+impl<AccountId, Balance: From<u32>, BlockNumber: From<u32>> Round<AccountId, Balance, BlockNumber> {
+		fn new(start: BlockNumber, end: BlockNumber, matching_fund: Balance, project_indexes: Vec<ProjectIndex>) -> Round<AccountId, Balance, BlockNumber> { 
+		let mut grant_round  = Round {
+			start: start,
+			end: end,
+			matching_fund: matching_fund,
+			grants: Vec::new(),
+			is_canceled: false,
+			is_finalized: false,
+		};
+
+		// Fill in the grants structure in advance
+		for project_index in project_indexes {
+			grant_round.grants.push(Grant {
+				project_index: project_index,
+				contributions: Vec::new(),
+				is_approved: false,
+				is_canceled: false,
+				is_withdrawn: false,
+				withdrawal_expiration: (0 as u32).into(),
+				matching_fund: (0 as u32).into(),
+			});
+		}
+
+		grant_round
+	}
+}
+// Grant in round
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+pub struct Grant<AccountId, Balance, BlockNumber> {
+	project_index: ProjectIndex,
+	contributions: Vec<Contribution<AccountId, Balance>>,
+	is_approved: bool,
+	is_canceled: bool,
+	is_withdrawn: bool,
+	withdrawal_expiration: BlockNumber,
+	matching_fund: Balance,
+}
+
+/// The contribution users made to a grant project.
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+pub struct Contribution<AccountId, Balance> {
+	account_id: AccountId,
+	value: Balance,
+}
+
+/// Project struct
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+pub struct Project<AccountId, BlockNumber> {
+	name: Vec<u8>,
+	logo: Vec<u8>,
+	description: Vec<u8>,
+	website: Vec<u8>,
+	/// The account that will receive the funds if the campaign is successful
+	owner: AccountId,
+	create_block_number: BlockNumber,
+}
+
+#[cfg(feature = "std")]
+impl<T: Config> GenesisConfig<T> {
+	/// Direct implementation of `GenesisBuild::build_storage`.
+	///
+	/// Kept in order not to break dependency.
+	pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
+		<Self as GenesisBuild<T>>::build_storage(self)
+	}
+
+	/// Direct implementation of `GenesisBuild::assimilate_storage`.
+	///
+	/// Kept in order not to break dependency.
+	pub fn assimilate_storage(
+		&self,
+		storage: &mut sp_runtime::Storage
+	) -> Result<(), String> {
+		<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
 	}
 }
 

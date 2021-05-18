@@ -210,7 +210,6 @@ pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 			// Pre-funded accounts
 			vec![
 				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
-				hex!["6eb196bf4d784b21e7ee0199bf93ab25c6705e86c770f63797ce53d2c7283372"].into(),
 			],
 			true,
 		),
