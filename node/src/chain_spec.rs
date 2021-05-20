@@ -10,9 +10,10 @@ use sc_service::{ChainType, Properties};
 use hex_literal::hex;
 use sp_core::crypto::UncheckedInto;
 use serde_json::json;
+use sc_telemetry::TelemetryEndpoints;
 
 // The URL for the telemetry server.
-// const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
+const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
 /// Specialized `ChainSpec`. This is a specialization of the general Substrate ChainSpec type.
 pub type ChainSpec = sc_service::GenericChainSpec<GenesisConfig>;
@@ -216,7 +217,7 @@ pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 		// Bootnodes
 		vec!["/dns/testnet.oak.tech/tcp/30333/p2p/12D3KooWGcx1NTZhQ5N2dyNuf4jtdRu2e92XZCvR71eo4RK2UdmP".parse().unwrap()],
 		// Telemetry
-		None,
+		TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.into(), 0)]).ok(),
 		// Protocol ID
 		None,
 		// Properties
