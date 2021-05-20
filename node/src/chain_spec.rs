@@ -1,5 +1,5 @@
 use sp_core::{Pair, Public, sr25519};
-use node_template_runtime::{
+use oak_testnet_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, CouncilConfig, TechnicalCommitteeConfig, OpenGrantConfig, WASM_BINARY, Signature
 };

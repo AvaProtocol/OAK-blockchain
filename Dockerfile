@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 WORKDIR /app
-ADD ./target/release/node-template .
+ADD ./target/release/oak-testnet .
 
-ENTRYPOINT ["./node-template", "--chain", "oak-testnet", "-d", "data/node01", "--name", "node01"]
+ENTRYPOINT ["./oak-testnet", "--chain", "oak-testnet", "-d", "data/node01", "--name", "node01"]
 

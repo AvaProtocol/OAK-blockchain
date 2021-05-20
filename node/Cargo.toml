@@ -1,16 +1,16 @@
 [package]
-authors = ['Substrate DevHub <https://github.com/substrate-developer-hub>']
+authors = ['Substrate DevHub <https://github.com/OAK-Foundation>']
 build = 'build.rs'
-description = 'A fresh FRAME-based Substrate node, ready for hacking.'
+description = 'OAK blockchain testnet'
 edition = '2018'
-homepage = 'https://substrate.dev'
+homepage = 'https://oak.tech'
 license = 'Unlicense'
-name = 'node-template'
-repository = 'https://github.com/substrate-developer-hub/substrate-node-template/'
+name = 'oak-testnet'
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain/'
 version = '3.0.0'
 
 [[bin]]
-name = 'node-template'
+name = 'oak-testnet'
 
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
@@ -54,8 +54,8 @@ substrate-frame-rpc-system = '3.0.0'
 serde_json = "1.0.64"
 
 # local dependencies
-node-template-runtime = { path = '../runtime', version = '3.0.0' }
+oak-testnet-runtime = { path = '../runtime', version = '3.0.0' }
 
 [features]
 default = []
-runtime-benchmarks = ['node-template-runtime/runtime-benchmarks']
+runtime-benchmarks = ['oak-testnet-runtime/runtime-benchmarks']
