@@ -6,11 +6,14 @@
 
 #[cfg(feature = "std")]
 use frame_support::traits::GenesisBuild;
-use frame_support::{pallet_prelude::*, traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons}};
+use frame_support::{
+	pallet_prelude::*, PalletId,
+	traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons},
+};
 use codec::{Encode, Decode};
 use sp_std::prelude::*;
 use integer_sqrt::IntegerSquareRoot;
-use sp_runtime::{traits::AccountIdConversion, ModuleId};
+use sp_runtime::traits::AccountIdConversion;
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -25,7 +28,7 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type ModuleId: Get<ModuleId>;
+		type PalletId: Get<PalletId>;
 
 		type Currency: ReservableCurrency<Self::AccountId>;
 	}
@@ -184,7 +187,7 @@ pub mod pallet {
 				description: description,
 				website: website,
 				owner: who,
-				create_block_number: <frame_system::Module<T>>::block_number(),
+				create_block_number: <frame_system::Pallet<T>>::block_number(),
 			};
 
 			// Add grant to list
@@ -612,11 +615,11 @@ impl<T: Config> Pallet<T> {
 	/// This actually does computation. If you need to keep using it, then make sure you cache the
 	/// value and only call this once.
 	pub fn account_id() -> T::AccountId {
-		T::ModuleId::get().into_account()
+		T::PalletId::get().into_account()
 	}
 
 	pub fn project_account_id(index: ProjectIndex) -> T::AccountId {
-		T::ModuleId::get().into_sub_account(index)
+		T::PalletId::get().into_sub_account(index)
 	}
 
 	/// Get all projects
