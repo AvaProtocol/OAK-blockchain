@@ -16,6 +16,9 @@ use integer_sqrt::IntegerSquareRoot;
 use sp_runtime::traits::AccountIdConversion;
 pub use pallet::*;
 
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_system::pallet_prelude::*;

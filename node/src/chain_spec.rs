@@ -1,8 +1,8 @@
 use sp_core::{Pair, Public, sr25519};
 use oak_testnet_runtime::{
-	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig, OpenGrantConfig,
+	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature,
-	CouncilConfig, TechnicalCommitteeConfig,
+	CouncilConfig, TechnicalCommitteeConfig, OpenGrantConfig
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
