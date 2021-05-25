@@ -5,13 +5,14 @@ use super::*;
 use frame_system::RawOrigin;
 use frame_benchmarking::{benchmarks, whitelisted_caller, impl_benchmark_test_suite};
 #[allow(unused)]
-use crate::Pallet as Template;
+use crate::Pallet as OpenGrant;
+use sp_runtime::traits::Bounded;
 
 benchmarks! {
 	fund {
-		let s in 1 .. 100;
+		let s in 1 .. 10000000;
 		let caller: T::AccountId = whitelisted_caller();
-        // let _ = T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
+        let _ = <T as pallet::Config>::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 	}: _(RawOrigin::Signed(caller), s.into())
 }
 
