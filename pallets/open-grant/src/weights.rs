@@ -46,33 +46,101 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn fund(s: u32, ) -> Weight;
 	fn create_project() -> Weight;
+	fn schedule_round(s: u32, ) -> Weight;
+	fn cancel_round() -> Weight;
+	fn cancel() -> Weight;
+	fn set_withdrawal_expiration(s: u32, ) -> Weight;
+	fn set_max_grant_count_per_round(s: u32, ) -> Weight;
+	fn set_is_identity_required() -> Weight;
 }
 
 /// Weights for pallet_open_grant using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn fund(_s: u32, ) -> Weight {
-		(44_449_000 as Weight)
+		(43_155_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn create_project() -> Weight {
-		(23_000_000 as Weight)
+		(24_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	fn schedule_round(s: u32, ) -> Weight {
+		(31_907_000 as Weight)
+			// Standard Error: 1_000
+			.saturating_add((76_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	fn cancel_round() -> Weight {
+		(22_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn cancel() -> Weight {
+		(18_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn set_withdrawal_expiration(_s: u32, ) -> Weight {
+		(1_345_000 as Weight)
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn set_max_grant_count_per_round(s: u32, ) -> Weight {
+		(1_092_000 as Weight)
+			// Standard Error: 0
+			.saturating_add((1_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn set_is_identity_required() -> Weight {
+		(2_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
 	fn fund(_s: u32, ) -> Weight {
-		(44_449_000 as Weight)
+		(43_155_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 	fn create_project() -> Weight {
-		(23_000_000 as Weight)
+		(24_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+	fn schedule_round(s: u32, ) -> Weight {
+		(31_907_000 as Weight)
+			// Standard Error: 1_000
+			.saturating_add((76_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+	}
+	fn cancel_round() -> Weight {
+		(22_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn cancel() -> Weight {
+		(18_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn set_withdrawal_expiration(_s: u32, ) -> Weight {
+		(1_345_000 as Weight)
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn set_max_grant_count_per_round(s: u32, ) -> Weight {
+		(1_092_000 as Weight)
+			// Standard Error: 0
+			.saturating_add((1_000 as Weight).saturating_mul(s as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn set_is_identity_required() -> Weight {
+		(2_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 }
