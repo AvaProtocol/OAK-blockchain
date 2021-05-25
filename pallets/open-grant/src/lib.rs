@@ -19,6 +19,8 @@ pub use pallet::*;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+const MAX_STRING_FIELD_LENGTH: usize = 256;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_system::pallet_prelude::*;
@@ -145,6 +147,7 @@ pub mod pallet {
 		WithdrawalExpirationExceed,
 		NotEnoughFund,
 		InvalidProjectIndexes,
+		StringFieldExceed,
 	}
 
 	#[pallet::hooks]
@@ -179,6 +182,11 @@ pub mod pallet {
 			ensure!(logo.len() > 0, Error::<T>::InvalidParam);
 			ensure!(description.len() > 0, Error::<T>::InvalidParam);
 			ensure!(website.len() > 0, Error::<T>::InvalidParam);
+
+			ensure!(name.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::StringFieldExceed);
+			ensure!(logo.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::StringFieldExceed);
+			ensure!(description.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::StringFieldExceed);
+			ensure!(website.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::StringFieldExceed);
 			
 			let index = ProjectCount::<T>::get();
 			let next_index = index.checked_add(1).ok_or(Error::<T>::Overflow)?;

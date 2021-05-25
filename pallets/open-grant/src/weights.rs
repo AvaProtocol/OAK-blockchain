@@ -45,25 +45,34 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_open_grant.
 pub trait WeightInfo {
 	fn fund(s: u32, ) -> Weight;
+	fn create_project() -> Weight;
 }
 
 /// Weights for pallet_open_grant using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	fn fund(s: u32, ) -> Weight {
-		(29_091_000 as Weight)
-			// Standard Error: 0
-			.saturating_add((2_000 as Weight).saturating_mul(s as Weight))
+	fn fund(_s: u32, ) -> Weight {
+		(44_449_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn create_project() -> Weight {
+		(23_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	fn fund(s: u32, ) -> Weight {
-		(29_091_000 as Weight)
-			// Standard Error: 0
-			.saturating_add((2_000 as Weight).saturating_mul(s as Weight))
+	fn fund(_s: u32, ) -> Weight {
+		(44_449_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn create_project() -> Weight {
+		(23_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
 }

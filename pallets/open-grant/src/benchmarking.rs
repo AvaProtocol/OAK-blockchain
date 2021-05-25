@@ -14,6 +14,10 @@ benchmarks! {
 		let caller: T::AccountId = whitelisted_caller();
         let _ = <T as pallet::Config>::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 	}: _(RawOrigin::Signed(caller), s.into())
+
+	create_project {
+		let caller: T::AccountId = whitelisted_caller();
+	}: _(RawOrigin::Signed(caller), vec![b'X'; 256], vec![b'X'; 256], vec![b'X'; 256], vec![b'X'; 256])
 }
 
 impl_benchmark_test_suite!(
