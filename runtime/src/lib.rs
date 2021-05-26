@@ -576,12 +576,17 @@ impl pallet_identity::Config for Runtime {
 // Configure the pallet open grant in pallets/open-grant.
 parameter_types! {
 	pub const OpenGrantPalletId: PalletId = PalletId(*b"py/opgrd");
+	pub const MaxGrantsPerRound: u32 = 256;
+	pub const MaxWithdrawalExpiration: BlockNumber = 180 * DAYS;
 }
 
 impl pallet_open_grant::Config for Runtime {
-  type Event = Event;
+	type Event = Event;
 	type PalletId = OpenGrantPalletId;
 	type Currency = Balances;
+	type MaxGrantsPerRound = MaxGrantsPerRound;
+	type MaxWithdrawalExpiration = MaxWithdrawalExpiration;
+	type WeightInfo = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
