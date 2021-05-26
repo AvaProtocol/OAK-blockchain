@@ -580,7 +580,7 @@ parameter_types! {
 	pub const MaxWithdrawalExpiration: BlockNumber = 180 * DAYS;
 }
 
-impl pallet_open_grant::Config for Runtime {
+impl pallet_quadratic_funding::Config for Runtime {
 	type Event = Event;
 	type PalletId = OpenGrantPalletId;
 	type Currency = Balances;
@@ -616,7 +616,7 @@ construct_runtime!(
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
-		OpenGrant: pallet_open_grant::{Pallet, Call, Storage, Config<T>, Event<T>},
+		QuadraticFunding: pallet_quadratic_funding::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -813,7 +813,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_balances, Balances);
 			add_benchmark!(params, batches, pallet_timestamp, Timestamp);
 			add_benchmark!(params, batches, pallet_template, TemplateModule);
-			add_benchmark!(params, batches, pallet_open_grant, OpenGrant);
+			add_benchmark!(params, batches, pallet_quadratic_funding, QuadraticFunding);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

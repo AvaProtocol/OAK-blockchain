@@ -1,10 +1,10 @@
 [package]
 authors = ['Anonymous']
-description = 'FRAME pallet open grant for defining custom runtime logic.'
+description = 'FRAME pallet quadratic funding for defining custom runtime logic.'
 edition = '2018'
 homepage = 'https://substrate.dev'
 license = 'Unlicense'
-name = 'pallet-open-grant'
+name = 'pallet-quadratic-funding'
 readme = 'README.md'
 repository = 'https://github.com/paritytech/substrate/'
 version = '3.0.0'

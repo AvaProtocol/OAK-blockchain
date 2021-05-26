@@ -3856,7 +3856,7 @@ dependencies = [
  "pallet-grandpa",
  "pallet-identity",
  "pallet-membership",
- "pallet-open-grant",
+ "pallet-quadratic-funding",
  "pallet-randomness-collective-flip",
  "pallet-scheduler",
  "pallet-sudo",
@@ -4094,7 +4094,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-open-grant"
+name = "pallet-quadratic-funding"
 version = "3.0.0"
 dependencies = [
  "frame-benchmarking",

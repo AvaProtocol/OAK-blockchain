@@ -2,7 +2,7 @@ use sp_core::{Pair, Public, sr25519};
 use oak_testnet_runtime::{
 	AccountId, AuraConfig, BalancesConfig, GenesisConfig, GrandpaConfig,
 	SudoConfig, SystemConfig, WASM_BINARY, Signature,
-	CouncilConfig, TechnicalCommitteeConfig, OpenGrantConfig
+	CouncilConfig, TechnicalCommitteeConfig, QuadraticFundingConfig
 };
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_finality_grandpa::AuthorityId as GrandpaId;
@@ -170,7 +170,7 @@ fn testnet_genesis(
 		pallet_elections_phragmen: Default::default(),
 		pallet_treasury: Default::default(),
 		pallet_democracy: Default::default(),
-		pallet_open_grant: OpenGrantConfig {
+		pallet_quadratic_funding: QuadraticFundingConfig {
 			init_max_grant_count_per_round: 60,
 			init_withdrawal_expiration: 1000,
 			init_is_identity_required: false,
@@ -265,7 +265,7 @@ fn oak_testnet_genesis(
 		pallet_elections_phragmen: Default::default(),
 		pallet_treasury: Default::default(),
 		pallet_democracy: Default::default(),
-		pallet_open_grant: OpenGrantConfig {
+		pallet_quadratic_funding: QuadraticFundingConfig {
 			init_max_grant_count_per_round: 60,
 			init_withdrawal_expiration: 1000,
 			init_is_identity_required: false,

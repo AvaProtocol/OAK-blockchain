@@ -58,7 +58,7 @@ sp-version = {default-features = false, version = '3.0.0', git = 'https://github
 
 # local dependencies
 pallet-template = {default-features = false, version = '3.0.0', path = '../pallets/template'}
-pallet-open-grant = {default-features = false, version = '3.0.0', path = '../pallets/open-grant'}
+pallet-quadratic-funding = {default-features = false, version = '3.0.0', path = '../pallets/quadratic-funding'}
 
 [features]
 default = ['std']
@@ -70,7 +70,7 @@ runtime-benchmarks = [
 	'hex-literal',
 	'pallet-balances/runtime-benchmarks',
 	'pallet-template/runtime-benchmarks',
-	'pallet-open-grant/runtime-benchmarks',
+	'pallet-quadratic-funding/runtime-benchmarks',
 	'pallet-timestamp/runtime-benchmarks',
 	'sp-runtime/runtime-benchmarks',
 	'pallet-collective/runtime-benchmarks',
@@ -96,7 +96,7 @@ std = [
 	'pallet-randomness-collective-flip/std',
 	'pallet-sudo/std',
 	'pallet-template/std',
-	'pallet-open-grant/std',
+	'pallet-quadratic-funding/std',
 	'pallet-timestamp/std',
 	'pallet-transaction-payment-rpc-runtime-api/std',
 	'pallet-transaction-payment/std',
