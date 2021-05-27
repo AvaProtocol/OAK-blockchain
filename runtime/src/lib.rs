@@ -573,16 +573,16 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = ();
 }
 
-// Configure the pallet open grant in pallets/open-grant.
+// Configure the pallet quadratic funding in pallets/quadratic-funding.
 parameter_types! {
-	pub const OpenGrantPalletId: PalletId = PalletId(*b"py/opgrd");
+	pub const QuadraticFundingPalletId: PalletId = PalletId(*b"quadfund");
 	pub const MaxGrantsPerRound: u32 = 256;
 	pub const MaxWithdrawalExpiration: BlockNumber = 180 * DAYS;
 }
 
 impl pallet_quadratic_funding::Config for Runtime {
 	type Event = Event;
-	type PalletId = OpenGrantPalletId;
+	type PalletId = QuadraticFundingPalletId;
 	type Currency = Balances;
 	type MaxGrantsPerRound = MaxGrantsPerRound;
 	type MaxWithdrawalExpiration = MaxWithdrawalExpiration;
