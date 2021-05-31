@@ -189,8 +189,10 @@ by appending your own. A few useful ones are as follow.
 ```bash
 # Run Substrate node without re-compiling
 ./scripts/docker_run.sh ./target/release/oak-testnet --dev --ws-external
+
 # Purge the local dev chain
 ./scripts/docker_run.sh ./target/release/oak-testnet purge-chain --dev
+
 # Check whether the code is compilable
 ./scripts/docker_run.sh cargo check
 ```
