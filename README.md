@@ -205,5 +205,5 @@ First, install [Docker](https://docs.docker.com/get-docker/) and
 Then run the following command to start a full node.
 
 ```bash
-docker run -d oaknetwork/oak_testnet:latest --name <custom_name>
+docker run -d --name <container_name> oaknetwork/oak_testnet:latest --name <node_name>
 ```
