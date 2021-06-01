@@ -31,6 +31,13 @@ cargo build --release
 ./target/release/oak-testnet --dev --tmp
 ```
 
+Note: --dev is equivalent to --chain dev
+
+In development environment, there are default settings:
+1. Alice (Default Well-Known Account on substrate chain) is root key.
+2. Alice, Bob, Alice//stash, Bob//stash are the pre-funded accounts. 1.1529 Million OAK Will be set in these accounts.
+3. Alice is the initial PoA authorities.
+
 #### Options:
 ```
 -h, --help
@@ -72,5 +79,5 @@ cargo build --release
 Then run the following command to start a full node and join OAK Testnet
 
 ```bash
-docker run -d --name <container_name> imstar15/oak-testnet:latest --name <node_name>
+docker run -d --name <container_name> oaknetwork/oak_testnet:latest --name <node_name>
 ```
