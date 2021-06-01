@@ -196,3 +196,14 @@ by appending your own. A few useful ones are as follow.
 # Check whether the code is compilable
 ./scripts/docker_run.sh cargo check
 ```
+
+### Run Testnet Node
+
+First, install [Docker](https://docs.docker.com/get-docker/) and
+[Docker Compose](https://docs.docker.com/compose/install/).
+
+Then run the following command to start a full node.
+
+```bash
+docker run -d oaknetwork/oak_testnet:latest --name <custom_name>
+```
