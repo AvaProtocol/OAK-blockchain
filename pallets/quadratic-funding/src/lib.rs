@@ -6,12 +6,22 @@
 
 #[cfg(feature = "std")]
 use frame_support::traits::GenesisBuild;
-use frame_support::{pallet_prelude::*, traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons}};
+use frame_support::{
+	pallet_prelude::*, PalletId,
+	traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons},
+};
 use codec::{Encode, Decode};
 use sp_std::prelude::*;
 use integer_sqrt::IntegerSquareRoot;
-use sp_runtime::{traits::AccountIdConversion, ModuleId};
+use sp_runtime::traits::AccountIdConversion;
+pub use weights::WeightInfo;
 pub use pallet::*;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
+pub mod weights;
+
+const MAX_STRING_FIELD_LENGTH: usize = 256;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -25,9 +35,15 @@ pub mod pallet {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		type ModuleId: Get<ModuleId>;
+		type PalletId: Get<PalletId>;
 
 		type Currency: ReservableCurrency<Self::AccountId>;
+
+		type MaxGrantsPerRound: Get<u32>;
+
+		type MaxWithdrawalExpiration: Get<Self::BlockNumber>;
+
+		type WeightInfo: WeightInfo;
 	}
 
 	#[pallet::pallet]
@@ -139,6 +155,7 @@ pub mod pallet {
 		WithdrawalExpirationExceed,
 		NotEnoughFund,
 		InvalidProjectIndexes,
+		ParamLimitExceed,
 	}
 
 	#[pallet::hooks]
@@ -150,7 +167,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Create project
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2,2))]
+		#[pallet::weight(<T as Config>::WeightInfo::create_project())]
 		pub fn create_project(origin: OriginFor<T>, name: Vec<u8>, logo: Vec<u8>, description: Vec<u8>, website: Vec<u8>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
@@ -173,6 +190,11 @@ pub mod pallet {
 			ensure!(logo.len() > 0, Error::<T>::InvalidParam);
 			ensure!(description.len() > 0, Error::<T>::InvalidParam);
 			ensure!(website.len() > 0, Error::<T>::InvalidParam);
+
+			ensure!(name.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::ParamLimitExceed);
+			ensure!(logo.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::ParamLimitExceed);
+			ensure!(description.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::ParamLimitExceed);
+			ensure!(website.len() <= MAX_STRING_FIELD_LENGTH, Error::<T>::ParamLimitExceed);
 			
 			let index = ProjectCount::<T>::get();
 			let next_index = index.checked_add(1).ok_or(Error::<T>::Overflow)?;
@@ -184,7 +206,7 @@ pub mod pallet {
 				description: description,
 				website: website,
 				owner: who,
-				create_block_number: <frame_system::Module<T>>::block_number(),
+				create_block_number: <frame_system::Pallet<T>>::block_number(),
 			};
 
 			// Add grant to list
@@ -197,7 +219,7 @@ pub mod pallet {
 		}
 
 		/// Funding to matching fund pool
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::fund())]
 		pub fn fund(origin: OriginFor<T>, fund_balance: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			ensure!(fund_balance > (0 as u32).into(), Error::<T>::InvalidParam);
@@ -219,7 +241,7 @@ pub mod pallet {
 
 		/// Schedule a round
 		/// grant_indexes: the grants were selected for this round
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(4,3))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_round(MaxGrantCountPerRound::<T>::get()))]
 		pub fn schedule_round(origin: OriginFor<T>, start: T::BlockNumber, end: T::BlockNumber, matching_fund: BalanceOf<T>, project_indexes: Vec<ProjectIndex>) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let now = <frame_system::Pallet<T>>::block_number();
@@ -279,7 +301,7 @@ pub mod pallet {
 
 		/// Cancel a round
 		/// This round must have not started yet
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(3,2))]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_round())]
 		pub fn cancel_round(origin: OriginFor<T>, round_index: RoundIndex) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let now = <frame_system::Pallet<T>>::block_number();
@@ -300,7 +322,7 @@ pub mod pallet {
 		}
 
 		/// Finalize a round
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::finalize_round())]
 		pub fn finalize_round(origin: OriginFor<T>, round_index: RoundIndex) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let now = <frame_system::Pallet<T>>::block_number();
@@ -360,7 +382,7 @@ pub mod pallet {
 		}
 
 		/// Contribute a grant
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::contribute())]
 		pub fn contribute(origin: OriginFor<T>, project_index: ProjectIndex, value: BalanceOf<T>) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			ensure!(value > (0 as u32).into(), Error::<T>::InvalidParam);
@@ -434,7 +456,7 @@ pub mod pallet {
 
 		/// Approve project
 		/// If the project is approve, the project owner can withdraw funds
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(2,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::approve())]
 		pub fn approve(origin: OriginFor<T>, round_index: RoundIndex, project_index: ProjectIndex) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			let mut round = <Rounds<T>>::get(round_index).ok_or(Error::<T>::NoActiveRound)?;
@@ -473,7 +495,7 @@ pub mod pallet {
 		}
 
 		/// Withdraw
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(3,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::withdraw())]
 		pub fn withdraw(origin: OriginFor<T>, round_index: RoundIndex, project_index: ProjectIndex) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 			let now = <frame_system::Pallet<T>>::block_number();
@@ -538,7 +560,7 @@ pub mod pallet {
 
 		/// Cancel a problematic project
 		/// If the project is cancelled, users cannot donate to it, and project owner cannot withdraw funds.
-		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel())]
 		pub fn cancel(origin: OriginFor<T>, round_index: RoundIndex, project_index: ProjectIndex) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
@@ -576,17 +598,17 @@ pub mod pallet {
 		}
 
 		/// Set max grant count per round
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_max_grant_count_per_round(T::MaxGrantsPerRound::get()))]
 		pub fn set_max_grant_count_per_round(origin: OriginFor<T>, max_grant_count_per_round: u32) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
-			ensure!(max_grant_count_per_round > 0, Error::<T>::InvalidParam);
+			ensure!(max_grant_count_per_round > 0 || max_grant_count_per_round <= T::MaxGrantsPerRound::get(), Error::<T>::ParamLimitExceed);
 			MaxGrantCountPerRound::<T>::put(max_grant_count_per_round);
 
 			Ok(().into())
 		}
 
 		/// Set withdrawal expiration
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_withdrawal_expiration())]
 		pub fn set_withdrawal_expiration(origin: OriginFor<T>, withdrawal_expiration: T::BlockNumber) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			ensure!(withdrawal_expiration > (0 as u32).into(), Error::<T>::InvalidParam);
@@ -596,7 +618,7 @@ pub mod pallet {
 		}
 
 		/// set is_identity_required
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		#[pallet::weight(<T as Config>::WeightInfo::set_is_identity_required())]
 		pub fn set_is_identity_required(origin: OriginFor<T>, is_identity_required: bool) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 			IsIdentityRequired::<T>::put(is_identity_required);
@@ -612,11 +634,11 @@ impl<T: Config> Pallet<T> {
 	/// This actually does computation. If you need to keep using it, then make sure you cache the
 	/// value and only call this once.
 	pub fn account_id() -> T::AccountId {
-		T::ModuleId::get().into_account()
+		T::PalletId::get().into_account()
 	}
 
 	pub fn project_account_id(index: ProjectIndex) -> T::AccountId {
-		T::ModuleId::get().into_sub_account(index)
+		T::PalletId::get().into_sub_account(index)
 	}
 
 	/// Get all projects
