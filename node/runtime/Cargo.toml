@@ -89,6 +89,7 @@ pallet-vesting = { version = "3.0.0", default-features = false, git = 'https://g
 
 # local dependencies
 pallet-template = {default-features = false, version = '3.0.0', path = '../../pallets/template'}
+pallet-quadratic-funding = {default-features = false, version = '3.0.0', path = '../../pallets/quadratic-funding'}
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
@@ -163,6 +164,7 @@ std = [
 	"frame-try-runtime/std",
 	"sp-npos-elections/std",
 	"pallet-template/std",
+	"pallet-quadratic-funding/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking",
@@ -201,6 +203,7 @@ runtime-benchmarks = [
 	"frame-system-benchmarking",
 	"hex-literal",
 	"pallet-template/runtime-benchmarks",
+	"pallet-quadratic-funding/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-executive/try-runtime",

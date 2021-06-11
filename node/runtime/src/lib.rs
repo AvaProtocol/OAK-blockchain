@@ -1099,6 +1099,22 @@ impl pallet_template::Config for Runtime {
 	type Event = Event;
 }
 
+// Configure the pallet quadratic funding in pallets/quadratic-funding.
+parameter_types! {
+	pub const QuadraticFundingPalletId: PalletId = PalletId(*b"quadfund");
+	pub const MaxGrantsPerRound: u32 = 256;
+	pub const MaxWithdrawalExpiration: BlockNumber = 180 * DAYS;
+}
+
+impl pallet_quadratic_funding::Config for Runtime {
+	type Event = Event;
+	type PalletId = QuadraticFundingPalletId;
+	type Currency = Balances;
+	type MaxGrantsPerRound = MaxGrantsPerRound;
+	type MaxWithdrawalExpiration = MaxWithdrawalExpiration;
+	type WeightInfo = ();
+}
+
 construct_runtime!(
 	pub enum Runtime where
 		Block = Block,
@@ -1144,6 +1160,7 @@ construct_runtime!(
 		Lottery: pallet_lottery::{Pallet, Call, Storage, Event<T>},
 		Gilt: pallet_gilt::{Pallet, Call, Storage, Event<T>, Config},
 		TemplateModule: pallet_template::{Pallet, Call, Storage, Event<T>},
+		QuadraticFunding: pallet_quadratic_funding::{Pallet, Call, Storage, Config<T>, Event<T>},
 	}
 );
 

@@ -25,7 +25,7 @@ use node_runtime::{
 	AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig, CouncilConfig,
 	DemocracyConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, SessionKeys, StakerStatus,
 	StakingConfig, ElectionsConfig, IndicesConfig, SocietyConfig, SudoConfig, SystemConfig,
-	TechnicalCommitteeConfig, wasm_binary_unwrap, MAX_NOMINATIONS,
+	TechnicalCommitteeConfig, QuadraticFundingConfig, wasm_binary_unwrap, MAX_NOMINATIONS,
 };
 use node_runtime::Block;
 use node_runtime::constants::currency::*;
@@ -330,6 +330,11 @@ pub fn testnet_genesis(
 		},
 		pallet_vesting: Default::default(),
 		pallet_gilt: Default::default(),
+		pallet_quadratic_funding: QuadraticFundingConfig {
+			init_max_grant_count_per_round: 60,
+			init_withdrawal_expiration: 1000,
+			init_is_identity_required: false,
+		},
 	}
 }
 

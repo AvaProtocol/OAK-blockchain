@@ -4269,6 +4269,7 @@ dependencies = [
  "pallet-offences",
  "pallet-offences-benchmarking",
  "pallet-proxy",
+ "pallet-quadratic-funding",
  "pallet-randomness-collective-flip",
  "pallet-recovery",
  "pallet-scheduler",
@@ -4911,6 +4912,23 @@ dependencies = [
  "frame-support",
  "frame-system",
  "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-quadratic-funding"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "integer-sqrt",
+ "pallet-identity",
+ "parity-scale-codec",
+ "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
