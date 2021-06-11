@@ -1,0 +1,176 @@
+[package]
+name = "node-cli"
+version = "2.0.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Generic Substrate node implementation in Rust."
+build = "build.rs"
+edition = "2018"
+license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
+default-run = "substrate"
+homepage = "https://substrate.dev"
+repository = "https://github.com/paritytech/substrate/"
+
+[package.metadata.wasm-pack.profile.release]
+# `wasm-opt` has some problems on linux, see
+# https://github.com/rustwasm/wasm-pack/issues/781 etc.
+wasm-opt = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[badges]
+travis-ci = { repository = "paritytech/substrate" }
+maintenance = { status = "actively-developed" }
+is-it-maintained-issue-resolution = { repository = "paritytech/substrate" }
+is-it-maintained-open-issues = { repository = "paritytech/substrate" }
+
+[[bin]]
+name = "substrate"
+path = "bin/main.rs"
+required-features = ["cli"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# third-party dependencies
+codec = { package = "parity-scale-codec", version = "2.0.0" }
+serde = { version = "1.0.102", features = ["derive"] }
+futures = { version = "0.3.9", features = ["compat"] }
+hex-literal = "0.3.1"
+log = "0.4.8"
+rand = "0.7.2"
+structopt = { version = "0.3.8", optional = true }
+parking_lot = "0.11.1"
+
+# primitives
+sp-authority-discovery = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-consensus-babe = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+grandpa-primitives = { version = "3.0.0", package = "sp-finality-grandpa", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-core = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-runtime = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-timestamp = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-inherents = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-keyring = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-keystore = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-io = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-consensus = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-transaction-pool = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+# client dependencies
+sc-client-api = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-chain-spec = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-transaction-pool = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-network = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus-slots = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus-babe = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+grandpa = { version = "0.9.0", package = "sc-finality-grandpa", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-client-db = { version = "0.9.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-offchain = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-rpc = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-basic-authorship = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-service = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-tracing = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-telemetry = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-authority-discovery = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-finality-grandpa-warp-sync = { version = "0.9.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+# frame dependencies
+pallet-indices = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-timestamp = { version = "3.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-contracts = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+frame-system = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-balances = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-transaction-payment = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+frame-support = { version = "3.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-im-online = { version = "3.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-authority-discovery = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-staking = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+pallet-grandpa = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+# node-specific dependencies
+node_runtime = { version = "2.0.0", path = "../runtime" }
+node-rpc = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+node-executor = { version = "2.0.0", path = "../executor" }
+
+# CLI-specific dependencies
+sc-cli = { version = "0.9.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+frame-benchmarking-cli = { version = "3.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+node-inspect = { version = "0.8.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+try-runtime-cli = { version = "0.9.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+# WASM-specific dependencies
+wasm-bindgen = { version = "0.2.73", optional = true }
+wasm-bindgen-futures = { version = "0.4.18", optional = true }
+browser-utils = { package = "substrate-browser-utils", optional = true, version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+libp2p-wasm-ext = { version = "0.28", features = ["websocket"], optional = true }
+
+[target.'cfg(target_arch="x86_64")'.dependencies]
+node-executor = { version = "2.0.0", path = "../executor", features = [ "wasmtime" ] }
+sc-cli = { version = "0.9.0", optional = true, features = [ "wasmtime" ], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-service = { version = "0.9.0", default-features = false, features = [ "wasmtime" ], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-trie = { version = "3.0.0", default-features = false, features = ["memory-tracker"], git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+[dev-dependencies]
+sc-keystore = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus-babe = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-consensus-epochs = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sc-service-test = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+futures = "0.3.9"
+tempfile = "3.1.0"
+assert_cmd = "1.0"
+nix = "0.19"
+serde_json = "1.0"
+regex = "1"
+platforms = "1.1"
+async-std = { version = "1.6.5", features = ["attributes"] }
+soketto = "0.4.2"
+
+[build-dependencies]
+structopt = { version = "0.3.8", optional = true }
+node-inspect = { version = "0.8.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+frame-benchmarking-cli = { version = "3.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+substrate-build-script-utils = { version = "3.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+substrate-frame-cli = { version = "3.0.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+try-runtime-cli = { version = "0.9.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
+[build-dependencies.sc-cli]
+version = "0.9.0"
+package = "sc-cli"
+git = 'https://github.com/paritytech/substrate.git'
+tag = 'monthly-2021-05'
+optional = true
+
+[features]
+default = [ "cli" ]
+browser = [
+	"browser-utils",
+	"wasm-bindgen",
+	"wasm-bindgen-futures",
+	"libp2p-wasm-ext",
+]
+cli = [
+	"node-executor/wasmi-errno",
+	"node-inspect",
+	"sc-cli",
+	"frame-benchmarking-cli",
+	"substrate-frame-cli",
+	"sc-service/db",
+	"sc-finality-grandpa-warp-sync",
+	"structopt",
+	"substrate-build-script-utils",
+	"try-runtime-cli",
+]
+runtime-benchmarks = [
+	"node_runtime/runtime-benchmarks",
+	"frame-benchmarking-cli",
+]
+# Enable features that allow the runtime to be tried and debugged. Name might be subject to change
+# in the near future.
+try-runtime = [
+	"node_runtime/try-runtime",
+	"try-runtime-cli",
+]
