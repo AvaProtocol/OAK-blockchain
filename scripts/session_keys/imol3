@@ -1,0 +1,10 @@
+{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"author_insertKey",
+    "params": [
+        "imol",
+        "output solid siege series apple item raise grain property enjoy clap jar//3//im_online",
+        "0xa437f4b7ed497b252402fed1d6d6f8c49a2e0c3f5e444bc188a717174508ea22"
+    ]
+}

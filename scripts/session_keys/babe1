@@ -1,0 +1,10 @@
+{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"author_insertKey",
+    "params": [
+        "babe",
+        "output solid siege series apple item raise grain property enjoy clap jar//1//babe",
+        "0x8a7582769b817bcd095e3026fafb2224da12ac7fb9548874f964455695d86e24"
+    ]
+}
