@@ -37,6 +37,7 @@ use sp_consensus_babe::{AuthorityId as BabeId};
 use pallet_im_online::sr25519::{AuthorityId as ImOnlineId};
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
+use serde_json::json;
 
 pub use node_primitives::{AccountId, Balance, Signature};
 pub use node_runtime::GenesisConfig;
@@ -150,7 +151,7 @@ pub fn testnet_config() -> ChainSpec {
 		Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
 			.expect("Staging telemetry url is valid; qed")),
 		None,
-		None,
+		Some(json!({"tokenDecimals": 10, "tokenSymbol": "OAK"}).as_object().expect("network properties generation can not fail; qed").to_owned()),
 		Default::default(),
 	)
 }
