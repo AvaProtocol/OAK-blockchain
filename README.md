@@ -7,14 +7,6 @@ Documentation
 * [Website](https://oak.tech/)
 * [Documentation]()
 
-<!--- 
-
-Whitepaper
-----------
-
-* [Whitepaper]()
--->
-
 Community
 --------- 
 
