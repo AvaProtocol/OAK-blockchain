@@ -69,7 +69,7 @@ pub fn flaming_fir_config() -> Result<ChainSpec, String> {
 	ChainSpec::from_json_bytes(&include_bytes!("../res/flaming-fir.json")[..])
 }
 
-/// OAK testnet generator
+/// Generate a json file as configuration template, which is called staging in Polkadot
 pub fn oak_testnet_config() -> Result<ChainSpec, String> {
 	ChainSpec::from_json_bytes(&include_bytes!("../res/oak-testnet.json")[..])
 }
