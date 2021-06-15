@@ -83,7 +83,7 @@ fn session_keys(
 	SessionKeys { grandpa, babe, im_online, authority_discovery }
 }
 
-fn oak_testnet_staing_testnet_config_genesis() -> GenesisConfig {
+fn oak_testnet_staging_genesis() -> GenesisConfig {
 	// stash, controller, session-key
 	// generated with secret:
 	// for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
@@ -145,13 +145,13 @@ fn oak_testnet_staing_testnet_config_genesis() -> GenesisConfig {
 }
 
 /// oak testnet config.
-pub fn oak_testnet_staing_testnet_config() -> ChainSpec {
+pub fn oak_testnet_staging_config() -> ChainSpec {
 	let boot_nodes = vec!["/dns/testnet.oak.tech/tcp/30333/p2p/12D3KooWBpDWtYunHni9Bz3f4fZt9PZ6Cw8uNKLdiBF5NJbQPPVt".parse().unwrap()];
 	ChainSpec::from_genesis(
-		"OAK Staging Testnet",
-		"oak_staging_testnet",
+		"OAK Testnet Staging",
+		"oak_testnet_staging",
 		ChainType::Live,
-		oak_testnet_staing_testnet_config_genesis,
+		oak_testnet_staging_genesis,
 		boot_nodes,
 		Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
 			.expect("Staging telemetry url is valid; qed")),
