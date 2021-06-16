@@ -146,7 +146,7 @@ fn oak_testnet_staging_genesis() -> GenesisConfig {
 
 /// oak testnet config.
 pub fn oak_testnet_staging_config() -> ChainSpec {
-	let boot_nodes = vec!["/dns/testnet.oak.tech/tcp/30333/p2p/12D3KooWBpDWtYunHni9Bz3f4fZt9PZ6Cw8uNKLdiBF5NJbQPPVt".parse().unwrap()];
+	let boot_nodes = vec!["/dns/rpc.testnet.oak.tech/tcp/30333/p2p/12D3KooWBpDWtYunHni9Bz3f4fZt9PZ6Cw8uNKLdiBF5NJbQPPVt".parse().unwrap()];
 	ChainSpec::from_genesis(
 		"OAK Testnet Staging",
 		"oak_testnet_staging",
