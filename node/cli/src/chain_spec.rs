@@ -69,6 +69,11 @@ pub fn flaming_fir_config() -> Result<ChainSpec, String> {
 	ChainSpec::from_json_bytes(&include_bytes!("../res/flaming-fir.json")[..])
 }
 
+/// Generate a json file as configuration template, which is called staging in Polkadot
+pub fn oak_testnet_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../res/oak-testnet.json")[..])
+}
+
 fn session_keys(
 	grandpa: GrandpaId,
 	babe: BabeId,
@@ -78,7 +83,7 @@ fn session_keys(
 	SessionKeys { grandpa, babe, im_online, authority_discovery }
 }
 
-fn testnet_config_genesis() -> GenesisConfig {
+fn oak_testnet_staging_genesis() -> GenesisConfig {
 	// stash, controller, session-key
 	// generated with secret:
 	// for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
@@ -140,13 +145,13 @@ fn testnet_config_genesis() -> GenesisConfig {
 }
 
 /// oak testnet config.
-pub fn testnet_config() -> ChainSpec {
+pub fn oak_testnet_staging_config() -> ChainSpec {
 	let boot_nodes = vec!["/dns/testnet.oak.tech/tcp/30333/p2p/12D3KooWBpDWtYunHni9Bz3f4fZt9PZ6Cw8uNKLdiBF5NJbQPPVt".parse().unwrap()];
 	ChainSpec::from_genesis(
-		"OAK Testnet",
-		"testnet",
+		"OAK Testnet Staging",
+		"oak_testnet_staging",
 		ChainType::Live,
-		testnet_config_genesis,
+		oak_testnet_staging_genesis,
 		boot_nodes,
 		Some(TelemetryEndpoints::new(vec![(STAGING_TELEMETRY_URL.to_string(), 0)])
 			.expect("Staging telemetry url is valid; qed")),
