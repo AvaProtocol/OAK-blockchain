@@ -53,7 +53,7 @@ After filling the form, click 'next' to the form of 'setup validator 2/2'
 There are some fileds.
 
 ##### Keys from rotateKeys
-Fill the string generated form [Run a validator node]()
+Fill the string generated form [Run a validator node](https://github.com/OAK-Foundation/OAK-blockchain/blob/add_validator_setup_doc/docs/validator-setup.md#run-a-validator-node)
 
 ##### reward commission percentage
 The commission is deducted from all rewards before the remainder is split with nominators.
