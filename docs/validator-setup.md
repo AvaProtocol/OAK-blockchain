@@ -14,7 +14,7 @@ docker run -d -p 9993:9933 --name <container_name> oaknetwork/oak_testnet:latest
 ### Get the rotateKeys of the node
 
 ```
-curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9977
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_rotateKeys", "params":[]}' http://localhost:9933
 ```
 
 ```
