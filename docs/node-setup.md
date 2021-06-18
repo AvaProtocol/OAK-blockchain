@@ -28,7 +28,7 @@ cargo build --release
 ### Run
 
 ```bash
-./target/release/oak-testnet --dev --tmp
+./target/release/oak --dev --tmp
 ```
 
 Note: --dev is equivalent to --chain dev
@@ -79,5 +79,5 @@ In development environment, there are default settings:
 Then run the following command to start a full node and join OAK Testnet
 
 ```bash
-docker run -d --name <container_name> oaknetwork/oak_testnet:latest --name <node_name>
+docker pull oaknetwork/oak_testnet:latest & docker run -d --name <container_name> oaknetwork/oak_testnet:latest --name <node_name>
 ```
