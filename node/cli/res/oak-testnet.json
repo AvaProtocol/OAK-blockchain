@@ -3,7 +3,7 @@
   "id": "oak-testnet",
   "chainType": "Live",
   "bootNodes": [
-    "/dns/rpc.testnet.oak.tech/tcp/30333/p2p/12D3KooWQTsvoFkGRCjbQmFLz558aJAjR7NttCbL5EJjkxBqnXFs"
+    "/dns/rpc.testnet.oak.tech/tcp/30333/p2p/12D3KooWHfJBeJjnMer8shbhgFwUZXEQ437C7hRTXCk5BL3g7yfa"
   ],
   "telemetryEndpoints": [
     [
