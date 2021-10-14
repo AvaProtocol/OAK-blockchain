@@ -12,4 +12,3 @@
 # The cache for chain data in container
 .local
 /data/
-#local-test
