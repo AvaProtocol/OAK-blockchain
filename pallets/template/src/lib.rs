@@ -3,7 +3,10 @@
 /// Edit this file to define custom logic or remove it if it is not needed.
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
+<<<<<<< HEAD
 
+=======
+>>>>>>> main
 pub use pallet::*;
 
 #[cfg(test)]
@@ -14,12 +17,21 @@ mod tests;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
+<<<<<<< HEAD
 
 #[frame_support::pallet]
 pub mod pallet {
 	use frame_support::{dispatch::DispatchResult, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 
+=======
+
+#[frame_support::pallet]
+pub mod pallet {
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_system::pallet_prelude::*;
+
+>>>>>>> main
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -66,11 +78,19 @@ pub mod pallet {
 	// These functions materialize as "extrinsics", which are often compared to transactions.
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
+<<<<<<< HEAD
 	impl<T:Config> Pallet<T> {
 		/// An example dispatchable that takes a singles value as a parameter, writes the value to
 		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
 		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
+=======
+	impl<T: Config> Pallet<T> {
+		/// An example dispatchable that takes a singles value as a parameter, writes the value to
+		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResultWithPostInfo {
+>>>>>>> main
 			// Check that the extrinsic was signed and get the signer.
 			// This function will return an error if the extrinsic is not signed.
 			// https://substrate.dev/docs/en/knowledgebase/runtime/origin
@@ -82,12 +102,20 @@ pub mod pallet {
 			// Emit an event.
 			Self::deposit_event(Event::SomethingStored(something, who));
 			// Return a successful DispatchResultWithPostInfo
+<<<<<<< HEAD
 			Ok(())
+=======
+			Ok(().into())
+>>>>>>> main
 		}
 
 		/// An example dispatchable that may throw a custom error.
 		#[pallet::weight(10_000 + T::DbWeight::get().reads_writes(1,1))]
+<<<<<<< HEAD
 		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
+=======
+		pub fn cause_error(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+>>>>>>> main
 			let _who = ensure_signed(origin)?;
 
 			// Read a value from storage.
@@ -99,8 +127,13 @@ pub mod pallet {
 					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
 					// Update the value in storage with the incremented result.
 					<Something<T>>::put(new);
+<<<<<<< HEAD
 					Ok(())
 				},
+=======
+					Ok(().into())
+				}
+>>>>>>> main
 			}
 		}
 	}
