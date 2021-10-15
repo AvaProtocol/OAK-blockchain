@@ -6,6 +6,6 @@ panic = "unwind"
 members = [
 	"node/cli",
 	"node/executor",
-	"node/runtime",
+	"runtime",
 	"pallets/*",
 ]

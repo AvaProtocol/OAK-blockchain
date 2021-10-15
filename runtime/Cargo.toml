@@ -88,8 +88,8 @@ pallet-transaction-payment-rpc-runtime-api = { version = "3.0.0", default-featur
 pallet-vesting = { version = "3.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 
 # local dependencies
-pallet-template = {default-features = false, version = '3.0.0', path = '../../pallets/template'}
-pallet-quadratic-funding = {default-features = false, version = '3.0.0', path = '../../pallets/quadratic-funding'}
+pallet-template = {default-features = false, version = '3.0.0', path = '../pallets/template'}
+pallet-quadratic-funding = {default-features = false, version = '3.0.0', path = '../pallets/quadratic-funding'}
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }

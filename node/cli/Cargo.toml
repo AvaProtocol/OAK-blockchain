@@ -91,7 +91,7 @@ pallet-staking = { version = "3.0.0", git = 'https://github.com/paritytech/subst
 pallet-grandpa = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 
 # node-specific dependencies
-node_runtime = { version = "2.0.0", path = "../runtime" }
+node_runtime = { version = "2.0.0", path = "../../runtime" }
 node-rpc = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 node-executor = { version = "2.0.0", path = "../executor" }
