@@ -22,6 +22,8 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
+//! TODO(irsal): for dev only 
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 use sp_std::prelude::*;
 use frame_support::{

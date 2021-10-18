@@ -17,6 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 pub mod oak_testnet;
+pub mod turing;
 
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use serde::{Deserialize, Serialize};
@@ -32,7 +33,7 @@ use crate::chain_spec::oak_testnet::{AccountId, AccountPublic};
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
     TPublic::Pair::from_string(&format!("//{}", seed), None)
-        .expect("static values are valid; qed")
+        .expect("static values are valid")
         .public()
 }
 

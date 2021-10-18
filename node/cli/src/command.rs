@@ -24,8 +24,9 @@ use sc_service::PartialComponents;
 use crate::service::new_partial;
 
 // TODO(irsal): rm hard-code
-use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, flaming_fir_config, oak_testnet_config, oak_testnet_staging_config};
-
+use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, oak_testnet_config, oak_testnet_staging_config};
+use crate::chain_spec::turing::{turing_development_config};
+let paraId = uint 2000;
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	let spec =
@@ -33,9 +34,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
 			"dev" => Box::new(development_config()),
 			"local" => Box::new(local_testnet_config()),
-			"fir" | "flaming-fir" => Box::new(flaming_fir_config()?),
 			"oak-testnet" => Box::new(oak_testnet_config()?),
 			"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
+			"turing" => Box::new(turing_development_config()),
 			path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(
 				std::path::PathBuf::from(path),
 			)?), // TODO(irsal): rm hard-code

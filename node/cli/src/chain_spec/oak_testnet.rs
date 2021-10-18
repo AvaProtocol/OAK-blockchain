@@ -64,10 +64,6 @@ pub type ChainSpec = sc_service::GenericChainSpec<
 	GenesisConfig,
 	Extensions,
 >;
-/// Flaming Fir testnet generator
-pub fn flaming_fir_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../../res/flaming-fir.json")[..])
-}
 
 /// Generate a json file as configuration template, which is called staging in Polkadot
 pub fn oak_testnet_config() -> Result<ChainSpec, String> {
