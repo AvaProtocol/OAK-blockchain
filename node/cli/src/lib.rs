@@ -28,7 +28,7 @@
 //! Despite its name the produced WASM can theoretically also be used from NodeJS, although this
 //! hasn't been tested.
 
-#![warn(missing_docs)]
+//#![warn(missing_docs)] //TODO(irsal): Add back when we can document everything out
 
 pub mod chain_spec;
 

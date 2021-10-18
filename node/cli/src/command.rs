@@ -1,6 +1,6 @@
-// This file is part of Substrate.
+// This file is part of OAK Network.
 
-// Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
+// Copyright (C) 2017-2021 Forge Labs, Inc.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -26,9 +26,26 @@ use crate::service::new_partial;
 // TODO(irsal): rm hard-code
 use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, flaming_fir_config, oak_testnet_config, oak_testnet_staging_config};
 
+
+fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+	let spec =
+		match id {
+			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
+			"dev" => Box::new(development_config()),
+			"local" => Box::new(local_testnet_config()),
+			"fir" | "flaming-fir" => Box::new(flaming_fir_config()?),
+			"oak-testnet" => Box::new(oak_testnet_config()?),
+			"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
+			path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(
+				std::path::PathBuf::from(path),
+			)?), // TODO(irsal): rm hard-code
+		};
+	Ok(spec)
+}
+
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Substrate Node".into()
+		"OAK".into()
 	}
 
 	fn impl_version() -> String {
@@ -52,20 +69,8 @@ impl SubstrateCli for Cli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		let spec =
-			match id {
-				"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-				"dev" => Box::new(development_config()),
-				"local" => Box::new(local_testnet_config()),
-				"fir" | "flaming-fir" => Box::new(flaming_fir_config()?),
-				"oak-testnet" => Box::new(oak_testnet_config()?),
-				"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
-				path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(
-					std::path::PathBuf::from(path),
-				)?), // TODO(irsal): rm hard-code
-			};
-		Ok(spec)
-	}
+        load_spec(id)
+    }
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
 		&node_runtime::VERSION

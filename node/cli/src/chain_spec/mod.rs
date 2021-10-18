@@ -19,42 +19,15 @@
 pub mod oak_testnet;
 
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
-use sc_service::Properties;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use sp_core::{Pair, Public};
 use sp_runtime::traits::IdentifyAccount;
 #[cfg(feature = "std")]
 use sp_std::collections::btree_map::BTreeMap;
 
 // TODO(irsal): rm hard-code
-use crate::chain_spec::oak_testnet::AccountId;
-use crate::chain_spec::oak_testnet::AccountPublic;
-pub const OAK_TESTNET_TOKEN: &str = "OAK";
-
-pub const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
-/// set default ss58 crypto
-pub fn set_default_ss58_version(spec: &Box<dyn sc_service::ChainSpec>) {
-    use sp_core::crypto::Ss58AddressFormat;
-
-    let ss58_version = Ss58AddressFormat::SubstrateAccount;
-
-    sp_core::crypto::set_default_ss58_version(ss58_version);
-}
-
-/// Generate chain properties for network.
-pub(crate) fn as_properties() -> Properties {
-    let (symbol, decimal) = (OAK_TESTNET_TOKEN, 10); // TODO(irsal): Dedupe
-    json!({
-        "ss58Format": 8, // TODO(irsal): remove hard-code
-        "tokenSymbol": symbol,
-        "tokenDecimals": decimal,
-    })
-    .as_object()
-    .expect("Network properties are valid; qed")
-    .to_owned()
-}
+/// Grab chain-specific configurations
+use crate::chain_spec::oak_testnet::{AccountId, AccountPublic};
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
