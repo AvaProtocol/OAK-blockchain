@@ -42,7 +42,7 @@ use serde_json::json;
 pub use node_primitives::{AccountId, Balance, Signature};
 pub use node_runtime::GenesisConfig;
 
-type AccountPublic = <Signature as Verify>::Signer;
+pub type AccountPublic = <Signature as Verify>::Signer;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 
@@ -66,12 +66,12 @@ pub type ChainSpec = sc_service::GenericChainSpec<
 >;
 /// Flaming Fir testnet generator
 pub fn flaming_fir_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../res/flaming-fir.json")[..])
+	ChainSpec::from_json_bytes(&include_bytes!("../../res/flaming-fir.json")[..])
 }
 
 /// Generate a json file as configuration template, which is called staging in Polkadot
 pub fn oak_testnet_config() -> Result<ChainSpec, String> {
-	ChainSpec::from_json_bytes(&include_bytes!("../res/oak-testnet.json")[..])
+	ChainSpec::from_json_bytes(&include_bytes!("../../res/oak-testnet.json")[..])
 }
 
 fn session_keys(

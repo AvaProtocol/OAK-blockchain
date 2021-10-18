@@ -23,6 +23,9 @@ use sc_cli::{Result, SubstrateCli, RuntimeVersion, Role, ChainSpec};
 use sc_service::PartialComponents;
 use crate::service::new_partial;
 
+// TODO(irsal): rm hard-code
+use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, flaming_fir_config, oak_testnet_config, oak_testnet_staging_config};
+
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
 		"Substrate Node".into()
@@ -52,14 +55,14 @@ impl SubstrateCli for Cli {
 		let spec =
 			match id {
 				"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-				"dev" => Box::new(chain_spec::development_config()),
-				"local" => Box::new(chain_spec::local_testnet_config()),
-				"fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
-				"oak-testnet" => Box::new(chain_spec::oak_testnet_config()?),
-				"oak-testnet-staging" => Box::new(chain_spec::oak_testnet_staging_config()),
-				path => Box::new(chain_spec::ChainSpec::from_json_file(
+				"dev" => Box::new(development_config()),
+				"local" => Box::new(local_testnet_config()),
+				"fir" | "flaming-fir" => Box::new(flaming_fir_config()?),
+				"oak-testnet" => Box::new(oak_testnet_config()?),
+				"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
+				path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(
 					std::path::PathBuf::from(path),
-				)?),
+				)?), // TODO(irsal): rm hard-code
 			};
 		Ok(spec)
 	}

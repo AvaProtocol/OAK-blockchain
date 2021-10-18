@@ -77,6 +77,10 @@ sc-telemetry = { version = "3.0.0", git = 'https://github.com/paritytech/substra
 sc-authority-discovery = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 sc-finality-grandpa-warp-sync = { version = "0.9.0", optional = true, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 
+# parachain dependencies
+sp-consensus-aura = { version = "0.9.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+sp-std = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
+
 # frame dependencies
 pallet-indices = { version = "3.0.0", git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
 pallet-timestamp = { version = "3.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', tag = 'monthly-2021-05' }
