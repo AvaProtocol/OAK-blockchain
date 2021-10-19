@@ -20,26 +20,25 @@ use crate::{chain_spec, service, Cli, Subcommand};
 use node_executor::Executor;
 use node_runtime::{Block, RuntimeApi};
 use sc_cli::{Result, SubstrateCli, RuntimeVersion, Role, ChainSpec};
-use sc_service::PartialComponents;
+use sc_service::{PartialComponents};
 use crate::service::new_partial;
 
 // TODO(irsal): rm hard-code
 use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, oak_testnet_config, oak_testnet_staging_config};
-use crate::chain_spec::turing::{turing_development_config};
-let paraId = uint 2000;
+use crate::chain_spec::turing::{turing_local_testnet_config};
 
+// TODO(irsal): rm hard-code
+// Note(irsal): the chainspec result is clashing between the two different extensions (parachain and standalone)
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	let spec =
 		match id {
 			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-			"dev" => Box::new(development_config()),
-			"local" => Box::new(local_testnet_config()),
-			"oak-testnet" => Box::new(oak_testnet_config()?),
-			"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
-			"turing" => Box::new(turing_development_config()),
-			path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(
-				std::path::PathBuf::from(path),
-			)?), // TODO(irsal): rm hard-code
+			"turing" => Box::new(turing_local_testnet_config()?),
+			// "dev" => Box::new(development_config()),
+			// "local" => Box::new(local_testnet_config()),
+			// "oak-testnet" => Box::new(oak_testnet_config()?),
+			// "oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
+			path => Box::new(chain_spec::turing::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
 		};
 	Ok(spec)
 }

@@ -4343,6 +4343,7 @@ dependencies = [
  "sp-api",
  "sp-authority-discovery",
  "sp-block-builder",
+ "sp-consensus-aura",
  "sp-consensus-babe",
  "sp-core",
  "sp-inherents",
