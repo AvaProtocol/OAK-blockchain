@@ -23,11 +23,11 @@ use frame_support::{
 use sp_core::NeverNativeValue;
 use sp_runtime::{Perbill, traits::One};
 use node_runtime::{
-	CheckedExtrinsic, Call, Runtime, Balances, TransactionPayment, Multiplier,
+	Balance, CheckedExtrinsic, Call, Runtime, Balances, TransactionPayment, Multiplier,
 	TransactionByteFee,
 	constants::{time::SLOT_DURATION, currency::*},
 };
-use node_primitives::Balance;
+#use node_primitives::Balance;
 use node_testing::keyring::*;
 
 pub mod common;
