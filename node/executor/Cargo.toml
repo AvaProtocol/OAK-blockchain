@@ -13,7 +13,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 codec = { package = "parity-scale-codec", version = "2.0.0" }
-#node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
+node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 node_runtime = { version = "2.0.0", path = "../../runtime" }
 sc-executor = { version = "0.10.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sp-core = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }

@@ -100,7 +100,7 @@ pallet-grandpa = { version = "4.0.0-dev", git = 'https://github.com/paritytech/s
 # node-specific dependencies
 node_runtime = { version = "2.0.0", path = "../../runtime" }
 node-rpc = { version = "3.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
-#node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
+node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 node-executor = { version = "2.0.0", path = "../executor" }
 
 # CLI-specific dependencies

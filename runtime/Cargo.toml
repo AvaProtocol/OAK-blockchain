@@ -25,7 +25,6 @@ sp-authority-discovery = { version = "4.0.0-dev", default-features = false, git 
 sp-consensus-babe = { version = "0.10.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sp-block-builder = { default-features = false, version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sp-inherents = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
-node-primitives = { version = "2.0.0", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sp-offchain = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 sp-core = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 sp-std = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
@@ -37,6 +36,8 @@ sp-session = { version = "4.0.0-dev", default-features = false, git = 'https://g
 sp-transaction-pool = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 sp-version = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 sp-npos-elections = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
+node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
+
 
 # parachain dependencies
 #sp-consensus-aura =  { branch= 'polkadot-v0.9.10', default-features = false, git = 'https://github.com/paritytech/substrate' }
