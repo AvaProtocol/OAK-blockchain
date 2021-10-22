@@ -14,7 +14,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 
 # third-party dependencies
-codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive", "max-encoded-len"] }
 static_assertions = "1.1.0"
 hex-literal = { version = "0.3.1", optional = true }
 log = { version = "0.4.14", default-features = false }
@@ -40,7 +40,7 @@ node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/subs
 
 
 # parachain dependencies
-#sp-consensus-aura =  { branch= 'polkadot-v0.9.10', default-features = false, git = 'https://github.com/paritytech/substrate' }
+# sp-consensus-aura =  { version = "0.10.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate', branch= 'polkadot-v0.9.10' }
 
 # frame dependencies
 frame-executive = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
@@ -48,6 +48,7 @@ frame-benchmarking = { version = "4.0.0-dev", default-features = false, optional
 frame-support = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 frame-system = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 frame-system-benchmarking = { version = "4.0.0-dev", default-features = false, optional = true, git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
+frame-election-provider-support = { version = "4.0.0-dev", default-features = false, git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 frame-system-rpc-runtime-api = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 frame-try-runtime = { version = "0.10.0-dev", default-features = false, optional = true, git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 pallet-assets = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
