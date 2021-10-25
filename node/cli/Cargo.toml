@@ -101,7 +101,7 @@ pallet-staking = { version = "4.0.0-dev", git = 'https://github.com/paritytech/s
 pallet-grandpa = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch = 'polkadot-v0.9.10' }
 
 # node-specific dependencies
-node-runtime = {version = "3.0.0-dev", path = '../../runtime'}
+node-runtime = {version = "2.0.2", path = '../../runtime'}
 node-rpc = { version = "3.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 node-primitives = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 node-executor = { version = "3.0.0-dev", path = '../executor' }
@@ -130,6 +130,7 @@ sc-consensus = { version = "0.10.0-dev", git = 'https://github.com/paritytech/su
 sc-consensus-babe = { version = "0.10.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sc-consensus-epochs = { version = "0.10.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 sc-service-test = { version = "2.0.0", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
+sc-transaction-pool-api = { version = "4.0.0-dev", git = 'https://github.com/paritytech/substrate.git', branch= 'polkadot-v0.9.10' }
 futures = "0.3.9"
 tempfile = "3.1.0"
 assert_cmd = "1.0"

@@ -640,7 +640,8 @@ mod tests {
 				.expect("Creates authority pair")
 				.into();
 
-		let chain_spec = crate::chain_spec::tests::integration_test_config_with_single_authority();
+		
+		let chain_spec = crate::chain_spec::oak_testnet::tests::integration_test_config_with_single_authority();
 
 		// For the block factory
 		let mut slot = 1u64;
@@ -832,7 +833,7 @@ mod tests {
 	#[ignore]
 	fn test_consensus() {
 		sc_service_test::consensus(
-			crate::chain_spec::tests::integration_test_config_with_two_authorities(),
+			crate::chain_spec::oak_testnet::tests::integration_test_config_with_two_authorities(),
 			|config| {
 				let NewFullBase { task_manager, client, network, transaction_pool, .. } =
 					new_full_base(config, |_, _| ())?;

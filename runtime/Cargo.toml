@@ -1,6 +1,6 @@
 [package]
 name = "node-runtime"
-version = "3.0.0-dev"
+version = "2.0.2"
 authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 build = "build.rs"

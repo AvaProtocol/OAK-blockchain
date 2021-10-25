@@ -4120,7 +4120,7 @@ dependencies = [
  "node-inspect",
  "node-primitives",
  "node-rpc",
- "node-runtime 3.0.0-dev",
+ "node-runtime 2.0.2",
  "pallet-authority-discovery",
  "pallet-balances",
  "pallet-contracts",
@@ -4157,6 +4157,7 @@ dependencies = [
  "sc-telemetry",
  "sc-tracing",
  "sc-transaction-pool",
+ "sc-transaction-pool-api",
  "serde",
  "serde_json",
  "soketto 0.4.2",
@@ -4195,7 +4196,7 @@ dependencies = [
  "frame-system",
  "futures 0.3.17",
  "node-primitives",
- "node-runtime 3.0.0-dev",
+ "node-runtime 2.0.2",
  "node-testing",
  "pallet-balances",
  "pallet-contracts",
@@ -4229,7 +4230,7 @@ source = "git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.1
 dependencies = [
  "frame-benchmarking",
  "node-primitives",
- "node-runtime 3.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
+ "node-runtime 3.0.0-dev",
  "parity-scale-codec",
  "sc-executor",
  "sp-core",
@@ -4303,7 +4304,7 @@ dependencies = [
 
 [[package]]
 name = "node-runtime"
-version = "3.0.0-dev"
+version = "2.0.2"
 dependencies = [
  "frame-benchmarking",
  "frame-election-provider-support",
@@ -4468,7 +4469,7 @@ dependencies = [
  "log",
  "node-executor 3.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
  "node-primitives",
- "node-runtime 3.0.0-dev (git+https://github.com/paritytech/substrate.git?branch=polkadot-v0.9.10)",
+ "node-runtime 3.0.0-dev",
  "pallet-balances",
  "pallet-contracts",
  "pallet-grandpa",

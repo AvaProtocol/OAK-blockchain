@@ -471,9 +471,4 @@ pub(crate) mod tests {
 	fn test_create_local_testnet_chain_spec() {
 		local_testnet_config().build_storage().unwrap();
 	}
-
-	#[test]
-	fn test_staging_test_net_chain_spec() {
-		testnet_config().build_storage().unwrap();
-	}
 }
