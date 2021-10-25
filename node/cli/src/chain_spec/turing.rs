@@ -1,12 +1,12 @@
 use cumulus_primitives_core::ParaId;
-use node_runtime::{AccountId, AuraId, Signature, GenesisConfig};
+use node_runtime::{/*AccountId, AuraId, */Signature, GenesisConfig};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
-pub const TURING_PARA_ID: u32 = 2001;
+pub const TURING_PARA_ID: ParaId = ParaId::new(2001);
 pub const EXISTENTIAL_DEPOSIT: u64 = 10000;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
@@ -43,17 +43,17 @@ type AccountPublic = <Signature as Verify>::Signer;
 /// Generate collator keys from seed.
 ///
 /// This function's return type must always match the session keys of the chain in tuple format.
-pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
-	get_pair_from_seed::<AuraId>(seed)
-}
+// pub fn get_collator_keys_from_seed(seed: &str) -> AuraId {
+// 	get_pair_from_seed::<AuraId>(seed)
+// }
 
 /// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_pair_from_seed::<TPublic>(seed)).into_account()
-}
+// pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+// where
+// 	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+// {
+// 	AccountPublic::from(get_pair_from_seed::<TPublic>(seed)).into_account()
+// }
 
 /// Generate the session keys from individual elements.
 ///
