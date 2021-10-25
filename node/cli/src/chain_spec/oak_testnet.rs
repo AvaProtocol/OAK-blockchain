@@ -40,8 +40,6 @@ use sp_runtime::{Perbill, traits::{Verify, IdentifyAccount}};
 pub use node_primitives::{Balance, Signature};
 use serde_json::json;
 
-// pub use node_runtime::GenesisConfig;
-
 pub type AccountPublic = <Signature as Verify>::Signer;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
@@ -205,7 +203,7 @@ pub fn testnet_genesis(
 	initial_nominators: Vec<AccountId>,
 	root_key: AccountId,
 	endowed_accounts: Option<Vec<AccountId>>,
-	enable_println: bool,
+	_enable_println: bool,
 ) -> GenesisConfig {
 	let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
 		vec![
