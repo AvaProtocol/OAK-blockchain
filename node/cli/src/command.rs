@@ -33,12 +33,12 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 	let spec =
 		match id {
 			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-			"turing" => Box::new(turing_local_testnet_config()?),
-			// "dev" => Box::new(development_config()),
-			// "local" => Box::new(local_testnet_config()),
+			// "turing" => Box::new(turing_local_testnet_config()?),
+			"dev" => Box::new(development_config()),
+			"local" => Box::new(local_testnet_config()),
 			// "oak-testnet" => Box::new(oak_testnet_config()?),
 			// "oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
-			path => Box::new(chain_spec::turing::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
+			path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
 		};
 	Ok(spec)
 }

@@ -28,7 +28,7 @@ use sp_std::collections::btree_map::BTreeMap;
 
 // TODO(irsal): rm hard-code
 /// Grab chain-specific configurations
-use crate::chain_spec::oak_testnet::{AccountId, AccountPublic};
+use crate::chain_spec::oak_testnet::{/*AccountId, */AccountPublic};
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -54,10 +54,10 @@ impl Extensions {
     }
 }
 
-/// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-    AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-    AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-}
+//// Helper function to generate an account ID from seed
+// pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
+// where
+//     AccountPublic: From<<TPublic::Pair as Pair>::Public>,
+// {
+//     AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
+// }
