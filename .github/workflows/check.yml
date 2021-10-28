@@ -37,14 +37,7 @@ jobs:
       - name: Check Build
         run: |
           SKIP_WASM_BUILD=1 cargo check --release
-      
-      - name: Check Test
-        run: |
-          SKIP_WASM_BUILD=1 cargo test
-      
-      - name: Spin up OAK-blockchain
-        run: |
-          ./target/release/oak --dev --tmp --ws-external -ldsync=debug
+
   run-tests:
       runs-on: ubuntu-20.04
 
