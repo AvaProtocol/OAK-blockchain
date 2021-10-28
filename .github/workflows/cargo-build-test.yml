@@ -1,4 +1,4 @@
-name: Rust
+name: Repo Builds & Tests pass successfully
 
 on:
   push:
