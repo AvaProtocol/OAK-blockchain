@@ -25,7 +25,7 @@ Table of Contents
 Introduction
 ============
 
-**OAK, or Onchain Automation Framework, is equipped with a novel smart contract virtual machine that supports an event-driven execution model, enabling developers to build fully autonomous decentralized application. **By extending the current set of atomic operations, namely, opcodes of EVM, OAK introduces an innovative way for contracts to interact with each other. Contracts can emit signal events, on which other contracts can listen. Once an event is triggered, corresponding handler functions are automatically executed as a new type of transaction, signal transaction. Applications implemented with the new approach will eliminate the dependency of unreliable mechanisms like off-chain relay servers, and in return, to significantly simplify the execution flow of the application and can avoid security risks such as relay manipulation attacks.
+**OAK, or Onchain Automation Framework, is equipped with a novel smart contract virtual machine that supports an event-driven execution model, enabling developers to build fully autonomous decentralized application.** By extending the current set of atomic operations, namely, opcodes of EVM, OAK introduces an innovative way for contracts to interact with each other. Contracts can emit signal events, on which other contracts can listen. Once an event is triggered, corresponding handler functions are automatically executed as a new type of transaction, signal transaction. Applications implemented with the new approach will eliminate the dependency of unreliable mechanisms like off-chain relay servers, and in return, to significantly simplify the execution flow of the application and can avoid security risks such as relay manipulation attacks.
 
 Based on the above, OAK has some features.
 - **OAK Virtual Machine**
@@ -104,8 +104,7 @@ Contacts
 
 * [Chris Li](https://github.com/chrisli30)
 * [Irsal McGinnis](https://github.com/irsal)
-* [Xingyou Chen](https://github.com/imstar15)
-* [Zhongwei Shi](https://github.com/amazingbeerbelly)
+* [Charles Chen](https://github.com/imstar15)
 
 * * *
 
