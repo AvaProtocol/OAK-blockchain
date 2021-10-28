@@ -331,6 +331,7 @@ pub fn testnet_genesis(
 			max_members: 999,
 		},
 		vesting: Default::default(),
+		assets: Default::default(),
 		gilt: Default::default(),
 		quadratic_funding: QuadraticFundingConfig {
 			init_max_grant_count_per_round: 60,

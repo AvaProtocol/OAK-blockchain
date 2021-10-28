@@ -21,19 +21,18 @@
 pub mod currency {
 	use node_primitives::Balance;
 
-	pub const UNITS: Balance = 10_000_000_000;
-	pub const DOLLARS: Balance = UNITS;       // 10_000_000_000, 1 DOLLARS = 10,000,000,000 UNITS
-	pub const CENTS: Balance = DOLLARS / 100;      // 100_000_000, 1 CENTS = 100,000,000 UNITS
-	pub const MILLICENTS: Balance = CENTS / 1_000; // 100_000, 1 MILLICENTS = 100,000 UNITS
+	pub const MILLICENTS: Balance = 1_000_000_000;
+	pub const CENTS: Balance = 1_000 * MILLICENTS; // assume this is worth about a cent.
+	pub const DOLLARS: Balance = 100 * CENTS;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 20 * DOLLARS + (bytes as Balance) * 100 * MILLICENTS
+		items as Balance * 15 * CENTS + (bytes as Balance) * 6 * CENTS
 	}
 }
 
 /// Time.
 pub mod time {
-	use node_primitives::{Moment, BlockNumber};
+	use node_primitives::{BlockNumber, Moment};
 
 	/// Since BABE is probabilistic this is the average expected block time that
 	/// we are targeting. Blocks will be produced at a minimum duration defined

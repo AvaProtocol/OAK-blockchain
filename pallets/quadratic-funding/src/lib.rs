@@ -16,6 +16,7 @@ use integer_sqrt::IntegerSquareRoot;
 use sp_runtime::traits::AccountIdConversion;
 pub use weights::WeightInfo;
 pub use pallet::*;
+use scale_info::TypeInfo;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -52,7 +53,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn projects)]
-	pub type Projects<T> = StorageMap<_, Blake2_128Concat, ProjectIndex, Option<ProjectOf<T>>, ValueQuery>;
+	pub(super) type Projects<T: Config> = StorageMap<_, Blake2_128Concat, ProjectIndex, Option<ProjectOf<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn project_count)]
@@ -60,7 +61,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn rounds)]
-	pub type Rounds<T> = StorageMap<_, Blake2_128Concat, RoundIndex, Option<RoundOf<T>>, ValueQuery>;
+	pub type Rounds<T: Config> = StorageMap<_, Blake2_128Concat, RoundIndex, Option<RoundOf<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn round_count)]
@@ -108,7 +109,6 @@ pub mod pallet {
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		ProjectCreated(ProjectIndex),
@@ -704,7 +704,7 @@ type RoundOf<T> = Round<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config
 type GrantOf<T> = Grant<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
 
 /// Round struct
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Round<AccountId, Balance, BlockNumber> {
 	start: BlockNumber,
 	end: BlockNumber,
@@ -742,7 +742,7 @@ impl<AccountId, Balance: From<u32>, BlockNumber: From<u32>> Round<AccountId, Bal
 	}
 }
 // Grant in round
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Grant<AccountId, Balance, BlockNumber> {
 	project_index: ProjectIndex,
 	contributions: Vec<Contribution<AccountId, Balance>>,
@@ -754,14 +754,14 @@ pub struct Grant<AccountId, Balance, BlockNumber> {
 }
 
 /// The contribution users made to a grant project.
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Contribution<AccountId, Balance> {
 	account_id: AccountId,
 	value: Balance,
 }
 
 /// Project struct
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Project<AccountId, BlockNumber> {
 	name: Vec<u8>,
 	logo: Vec<u8>,

@@ -1,6 +1,6 @@
-// This file is part of OAK Network.
+// This file is part of Substrate.
 
-// Copyright (C) 2017-2021 Forge Labs, Inc.
+// Copyright (C) 2017-2021 Parity Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,33 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use crate::{chain_spec, service, Cli, Subcommand};
-use node_executor::Executor;
+use crate::{chain_spec, service, service::new_partial, Cli, Subcommand};
+use node_executor::ExecutorDispatch;
 use node_runtime::{Block, RuntimeApi};
-use sc_cli::{Result, SubstrateCli, RuntimeVersion, Role, ChainSpec};
-use sc_service::{PartialComponents};
-use crate::service::new_partial;
+use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
+use sc_service::PartialComponents;
 
 // TODO(irsal): rm hard-code
 use crate::chain_spec::oak_testnet::{development_config, local_testnet_config, oak_testnet_config, oak_testnet_staging_config};
 use crate::chain_spec::turing::{turing_local_testnet_config};
-
-// TODO(irsal): rm hard-code
-// Note(irsal): the chainspec result is clashing between the two different extensions (parachain and standalone)
-fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-	let spec =
-		match id {
-			"" => return Err("Please specify which chain you want to run, e.g. --dev or --chain=local".into()),
-			//"turing" => Box::new(turing_local_testnet_config()?),
-			"dev" => Box::new(development_config()),
-			"local" => Box::new(local_testnet_config()),
-			"oak-testnet" => Box::new(oak_testnet_config()?),
-			"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
-			path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
-			//path => Box::new(chain_spec::turing::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
-		};
-	Ok(spec)
-}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -69,9 +51,23 @@ impl SubstrateCli for Cli {
 		2017
 	}
 
+	// TODO(irsal): rm hard-code
+	// Note(irsal): the chainspec result is clashing between the two different extensions (parachain and standalone)
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-        load_spec(id)
-    }
+		let spec = match id {
+			"" =>
+				return Err(
+					"Please specify which chain you want to run, e.g. --dev or --chain=local"
+						.into(),
+				),
+				"dev" => Box::new(development_config()),
+				"local" => Box::new(local_testnet_config()),
+				"oak-testnet" => Box::new(oak_testnet_config()?),
+				"oak-testnet-staging" => Box::new(oak_testnet_staging_config()),
+				path => Box::new(chain_spec::oak_testnet::ChainSpec::from_json_file(std::path::PathBuf::from(path))?)
+		};
+		Ok(spec)
+	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
 		&node_runtime::VERSION
@@ -89,24 +85,25 @@ pub fn run() -> Result<()> {
 				match config.role {
 					Role::Light => service::new_light(config),
 					_ => service::new_full(config),
-				}.map_err(sc_cli::Error::Service)
+				}
+				.map_err(sc_cli::Error::Service)
 			})
-		}
+		},
 		Some(Subcommand::Inspect(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
-			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, Executor>(config))
-		}
-		Some(Subcommand::Benchmark(cmd)) => {
+			runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
+		},
+		Some(Subcommand::Benchmark(cmd)) =>
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
 
-				runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+				runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
 			} else {
 				Err("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`.".into())
-			}
-		}
+				You can enable it with `--features runtime-benchmarks`."
+					.into())
+			},
 		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::Sign(cmd)) => cmd.run(),
 		Some(Subcommand::Verify(cmd)) => cmd.run(),
@@ -118,32 +115,30 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, ..}
-					= new_partial(&config)?;
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
 		Some(Subcommand::ExportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, ..}
-					= new_partial(&config)?;
+				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
 		Some(Subcommand::ExportState(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, ..}
-					= new_partial(&config)?;
+				let PartialComponents { client, task_manager, .. } = new_partial(&config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
 		Some(Subcommand::ImportBlocks(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, ..}
-					= new_partial(&config)?;
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					new_partial(&config)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -154,8 +149,7 @@ pub fn run() -> Result<()> {
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, backend, ..}
-					= new_partial(&config)?;
+				let PartialComponents { client, task_manager, backend, .. } = new_partial(&config)?;
 				Ok((cmd.run(client, backend), task_manager))
 			})
 		},
@@ -166,13 +160,16 @@ pub fn run() -> Result<()> {
 				// we don't need any of the components of new_partial, just a runtime, or a task
 				// manager to do `async_run`.
 				let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager = sc_service::TaskManager::new(
-					config.task_executor.clone(),
-					registry,
-				).map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+				let task_manager =
+					sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
+						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
 
-				Ok((cmd.run::<Block, Executor>(config), task_manager))
+				Ok((cmd.run::<Block, ExecutorDispatch>(config), task_manager))
 			})
-		}
+		},
+		#[cfg(not(feature = "try-runtime"))]
+		Some(Subcommand::TryRuntime) => Err("TryRuntime wasn't enabled when building the node. \
+				You can enable it with `--features try-runtime`."
+			.into()),
 	}
 }
