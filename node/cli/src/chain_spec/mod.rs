@@ -1,6 +1,6 @@
-// This file is part of Substrate.
+// This file is part of OAK.
 
-// Copyright (C) 2020-2021 Parity Technologies (UK) Ltd.
+// Copyright (C) 2018-2021 OAK Network
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,25 +16,5 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![cfg(unix)]
-
-use assert_cmd::cargo::cargo_bin;
-use std::process::Command;
-use tempfile::tempdir;
-
-pub mod common;
-
-#[test]
-fn check_block_works() {
-	let base_path = tempdir().expect("could not create a temp dir");
-
-	common::run_dev_node_for_a_while(base_path.path());
-
-	let status = Command::new(cargo_bin("oak"))
-		.args(&["check-block", "--dev", "--pruning", "archive", "-d"])
-		.arg(base_path.path())
-		.arg("1")
-		.status()
-		.unwrap();
-	assert!(status.success());
-}
+pub mod oak_testnet;
+pub mod turing;

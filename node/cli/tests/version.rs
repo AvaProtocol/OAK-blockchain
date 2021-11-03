@@ -22,13 +22,13 @@ use regex::Regex;
 use std::process::Command;
 
 fn expected_regex() -> Regex {
-	Regex::new(r"^substrate (\d+\.\d+\.\d+(?:-.+?)?)-([a-f\d]+|unknown)-(.+?)-(.+?)(?:-(.+))?$").unwrap()
+	Regex::new(r"^oak (\d+\.\d+\.\d+(?:-.+?)?)-([a-f\d]+|unknown)-(.+?)-(.+?)(?:-(.+))?$").unwrap()
 }
 
 #[test]
 fn version_is_full() {
 	let expected = expected_regex();
-	let output = Command::new(cargo_bin("substrate"))
+	let output = Command::new(cargo_bin("oak"))
 		.args(&["--version"])
 		.output()
 		.unwrap();

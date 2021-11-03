@@ -174,7 +174,7 @@ pub mod pallet {
 			// Check if identity is required
 			let is_identity_needed = IsIdentityRequired::<T>::get();
 			if is_identity_needed {
-				let identity = pallet_identity::Module::<T>::identity(who.clone()).ok_or(Error::<T>::IdentityNeeded)?;
+				let identity = pallet_identity::Pallet::<T>::identity(who.clone()).ok_or(Error::<T>::IdentityNeeded)?;
 				let mut is_found_judgement = false;
 				for judgement in identity.judgements.iter() {
 					if judgement.1 == pallet_identity::Judgement::Reasonable || judgement.1 == pallet_identity::Judgement::KnownGood {
