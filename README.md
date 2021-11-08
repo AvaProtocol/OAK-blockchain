@@ -65,14 +65,17 @@ Install additional build tools:
 
 Install the OAK node from git source:
 
-    
+    git clone git@github.com:OAK-Foundation/OAK-blockchain.git    
 
 Run node on [Dusty Network](https://telemetry.polkadot.io/#list/Dusty):
 
     oak
 
-Or run on your local development network:
+Or build & run on your local development network:
+  
+    cargo build --release
 
+    # run
     ./target/release/oak --dev --tmp
 
 Building with Nix
