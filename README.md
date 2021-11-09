@@ -44,7 +44,7 @@ Install OAK Blockchain
 Building from source
 --------------------
 
-Ensure you have Rust and the support software:
+Ensure you have Rust and the support software (see shell.nix for the latest functional toolchain):
 
     curl https://sh.rustup.rs -sSf | sh
     # on Windows download and run rustup-init.exe
@@ -65,26 +65,15 @@ Install additional build tools:
 
 Install the OAK node from git source:
 
-    
+    git clone git@github.com:OAK-Foundation/OAK-blockchain.git    
 
-Run node on [Dusty Network](https://telemetry.polkadot.io/#list/Dusty):
+Build your executable:
 
-    oak
+    cargo build --release
 
-Or run on your local development network:
-
+Run on your local development network:
+  
     ./target/release/oak --dev --tmp
-
-Building with Nix
------------------
-
-Install Nix package manager:
-
-    curl https://nixos.org/nix/install | sh
-
-Run on your Nix shell:
-
-    git clone
 
 
 Future Works
