@@ -527,7 +527,7 @@ parameter_types! {
 	pub const SignedDepositBase: Balance = 1 * DOLLARS;
 	pub const SignedDepositByte: Balance = 1 * CENTS;
 
-	// fallback: no on-chain fallback.
+	// fallback: on-chain as deafault for npos
 	pub const Fallback: FallbackStrategy = FallbackStrategy::OnChain;
 
 	pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
