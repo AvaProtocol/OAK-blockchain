@@ -58,4 +58,4 @@ jobs:
         
         - name: Run Cargo Tests
           run: |
-            SKIP_WASM_BUILD=1 cargo test
+            cargo test
