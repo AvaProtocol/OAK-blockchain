@@ -86,7 +86,7 @@ fn oak_testnet_staging_genesis() -> GenesisConfig {
 ### 3.1 Generate plain chain specification file
 ```
 # Compile
-cargo build
+cargo build --release
 # Generate plain chain specification file
 ./target/release/oak build-spec --chain oak-testnet-staging > oak-testnet-plain.json
 ```
@@ -118,8 +118,7 @@ The `peer ID` is displayed on screen and the actual key is saved in the `node-ke
 # Generate raw chain specification file
 ./target/release/oak build-spec --chain oak-testnet-plain.json > node/cli/src/res/oak-testnet.json
 # Recompile the code to make the raw chain specification take effect
-cargo build
-
+cargo build --release
 ```
 
 ## 4. Set the session keys of the validator node through the rpc request
@@ -156,4 +155,4 @@ If the command is executed correctly, you will see the following output.
 {"jsonrpc":"2.0","result":null,"id":1}
 ```
 
-If you have 3 validator nodes, and each node needs to set 4 session keys (audi, babe, grandpa, imon), then you need to execute 12 commands. In order to facilitate execution, you can modify the run.sh script to set up in batches.
+If you have 3 validator nodes, and each node needs to set 4 session keys (audi, babe, grandpa, imon), then you need to execute 12 commands. In order to facilitate execution, you can modify the `run.sh` script to set up in batches.
