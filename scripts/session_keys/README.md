@@ -36,6 +36,7 @@ SECRET="<mnemonic phrase>" sh prepare-test-net.sh <initial validators size>
 
 The output is as follows:
 ```
+// Validator1's session keys
 (
 // <stash public key (SS58)>
 hex!["<stash public key> (hex)"].into(),
@@ -50,7 +51,9 @@ hex!["<im_online public key> (hex)"].unchecked_into(),
 // <authority_discovery public key (SS58)>
 hex!["<authority_discovery public key (hex)>"].unchecked_into(),
 ),
+// Validator2's session keys
 (...),
+// Validator3's session keys
 {...)
 ```
 
@@ -61,6 +64,7 @@ Modify `initial_authorities ` in oak_testet.rs
 ```
 fn oak_testnet_staging_genesis() -> GenesisConfig {
 	let initial_authorities: Vec<(AccountId, AccountId, GrandpaId, BabeId, ImOnlineId, AuthorityDiscoveryId)> = vec![
+		// Validator1's session keys
 		(
 		// <stash public key (SS58)>
 		hex!["<stash public key> (hex)"].into(),
@@ -75,7 +79,9 @@ fn oak_testnet_staging_genesis() -> GenesisConfig {
 		// <authority_discovery public key (SS58)>
 		hex!["<authority_discovery public key (hex)>"].unchecked_into(),
 		),
+		// Validator2's session keys
 		(...),
+		// Validator3's session keys
 		{...),
 	];
 }
