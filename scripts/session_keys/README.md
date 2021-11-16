@@ -129,17 +129,17 @@ cargo build --release
 ./target/release/oak --chain oak-testnet -d <validator1-storage-folder> --validator --name <validator1-name> --port <port> --ws-port <ws-port> --rpc-port <rpc-port> --node-key-file node-key
 
 # Validator 2
-./target/release/oak --chain oak-testnet -d <validator2-storage-folder> --validator --name <validator1-name> --port <port> --ws-port <ws-port> --rpc-port <rpc-port>
+./target/release/oak --chain oak-testnet -d <validator2-storage-folder> --validator --name <validator2-name> --port <port> --ws-port <ws-port> --rpc-port <rpc-port>
 
 # Validator 3
-./target/release/oak --chain oak-testnet -d <validator3-storage-folder> --validator --name <validator1-name> --port <port> --ws-port <ws-port> --rpc-port <rpc-port>
+./target/release/oak --chain oak-testnet -d <validator3-storage-folder> --validator --name <validator3-name> --port <port> --ws-port <ws-port> --rpc-port <rpc-port>
 ```
 
 ### 4.2 Set the validator's session key and mnemonic phrase
 Copy the corresponding public key information from the session keys generated in section 2.1 above, and send an RPC request to the node.
 
 ```
-curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["<key type>", "<mnemonic phrase>//<node index>//<module name>", "0x<public key>"]}' <rpc_url>
+curl -H "Content-Type: application/json" -d '{"id":1, "jsonrpc":"2.0", "method": "author_insertKey", "params":["<key type>", "<mnemonic phrase>//<node index>//<module name>", "0x<public key> (hex)"]}' <rpc_url>
 ```
 
 Take the authority_discovery session key of the first node as an example:
