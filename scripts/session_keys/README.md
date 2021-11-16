@@ -108,13 +108,16 @@ subkey generate-node-key --file node-key
 The `peer ID` is displayed on screen and the actual key is saved in the `node-key` file.
 
 #### 3.2.2 Modify oak-testnet-plain.json
+
+The `peer ID` generated above is used to set bootNodes.
+
 ```
 {
   "name": "OAK Testnet",
   "id": "oak_testnet",
   ...
   "bootNodes": [
-    "/ip4/127.0.0.1/tcp/30333/p2p/<peer ID>"
+    "/ip4/<ip>/tcp/<port>/p2p/<peer ID>"
   ],
 }
 ```
@@ -162,3 +165,5 @@ If the command is executed correctly, you will see the following output.
 ```
 
 If you have 3 validator nodes, and each node needs to set 4 session keys (audi, babe, grandpa, imon), then you need to execute 12 commands. In order to facilitate execution, you can modify the `run.sh` script to set up in batches.
+
+After you have set these session keys, use the command in section 4.1 to restart the node. If you see that the node is ready to finalize the block, then the setup is successful.
