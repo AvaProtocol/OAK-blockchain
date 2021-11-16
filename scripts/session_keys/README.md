@@ -15,8 +15,10 @@ The key types are audi, babe, gran, imon. They are used in these modules: author
 
 ## 1. Use subkey to generate a mnemonic phrase for the initial validator node.
 
+Run command：
+
 ```
-Run subkey generate
+subkey generate
 ```
 
 The output is as follows:
