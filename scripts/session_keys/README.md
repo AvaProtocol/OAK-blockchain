@@ -31,7 +31,7 @@ Save the `mnemonic phrase` for use in the following steps.
 ### 2.1 Execute commands to generate session keys.
 
 ```
-SECRET="<mnemonic phrase>" sh prepare-test-net.sh <initial validator count>
+SECRET="<mnemonic phrase>" sh prepare-test-net.sh <initial validators size>
 ```
 
 The output is as follows:
