@@ -1,8 +1,8 @@
 mnemonic_phrase="<mnemonic_phrase>"
-validator_rpc_urls=("validator1_rpc_url" "<validator2_rpc_url>" "<validator3_rpc_url>")
+validator_rpc_urls=("<validator1_rpc_url>" "<validator2_rpc_url>" "<validator3_rpc_url>")
 
 insert_key(){
-  curl -H "Content-Type: application/json" -d "{\"id\":1, \"jsonrpc\":\"2.0\", \"method\": \"author_insertKey\", \"params\":[\"${2}\", \"${mnemonic_phrase}//${1}//${3}\", \"0x${4}\"]}" ${validator_rpc_urls[0]}
+  curl -H "Content-Type: application/json" -d "{\"id\":1, \"jsonrpc\":\"2.0\", \"method\": \"author_insertKey\", \"params\":[\"${2}\", \"${mnemonic_phrase}//${1}//${3}\", \"0x${4}\"]}" ${validator_rpc_urls[$1-1]}
 }
 
 # Validator1
