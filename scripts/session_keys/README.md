@@ -106,8 +106,8 @@ The `peer ID` is displayed on screen and the actual key is saved in the `node-ke
 {
   "name": "OAK Testnet",
   "id": "oak_testnet",
-	...
-	"bootNodes": [
+  ...
+  "bootNodes": [
     "/ip4/127.0.0.1/tcp/30333/p2p/<peer ID>"
   ],
 }
