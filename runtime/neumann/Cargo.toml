@@ -1,8 +1,8 @@
 [package]
-name = "turing-runtime"
+name = "neumann-runtime"
 version = "0.1.0"
 authors = ["Anonymous"]
-description = "A new Cumulus FRAME-based Substrate Runtime, ready for hacking together a parachain."
+description = "Parachain testnet"
 license = "Unlicense"
 homepage = "https://substrate.io"
 repository = 'https://github.com/substrate-developer-hub/substrate-parachain-template'

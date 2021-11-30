@@ -1,5 +1,5 @@
 use cumulus_primitives_core::ParaId;
-use turing_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use neumann_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -8,7 +8,7 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
-	sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
+	sc_service::GenericChainSpec<neumann_runtime::GenesisConfig, Extensions>;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_public_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -54,8 +54,8 @@ where
 /// Generate the session keys from individual elements.
 ///
 /// The input must be a tuple of individual keys (a single arg for now since we have just one key).
-pub fn template_session_keys(keys: AuraId) -> turing_runtime::SessionKeys {
-	turing_runtime::SessionKeys { aura: keys }
+pub fn template_session_keys(keys: AuraId) -> neumann_runtime::SessionKeys {
+	neumann_runtime::SessionKeys { aura: keys }
 }
 
 pub fn development_config() -> ChainSpec {
@@ -175,24 +175,24 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
-) -> turing_runtime::GenesisConfig {
-	turing_runtime::GenesisConfig {
-		system: turing_runtime::SystemConfig {
-			code: turing_runtime::WASM_BINARY
+) -> neumann_runtime::GenesisConfig {
+	neumann_runtime::GenesisConfig {
+		system: neumann_runtime::SystemConfig {
+			code: neumann_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 			changes_trie_config: Default::default(),
 		},
-		balances: turing_runtime::BalancesConfig {
+		balances: neumann_runtime::BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
 		},
-		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: id },
-		collator_selection: turing_runtime::CollatorSelectionConfig {
+		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: id },
+		collator_selection: neumann_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
 			..Default::default()
 		},
-		session: turing_runtime::SessionConfig {
+		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
 				.map(|(acc, aura)| {

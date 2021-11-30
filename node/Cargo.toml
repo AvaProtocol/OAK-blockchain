@@ -20,7 +20,7 @@ name = "parachain-collator"
 path = "src/main.rs"
 
 [features]
-runtime-benchmarks = ["turing-runtime/runtime-benchmarks"]
+runtime-benchmarks = ["neumann-runtime/runtime-benchmarks"]
 
 [dependencies]
 derive_more = "0.99.2"
@@ -34,7 +34,7 @@ hex-literal = "0.3.1"
 jsonrpc-core = "18.0.0"
 
 # Local Dependencies
-turing-runtime = { path = "../runtime" }
+neumann-runtime = { path = "../runtime/neumann" }
 
 # Substrate Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.12" }

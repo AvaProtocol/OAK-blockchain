@@ -33,6 +33,14 @@ Based on the above, OAK has some features.
 - **On-chain Relayer**
 - **Validator Staking**
 
+Live Networks
+============
+
+- `oak-testnet`: standalone testnet (built off of substrate)
+- `neumann`: testnet parachain (coming soon)
+- `turing`: kusama parachain (coming soon)
+- `oak`: polkadot parachain (coming soon)
+
 Install OAK Blockchain 
 =============
 
@@ -91,9 +99,11 @@ Contacts
 
 **Maintainers**
 
+* [Charles Chen](https://github.com/imstar15)
+* [Ryan Huttman](https://github.com/rhuttman)
 * [Chris Li](https://github.com/chrisli30)
 * [Irsal McGinnis](https://github.com/irsal)
-* [Charles Chen](https://github.com/imstar15)
+* [Laura Reesby](https://github.com/lreesby)
 
 * * *
 
