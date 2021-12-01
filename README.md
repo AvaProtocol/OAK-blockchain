@@ -79,18 +79,17 @@ Build your executable:
 
     cargo build --release
 
-Run on your local development network:
-  
-    ./target/release/oak --dev --tmp
+Run your Local Network
+-----------
+TODO
 
-
-Future Works
+Future Work
 ------------
 Here are the key milestones.
 
 1. Start the crowdloan with Kusama network
-1. Become a Kusama Parachain (TBA)
-1. Become a Polkadot Parachain. (TBA)
+2. Become a Kusama Parachain (TBA)
+3. Become a Polkadot Parachain. (TBA)
 
 If you have any questions, please ask us on [Discord](https://discord.gg/7W9UDvsbwh)
 

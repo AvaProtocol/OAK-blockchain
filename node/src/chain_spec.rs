@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
+static TOKEN_SYMBOL: &str = "NEU";
+const TOKEN_DECIMALS: i32 = 10;
+const SS_58_FORMAT: i32 = 42;
+
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
 	sc_service::GenericChainSpec<neumann_runtime::GenesisConfig, Extensions>;
@@ -61,9 +65,9 @@ pub fn template_session_keys(keys: AuraId) -> neumann_runtime::SessionKeys {
 pub fn development_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("ss58Format".into(), 42.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
 
 	ChainSpec::from_genesis(
 		// Name
@@ -115,9 +119,9 @@ pub fn development_config() -> ChainSpec {
 pub fn local_testnet_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), "UNIT".into());
-	properties.insert("tokenDecimals".into(), 12.into());
-	properties.insert("ss58Format".into(), 42.into());
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
 
 	ChainSpec::from_genesis(
 		// Name
