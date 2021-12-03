@@ -1,12 +1,12 @@
 [package]
 name = "oak-node"
 version = "0.1.0"
-authors = ["Anonymous"]
-description = "A new Cumulus FRAME-based Substrate Node, ready for hacking together a parachain."
-license = "Unlicense"
-homepage = "https://substrate.io"
-repository = 'https://github.com/substrate-developer-hub/substrate-parachain-template'
-edition = "2018"
+authors = ["OAK Developement Team"]
+description = "Automation-first Blockchain"
+license = "GPL-3.0"
+homepage = "https://oak.tech"
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
+edition = "2021"
 build = "build.rs"
 
 [package.metadata.docs.rs]

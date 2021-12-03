@@ -1,12 +1,13 @@
 [package]
 name = "neumann-runtime"
 version = "0.1.0"
-authors = ["Anonymous"]
-description = "Parachain testnet"
-license = "Unlicense"
-homepage = "https://substrate.io"
-repository = 'https://github.com/substrate-developer-hub/substrate-parachain-template'
-edition = "2018"
+description = "Neumann, OAK's Canary Network"
+authors = ["OAK Developement Team"]
+description = "Automation-first Blockchain"
+license = "GPL-3.0"
+homepage = "https://oak.tech"
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
+edition = "2021"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
