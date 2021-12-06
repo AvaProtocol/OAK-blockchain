@@ -9,6 +9,8 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 static TOKEN_SYMBOL: &str = "NEU";
 const TOKEN_DECIMALS: u32 = 10;
 const SS_58_FORMAT: u32 = 42;
+const PARA_ID: u32 = 2000;
+static RELAY_CHAIN: &str = "rococo-local";
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -102,7 +104,7 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				1000.into(),
+				PARA_ID.into(),
 			)
 		},
 		Vec::new(),
@@ -110,8 +112,8 @@ pub fn development_config() -> ChainSpec {
 		None,
 		None,
 		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2000,
+			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			para_id: PARA_ID,
 		},
 	)
 }
@@ -156,7 +158,7 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				1000.into(),
+				PARA_ID.into(),
 			)
 		},
 		// Bootnodes
@@ -169,8 +171,8 @@ pub fn local_testnet_config() -> ChainSpec {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: "rococo-local".into(), // You MUST set this to the correct network!
-			para_id: 2000,
+			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			para_id: PARA_ID,
 		},
 	)
 }

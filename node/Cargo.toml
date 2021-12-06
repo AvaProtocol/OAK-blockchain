@@ -6,7 +6,7 @@ description = "Automation-first Blockchain"
 license = "GPL-3.0"
 homepage = "https://oak.tech"
 repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
-edition = "2021"
+edition = "2018"
 build = "build.rs"
 
 [package.metadata.docs.rs]
