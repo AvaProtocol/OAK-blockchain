@@ -6,9 +6,9 @@ panic = "unwind"
 resolver = "2"
 
 members = [
-	"node/cli",
-	"runtime",
-	"pallets/*",
+	"node",
+	"runtime/*",
+	#"pallets/*",
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates

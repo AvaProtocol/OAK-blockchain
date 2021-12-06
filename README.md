@@ -33,6 +33,14 @@ Based on the above, OAK has some features.
 - **On-chain Relayer**
 - **Validator Staking**
 
+Live Networks
+============
+
+- `oak-testnet`: standalone testnet (built off of substrate)
+- `neumann`: testnet parachain (coming soon)
+- `turing`: kusama parachain (coming soon)
+- `oak`: polkadot parachain (coming soon)
+
 Install OAK Blockchain 
 =============
 
@@ -71,18 +79,55 @@ Build your executable:
 
     cargo build --release
 
-Run on your local development network:
-  
-    ./target/release/oak --dev --tmp
+Run your Local Network
+-----------
+## Local Setup
 
+Launch a local setup including a Relay Chain and a Parachain.
+Note: local PARA_ID is defaulted to 2000
 
-Future Works
+### Launch the Relay Chain
+
+```bash
+# Compile Polkadot with the real overseer feature
+git clone https://github.com/paritytech/polkadot
+cargo build --release
+
+# Alice
+./target/release/polkadot --chain ../OAK-blockchain/resources/rococo-local.json --alice --tmp
+
+# Bob (In a separate terminal)
+./target/release/polkadot --chain ../OAK-blockchain/resources/rococo-local.json --bob --tmp --port 30334
+```
+
+### Launch the Parachain
+
+```bash
+# Compile
+git clone https://github.com/OAK-Foundation/OAK-blockchain
+cargo +nightly build --release
+
+# Export genesis state
+./target/release/neumann-collator export-genesis-state > genesis-state
+
+# Export genesis wasm
+./target/release/neumann-collator export-genesis-wasm > genesis-wasm
+
+# Collator1
+./target/release/neumann-collator --collator --alice --force-authoring --tmp --port 40335 --ws-port 9946 -- --execution wasm --chain resources/rococo-local.json --port 30335
+```
+
+### Register the parachain
+
+![image](https://user-images.githubusercontent.com/2915325/99548884-1be13580-2987-11eb-9a8b-20be658d34f9.png)
+
+Future Work
 ------------
 Here are the key milestones.
 
 1. Start the crowdloan with Kusama network
-1. Become a Kusama Parachain (TBA)
-1. Become a Polkadot Parachain. (TBA)
+2. Become a Kusama Parachain (TBA)
+3. Become a Polkadot Parachain. (TBA)
 
 If you have any questions, please ask us on [Discord](https://discord.gg/7W9UDvsbwh)
 
@@ -91,9 +136,11 @@ Contacts
 
 **Maintainers**
 
+* [Charles Chen](https://github.com/imstar15)
+* [Ryan Huttman](https://github.com/rhuttman)
 * [Chris Li](https://github.com/chrisli30)
 * [Irsal McGinnis](https://github.com/irsal)
-* [Charles Chen](https://github.com/imstar15)
+* [Laura Reesby](https://github.com/lreesby)
 
 * * *
 

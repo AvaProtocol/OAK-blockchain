@@ -1,12 +1,12 @@
 [package]
-authors = ['Anonymous']
-description = 'FRAME pallet quadratic funding for defining custom runtime logic.'
-edition = '2018'
-homepage = 'https://substrate.dev'
-license = 'Unlicense'
+authors = ["OAK Developement Team"]
+description = "Automation-first Blockchain"
+license = "GPL-3.0"
+homepage = "https://oak.tech"
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
+edition = "2021"
 name = 'pallet-quadratic-funding'
 readme = 'README.md'
-repository = 'https://github.com/paritytech/substrate/'
 version = '3.1.0'
 
 [package.metadata.docs.rs]
