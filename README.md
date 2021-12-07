@@ -81,7 +81,6 @@ Build your executable:
 
 Run your Local Network
 -----------
-## Local Setup
 
 Launch a local setup including a Relay Chain and a Parachain.
 Note: local PARA_ID is defaulted to 2000
@@ -120,6 +119,32 @@ cargo +nightly build --release
 ### Register the parachain
 
 ![image](https://user-images.githubusercontent.com/2915325/99548884-1be13580-2987-11eb-9a8b-20be658d34f9.png)
+
+
+
+Run the neumann network
+-----------
+
+More info to come...
+Detailed OnFinality docs [here](https://support.onfinality.io/hc/en-us/articles/4407873248025-Create-a-custom-relay-chain-and-parachain-in-OnFinality)
+
+### onf
+
+```bash
+# Get the onf command
+sudo curl -s https://raw.githubusercontent.com/OnFinality-io/onf-cli/master/scripts/install/install.sh | sudo bash
+
+# Setup with API keys (under Account tab)
+onf setup
+
+# Setup relay chain
+cd resources
+onf network bootstrap -f bootstrap-relaychain-config.yaml
+
+# Setup parachain
+onf network bootstrap -f bootstrap-parachain-config.yaml
+
+```
 
 Future Work
 ------------
