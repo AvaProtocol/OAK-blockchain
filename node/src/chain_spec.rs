@@ -214,6 +214,8 @@ fn testnet_genesis(
 		// of this.
 		aura: Default::default(),
 		aura_ext: Default::default(),
+		council: neumann_runtime::CouncilConfig::default(),
 		parachain_system: Default::default(),
+		treasury: Default::default(),
 	}
 }
