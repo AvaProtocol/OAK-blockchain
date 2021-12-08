@@ -7,16 +7,16 @@ ARG USERNAME=oak
 LABEL maintainer "contact@oak.tech"
 LABEL description="Binary for Neumann Collator"
 
-# Install curl to execute RPC call
-RUN apt-get update && apt-get install -y curl
-
-# Add user and create data directory
-RUN useradd -m -u 1000 -U -s /bin/sh -d /$USERNAME $USERNAME && \
-	mkdir -p /$USERNAME/.local/share && \
-	mkdir /data && \
-	chown -R $USERNAME:$USERNAME /data && \
-	ln -s /data /$USERNAME/.local/share/$BINARY && \
-  rm -rf /usr/bin /usr/sbin
+# 1. Install curl to execute RPC call
+# 2. Add user
+# 3. Create data directory
+# 4. Link data directory
+RUN apt-get update && apt-get install -y curl && \
+  useradd -m -u 1000 -U -s /bin/sh -d /$USERNAME $USERNAME && \
+  mkdir -p /$USERNAME/.local/share && \
+  mkdir /data && \
+  chown -R $USERNAME:$USERNAME /data && \
+  ln -s /data /$USERNAME/.local/share/$BINARY
 
 USER $USERNAME
 
@@ -34,5 +34,8 @@ EXPOSE 30333 30334 9933 9944 9615
 
 # Specify volume
 VOLUME ["/data"]
+
+# Change work directory
+WORKDIR $USERNAME
 
 ENTRYPOINT ["./neumann-collator"]
