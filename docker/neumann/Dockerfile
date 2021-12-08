@@ -11,12 +11,14 @@ LABEL description="Binary for Neumann Collator"
 # 2. Add user
 # 3. Create data directory
 # 4. Link data directory
+# 5. Delete binaries except curl
 RUN apt-get update && apt-get install -y curl && \
   useradd -m -u 1000 -U -s /bin/sh -d /$USERNAME $USERNAME && \
   mkdir -p /$USERNAME/.local/share && \
   mkdir /data && \
   chown -R $USERNAME:$USERNAME /data && \
-  ln -s /data /$USERNAME/.local/share/$BINARY
+  ln -s /data /$USERNAME/.local/share/$BINARY && \
+  find /usr/bin/* /usr/sbin/* | grep -v curl | xargs rm
 
 USER $USERNAME
 
