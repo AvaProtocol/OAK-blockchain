@@ -7,6 +7,9 @@ ARG USERNAME=oak
 LABEL maintainer "contact@oak.tech"
 LABEL description="Binary for Neumann Collator"
 
+# Install curl to execute RPC call
+RUN apt-get update && apt-get install -y curl
+
 # Add user and create data directory
 RUN useradd -m -u 1000 -U -s /bin/sh -d /$USERNAME $USERNAME && \
 	mkdir -p /$USERNAME/.local/share && \
