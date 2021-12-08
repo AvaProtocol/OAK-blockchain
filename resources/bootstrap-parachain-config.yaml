@@ -5,9 +5,6 @@ networkSpec:
     imageRepository: oaknetwork/neumann
     imageVersion: 1.2.0
     config:
-          #"/dns4/node-6873789328818221056-0.p2p.onfinality.io/tcp/11295/p2p/12D3KooWMBUyEHqapoTf8C89vyZYKFARGe3sk5fDRao8cXgS6Ume",
-          #"/dns4/node-6873789637129781248-0.p2p.onfinality.io/tcp/18935/p2p/12D3KooWJYydaNgVhpUQyLK2svXWAX1YtoeYvCx7ycrhBuVU5dPB",
-          #"/dns4/node-6873789640027189248-0.p2p.onfinality.io/tcp/11587/p2p/12D3KooW9s8ygJbpP1fgNGcJNU1EKE28Suqme5PQTaEFC2X5iih5"
       nodeTypes:
         full:
           args:
@@ -18,17 +15,17 @@ networkSpec:
             - key: --chain
               file: "rococo-local.json"
             - key: --bootnodes # Relay chain p2p address
-              value: /dns4/node-6873789328818221056-0.p2p.onfinality.io/tcp/11295/p2p/12D3KooWMBUyEHqapoTf8C89vyZYKFARGe3sk5fDRao8cXgS6Ume
+              value: /dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ
         collator:
           args:
             - key: "--force-authoring"
             - key: --chain
-              file: "karura-dev-2000.json"
+              file: "neumann-plain.json"
             - key: --
             - key: --chain
               file: "rococo-local.json"
             - key: --bootnodes # Relay chain p2p address
-              value: /dns4/node-6873789637129781248-0.p2p.onfinality.io/tcp/18935/p2p/12D3KooWJYydaNgVhpUQyLK2svXWAX1YtoeYvCx7ycrhBuVU5dPB
+              value: /dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ
 validator:
   count: 3
   sudoArgs:
@@ -46,35 +43,35 @@ validator:
     publicPort: true
     useApiKey: true
     storage: 30Gi
-  sessionsKey:
-    # - - scheme: babe
-    #     publicKey: '0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d'
-    #     phrase: "//Alice"
-    #   - scheme: gran
-    #     publicKey: '0x88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee'
-    #     phrase: "//Alice"
-    # - - scheme: babe
-    #     publicKey: '0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48'
-    #     phrase: "//Bob"
-    #   - scheme: gran
-    #     publicKey: '0xd17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69'
-    #     phrase: "//Bob"
-    # - - scheme: babe
-    #     publicKey: '0x90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22'
-    #     phrase: "//Charlie"
-    #   - scheme: gran
-    #     publicKey: '0x439660b36c6c03afafca027b910b4fecf99801834c62a5e6006f27d978de234f'
-    #     phrase: "//Charlie"
+  # sessionsKey:
+  #   - - scheme: babe
+  #       publicKey: '0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d'
+  #       phrase: "//Alice"
+  #     - scheme: gran
+  #       publicKey: '0x88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee'
+  #       phrase: "//Alice"
+  #   - - scheme: babe
+  #       publicKey: '0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48'
+  #       phrase: "//Bob"
+  #     - scheme: gran
+  #       publicKey: '0xd17c2d7823ebf260fd138f2d7e27d114c0145d968b5ff5006125f2414fadae69'
+  #       phrase: "//Bob"
+  #   - - scheme: babe
+  #       publicKey: '0x90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22'
+  #       phrase: "//Charlie"
+  #     - scheme: gran
+  #       publicKey: '0x439660b36c6c03afafca027b910b4fecf99801834c62a5e6006f27d978de234f'
+  #       phrase: "//Charlie"
 bootNode:
-  count: 0
+  count: 1
   node:
-    nodeName: neumann-test-bootnode
+    nodeName: onf-neumann-bootnode
     nodeType: full
-    clusterKey: sz
+    clusterKey: jm
     nodeSpec:
       key: unit
       multiplier: 3
     initFromBackup: false
     publicPort: true
     useApiKey: true
-    storage: 30Gi
+    storage: 10Gi
