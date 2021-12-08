@@ -1,16 +1,25 @@
 FROM ubuntu:20.04
 
-WORKDIR /app
+ARG PROFILE=release
+ARG BINARY=neumann-collator
+ARG USERNAME=oak
+
+LABEL maintainer "contact@oak.tech"
+LABEL description="Binary for Neumann Collator"
+
+# Add user and create data directory
+RUN useradd -m -u 1000 -U -s /bin/sh -d /$USERNAME $USERNAME && \
+	mkdir -p /$USERNAME/.local/share && \
+	mkdir /data && \
+	chown -R $USERNAME:$USERNAME /data && \
+	ln -s /data /$USERNAME/.local/share/$BINARY && \
+  rm -rf /usr/bin /usr/sbin
+
+USER $USERNAME
 
 # Copy files
-ADD ./target/release/neumann-collator .
-ADD ./resources resources
-
-# Map data directory
-RUN mkdir -p /data /root/.local/share && \
-  ln -s /data /root/.local/share/neumann-collator
-
-VOLUME ["/data"]
+COPY --chown=$USERNAME ./target/$PROFILE/$BINARY /$USERNAME/$BINARY
+COPY --chown=$USERNAME ./resources /$USERNAME/resources
 
 # Open network port
 # 30333 for parachain p2p
@@ -19,5 +28,8 @@ VOLUME ["/data"]
 # 9944 for Websocket
 # 9615 for Prometheus (metrics)
 EXPOSE 30333 30334 9933 9944 9615
+
+# Specify volume
+VOLUME ["/data"]
 
 ENTRYPOINT ["./neumann-collator"]
