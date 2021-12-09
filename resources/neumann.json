@@ -12,7 +12,7 @@
     "tokenDecimals": 10,
     "tokenSymbol": "NEU"
   },
-  "relay_chain": "rococo-local",
+  "relay_chain": "rococo-testnet",
   "para_id": 2000,
   "consensusEngine": null,
   "codeSubstitutes": {},

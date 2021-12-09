@@ -21,6 +21,7 @@ Table of Contents
 * [Introduction](https://github.com/OAK-Foundation/OAK-blockchain#introduction)
 * [Install OAK](https://github.com/OAK-Foundation/OAK-blockchain#install-oak-blockchain)
 * [OAK Validator Program](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/docs/validator-setup.md)
+* OAK Collator Program - Stay tuned
 
 Introduction
 ============
@@ -128,21 +129,23 @@ Run the neumann network
 More info to come...
 Detailed OnFinality docs [here](https://support.onfinality.io/hc/en-us/articles/4407873248025-Create-a-custom-relay-chain-and-parachain-in-OnFinality)
 
-### onf
+### Using the onf-cli (OnFinality) to spin up a relay chain & parachain
 
 ```bash
 # Get the onf command
 sudo curl -s https://raw.githubusercontent.com/OnFinality-io/onf-cli/master/scripts/install/install.sh | sudo bash
 
 # Setup with API keys (under Account tab)
+# Note: If you're switching workspaces, you'll have to do the setup (you can use the same api keys) and the last prompt asks which workspace
 onf setup
 
 # Setup relay chain
+# We are using OnFinality's out of the box rococo relay chain configuration used as a relay tesnet
 cd resources
-onf network bootstrap -f bootstrap-relaychain-config.yaml
+onf network bootstrap -f rococo-testnet-relaychain.yaml
 
 # Setup parachain
-onf network bootstrap -f bootstrap-parachain-config.yaml
+onf network bootstrap -f neumann-parachain.yaml
 
 ```
 

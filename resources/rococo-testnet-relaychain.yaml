@@ -1,6 +1,6 @@
 networkSpec:
-  displayName: onf-rococo-neumann-relay
-  name: onf-rococo-neumann-relay
+  displayName: onf2-rococo-neumann-relay
+  name: onf2-rococo-neumann-relay
   protocol: substrate
   imageRepository: parity/polkadot
   imageVersion: v0.9.12
@@ -10,12 +10,12 @@ networkSpec:
         args:
         - key: "--force-authoring"
         - key: "--chain"
-          file: rococo-local.json
+          file: rococo-testnet.json
       validator:
         args:
         - key: "--force-authoring"
         - key: "--chain"
-          file: rococo-local.json
+          file: rococo-testnet.json
 validator:
   count: 3
   sudoArgs: #sudo args is to reduce the setting of sudo users for each node. For example, there will be 3 nodes running, the first node will be assgin --alice, the second node will be assgin --bob, and the third will be assgin --charlie. 
@@ -23,7 +23,7 @@ validator:
     - --bob
     - --charlie
   node:
-    nodeName: onf-rococo-neumann-relay-validator
+    nodeName: onf2-rococo-neumann-relay-validator
     nodeType: validator
     clusterKey: jm
     nodeSpec:
@@ -38,7 +38,7 @@ validator:
 bootNode:
   count: 1
   node:
-    nodeName: onf-rococo-neumann-relay-bootnode
+    nodeName: onf2-rococo-neumann-relay-bootnode
     nodeType: full
     clusterKey: jm
     nodeSpec:

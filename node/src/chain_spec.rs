@@ -11,6 +11,7 @@ const TOKEN_DECIMALS: u32 = 10;
 const SS_58_FORMAT: u32 = 42;
 const PARA_ID: u32 = 2000;
 static RELAY_CHAIN: &str = "rococo-local";
+static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -230,7 +231,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			relay_chain: NEUMANN_RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: PARA_ID,
 		},
 	)
