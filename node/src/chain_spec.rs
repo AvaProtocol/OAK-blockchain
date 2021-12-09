@@ -90,6 +90,8 @@ pub fn development_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				// Sudo account
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -144,6 +146,8 @@ pub fn local_testnet_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				// Sudo account
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
@@ -179,6 +183,7 @@ pub fn local_testnet_config() -> ChainSpec {
 
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
+	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 ) -> neumann_runtime::GenesisConfig {
@@ -216,6 +221,7 @@ fn testnet_genesis(
 		aura_ext: Default::default(),
 		council: neumann_runtime::CouncilConfig::default(),
 		parachain_system: Default::default(),
+		sudo: neumann_runtime::SudoConfig { key: root_key },
 		treasury: Default::default(),
 	}
 }
