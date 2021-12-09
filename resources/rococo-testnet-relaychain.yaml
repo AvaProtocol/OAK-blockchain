@@ -1,6 +1,6 @@
 networkSpec:
-  displayName: onf2-rococo-neumann-relay
-  name: onf2-rococo-neumann-relay
+  displayName: rococo-testnet-relaychain
+  name: rococo-testnet
   protocol: substrate
   imageRepository: parity/polkadot
   imageVersion: v0.9.12
@@ -23,7 +23,7 @@ validator:
     - --bob
     - --charlie
   node:
-    nodeName: onf2-rococo-neumann-relay-validator
+    nodeName: rococo-testnet-validator
     nodeType: validator
     clusterKey: jm
     nodeSpec:
@@ -33,12 +33,12 @@ validator:
     publicPort: true
     useApiKey: true
     storage: 30Gi
-    sessionsKey:
-#   not needed 
+  sessionsKey: 
+  #not needed 
 bootNode:
   count: 1
   node:
-    nodeName: onf2-rococo-neumann-relay-bootnode
+    nodeName: rococo-testnet-bootnode
     nodeType: full
     clusterKey: jm
     nodeSpec:
@@ -47,4 +47,4 @@ bootNode:
     initFromBackup: false
     publicPort: true
     useApiKey: true
-    storage: 10Gi
+    storage: 30Gi

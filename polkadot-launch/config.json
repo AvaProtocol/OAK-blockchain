@@ -18,7 +18,7 @@
 	"parachains": [
 		{
 			"bin": "../target/release/neumann-collator",
-			"id": "200",
+			"id": "2000",
 			"balance": "1000000000000000000000",
 			"nodes": [
 				{

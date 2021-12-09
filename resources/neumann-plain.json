@@ -1,9 +1,8 @@
 {
   "name": "Neumann Network",
   "id": "neumann",
-  "chainType": "Live",
+  "chainType": "Local",
   "bootNodes": [
-    "/dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ"
   ],
   "telemetryEndpoints": null,
   "protocolId": "neumann",
@@ -12,7 +11,7 @@
     "tokenDecimals": 10,
     "tokenSymbol": "NEU"
   },
-  "relay_chain": "rococo-local",
+  "relay_chain": "rococo-testnet",
   "para_id": 2000,
   "consensusEngine": null,
   "codeSubstitutes": {},

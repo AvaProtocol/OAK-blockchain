@@ -1,6 +1,6 @@
 networkSpec:
-    displayName: onf-neumann-testnet-test
-    name: onf-neumann-testnet-test
+    displayName: neumann-parachain
+    name: neumann-parachain
     protocol: polkadot-parachain
     imageRepository: oaknetwork/neumann
     imageVersion: 1.2.0
@@ -15,7 +15,7 @@ networkSpec:
             - key: --chain
               file: "rococo-testnet.json"
             - key: --bootnodes # Relay chain p2p address
-              value: /dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ
+              value: /dns4/node-6874595606920531968-0.p2p.onfinality.io/tcp/18396/ws/p2p/12D3KooWMCDMXZwosEU1dQQgG8X9NbuTTVitv2zyZdf9bns1M9k2
         collator:
           args:
             - key: "--force-authoring"
@@ -25,7 +25,7 @@ networkSpec:
             - key: --chain
               file: "rococo-testnet.json"
             - key: --bootnodes # Relay chain p2p address
-              value: /dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ
+              value: /dns4/node-6874595606920531968-0.p2p.onfinality.io/tcp/18396/ws/p2p/12D3KooWMCDMXZwosEU1dQQgG8X9NbuTTVitv2zyZdf9bns1M9k2
 validator:
   count: 3
   sudoArgs:
@@ -33,7 +33,7 @@ validator:
     - --bob
     - --charlie
   node:
-    nodeName: onf-neumann-validator
+    nodeName: neumann-parachain-validator
     nodeType: collator
     clusterKey: jm
     nodeSpec:
@@ -43,11 +43,14 @@ validator:
     publicPort: true
     useApiKey: true
     storage: 30Gi
-  # sessionsKey: not needed
+  sessionsKey: 
+    #not needed
 bootNode:
   count: 1
+  sudoArgs: #sudo args is to reduce the setting of sudo users for each node. For example, there will be 3 nodes running, the first node will be assgin --alice, the second node will be assgin --bob, and the third will be assgin --charlie. 
+    - --alice
   node:
-    nodeName: onf-neumann-bootnode
+    nodeName: neumann-parachain-bootnode
     nodeType: full
     clusterKey: jm
     nodeSpec:
@@ -56,4 +59,4 @@ bootNode:
     initFromBackup: false
     publicPort: true
     useApiKey: true
-    storage: 10Gi
+    storage: 30Gi

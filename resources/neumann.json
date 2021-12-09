@@ -1,10 +1,8 @@
 {
   "name": "Neumann Network",
   "id": "neumann",
-  "chainType": "Live",
-  "bootNodes": [
-    "/dns4/node-6874115411312685056-0.p2p.onfinality.io/tcp/24748/ws/p2p/12D3KooWEfZCHVQTMLMZnx99Y1MSFa6cvMxRCpHcyDrhYefWkNPZ"
-  ],
+  "chainType": "Local",
+  "bootNodes": [],
   "telemetryEndpoints": null,
   "protocolId": "neumann",
   "properties": {
