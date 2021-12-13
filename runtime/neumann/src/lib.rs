@@ -583,6 +583,11 @@ impl pallet_collator_selection::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_sudo::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+}
+
 /// Configure the pallet template in pallets/template.
 // impl pallet_template::Config for Runtime {
 // 	type Event = Event;
@@ -619,6 +624,9 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 31,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
+
+		// Support pallets.
+		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 40,
 
 		// Template
 		//TemplatePallet: pallet_template::{Pallet, Call, Storage, Event<T>}  = 40,
