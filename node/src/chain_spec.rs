@@ -190,7 +190,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		"Neumann Network",
 		// ID
 		"neumann",
-		ChainType::Live ,
+		ChainType::Live,
 		move || {
 			testnet_genesis(
 				// initial collators.
