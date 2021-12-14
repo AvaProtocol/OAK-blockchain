@@ -206,6 +206,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![],
 				PARA_ID.into(),
 			)
