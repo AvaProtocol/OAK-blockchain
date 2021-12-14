@@ -94,13 +94,35 @@ git clone https://github.com/paritytech/polkadot
 cargo build --release
 
 # Alice
-./target/release/polkadot --chain ../OAK-blockchain/resources/rococo-local.json --alice --tmp
+./target/release/polkadot \
+--alice \
+--validator \
+--tmp \
+--chain ../OAK-blockchain/resources/rococo-local.json \
+--port 30333 \
+--ws-port 9944
 
 # Bob (In a separate terminal)
-./target/release/polkadot --chain ../OAK-blockchain/resources/rococo-local.json --bob --tmp --port 30334
+./target/release/polkadot \
+--bob \
+--validator \
+--tmp \
+--chain ../OAK-blockchain/resources/rococo-local.json \
+--port 30334 \
+--ws-port 9945
 ```
 
-### Launch the Parachain
+### Reserve the Parachain slot
+
+1. Navigate to [Local relay parachain screen](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads)
+2. Click `+ ParaId`
+3. Reserve `paraid` with the following paramaters
+    - `reserve from`: `Alice`
+    - `parachain id`: 2000
+    - `reserved deposit`: <whatever the default is>
+
+
+### Prep the Parachain
 
 ```bash
 # Compile
@@ -114,13 +136,33 @@ cargo +nightly build --release
 ./target/release/neumann-collator export-genesis-wasm > genesis-wasm
 
 # Collator1
-./target/release/neumann-collator --collator --alice --force-authoring --tmp --port 40335 --ws-port 9946 -- --execution wasm --chain resources/rococo-local.json --port 30335
+./target/release/neumann-collator \
+--alice \
+--collator \
+--force-authoring \
+--tmp \
+--port 40333 \
+--ws-port 9946 \
+-- \
+--execution wasm \
+--chain resources/rococo-local.json \
+--port 30335 \
+--ws-port 9977
 ```
 
 ### Register the parachain
 
+1. Navigate to [Local relay sudo extrinsic](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/sudo)
+2. Register your local parachain with the local relay chain (see the image below for the extrinsic). 
+Note** the files mentioned are the ones you generated above.
+
 ![image](https://user-images.githubusercontent.com/2915325/99548884-1be13580-2987-11eb-9a8b-20be658d34f9.png)
 
+
+### Test the parachain
+
+1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
+2. WAIT.... It takes a while for the registration process to finish. 
 
 
 Run the neumann network
@@ -148,6 +190,8 @@ onf network bootstrap -f rococo-testnet-relaychain.yaml
 onf network bootstrap -f neumann-parachain.yaml
 
 ```
+\
+
 
 Future Work
 ------------
