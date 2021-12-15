@@ -1,9 +1,10 @@
 use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
 use neumann_runtime::{AccountId, AuraId, Signature, SudoConfig, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{ crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -198,16 +199,26 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						get_account_id_from_seed::<sr25519::Public>("Alice"),
-						get_collator_keys_from_seed("Alice"),
+						// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
+						hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+						hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].unchecked_into(),
 					),
 					(
-						get_account_id_from_seed::<sr25519::Public>("Bob"),
-						get_collator_keys_from_seed("Bob"),
+						// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
+						hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+						hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].unchecked_into(),
 					),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				vec![],
+				// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
+				hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+				vec![
+					// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
+					hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+					// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
+					hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
+					// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
+					hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+				],
 				PARA_ID.into(),
 			)
 		},
