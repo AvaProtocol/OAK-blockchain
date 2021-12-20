@@ -28,7 +28,7 @@ validator:
     clusterKey: jm
     nodeSpec:
       key: unit
-      multiplier: 2
+      multiplier: 4
     initFromBackup: false
     publicPort: true
     useApiKey: true
@@ -43,7 +43,7 @@ bootNode:
     clusterKey: jm
     nodeSpec:
       key: unit
-      multiplier: 3
+      multiplier: 4
     initFromBackup: false
     publicPort: true
     useApiKey: true
