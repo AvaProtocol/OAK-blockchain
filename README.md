@@ -147,7 +147,7 @@ cargo +nightly build --release
 --execution wasm \
 --chain resources/rococo-local.json \
 --port 30335 \
---ws-port 9977
+--ws-port 9977 
 ```
 
 ### Register the parachain
@@ -163,35 +163,6 @@ Note** the files mentioned are the ones you generated above.
 
 1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
 2. WAIT.... It takes a while for the registration process to finish. 
-
-
-Run the neumann network
------------
-
-More info to come...
-Detailed OnFinality docs [here](https://support.onfinality.io/hc/en-us/articles/4407873248025-Create-a-custom-relay-chain-and-parachain-in-OnFinality)
-
-### Using the onf-cli (OnFinality) to spin up a relay chain & parachain
-
-```bash
-# Get the onf command
-sudo curl -s https://raw.githubusercontent.com/OnFinality-io/onf-cli/master/scripts/install/install.sh | sudo bash
-
-# Setup with API keys (under Account tab)
-# Note: If you're switching workspaces, you'll have to do the setup (you can use the same api keys) and the last prompt asks which workspace
-onf setup
-
-# Setup relay chain
-# We are using OnFinality's out of the box rococo relay chain configuration used as a relay tesnet
-cd resources
-onf network bootstrap -f rococo-testnet-relaychain.yaml
-
-# Setup parachain
-onf network bootstrap -f neumann-parachain.yaml
-
-```
-\
-
 
 Future Work
 ------------
