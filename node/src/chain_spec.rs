@@ -199,14 +199,14 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
-						hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
-						hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].unchecked_into(),
+						// 5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5
+						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"].into(),
+						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"].unchecked_into(),
 					),
 					(
-						// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
-						hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
-						hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].unchecked_into(),
+						// 5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH
+						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].into(),
+						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].unchecked_into(),
 					),
 				],
 				// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
