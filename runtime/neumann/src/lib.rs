@@ -667,11 +667,6 @@ impl pallet_treasury::Config for Runtime {
 	type MaxApprovals = MaxApprovals;
 }
 
-// /// Configure the pallet template in pallets/template.
-// impl pallet_template::Config for Runtime {
-// 	type Event = Event;
-// }
-
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -704,13 +699,11 @@ construct_runtime!(
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
 
-		// Template
-		//TemplatePallet: pallet_template::{Pallet, Call, Storage, Event<T>}  = 40,
-		
+		// Support pallets.
+		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 40,
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 41,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 42,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 43,
-		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 44,
 	}
 );
 

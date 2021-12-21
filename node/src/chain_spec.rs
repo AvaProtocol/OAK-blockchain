@@ -1,5 +1,5 @@
 use cumulus_primitives_core::ParaId;
-use neumann_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
+use neumann_runtime::{AccountId, AuraId, CouncilConfig, Signature, SudoConfig, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -90,7 +90,6 @@ pub fn development_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
-				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -146,7 +145,6 @@ pub fn local_testnet_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
-				// Sudo account
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
@@ -219,9 +217,9 @@ fn testnet_genesis(
 		// of this.
 		aura: Default::default(),
 		aura_ext: Default::default(),
-		council: neumann_runtime::CouncilConfig::default(),
+		council: CouncilConfig::default(),
 		parachain_system: Default::default(),
-		sudo: neumann_runtime::SudoConfig { key: root_key },
+		sudo: SudoConfig { key: root_key },
 		treasury: Default::default(),
 	}
 }
