@@ -15,7 +15,7 @@ PROJECT=neumann
 # Build the image
 echo "Building ${USER}/${PROJECT}:latest docker image, hang on!"
 time docker build -f ./docker/neumann/Dockerfile -t ${USER}/${PROJECT}:latest .
-docker tag ${USER}/${PROJECT}:latest ${USER}/${PROJECT}:v${VERSION}
+docker tag ${USER}/${PROJECT}:latest ${USER}/${PROJECT}:${VERSION}
 
 # Show the list of available images for this repo
 echo "Image is ready"
