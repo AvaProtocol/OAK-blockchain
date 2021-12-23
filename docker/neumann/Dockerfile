@@ -1,8 +1,17 @@
-FROM ubuntu:20.04
+# This is the build stage for OAK. Here we create the binary in a temporary image.
+FROM docker.io/paritytech/ci-linux:production as builder
 
+WORKDIR /build
+COPY . /build
+
+RUN cargo build --locked --release
+
+# This is the 2nd stage: a very small image where we copy the OAK binary."
+FROM docker.io/library/ubuntu:20.04
+
+ARG USERNAME=oak
 ARG PROFILE=release
 ARG BINARY=neumann-collator
-ARG USERNAME=oak
 
 LABEL maintainer "contact@oak.tech"
 LABEL description="Binary for Neumann Collator"
@@ -23,7 +32,7 @@ RUN apt-get update && apt-get install -y curl && \
 USER $USERNAME
 
 # Copy files
-COPY --chown=$USERNAME ./target/$PROFILE/$BINARY /$USERNAME/$BINARY
+COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
 
 # Open network port
@@ -38,6 +47,7 @@ EXPOSE 30333 30334 9933 9944 9615
 VOLUME ["/data"]
 
 # Change work directory
-WORKDIR $USERNAME
+WORKDIR /$USERNAME
 
 ENTRYPOINT ["./neumann-collator"]
+
