@@ -1,9 +1,10 @@
 use cumulus_primitives_core::ParaId;
+use hex_literal::hex;
 use neumann_runtime::{AccountId, AuraId, Signature, SudoConfig, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
-use sp_core::{sr25519, Pair, Public};
+use sp_core::{ crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -11,6 +12,7 @@ const TOKEN_DECIMALS: u32 = 10;
 const SS_58_FORMAT: u32 = 42;
 const PARA_ID: u32 = 2000;
 static RELAY_CHAIN: &str = "rococo-local";
+static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec =
@@ -174,6 +176,63 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			para_id: PARA_ID,
+		},
+	)
+}
+
+pub fn neumann_staging_testnet_config() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
+
+	ChainSpec::from_genesis(
+		// Name
+		"Neumann Network",
+		// ID
+		"neumann",
+		ChainType::Live,
+		move || {
+			testnet_genesis(
+				// initial collators.
+				vec![
+					(
+						// 5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5
+						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"].into(),
+						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"].unchecked_into(),
+					),
+					(
+						// 5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH
+						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].into(),
+						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].unchecked_into(),
+					),
+				],
+				// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
+				hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+				vec![
+					// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
+					hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+					// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
+					hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
+					// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
+					hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+				],
+				PARA_ID.into(),
+			)
+		},
+		// Bootnodes
+		Vec::new(),
+		// Telemetry
+		None,
+		// Protocol ID
+		Some("neumann"),
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: NEUMANN_RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: PARA_ID,
 		},
 	)
