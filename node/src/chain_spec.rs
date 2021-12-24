@@ -10,7 +10,6 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 static TOKEN_SYMBOL: &str = "NEU";
 const TOKEN_DECIMALS: u32 = 10;
 const SS_58_FORMAT: u32 = 42;
-const PARA_ID: u32 = 2000;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 
@@ -66,7 +65,7 @@ pub fn template_session_keys(keys: AuraId) -> neumann_runtime::SessionKeys {
 	neumann_runtime::SessionKeys { aura: keys }
 }
 
-pub fn development_config() -> ChainSpec {
+pub fn development_config(id: ParaId) -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
@@ -107,7 +106,7 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				PARA_ID.into(),
+				id,
 			)
 		},
 		Vec::new(),
@@ -116,12 +115,12 @@ pub fn development_config() -> ChainSpec {
 		None,
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: PARA_ID,
+			para_id: id.into(),
 		},
 	)
 }
 
-pub fn local_testnet_config() -> ChainSpec {
+pub fn local_testnet_config(id: ParaId) -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
@@ -162,7 +161,7 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
 				],
-				PARA_ID.into(),
+				id,
 			)
 		},
 		// Bootnodes
@@ -176,12 +175,12 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: PARA_ID,
+			para_id: id.into(),
 		},
 	)
 }
 
-pub fn neumann_staging_testnet_config() -> ChainSpec {
+pub fn neumann_staging_testnet_config(id: ParaId) -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
@@ -219,7 +218,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 					// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
 					hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
 				],
-				PARA_ID.into(),
+				id,
 			)
 		},
 		// Bootnodes
@@ -233,7 +232,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: NEUMANN_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: PARA_ID,
+			para_id: id.into(),
 		},
 	)
 }
