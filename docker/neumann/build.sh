@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
+# Please execute this script in the project root directory.
 set -e
-
-pushd .
 
 # The following line ensure we run from the project root
 PROJECT_ROOT=`git rev-parse --show-toplevel`
@@ -20,5 +19,3 @@ docker tag ${USER}/${PROJECT}:latest ${USER}/${PROJECT}:${VERSION}
 # Show the list of available images for this repo
 echo "Image is ready"
 docker images | grep ${PROJECT}
-
-popd
