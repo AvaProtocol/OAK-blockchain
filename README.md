@@ -130,7 +130,7 @@ git clone https://github.com/OAK-Foundation/OAK-blockchain
 cargo +nightly build --release
 
 # Export genesis state
-./target/release/neumann-collator export-genesis-state > genesis-state
+./target/release/neumann-collator export-genesis-state --parachain-id 2000 > genesis-state
 
 # Export genesis wasm
 ./target/release/neumann-collator export-genesis-wasm > genesis-wasm
@@ -140,6 +140,7 @@ cargo +nightly build --release
 --alice \
 --collator \
 --force-authoring \
+--parachain-id 2000 \
 --tmp \
 --port 40333 \
 --ws-port 9946 \
