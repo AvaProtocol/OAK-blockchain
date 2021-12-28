@@ -21,6 +21,7 @@ Table of Contents
 * [Introduction](https://github.com/OAK-Foundation/OAK-blockchain#introduction)
 * [Install OAK](https://github.com/OAK-Foundation/OAK-blockchain#install-oak-blockchain)
 * [OAK Validator Program](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/docs/validator-setup.md)
+* OAK Collator Program - Stay tuned
 
 Introduction
 ============
@@ -81,7 +82,6 @@ Build your executable:
 
 Run your Local Network
 -----------
-## Local Setup
 
 Launch a local setup including a Relay Chain and a Parachain.
 Note: local PARA_ID is defaulted to 2000
@@ -147,7 +147,7 @@ cargo +nightly build --release
 --execution wasm \
 --chain resources/rococo-local.json \
 --port 30335 \
---ws-port 9977
+--ws-port 9977 
 ```
 
 ### Register the parachain
@@ -158,12 +158,11 @@ Note** the files mentioned are the ones you generated above.
 
 ![image](https://user-images.githubusercontent.com/2915325/99548884-1be13580-2987-11eb-9a8b-20be658d34f9.png)
 
+
 ### Test the parachain
 
 1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
 2. WAIT.... It takes a while for the registration process to finish. 
-
-
 
 Future Work
 ------------

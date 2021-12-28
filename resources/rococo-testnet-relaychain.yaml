@@ -1,0 +1,50 @@
+networkSpec:
+  displayName: rococo-testnet-relaychain
+  name: rococo-testnet
+  protocol: substrate
+  imageRepository: parity/polkadot
+  imageVersion: v0.9.12
+  config:
+    nodeTypes:
+      full:
+        args:
+        - key: "--force-authoring"
+        - key: "--chain"
+          file: rococo-testnet.json
+      validator:
+        args:
+        - key: "--force-authoring"
+        - key: "--chain"
+          file: rococo-testnet.json
+validator:
+  count: 3
+  sudoArgs: #sudo args is to reduce the setting of sudo users for each node. For example, there will be 3 nodes running, the first node will be assgin --alice, the second node will be assgin --bob, and the third will be assgin --charlie. 
+    - --alice
+    - --bob
+    - --charlie
+  node:
+    nodeName: rococo-testnet-validator
+    nodeType: validator
+    clusterKey: jm
+    nodeSpec:
+      key: unit
+      multiplier: 4
+    initFromBackup: false
+    publicPort: true
+    useApiKey: true
+    storage: 30Gi
+  sessionsKey: 
+  #not needed 
+bootNode:
+  count: 1
+  node:
+    nodeName: rococo-testnet-bootnode
+    nodeType: full
+    clusterKey: jm
+    nodeSpec:
+      key: unit
+      multiplier: 4
+    initFromBackup: false
+    publicPort: true
+    useApiKey: true
+    storage: 30Gi
