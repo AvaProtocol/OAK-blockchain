@@ -1,5 +1,8 @@
-*
+.github
+.git
+.vscode
+target
+data
 !resources
 !target/release/oak
 !target/release/neumann-collator
-
