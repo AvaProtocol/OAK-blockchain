@@ -38,24 +38,36 @@ jobs:
         run: |
           SKIP_WASM_BUILD=1 cargo check --release
 
-  run-tests:
-      runs-on: ubuntu-20.04
+  test-coverage:
+    runs-on: ubuntu-20.04
 
-      steps:
-        - uses: actions/checkout@v2
+    steps:
+      - uses: actions/checkout@v2
 
-        - name: Set-Up
-          run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+      - name: Set-Up
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
 
-        - name: Install Rustup
-          run: |
-            curl https://sh.rustup.rs -sSf | sh -s -- -y
-            source ~/.cargo/env
-            rustup default stable
-            rustup update nightly
-            rustup update stable
-            rustup target add wasm32-unknown-unknown --toolchain nightly
-        
-        - name: Run Cargo Tests
-          run: |
-            cargo test
+      - name: Install Rustup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          source ~/.cargo/env
+          rustup default stable
+          rustup update nightly
+          rustup update stable
+          rustup target add wasm32-unknown-unknown --toolchain nightly
+          rustup component add llvm-tools-preview
+          cargo install grcov
+
+      - name: Test coverage
+        run: |
+          export CARGO_INCREMENTAL=0
+          export SKIP_BUILD_WASM=true
+          export BUILD_DUMMY_WASM_BINARY=true
+          export LLVM_PROFILE_FILE="llvmcoveragedata-%p-%m.profraw"
+          export WASM_TARGET_DIRECTORY=/tmp/wasm
+          cargo +nightly build
+          export RUSTFLAGS="-Zinstrument-coverage"
+          rm -r target/debug
+          cargo +nightly test --all
+          grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
+          bash <(curl -s https://codecov.io/bash) -f lcov.info
