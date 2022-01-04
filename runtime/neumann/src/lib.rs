@@ -618,6 +618,22 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+// Configure the pallet quadratic funding in pallets/quadratic-funding.
+parameter_types! {
+	pub const QuadraticFundingPalletId: PalletId = PalletId(*b"quadfund");
+	pub const MaxGrantsPerRound: u32 = 256;
+	pub const MaxWithdrawalExpiration: BlockNumber = 180 * DAYS;
+}
+
+impl pallet_quadratic_funding::Config for Runtime {
+	type Event = Event;
+	type PalletId = QuadraticFundingPalletId;
+	type Currency = Balances;
+	type MaxGrantsPerRound = MaxGrantsPerRound;
+	type MaxWithdrawalExpiration = MaxWithdrawalExpiration;
+	type WeightInfo = ();
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -704,6 +720,7 @@ construct_runtime!(
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 41,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 42,
 		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 43,
+		QuadraticFunding: pallet_quadratic_funding::{Pallet, Call, Storage, Config<T>, Event<T>} = 44,
 	}
 );
 

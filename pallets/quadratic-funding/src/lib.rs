@@ -5,7 +5,7 @@
 /// <https://substrate.dev/docs/en/knowledgebase/runtime/frame>
 
 #[cfg(feature = "std")]
-use frame_support::traits::GenesisBuild;
+// use frame_support::traits::GenesisBuild;
 use frame_support::{
 	pallet_prelude::*, PalletId,
 	traits::{Currency, ReservableCurrency, ExistenceRequirement, WithdrawReasons},
@@ -16,6 +16,8 @@ use integer_sqrt::IntegerSquareRoot;
 use sp_runtime::traits::AccountIdConversion;
 pub use weights::WeightInfo;
 pub use pallet::*;
+use scale_info::TypeInfo;
+use pallet_identity;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
@@ -31,7 +33,7 @@ pub mod pallet {
 
 	/// Configure the pallet by specifying the parameters and types on which it depends.
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_identity::Config {
+	pub trait Config: frame_system::Config {
 		/// Because this pallet emits events, it depends on the runtime's definition of an event.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -44,6 +46,8 @@ pub mod pallet {
 		type MaxWithdrawalExpiration: Get<Self::BlockNumber>;
 
 		type WeightInfo: WeightInfo;
+
+		type Identity: pallet_identity::Config;
 	}
 
 	#[pallet::pallet]
@@ -108,7 +112,6 @@ pub mod pallet {
 	// Pallets use events to inform users when important changes are made.
 	// https://substrate.dev/docs/en/knowledgebase/runtime/events
 	#[pallet::event]
-	#[pallet::metadata(T::AccountId = "AccountId")]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		ProjectCreated(ProjectIndex),
@@ -174,10 +177,10 @@ pub mod pallet {
 			// Check if identity is required
 			let is_identity_needed = IsIdentityRequired::<T>::get();
 			if is_identity_needed {
-				let identity = pallet_identity::Pallet::<T>::identity(who.clone()).ok_or(Error::<T>::IdentityNeeded)?;
+				let identity = T::Identity::identity(who.clone()).ok_or(Error::<T>::IdentityNeeded)?;
 				let mut is_found_judgement = false;
 				for judgement in identity.judgements.iter() {
-					if judgement.1 == pallet_identity::Judgement::Reasonable || judgement.1 == pallet_identity::Judgement::KnownGood {
+					if judgement.1 == <<T as pallet::Config>::Identity as Trait>::Judgement || judgement.1 == <<T as pallet::Config>::Identity as Trait>::Judgement {
 						is_found_judgement = true;
 						break;
 					}
@@ -704,7 +707,7 @@ type RoundOf<T> = Round<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config
 type GrantOf<T> = Grant<AccountIdOf<T>, BalanceOf<T>, <T as frame_system::Config>::BlockNumber>;
 
 /// Round struct
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Round<AccountId, Balance, BlockNumber> {
 	start: BlockNumber,
 	end: BlockNumber,
@@ -742,7 +745,7 @@ impl<AccountId, Balance: From<u32>, BlockNumber: From<u32>> Round<AccountId, Bal
 	}
 }
 // Grant in round
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Grant<AccountId, Balance, BlockNumber> {
 	project_index: ProjectIndex,
 	contributions: Vec<Contribution<AccountId, Balance>>,
@@ -754,14 +757,14 @@ pub struct Grant<AccountId, Balance, BlockNumber> {
 }
 
 /// The contribution users made to a grant project.
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Contribution<AccountId, Balance> {
 	account_id: AccountId,
 	value: Balance,
 }
 
 /// Project struct
-#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug)]
+#[derive(Encode, Decode, Default, PartialEq, Eq, Clone, Debug, TypeInfo)]
 pub struct Project<AccountId, BlockNumber> {
 	name: Vec<u8>,
 	logo: Vec<u8>,
@@ -772,23 +775,23 @@ pub struct Project<AccountId, BlockNumber> {
 	create_block_number: BlockNumber,
 }
 
-#[cfg(feature = "std")]
-impl<T: Config> GenesisConfig<T> {
-	/// Direct implementation of `GenesisBuild::build_storage`.
-	///
-	/// Kept in order not to break dependency.
-	pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
-		<Self as GenesisBuild<T>>::build_storage(self)
-	}
+// #[cfg(feature = "std")]
+// impl<T: Config> GenesisConfig<T> {
+// 	/// Direct implementation of `GenesisBuild::build_storage`.
+// 	///
+// 	/// Kept in order not to break dependency.
+// 	pub fn build_storage(&self) -> Result<sp_runtime::Storage, String> {
+// 		<Self as GenesisBuild<T>>::build_storage(self)
+// 	}
 
-	/// Direct implementation of `GenesisBuild::assimilate_storage`.
-	///
-	/// Kept in order not to break dependency.
-	pub fn assimilate_storage(
-		&self,
-		storage: &mut sp_runtime::Storage
-	) -> Result<(), String> {
-		<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
-	}
-}
+// 	/// Direct implementation of `GenesisBuild::assimilate_storage`.
+// 	///
+// 	/// Kept in order not to break dependency.
+// 	pub fn assimilate_storage(
+// 		&self,
+// 		storage: &mut sp_runtime::Storage
+// 	) -> Result<(), String> {
+// 		<Self as GenesisBuild<T>>::assimilate_storage(self, storage)
+// 	}
+// }
 

@@ -4269,6 +4269,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-collator-selection",
  "pallet-collective",
+ "pallet-quadratic-funding",
  "pallet-session",
  "pallet-sudo",
  "pallet-timestamp",
@@ -4975,6 +4976,24 @@ dependencies = [
  "frame-system",
  "parity-scale-codec",
  "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "pallet-quadratic-funding"
+version = "3.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "integer-sqrt",
+ "pallet-identity",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
