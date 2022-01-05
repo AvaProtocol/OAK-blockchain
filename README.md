@@ -38,7 +38,7 @@ Live Networks
 ============
 
 - `oak-testnet`: standalone testnet (built off of substrate)
-- `neumann`: testnet parachain (coming soon)
+- `neumann`: testnet parachain (January 2022)
 - `turing`: kusama parachain (coming soon)
 - `oak`: polkadot parachain (coming soon)
 
