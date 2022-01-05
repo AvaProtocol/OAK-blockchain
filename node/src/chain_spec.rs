@@ -1,6 +1,6 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
-use neumann_runtime::{AccountId, AuraId, CouncilConfig, Signature, SudoConfig, EXISTENTIAL_DEPOSIT};
+use neumann_runtime::{AccountId, AuraId, CouncilConfig, Signature, SudoConfig, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS, DOLLAR};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,8 @@ use sp_core::{ crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
 
 static TOKEN_SYMBOL: &str = "NEU";
-const TOKEN_DECIMALS: u32 = 10;
 const SS_58_FORMAT: u32 = 42;
+const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 
@@ -208,15 +208,15 @@ pub fn neumann_staging_testnet_config(id: ParaId) -> ChainSpec {
 						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].unchecked_into(),
 					),
 				],
-				// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
-				hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
+				// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
+				hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
 				vec![
 					// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
 					hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
 					// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
 					hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
-					// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
-					hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+					// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
+					hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
 				],
 				id,
 			)
@@ -243,6 +243,10 @@ fn testnet_genesis(
 	endowed_accounts: Vec<AccountId>,
 	id: ParaId,
 ) -> neumann_runtime::GenesisConfig {
+
+	// this will result in there being slightly more tokens than TOTAL_TOKENS due to the invulnerables
+	let initial_balance: u128 = TOTAL_TOKENS / endowed_accounts.len() as u128;
+
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
 			code: neumann_runtime::WASM_BINARY
@@ -251,7 +255,7 @@ fn testnet_genesis(
 			changes_trie_config: Default::default(),
 		},
 		balances: neumann_runtime::BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|k| (k, 1 << 60)).collect(),
+			balances: endowed_accounts.iter().cloned().map(|k| (k, initial_balance)).collect(),
 		},
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: neumann_runtime::CollatorSelectionConfig {
@@ -275,7 +279,10 @@ fn testnet_genesis(
 		// of this.
 		aura: Default::default(),
 		aura_ext: Default::default(),
-		council: CouncilConfig::default(),
+		council: CouncilConfig {
+			members: vec![root_key.clone()],
+			phantom: Default::default(),
+		},
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: root_key },
 		treasury: Default::default(),
