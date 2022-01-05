@@ -208,15 +208,15 @@ pub fn neumann_staging_testnet_config(id: ParaId) -> ChainSpec {
 						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"].unchecked_into(),
 					),
 				],
-				// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
-				hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+				// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
+				hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
 				vec![
 					// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
 					hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
 					// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
 					hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
-					// 5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE
-					hex!["fa6c29c28f58698cb118ef4326e347d486eb1d5d7cb736c9f453f43a800a7b5e"].into(),
+					// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
+					hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
 				],
 				id,
 			)
