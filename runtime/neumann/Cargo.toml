@@ -22,7 +22,7 @@ serde = { version = "1.0.119", optional = true, features = ["derive"] }
 smallvec = "1.6.1"
 
 # Local Dependencies
-#pallet-template = { path = "../pallets/template", default-features = false }
+pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -106,6 +106,7 @@ std = [
 	"frame-system/std",
 	"pallet-aura/std",
 	"pallet-authorship/std",
+	"pallet-automation-time/std",
 	"pallet-balances/std",
 	"pallet-bounties/std",
 	"pallet-collator-selection/std",
@@ -113,7 +114,6 @@ std = [
 	"pallet-session/std",
 	"pallet-sudo/std",
 	"pallet-treasury/std",
-	#"pallet-template/std",
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
@@ -140,11 +140,11 @@ runtime-benchmarks = [
 	"frame-system-benchmarking",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
+	"pallet-automation-time/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-bounties/runtime-benchmarks",
 	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
-	#"pallet-template/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
