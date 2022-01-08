@@ -15,6 +15,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! # The automation time pallet!
+//! 
+//! This pallet allows a user to schedule tasks. We currently support the following tasks.
+//! 
+//! * On-chain events with custom text
+//! 
+
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
