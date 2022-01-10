@@ -173,7 +173,7 @@ pub mod pallet {
 		///
 		/// In order to do this we get the most recent timestamp from the chain. Then convert
 		/// the ms unix timestamp to seconds. Lastly, we bring the timestamp down to the last whole minute.
-		fn get_time_slot() -> u64 {
+		fn get_current_time_slot() -> u64 {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<u64>();
 			let now = now / 1000;
 			let diff_to_min = now % 60;
@@ -189,7 +189,7 @@ pub mod pallet {
 				Err(<Error<T>>::InvalidTime)?;
 			}
 
-			let now = Self::get_time_slot();
+			let now = Self::get_current_time_slot();
 			if scheduled_time <= now {
 				Err(<Error<T>>::PastTime)?;
 			}
