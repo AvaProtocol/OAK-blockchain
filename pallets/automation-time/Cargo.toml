@@ -17,19 +17,32 @@ codec = { package = "parity-scale-codec", version = "2.0.0", features = ["derive
 scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
+## Substrate Primitive Dependencies
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
 
 ## Substrate FRAME Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.12" }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
 
+## Substrate Pallet Dependencies
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
+
 [dev-dependencies]
 serde = { version = "1.0.119" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.12" }
 
 [features]
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 std = [
+    "codec/std",
+	"scale-info/std",
+    "sp-runtime/std",
+    "sp-std/std",
+	"pallet-timestamp/std",
 	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking/std",
