@@ -260,7 +260,7 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: neumann_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+			candidacy_bond: DOLLAR * 100_000,
 			..Default::default()
 		},
 		session: neumann_runtime::SessionConfig {
