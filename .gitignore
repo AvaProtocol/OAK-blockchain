@@ -12,3 +12,7 @@
 # The cache for chain data in container
 .local
 /data/
+
+# Parachain registration files
+genesis-state
+genesis-wasm
