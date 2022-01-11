@@ -18,7 +18,10 @@ use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
 
-fn load_spec(id: &str, para_id: ParaId) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+fn load_spec(
+	id: &str,
+	para_id: ParaId,
+) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
 		"dev" => Box::new(chain_spec::development_config(para_id)),
 		"template-rococo" => Box::new(chain_spec::local_testnet_config(para_id)),
@@ -190,11 +193,10 @@ pub fn run() -> Result<()> {
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
 			let _ = builder.init();
 
-			let block: Block =
-				generate_genesis_block(&load_spec(
-					&params.chain.clone().unwrap_or_default(),
-					params.parachain_id.unwrap_or(2000).into(),
-				)?)?;
+			let block: Block = generate_genesis_block(&load_spec(
+				&params.chain.clone().unwrap_or_default(),
+				params.parachain_id.unwrap_or(2000).into(),
+			)?)?;
 			let raw_header = block.header().encode();
 			let output_buf = if params.raw {
 				raw_header
