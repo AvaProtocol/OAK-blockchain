@@ -9,8 +9,9 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{
-	crypto::KeyTypeId, OpaqueMetadata,
+	crypto::KeyTypeId,
 	u32_trait::{_1, _2, _3, _5},
+	OpaqueMetadata,
 };
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
