@@ -39,6 +39,7 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::vec;
+use core::convert::TryInto;
 
 #[frame_support::pallet]
 pub mod pallet {
