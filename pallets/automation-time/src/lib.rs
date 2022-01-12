@@ -113,12 +113,12 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Schedule task success. [task owner, task_id]
-		TaskScheduled(T::AccountId, T::Hash),
-		// Cancelled a task. [task owner, task_id]
-		TaskCancelled(T::AccountId, T::Hash),
-		/// Notify event for the task. [Message]
-		Notify(Vec<u8>),
+		/// Schedule task success.
+		TaskScheduled { who: T::AccountId, task_id: T::Hash },
+		// Cancelled a task.
+		TaskCancelled { who: T::AccountId, task_id: T::Hash),
+		/// Notify event for the task.
+		Notify { message: Vec<u8> },
 	}
 
 	#[pallet::call]
@@ -174,7 +174,7 @@ pub mod pallet {
 			}
 
 			<Tasks<T>>::insert(task_id, task);
-			Self::deposit_event(Event::TaskScheduled(who, task_id));
+			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(().into())
 		}
 
@@ -266,7 +266,8 @@ pub mod pallet {
 		/// - Return weight used
 		/// - Remove all completed tasks from task_ids
 		/// - If there are no task_ids left then remove the slot
-		fn run_tasks() -> Weight {
+		/// - make private
+		pub fn run_tasks() -> Weight {
 			let time_block = Self::get_current_time_slot();
 
 			if let Some(task_ids) = Self::get_scheduled_tasks(time_block) {
@@ -287,7 +288,7 @@ pub mod pallet {
 
 		/// Fire the notify event with the custom message.
 		fn run_notify_task(message: Vec<u8>) {
-			let event = Event::Notify(message);
+			let event = Event::Notify { message };
 			Self::deposit_event(event);
 		}
 	}

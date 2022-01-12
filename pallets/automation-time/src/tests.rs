@@ -1,5 +1,3 @@
-// use super::*;
-// use mock::*;
 use crate::{mock::*, Error, Task};
 use frame_support::{assert_noop, assert_ok};
 
@@ -173,4 +171,34 @@ fn create_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_co
 	));
 	let task_ids = AutomationTime::get_scheduled_tasks(scheduled_time).unwrap();
 	task_ids[task_ids.len() - 1]
+}
+fn run_tasks_works() {
+    new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 180;
+        let start_block_time: u64 = (scheduled_time) * 1000;
+		assert_ok!(AutomationTime::schedule_notify_task(
+			Origin::signed(ALICE),
+			scheduled_time,
+			vec![2, 4, 5]
+		));
+        Timestamp::set_timestamp(start_block_time);
+        System::reset_events();
+
+		AutomationTime::run_tasks();
+
+        assert_eq!(
+            events(),
+            [
+                Event::AutomationTime(crate::Event::Notify { message: vec![2, 4, 5]}),
+            ]
+        );
+	})
+}
+
+fn events() -> Vec<Event> {
+    let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+
+    System::reset_events();
+
+    evt
 }
