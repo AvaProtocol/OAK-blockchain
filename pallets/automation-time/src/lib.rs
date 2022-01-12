@@ -117,6 +117,8 @@ pub mod pallet {
 		TaskScheduled(T::AccountId, T::Hash),
 		// Cancelled a task. [task owner, task_id]
 		TaskCancelled(T::AccountId, T::Hash),
+		/// Notify event for the task. [Message]
+		Notify(Vec<u8>),
 	}
 
 	#[pallet::call]
@@ -250,6 +252,43 @@ pub mod pallet {
 			}
 
 			Ok(())
+		}
+
+		/// Run tasks for a given time.
+		///
+		/// Until the TODO is completed we will be limited to two tasks per slot to ensure
+		/// they can all be completed.
+		///
+		/// TODO (ENG-157):
+		/// - Calculate weights for each task
+		/// - Pass in max weight this fcn can consume
+		/// - Stop running tasks when the max weight is consumed
+		/// - Return weight used
+		/// - Remove all completed tasks from task_ids
+		/// - If there are no task_ids left then remove the slot
+		fn run_tasks() -> Weight {
+			let time_block = Self::get_current_time_slot();
+
+			if let Some(task_ids) = Self::get_scheduled_tasks(time_block) {
+				for task_id in task_ids {
+					match Self::get_task(task_id) {
+						None => {}, // TODO: add some sort of error reporter here (ENG-155).
+						Some(task) => match task.action {
+							Action::Notify(message) => Self::run_notify_task(message),
+						},
+					}
+				}
+
+				<ScheduledTasks<T>>::remove(time_block);
+			}
+
+			0
+		}
+
+		/// Fire the notify event with the custom message.
+		fn run_notify_task(message: Vec<u8>) {
+			let event = Event::Notify(message);
+			Self::deposit_event(event);
 		}
 	}
 }
