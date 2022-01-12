@@ -6,7 +6,7 @@ use frame_support::{assert_noop, assert_ok};
 const SCHEDULED_TIME: u64 = 33198768180;
 
 #[test]
-fn automation_time_invalid_time() {
+fn schedule_invalid_time() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
@@ -20,7 +20,7 @@ fn automation_time_invalid_time() {
 }
 
 #[test]
-fn automation_time_past_time() {
+fn schedule_past_time() {
 	new_test_ext().execute_with(|| {
 		let start_block_time: u64 = (SCHEDULED_TIME + 5) * 1000;
 		Timestamp::set_timestamp(start_block_time);
@@ -41,7 +41,7 @@ fn automation_time_past_time() {
 }
 
 #[test]
-fn automation_time_no_message() {
+fn schedule_no_message() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(Origin::signed(ALICE), SCHEDULED_TIME, vec![]),
@@ -51,7 +51,7 @@ fn automation_time_no_message() {
 }
 
 #[test]
-fn automation_time_schedule_works() {
+fn schedule_works() {
 	new_test_ext().execute_with(|| {
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
@@ -79,7 +79,7 @@ fn automation_time_schedule_works() {
 }
 
 #[test]
-fn automation_time_duplicates_errors() {
+fn schedule_duplicates_errors() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 60;
 		let message: Vec<u8> = vec![2, 4, 5];
@@ -100,17 +100,77 @@ fn automation_time_duplicates_errors() {
 }
 
 #[test]
-fn automation_time_slot_full() {
+fn schedule_time_slot_full() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 120;
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			scheduled_time,
+			vec![2, 4]
+		));
+		assert_ok!(AutomationTime::schedule_notify_task(
+			Origin::signed(ALICE),
+			scheduled_time,
 			vec![2, 4, 5]
 		));
+
 		assert_noop!(
-			AutomationTime::schedule_notify_task(Origin::signed(ALICE), scheduled_time, vec![2, 4]),
+			AutomationTime::schedule_notify_task(Origin::signed(ALICE), scheduled_time, vec![2]),
 			Error::<Test>::TimeSlotFull,
 		);
 	})
+}
+
+#[test]
+fn cancel_works() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 180;
+		let task_id1 = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
+		let task_id2 = create_task(ALICE, scheduled_time, vec![2, 4]);
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id1,));
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id2,));
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(scheduled_time) {
+			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
+		}
+	})
+}
+
+#[test]
+fn cancel_must_be_owner() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 240;
+		let task_id = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
+
+		assert_noop!(
+			AutomationTime::cancel_task(Origin::signed(BOB), task_id),
+			Error::<Test>::NotTaskOwner,
+		);
+	})
+}
+
+#[test]
+fn cancel_task_must_exist() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 300;
+		let task_id = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id,));
+		assert_noop!(
+			AutomationTime::cancel_task(Origin::signed(ALICE), task_id),
+			Error::<Test>::TaskDoesNotExist,
+		);
+	})
+}
+
+fn create_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_core::H256 {
+	assert_ok!(AutomationTime::schedule_notify_task(
+		Origin::signed(owner),
+		scheduled_time,
+		message,
+	));
+	let task_ids = AutomationTime::get_scheduled_tasks(scheduled_time).unwrap();
+	task_ids[task_ids.len() - 1]
 }
