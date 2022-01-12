@@ -29,10 +29,6 @@ jobs:
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
           source ~/.cargo/env
-          rustup default stable
-          rustup update nightly
-          rustup update stable
-          rustup target add wasm32-unknown-unknown --toolchain nightly
 
       - name: Check Build
         run: |
@@ -51,10 +47,7 @@ jobs:
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
           source ~/.cargo/env
-          rustup default stable
-          rustup update nightly
           rustup update stable
-          rustup target add wasm32-unknown-unknown --toolchain nightly
           rustup component add llvm-tools-preview
           cargo install grcov
 
@@ -65,9 +58,9 @@ jobs:
           export BUILD_DUMMY_WASM_BINARY=true
           export LLVM_PROFILE_FILE="llvmcoveragedata-%p-%m.profraw"
           export WASM_TARGET_DIRECTORY=/tmp/wasm
-          cargo +nightly build
+          cargo build
           export RUSTFLAGS="-Zinstrument-coverage"
-          rm -r target/debug
-          cargo +nightly test --all
+          rm -rf target/debug
+          cargo test --all
           grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
           bash <(curl -s https://codecov.io/bash) -f lcov.info
