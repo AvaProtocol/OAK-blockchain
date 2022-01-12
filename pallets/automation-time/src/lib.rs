@@ -21,7 +21,9 @@
 //!
 //! * On-chain events with custom text
 //!
-//! TODO: Finish this.
+//! TODO: Finish documentation (ENG-148).
+//!
+//! NOTES: None of the weights are accurate yet.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -101,13 +103,19 @@ pub mod pallet {
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
 		TimeSlotFull,
+		/// You are not the owner of the task.
+		NotTaskOwner,
+		/// The task does not exist.
+		TaskDoesNotExist,
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// Schedule task success. [who, task_id]
+		/// Schedule task success. [task owner, task_id]
 		TaskScheduled(T::AccountId, T::Hash),
+		// Cancelled a task. [task owner, task_id]
+		TaskCancelled(T::AccountId, T::Hash),
 	}
 
 	#[pallet::call]
@@ -164,6 +172,52 @@ pub mod pallet {
 
 			<Tasks<T>>::insert(task_id, task);
 			Self::deposit_event(Event::TaskScheduled(who, task_id));
+			Ok(().into())
+		}
+
+		/// Cancel a task.
+		///
+		/// Tasks can only can be cancelled by their owners.
+		///
+		/// TODO: Allow sudo to cancel tasks (ENG-156).
+		///
+		/// # Parameters
+		/// * `task_id`: The id of the task.
+		///
+		/// # Errors
+		/// * `NotTaskOwner`: You are not the owner of the task.
+		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			match Self::get_task(task_id) {
+				None => Err(Error::<T>::TaskDoesNotExist)?,
+				Some(task) => {
+					if who != task.owner_id {
+						Err(Error::<T>::NotTaskOwner)?
+					}
+					match Self::get_scheduled_tasks(task.time) {
+						None => {}, //TODO add some sort of error reporter here (ENG-155).
+						Some(mut task_ids) =>
+							for i in 0..task_ids.len() {
+								if task_ids[i] == task_id {
+									if task_ids.len() == 1 {
+										<ScheduledTasks<T>>::remove(task.time);
+									} else {
+										task_ids.remove(i);
+										<ScheduledTasks<T>>::insert(task.time, task_ids);
+									}
+									break
+								}
+							},
+					}
+
+					<Tasks<T>>::remove(task_id);
+				},
+			}
+
+			Self::deposit_event(Event::TaskCancelled(who, task_id));
 			Ok(().into())
 		}
 	}

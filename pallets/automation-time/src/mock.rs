@@ -13,6 +13,7 @@ type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = u64;
 
 pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -69,7 +70,7 @@ impl pallet_timestamp::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 1;
+	pub const MaxTasksPerSlot: u32 = 2;
 }
 
 impl pallet_automation_time::Config for Test {
