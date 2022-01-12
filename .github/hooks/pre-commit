@@ -1,0 +1,23 @@
+#!/bin/bash
+
+HAS_ISSUES=0
+FIRST_FILE=1
+
+for file in $(git diff --name-only --staged); do
+    FMT_RESULT="$(rustfmt +nightly --check $file)"
+    if [ "$FMT_RESULT" != "" ]; then
+        if [ $FIRST_FILE -eq 0 ]; then
+            echo -e ",\n"
+        fi  
+        echo -n "$file"
+        HAS_ISSUES=1
+        FIRST_FILE=0
+    fi
+done
+
+if [ $HAS_ISSUES -eq 0 ]; then
+    exit 0
+fi
+
+echo -e "\n\n Your code has formatting issues in files listed above. Format your code with \`cargo +nightly fmt\`."
+exit 1
