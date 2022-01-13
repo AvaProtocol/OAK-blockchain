@@ -140,7 +140,6 @@ cargo +nightly build --release
 --alice \
 --collator \
 --force-authoring \
---parachain-id 2000 \
 --tmp \
 --port 40333 \
 --ws-port 9946 \
