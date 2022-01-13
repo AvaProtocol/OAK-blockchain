@@ -124,16 +124,30 @@ fn schedule_time_slot_full() {
 fn cancel_works() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 180;
-		let task_id1 = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
-		let task_id2 = create_task(ALICE, scheduled_time, vec![2, 4]);
+		let owner: AccountId = ALICE;
+		let task_id1 = create_task(owner, scheduled_time, vec![2, 4, 5]);
+		let task_id2 = create_task(owner, scheduled_time, vec![2, 4]);
+		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id1,));
-
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id2,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id2,));
 
 		if let Some(_) = AutomationTime::get_scheduled_tasks(scheduled_time) {
 			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
 		}
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskCancelled {
+					who: owner,
+					task_id: task_id1
+				}),
+				Event::AutomationTime(crate::Event::TaskCancelled {
+					who: owner,
+					task_id: task_id2
+				}),
+			]
+		);
 	})
 }
 
@@ -151,16 +165,6 @@ fn cancel_must_be_owner() {
 }
 
 #[test]
-fn force_cancel_task_works() {
-	new_test_ext().execute_with(|| {
-		let scheduled_time = SCHEDULED_TIME + 240;
-		let task_id = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
-
-		assert_ok!(AutomationTime::force_cancel_task(RawOrigin::Root.into(), task_id));
-	})
-}
-
-#[test]
 fn cancel_task_must_exist() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 300;
@@ -170,6 +174,22 @@ fn cancel_task_must_exist() {
 		assert_noop!(
 			AutomationTime::cancel_task(Origin::signed(ALICE), task_id),
 			Error::<Test>::TaskDoesNotExist,
+		);
+	})
+}
+
+#[test]
+fn force_cancel_task_works() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 240;
+		let owner: AccountId = ALICE;
+		let task_id = create_task(owner, scheduled_time, vec![2, 4, 5]);
+		System::reset_events();
+
+		assert_ok!(AutomationTime::force_cancel_task(RawOrigin::Root.into(), task_id));
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id }),]
 		);
 	})
 }
