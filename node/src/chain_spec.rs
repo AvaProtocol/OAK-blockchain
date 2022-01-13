@@ -201,29 +201,29 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// 5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5
-						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"]
+						// 5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL
+						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
 							.into(),
-						hex!["a6813e94ff1be02ee649ec51238046ec5124727f73a9b16e348b7d29d4869902"]
+						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
 							.unchecked_into(),
 					),
 					(
-						// 5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH
-						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"]
+						// 5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J
+						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
 							.into(),
-						hex!["e48eafad4a882d37698016bb17e21beeb1da09856f210c4594a0bf8dcb5f4804"]
+						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
 							.unchecked_into(),
 					),
 				],
-				// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
-				hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
+				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
+				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
 				vec![
 					// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
 					hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
 					// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
 					hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
-					// 5FtCDGK8KHu88V7sb2xxV6bkUYcjFpT3aiBHKUtK1jLXtP6d
-					hex!["a8ecafa7dc50000365047c15c1542cc4875bec58de8b5ef7ed03e0a7111c0469"].into(),
+					// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
+					hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
 				],
 				DEFAULT_PARA_ID.into(),
 			)
