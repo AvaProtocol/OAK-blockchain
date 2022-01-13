@@ -35,19 +35,34 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::{traits::SaturatedConversion, Perbill};
 use sp_std::vec;
-use core::convert::TryInto;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
+
+	/// The static weight to run scheduled tasks.
+	/// TODO: Calculate (ENG-157).
+	const RUN_TASK_OVERHEAD: Weight = 30_000;
+
+	/// The weight per loop to run scheduled tasks;
+	/// /// TODO: Calculate (ENG-157).
+	const RUN_TASK_LOOP_OVERHEAD: Weight = 10_000;
+
+	/// The maximum weight of a task.
+	/// /// TODO: Calculate (ENG-157).
+	const MAX_TASK_WEGHT: Weight = 10_000;
+
+	/// `MAX_TASK_WEGHT` + `RUN_TASK_LOOP_OVERHEAD`
+	const MAX_LOOP_WEIGHT: Weight = MAX_TASK_WEGHT + RUN_TASK_LOOP_OVERHEAD;
 
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
@@ -77,6 +92,14 @@ pub mod pallet {
 		/// The maximum number of tasks that can be scheduled for a time slot.
 		#[pallet::constant]
 		type MaxTasksPerSlot: Get<u32>;
+
+		/// The maximum weight per block.
+		#[pallet::constant]
+		type MaxBlockWeight: Get<Weight>;
+
+		/// The maximum percentage of weight per block used for scheduled tasks.
+		#[pallet::constant]
+		type MaxWeightPercentage: Get<Perbill>;
 	}
 
 	#[pallet::pallet]
@@ -114,11 +137,27 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Schedule task success.
-		TaskScheduled { who: T::AccountId, task_id: T::Hash },
+		TaskScheduled {
+			who: T::AccountId,
+			task_id: T::Hash,
+		},
 		// Cancelled a task.
-		TaskCancelled { who: T::AccountId, task_id: T::Hash),
+		TaskCancelled {
+			who: T::AccountId,
+			task_id: T::Hash,
+		},
 		/// Notify event for the task.
-		Notify { message: Vec<u8> },
+		Notify {
+			message: Vec<u8>,
+		},
+	}
+
+	#[pallet::hooks]
+	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_: T::BlockNumber) -> Weight {
+			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
+			Self::run_tasks(max_weight)
+		}
 	}
 
 	#[pallet::call]
@@ -220,7 +259,7 @@ pub mod pallet {
 				},
 			}
 
-			Self::deposit_event(Event::TaskCancelled(who, task_id));
+			Self::deposit_event(Event::TaskCancelled { who, task_id });
 			Ok(().into())
 		}
 	}
@@ -254,42 +293,55 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Run tasks for a given time.
+		/// Run tasks for the block time.
+		///
+		/// Complete as many tasks as possible given the maximum weight.
+		/// Return the weight that was used.
 		///
 		/// Until the TODO is completed we will be limited to two tasks per slot to ensure
 		/// they can all be completed.
 		///
 		/// TODO (ENG-157):
 		/// - Calculate weights for each task
-		/// - Pass in max weight this fcn can consume
-		/// - Stop running tasks when the max weight is consumed
-		/// - Return weight used
-		/// - Remove all completed tasks from task_ids
-		/// - If there are no task_ids left then remove the slot
-		/// - make private
-		pub fn run_tasks() -> Weight {
+		pub fn run_tasks(max_weight: Weight) -> Weight {
+			let mut weight_left: Weight = max_weight - RUN_TASK_OVERHEAD;
 			let time_block = Self::get_current_time_slot();
 
 			if let Some(task_ids) = Self::get_scheduled_tasks(time_block) {
-				for task_id in task_ids {
-					match Self::get_task(task_id) {
-						None => {}, // TODO: add some sort of error reporter here (ENG-155).
+				let mut consumed_task_index: usize = 0;
+				for task_id in task_ids.iter() {
+					if weight_left < MAX_LOOP_WEIGHT {
+						break
+					}
+
+					let cost = match Self::get_task(task_id) {
+						None => 0, // TODO: add some sort of error reporter here (ENG-155).
 						Some(task) => match task.action {
 							Action::Notify(message) => Self::run_notify_task(message),
 						},
-					}
+					};
+
+					consumed_task_index += 1;
+					weight_left = weight_left - cost - RUN_TASK_LOOP_OVERHEAD;
 				}
 
-				<ScheduledTasks<T>>::remove(time_block);
+				if consumed_task_index == task_ids.len() {
+					<ScheduledTasks<T>>::remove(time_block);
+				} else {
+					let new_task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+						task_ids.into_inner().split_off(consumed_task_index).try_into().unwrap();
+					<ScheduledTasks<T>>::insert(time_block, new_task_ids);
+				}
 			}
 
-			0
+			max_weight - weight_left
 		}
 
 		/// Fire the notify event with the custom message.
-		fn run_notify_task(message: Vec<u8>) {
-			let event = Event::Notify { message };
-			Self::deposit_event(event);
+		/// TODO: Calculate weight (ENG-157).
+		fn run_notify_task(message: Vec<u8>) -> Weight {
+			Self::deposit_event(Event::Notify { message });
+			10_000
 		}
 	}
 }

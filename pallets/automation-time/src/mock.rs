@@ -1,10 +1,11 @@
 use crate as pallet_automation_time;
-use frame_support::{parameter_types, traits::Everything};
+use frame_support::{parameter_types, traits::Everything, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	Perbill,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -71,11 +72,15 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	pub const MaxBlockWeight: Weight = 600_000;
+	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 }
 
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
 }
 
 // Build genesis storage according to the mock runtime.
