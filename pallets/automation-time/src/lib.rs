@@ -221,8 +221,6 @@ pub mod pallet {
 		///
 		/// Tasks can only can be cancelled by their owners.
 		///
-		/// TODO: Allow sudo to cancel tasks (ENG-156).
-		///
 		/// # Parameters
 		/// * `task_id`: The id of the task.
 		///
@@ -230,7 +228,7 @@ pub mod pallet {
 		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
-		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResultWithPostInfo {
+		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			match Self::get_task(task_id) {
@@ -239,27 +237,28 @@ pub mod pallet {
 					if who != task.owner_id {
 						Err(Error::<T>::NotTaskOwner)?
 					}
-					match Self::get_scheduled_tasks(task.time) {
-						None => {}, //TODO add some sort of error reporter here (ENG-155).
-						Some(mut task_ids) =>
-							for i in 0..task_ids.len() {
-								if task_ids[i] == task_id {
-									if task_ids.len() == 1 {
-										<ScheduledTasks<T>>::remove(task.time);
-									} else {
-										task_ids.remove(i);
-										<ScheduledTasks<T>>::insert(task.time, task_ids);
-									}
-									break
-								}
-							},
-					}
-
-					<Tasks<T>>::remove(task_id);
+					Self::remove_task(task_id, task);
 				},
 			}
+			Ok(().into())
+		}
 
-			Self::deposit_event(Event::TaskCancelled { who, task_id });
+		/// Sudo can force cancel a task.
+		///
+		/// # Parameters
+		/// * `task_id`: The id of the task.
+		///
+		/// # Errors
+		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
+			ensure_root(origin)?;
+
+			match Self::get_task(task_id) {
+				None => Err(Error::<T>::TaskDoesNotExist)?,
+				Some(task) => Self::remove_task(task_id, task),
+			}
+
 			Ok(().into())
 		}
 	}
@@ -342,6 +341,27 @@ pub mod pallet {
 		fn run_notify_task(message: Vec<u8>) -> Weight {
 			Self::deposit_event(Event::Notify { message });
 			10_000
+		}
+
+		fn remove_task(task_id: T::Hash, task: Task<T>) {
+			match Self::get_scheduled_tasks(task.time) {
+				None => {}, //TODO add some sort of error reporter here (ENG-155).
+				Some(mut task_ids) =>
+					for i in 0..task_ids.len() {
+						if task_ids[i] == task_id {
+							if task_ids.len() == 1 {
+								<ScheduledTasks<T>>::remove(task.time);
+							} else {
+								task_ids.remove(i);
+								<ScheduledTasks<T>>::insert(task.time, task_ids);
+							}
+							break
+						}
+					},
+			}
+
+			<Tasks<T>>::remove(task_id);
+			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 	}
 }

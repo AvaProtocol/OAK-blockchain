@@ -1,5 +1,6 @@
 use crate::{mock::*, Error, Task};
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_system::RawOrigin;
 
 const SCHEDULED_TIME: u64 = 33198768180;
 
@@ -146,6 +147,16 @@ fn cancel_must_be_owner() {
 			AutomationTime::cancel_task(Origin::signed(BOB), task_id),
 			Error::<Test>::NotTaskOwner,
 		);
+	})
+}
+
+#[test]
+fn force_cancel_task_works() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 240;
+		let task_id = create_task(ALICE, scheduled_time, vec![2, 4, 5]);
+
+		assert_ok!(AutomationTime::force_cancel_task(RawOrigin::Root.into(), task_id));
 	})
 }
 
