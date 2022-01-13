@@ -1,7 +1,5 @@
-// use super::*;
-// use mock::*;
 use crate::{mock::*, Error, Task};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 
 const SCHEDULED_TIME: u64 = 33198768180;
 
@@ -165,6 +163,99 @@ fn cancel_task_must_exist() {
 	})
 }
 
+// RUN_TASK_OVERHEAD = 30_000
+// MAX_LOOP_WEIGHT = 20_000
+#[test]
+fn run_tasks_completes_all_tasks() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 360;
+		let start_block_time: u64 = (scheduled_time) * 1000;
+
+		let message_one: Vec<u8> = vec![2, 4, 5];
+		create_task(ALICE, scheduled_time, message_one.clone());
+		let message_two: Vec<u8> = vec![2, 4];
+		create_task(ALICE, scheduled_time, message_two.clone());
+		Timestamp::set_timestamp(start_block_time);
+		System::reset_events();
+
+		AutomationTime::run_tasks(80_000);
+
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+			]
+		);
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(scheduled_time) {
+			panic!("There shoud be no tasks left for this slot")
+		}
+	})
+}
+
+// RUN_TASK_OVERHEAD = 30_000
+// MAX_LOOP_WEIGHT = 20_000
+#[test]
+fn run_tasks_completes_some_tasks() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 420;
+		let start_block_time: u64 = (scheduled_time) * 1000;
+
+		let message_one: Vec<u8> = vec![2, 4, 5];
+		create_task(ALICE, scheduled_time, message_one.clone());
+		let message_two: Vec<u8> = vec![2, 4];
+		create_task(ALICE, scheduled_time, message_two.clone());
+		Timestamp::set_timestamp(start_block_time);
+		System::reset_events();
+
+		AutomationTime::run_tasks(60_000);
+
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
+		);
+
+		if let None = AutomationTime::get_scheduled_tasks(scheduled_time) {
+			panic!("There shoud be tasks left for this slot")
+		}
+	})
+}
+
+// RUN_TASK_OVERHEAD = 30_000
+// MAX_LOOP_WEIGHT = 20_000
+// Max weight = 60_000
+#[test]
+fn on_init_runs_tasks() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 480;
+		let start_block_time: u64 = (scheduled_time) * 1000;
+
+		let message_one: Vec<u8> = vec![2, 4, 5];
+		create_task(ALICE, scheduled_time, message_one.clone());
+		let message_two: Vec<u8> = vec![2, 4];
+		create_task(ALICE, scheduled_time, message_two.clone());
+		Timestamp::set_timestamp(start_block_time);
+		System::reset_events();
+
+		AutomationTime::on_initialize(1);
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
+		);
+
+		AutomationTime::on_initialize(2);
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),]
+		);
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(scheduled_time) {
+			panic!("There shoud be no tasks left for this slot")
+		}
+	})
+}
+
 fn create_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_core::H256 {
 	assert_ok!(AutomationTime::schedule_notify_task(
 		Origin::signed(owner),
@@ -173,4 +264,12 @@ fn create_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_co
 	));
 	let task_ids = AutomationTime::get_scheduled_tasks(scheduled_time).unwrap();
 	task_ids[task_ids.len() - 1]
+}
+
+fn events() -> Vec<Event> {
+	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+
+	System::reset_events();
+
+	evt
 }
