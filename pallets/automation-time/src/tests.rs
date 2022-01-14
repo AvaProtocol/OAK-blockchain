@@ -197,7 +197,7 @@ fn force_cancel_task_works() {
 // RUN_TASK_OVERHEAD = 30_000
 // MAX_LOOP_WEIGHT = 20_000
 #[test]
-fn run_tasks_completes_all_tasks() {
+fn trigger_tasks_completes_all_tasks() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 360;
 		let start_block_time: u64 = (scheduled_time) * 1000;
@@ -209,7 +209,7 @@ fn run_tasks_completes_all_tasks() {
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
-		AutomationTime::run_tasks(80_000);
+		AutomationTime::trigger_tasks(80_000);
 
 		assert_eq!(
 			events(),
@@ -228,7 +228,7 @@ fn run_tasks_completes_all_tasks() {
 // RUN_TASK_OVERHEAD = 30_000
 // MAX_LOOP_WEIGHT = 20_000
 #[test]
-fn run_tasks_completes_some_tasks() {
+fn trigger_tasks_completes_some_tasks() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 420;
 		let start_block_time: u64 = (scheduled_time) * 1000;
@@ -240,7 +240,7 @@ fn run_tasks_completes_some_tasks() {
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
-		AutomationTime::run_tasks(60_000);
+		AutomationTime::trigger_tasks(60_000);
 
 		assert_eq!(
 			events(),
