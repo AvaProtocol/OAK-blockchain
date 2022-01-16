@@ -272,16 +272,19 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Get the relevant time slot.
+		/// Based on the block time return the time slot and if it's the last block in the slot.
 		///
-		/// In order to do this we get the most recent timestamp from the chain. Then convert
-		/// the ms unix timestamp to seconds. Lastly, we bring the timestamp down to the last whole minute.
+		/// In order to do this we get the most recent timestamp from the block. Then convert
+		/// the ms unix timestamp to seconds. , we bring the timestamp down to the last whole minute.
+		/// * Get the most recent timestamp from the block.
+		/// * Convert the ms unix timestamp to seconds.
+		/// * Bring the timestamp down to the last whole minute.
+		/// * Check to see if the time left in the minute is less than or equal to the time it takes a block to complete.
 		fn get_current_time_slot() -> (u64, bool) {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<u64>();
 			let now = now / 1000;
 			let diff_to_min = now % 60;
 			let slot = now - diff_to_min;
-			// if time left in the min is less than or equal to the block time then its the last slot
 			let last_block_in_slot = (60 - diff_to_min) <= T::SecondsPerBlock::get();
 			(slot, last_block_in_slot)
 		}
