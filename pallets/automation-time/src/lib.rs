@@ -386,13 +386,13 @@ pub mod pallet {
 			}
 		}
 
-		/// Move all tasks to the overflow value.
+		/// Move all tasks to the overflow vector.
 		fn move_to_overflow(mut task_ids: Vec<T::Hash>) {
 			match Self::get_overflow_tasks() {
 				None => <OverlflowTasks<T>>::put(task_ids),
 				Some(mut overflow) => {
 					overflow.append(&mut task_ids);
-					<OverlflowTasks<T>>::put(overflow)
+					<OverlflowTasks<T>>::put(overflow);
 				},
 			}
 		}
