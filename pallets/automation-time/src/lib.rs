@@ -309,6 +309,8 @@ pub mod pallet {
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
+		/// We first check to see if there are any tasks that weren't completed in the last slot.
+		/// If this is the last block in the slot then we move the tasks to overflow.
 		/// Return the weight that was used.
 		///
 		/// Until the TODO is completed we will be limited to two tasks per slot to ensure
@@ -320,11 +322,7 @@ pub mod pallet {
 			let mut weight_left: Weight = max_weight - RUN_TASK_OVERHEAD;
 			let (time_slot, last_block_in_slot) = Self::get_current_time_slot();
 
-			if let Some(overflow) = Self::get_overflow_tasks() {
-				let (overflow_tasks_left, new_weight) = Self::run_tasks(overflow, weight_left);
-				weight_left = new_weight;
-				<OverlflowTasks<T>>::put(overflow_tasks_left);
-			}
+			weight_left = Self::run_overflow_tasks(weight_left);
 
 			if weight_left < MAX_LOOP_WEIGHT {
 				if last_block_in_slot {
@@ -336,13 +334,38 @@ pub mod pallet {
 				return max_weight - weight_left
 			}
 
+			weight_left = Self::run_scheduled_tasks(time_slot, last_block_in_slot, weight_left);
+
+			max_weight - weight_left
+		}
+
+		/// Run as many overflow tasks as possible given the weight.
+		///
+		/// Returns the weight left.
+		fn run_overflow_tasks(max_weight: Weight) -> Weight {
+			if let Some(overflow) = Self::get_overflow_tasks() {
+				let (overflow_tasks_left, weight_left) = Self::run_tasks(overflow, max_weight);
+				<OverlflowTasks<T>>::put(overflow_tasks_left);
+				return weight_left
+			} else {
+				return max_weight
+			}
+		}
+
+		/// Run as many scheduled tasks as possible given the weight.
+		///
+		/// Returns the weight left.
+		fn run_scheduled_tasks(
+			time_slot: u64,
+			last_block_in_slot: bool,
+			max_weight: Weight,
+		) -> Weight {
 			if let Some(task_ids) = Self::get_scheduled_tasks(time_slot) {
-				let (scheduled_tasks_left, new_weight) =
-					Self::run_tasks(task_ids.into_inner(), weight_left);
-				weight_left = new_weight;
+				let (scheduled_tasks_left, weight_left) =
+					Self::run_tasks(task_ids.into_inner(), max_weight);
 				if scheduled_tasks_left.len() == 0 {
 					<ScheduledTasks<T>>::remove(time_slot);
-					return max_weight - weight_left
+					return weight_left
 				}
 				if last_block_in_slot {
 					Self::move_to_overflow(scheduled_tasks_left);
@@ -352,9 +375,10 @@ pub mod pallet {
 						scheduled_tasks_left.try_into().unwrap();
 					<ScheduledTasks<T>>::insert(time_slot, converted_tasks);
 				}
+				return weight_left
+			} else {
+				return max_weight
 			}
-
-			max_weight - weight_left
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids
