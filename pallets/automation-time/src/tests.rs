@@ -368,26 +368,36 @@ fn trigger_tasks_pushes_some_to_overflow() {
 		let start_block_time: u64 = (scheduled_time + 52) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		create_overflow_task(ALICE, scheduled_time, message_one.clone());
-		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, scheduled_time, message_two.clone());
-		let message_three: Vec<u8> = vec![2];
-		let expected_task_id = schedule_task(ALICE, scheduled_time, message_three.clone());
+		schedule_task(ALICE, scheduled_time, message_one.clone());
+		let message_two: Vec<u8> = vec![2];
+		let expected_task_id = schedule_task(ALICE, scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(80_000);
+		AutomationTime::trigger_tasks(60_000);
 
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
-				Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
-			]
+			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
 		);
 
 		assert_eq!(expected_task_id, AutomationTime::get_overflow_tasks().unwrap()[0]);
 		assert_eq!(1, AutomationTime::get_overflow_tasks().unwrap().len());
+	})
+}
+
+#[test]
+fn trigger_tasks_nothing_to_do() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 600;
+		let start_block_time: u64 = (scheduled_time + 52) * 1000;
+
+		Timestamp::set_timestamp(start_block_time);
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(60_000);
+
+		assert_eq!(events(), vec![],);
 	})
 }
 
