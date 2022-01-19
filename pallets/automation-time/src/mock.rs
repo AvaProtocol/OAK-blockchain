@@ -74,6 +74,7 @@ parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	pub const MaxBlockWeight: Weight = 600_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
+	pub const SecondsPerBlock: u64 = 12;
 }
 
 impl pallet_automation_time::Config for Test {
@@ -81,6 +82,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxTasksPerSlot = MaxTasksPerSlot;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
+	type SecondsPerBlock = SecondsPerBlock;
 }
 
 // Build genesis storage according to the mock runtime.

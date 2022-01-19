@@ -100,6 +100,10 @@ pub mod pallet {
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
+
+		/// The time each block takes.
+		#[pallet::constant]
+		type SecondsPerBlock: Get<u64>;
 	}
 
 	#[pallet::pallet]
@@ -114,6 +118,10 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_task)]
 	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_overflow_tasks)]
+	pub type OverlflowTasks<T: Config> = StorageValue<_, Vec<T::Hash>>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -156,7 +164,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
-			Self::run_tasks(max_weight)
+			Self::trigger_tasks(max_weight)
 		}
 	}
 
@@ -264,15 +272,21 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Get the relevant time slot.
+		/// Based on the block time return the time slot and if it's the last block in the slot.
 		///
-		/// In order to do this we get the most recent timestamp from the chain. Then convert
-		/// the ms unix timestamp to seconds. Lastly, we bring the timestamp down to the last whole minute.
-		fn get_current_time_slot() -> u64 {
+		/// In order to do this we get the most recent timestamp from the block. Then convert
+		/// the ms unix timestamp to seconds. , we bring the timestamp down to the last whole minute.
+		/// * Get the most recent timestamp from the block.
+		/// * Convert the ms unix timestamp to seconds.
+		/// * Bring the timestamp down to the last whole minute.
+		/// * Check to see if the time left in the minute is less than or equal to the time it takes a block to complete.
+		fn get_current_time_slot() -> (u64, bool) {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<u64>();
 			let now = now / 1000;
 			let diff_to_min = now % 60;
-			now - diff_to_min
+			let slot = now - diff_to_min;
+			let last_block_in_slot = (60 - diff_to_min) <= T::SecondsPerBlock::get();
+			(slot, last_block_in_slot)
 		}
 
 		/// Checks to see if the scheduled time is a valid timestamp.
@@ -284,7 +298,7 @@ pub mod pallet {
 				Err(<Error<T>>::InvalidTime)?;
 			}
 
-			let now = Self::get_current_time_slot();
+			let (now, _) = Self::get_current_time_slot();
 			if scheduled_time <= now {
 				Err(<Error<T>>::PastTime)?;
 			}
@@ -292,9 +306,11 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Run tasks for the block time.
+		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
+		/// We first check to see if there are any tasks that weren't completed in the last slot.
+		/// If this is the last block in the slot then we move the tasks to overflow.
 		/// Return the weight that was used.
 		///
 		/// Until the TODO is completed we will be limited to two tasks per slot to ensure
@@ -302,38 +318,110 @@ pub mod pallet {
 		///
 		/// TODO (ENG-157):
 		/// - Calculate weights for each task
-		pub fn run_tasks(max_weight: Weight) -> Weight {
+		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			let mut weight_left: Weight = max_weight - RUN_TASK_OVERHEAD;
-			let time_block = Self::get_current_time_slot();
+			let (time_slot, last_block_in_slot) = Self::get_current_time_slot();
 
-			if let Some(task_ids) = Self::get_scheduled_tasks(time_block) {
-				let mut consumed_task_index: usize = 0;
-				for task_id in task_ids.iter() {
-					if weight_left < MAX_LOOP_WEIGHT {
-						break
+			weight_left = Self::run_overflow_tasks(weight_left);
+
+			if weight_left < MAX_LOOP_WEIGHT {
+				if last_block_in_slot {
+					if let Some(task_ids) = Self::get_scheduled_tasks(time_slot) {
+						Self::move_to_overflow(task_ids.into_inner());
+						<ScheduledTasks<T>>::remove(time_slot);
 					}
-
-					let cost = match Self::get_task(task_id) {
-						None => 0, // TODO: add some sort of error reporter here (ENG-155).
-						Some(task) => match task.action {
-							Action::Notify(message) => Self::run_notify_task(message),
-						},
-					};
-
-					consumed_task_index += 1;
-					weight_left = weight_left - cost - RUN_TASK_LOOP_OVERHEAD;
 				}
+				return max_weight - weight_left
+			}
 
-				if consumed_task_index == task_ids.len() {
-					<ScheduledTasks<T>>::remove(time_block);
+			weight_left = Self::run_scheduled_tasks(time_slot, last_block_in_slot, weight_left);
+
+			max_weight - weight_left
+		}
+
+		/// Run as many overflow tasks as possible given the weight.
+		///
+		/// Returns the weight left.
+		fn run_overflow_tasks(max_weight: Weight) -> Weight {
+			if let Some(overflow) = Self::get_overflow_tasks() {
+				let (overflow_tasks_left, weight_left) = Self::run_tasks(overflow, max_weight);
+				<OverlflowTasks<T>>::put(overflow_tasks_left);
+				return weight_left
+			} else {
+				return max_weight
+			}
+		}
+
+		/// Run as many scheduled tasks as possible given the weight.
+		///
+		/// Returns the weight left.
+		fn run_scheduled_tasks(
+			time_slot: u64,
+			last_block_in_slot: bool,
+			max_weight: Weight,
+		) -> Weight {
+			if let Some(task_ids) = Self::get_scheduled_tasks(time_slot) {
+				let (scheduled_tasks_left, weight_left) =
+					Self::run_tasks(task_ids.into_inner(), max_weight);
+				if scheduled_tasks_left.len() == 0 {
+					<ScheduledTasks<T>>::remove(time_slot);
+					return weight_left
+				}
+				if last_block_in_slot {
+					Self::move_to_overflow(scheduled_tasks_left);
+					<ScheduledTasks<T>>::remove(time_slot);
 				} else {
-					let new_task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-						task_ids.into_inner().split_off(consumed_task_index).try_into().unwrap();
-					<ScheduledTasks<T>>::insert(time_block, new_task_ids);
+					let converted_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+						scheduled_tasks_left.try_into().unwrap();
+					<ScheduledTasks<T>>::insert(time_slot, converted_tasks);
+				}
+				return weight_left
+			} else {
+				return max_weight
+			}
+		}
+
+		/// Runs as many tasks as the weight allows from the provided vec of task_ids
+		///
+		/// Returns a vec with the tasks that were not run and the remaining weight
+		fn run_tasks(
+			mut task_ids: Vec<T::Hash>,
+			mut weight_left: Weight,
+		) -> (Vec<T::Hash>, Weight) {
+			let mut consumed_task_index: usize = 0;
+			for task_id in task_ids.iter() {
+				consumed_task_index += 1;
+
+				let cost = match Self::get_task(task_id) {
+					None => 0, // TODO: add some sort of error reporter here (ENG-155).
+					Some(task) => match task.action {
+						Action::Notify(message) => Self::run_notify_task(message),
+					},
+				};
+
+				weight_left = weight_left - cost - RUN_TASK_LOOP_OVERHEAD;
+
+				if weight_left < MAX_LOOP_WEIGHT {
+					break
 				}
 			}
 
-			max_weight - weight_left
+			if consumed_task_index == task_ids.len() {
+				return (vec![], weight_left)
+			} else {
+				return (task_ids.split_off(consumed_task_index), weight_left)
+			}
+		}
+
+		/// Move all tasks to the overflow vector.
+		fn move_to_overflow(mut task_ids: Vec<T::Hash>) {
+			match Self::get_overflow_tasks() {
+				None => <OverlflowTasks<T>>::put(task_ids),
+				Some(mut overflow) => {
+					overflow.append(&mut task_ids);
+					<OverlflowTasks<T>>::put(overflow);
+				},
+			}
 		}
 
 		/// Fire the notify event with the custom message.
