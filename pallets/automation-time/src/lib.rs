@@ -158,6 +158,10 @@ pub mod pallet {
 		Notify {
 			message: Vec<u8>,
 		},
+		/// A Task was not found.
+		TaskNotFound {
+			task_id: T::Hash,
+		},
 	}
 
 	#[pallet::hooks]
@@ -393,7 +397,10 @@ pub mod pallet {
 				consumed_task_index += 1;
 
 				let cost = match Self::get_task(task_id) {
-					None => 0, // TODO: add some sort of error reporter here (ENG-155).
+					None => {
+						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
+						10_000
+					},
 					Some(task) => match task.action {
 						Action::Notify(message) => Self::run_notify_task(message),
 					},
@@ -433,7 +440,7 @@ pub mod pallet {
 
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			match Self::get_scheduled_tasks(task.time) {
-				None => {}, //TODO add some sort of error reporter here (ENG-155).
+				None => Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() }),
 				Some(mut task_ids) =>
 					for i in 0..task_ids.len() {
 						if task_ids[i] == task_id {
