@@ -439,8 +439,19 @@ pub mod pallet {
 		}
 
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
+			let mut found_task: bool = false;
 			match Self::get_scheduled_tasks(task.time) {
-				None => Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() }),
+				None =>
+					if let Some(mut overflow) = Self::get_overflow_tasks() {
+						for i in 0..overflow.len() {
+							if overflow[i] == task_id {
+								overflow.remove(i);
+								<OverlflowTasks<T>>::put(overflow);
+								found_task = true;
+								break
+							}
+						}
+					},
 				Some(mut task_ids) =>
 					for i in 0..task_ids.len() {
 						if task_ids[i] == task_id {
@@ -450,9 +461,14 @@ pub mod pallet {
 								task_ids.remove(i);
 								<ScheduledTasks<T>>::insert(task.time, task_ids);
 							}
+							found_task = true;
 							break
 						}
 					},
+			}
+
+			if !found_task {
+				Self::deposit_event(Event::TaskNotFound { task_id });
 			}
 
 			<Tasks<T>>::remove(task_id);
