@@ -17,11 +17,14 @@ networkSpec:
         - key: "--chain"
           file: rococo-testnet.json
 validator:
-  count: 3
+  count: 6
   sudoArgs: #sudo args is to reduce the setting of sudo users for each node. For example, there will be 3 nodes running, the first node will be assgin --alice, the second node will be assgin --bob, and the third will be assgin --charlie. 
     - --alice
     - --bob
     - --charlie
+    - --dave
+    - --eve
+    - --ferdie
   node:
     nodeName: rococo-testnet-validator
     nodeType: validator
