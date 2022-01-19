@@ -1,4 +1,4 @@
-use crate::{mock::*, Error, OverlflowTasks, Task, Tasks};
+use crate::{mock::*, Error, OverlflowTasks, Task, TaskHashInput, Tasks};
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
 use sp_runtime::traits::{BlakeTwo256, Hash};
@@ -11,6 +11,7 @@ fn schedule_invalid_time() {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
+				vec![50],
 				SCHEDULED_TIME + 1,
 				vec![12]
 			),
@@ -25,13 +26,19 @@ fn schedule_past_time() {
 		let start_block_time: u64 = (SCHEDULED_TIME + 5) * 1000;
 		Timestamp::set_timestamp(start_block_time);
 		assert_noop!(
-			AutomationTime::schedule_notify_task(Origin::signed(ALICE), SCHEDULED_TIME, vec![12]),
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![50],
+				SCHEDULED_TIME,
+				vec![12]
+			),
 			Error::<Test>::PastTime,
 		);
 
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
+				vec![50],
 				SCHEDULED_TIME - 60,
 				vec![12]
 			),
@@ -44,8 +51,28 @@ fn schedule_past_time() {
 fn schedule_no_message() {
 	new_test_ext().execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_notify_task(Origin::signed(ALICE), SCHEDULED_TIME, vec![]),
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![50],
+				SCHEDULED_TIME,
+				vec![]
+			),
 			Error::<Test>::EmptyMessage,
+		);
+	})
+}
+
+#[test]
+fn schedule_no_provided_id() {
+	new_test_ext().execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![],
+				SCHEDULED_TIME,
+				vec![12]
+			),
+			Error::<Test>::EmptyProvidedId,
 		);
 	})
 }
@@ -56,6 +83,7 @@ fn schedule_works() {
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
+			vec![50],
 			SCHEDULED_TIME,
 			message.clone()
 		));
@@ -68,8 +96,12 @@ fn schedule_works() {
 					panic!("A task should exist if it was scheduled")
 				},
 				Some(task) => {
-					let expected_task =
-						Task::<Test>::create_event_task(ALICE.clone(), SCHEDULED_TIME, message);
+					let expected_task = Task::<Test>::create_event_task(
+						ALICE.clone(),
+						vec![50],
+						SCHEDULED_TIME,
+						message,
+					);
 
 					assert_eq!(task, expected_task);
 				},
@@ -82,17 +114,18 @@ fn schedule_works() {
 fn schedule_duplicates_errors() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 60;
-		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
+			vec![50],
 			scheduled_time,
-			message.clone()
+			vec![2, 4, 5]
 		));
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
+				vec![50],
 				scheduled_time,
-				message.clone()
+				vec![2, 4]
 			),
 			Error::<Test>::DuplicateTask,
 		);
@@ -105,17 +138,24 @@ fn schedule_time_slot_full() {
 		let scheduled_time = SCHEDULED_TIME + 120;
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
+			vec![50],
 			scheduled_time,
 			vec![2, 4]
 		));
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
+			vec![60],
 			scheduled_time,
 			vec![2, 4, 5]
 		));
 
 		assert_noop!(
-			AutomationTime::schedule_notify_task(Origin::signed(ALICE), scheduled_time, vec![2]),
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![70],
+				scheduled_time,
+				vec![2]
+			),
 			Error::<Test>::TimeSlotFull,
 		);
 	})
@@ -126,8 +166,8 @@ fn cancel_works_for_scheduled() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 180;
 		let owner: AccountId = ALICE;
-		let task_id1 = schedule_task(owner, scheduled_time, vec![2, 4, 5]);
-		let task_id2 = schedule_task(owner, scheduled_time, vec![2, 4]);
+		let task_id1 = schedule_task(owner, vec![40], scheduled_time, vec![2, 4, 5]);
+		let task_id2 = schedule_task(owner, vec![50], scheduled_time, vec![2, 4]);
 		System::reset_events();
 
 		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
@@ -157,7 +197,7 @@ fn cancel_works_for_overflow() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 180;
 		let owner: AccountId = ALICE;
-		let task_id = create_overflow_task(owner, scheduled_time, vec![2, 4, 5]);
+		let task_id = create_overflow_task(owner, vec![40], scheduled_time, vec![2, 4, 5]);
 
 		assert_eq!(task_id, AutomationTime::get_overflow_tasks().unwrap()[0]);
 		assert_eq!(1, AutomationTime::get_overflow_tasks().unwrap().len());
@@ -176,7 +216,7 @@ fn cancel_works_for_overflow() {
 fn cancel_must_be_owner() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 240;
-		let task_id = schedule_task(ALICE, scheduled_time, vec![2, 4, 5]);
+		let task_id = schedule_task(ALICE, vec![40], scheduled_time, vec![2, 4, 5]);
 
 		assert_noop!(
 			AutomationTime::cancel_task(Origin::signed(BOB), task_id),
@@ -189,7 +229,7 @@ fn cancel_must_be_owner() {
 fn cancel_task_must_exist() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 300;
-		let task = Task::<Test>::create_event_task(ALICE, scheduled_time, vec![2, 4, 5]);
+		let task = Task::<Test>::create_event_task(ALICE, vec![40], scheduled_time, vec![2, 4, 5]);
 		let task_id = BlakeTwo256::hash_of(&task);
 
 		assert_noop!(
@@ -203,7 +243,7 @@ fn cancel_task_must_exist() {
 fn cancel_task_not_found() {
 	new_test_ext().execute_with(|| {
 		let owner: AccountId = ALICE;
-		let task = Task::<Test>::create_event_task(owner, SCHEDULED_TIME, vec![2, 4, 5]);
+		let task = Task::<Test>::create_event_task(owner, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
 		let task_id = BlakeTwo256::hash_of(&task);
 		<Tasks<Test>>::insert(task_id, task);
 
@@ -223,7 +263,7 @@ fn force_cancel_task_works() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 240;
 		let owner: AccountId = ALICE;
-		let task_id = schedule_task(owner, scheduled_time, vec![2, 4, 5]);
+		let task_id = schedule_task(owner, vec![40], scheduled_time, vec![2, 4, 5]);
 		System::reset_events();
 
 		assert_ok!(AutomationTime::force_cancel_task(RawOrigin::Root.into(), task_id));
@@ -241,9 +281,9 @@ fn trigger_tasks_completes_all_tasks() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		schedule_task(ALICE, scheduled_time, message_one.clone());
+		schedule_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, scheduled_time, message_two.clone());
+		schedule_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -270,9 +310,9 @@ fn trigger_tasks_completes_some_tasks() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		schedule_task(ALICE, scheduled_time, message_one.clone());
+		schedule_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, scheduled_time, message_two.clone());
+		schedule_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -296,11 +336,11 @@ fn trigger_tasks_completes_some_overflow() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		create_overflow_task(ALICE, scheduled_time, message_one.clone());
+		create_overflow_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		create_overflow_task(ALICE, scheduled_time, message_two.clone());
+		create_overflow_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		let message_three: Vec<u8> = vec![2, 4];
-		create_overflow_task(ALICE, scheduled_time, message_three.clone());
+		create_overflow_task(ALICE, vec![60], scheduled_time, message_three.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -324,9 +364,9 @@ fn trigger_tasks_completes_all_overflow() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		create_overflow_task(ALICE, scheduled_time, message_one.clone());
+		create_overflow_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		create_overflow_task(ALICE, scheduled_time, message_two.clone());
+		create_overflow_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -350,11 +390,11 @@ fn trigger_tasks_does_some_of_both() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		create_overflow_task(ALICE, scheduled_time, message_one.clone());
+		create_overflow_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, scheduled_time, message_two.clone());
+		schedule_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		let message_three: Vec<u8> = vec![2];
-		schedule_task(ALICE, scheduled_time, message_three.clone());
+		schedule_task(ALICE, vec![60], scheduled_time, message_three.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -378,11 +418,12 @@ fn trigger_tasks_pushes_all_to_overflow() {
 		let start_block_time: u64 = (scheduled_time + 52) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		create_overflow_task(ALICE, scheduled_time, message_one.clone());
+		create_overflow_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		create_overflow_task(ALICE, scheduled_time, message_two.clone());
+		create_overflow_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		let message_three: Vec<u8> = vec![2];
-		let expected_task_id = schedule_task(ALICE, scheduled_time, message_three.clone());
+		let expected_task_id =
+			schedule_task(ALICE, vec![60], scheduled_time, message_three.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -407,9 +448,9 @@ fn trigger_tasks_pushes_some_to_overflow() {
 		let start_block_time: u64 = (scheduled_time + 52) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		schedule_task(ALICE, scheduled_time, message_one.clone());
+		schedule_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2];
-		let expected_task_id = schedule_task(ALICE, scheduled_time, message_two.clone());
+		let expected_task_id = schedule_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -447,9 +488,9 @@ fn on_init_runs_tasks() {
 		let start_block_time: u64 = (scheduled_time) * 1000;
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		schedule_task(ALICE, scheduled_time, message_one.clone());
+		schedule_task(ALICE, vec![40], scheduled_time, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, scheduled_time, message_two.clone());
+		schedule_task(ALICE, vec![50], scheduled_time, message_two.clone());
 		Timestamp::set_timestamp(start_block_time);
 		System::reset_events();
 
@@ -471,19 +512,33 @@ fn on_init_runs_tasks() {
 	})
 }
 
-fn schedule_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_core::H256 {
+fn schedule_task(
+	owner: AccountId,
+	provided_id: Vec<u8>,
+	scheduled_time: u64,
+	message: Vec<u8>,
+) -> sp_core::H256 {
+	let task_hash_input =
+		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
 		Origin::signed(owner),
+		provided_id,
 		scheduled_time,
 		message,
 	));
-	let task_ids = AutomationTime::get_scheduled_tasks(scheduled_time).unwrap();
-	task_ids[task_ids.len() - 1]
+	BlakeTwo256::hash_of(&task_hash_input)
 }
 
-fn create_overflow_task(owner: AccountId, scheduled_time: u64, message: Vec<u8>) -> sp_core::H256 {
-	let task = Task::<Test>::create_event_task(owner, scheduled_time, message);
-	let task_id = BlakeTwo256::hash_of(&task);
+fn create_overflow_task(
+	owner: AccountId,
+	provided_id: Vec<u8>,
+	scheduled_time: u64,
+	message: Vec<u8>,
+) -> sp_core::H256 {
+	let task_hash_input =
+		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
+	let task_id = BlakeTwo256::hash_of(&task_hash_input);
+	let task = Task::<Test>::create_event_task(owner, provided_id, scheduled_time, message);
 	<Tasks<Test>>::insert(task_id, task);
 	let mut task_ids: Vec<sp_core::H256> = vec![task_id];
 	match AutomationTime::get_overflow_tasks() {
