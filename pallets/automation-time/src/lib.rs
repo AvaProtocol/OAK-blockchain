@@ -74,14 +74,33 @@ pub mod pallet {
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
 		owner_id: AccountOf<T>,
+		provided_id: Vec<u8>,
 		time: u64,
 		action: Action,
 	}
 
 	impl<T: Config> Task<T> {
-		pub fn create_event_task(owner_id: AccountOf<T>, time: u64, message: Vec<u8>) -> Task<T> {
+		pub fn create_event_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			time: u64,
+			message: Vec<u8>,
+		) -> Task<T> {
 			let action = Action::Notify(message);
-			Task::<T> { owner_id, time, action }
+			Task::<T> { owner_id, provided_id, time, action }
+		}
+	}
+
+	#[derive(Debug, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct TaskHashInput<T: Config> {
+		owner_id: AccountOf<T>,
+		provided_id: Vec<u8>,
+	}
+
+	impl<T: Config> TaskHashInput<T> {
+		pub fn create_hash_input(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskHashInput<T> {
+			TaskHashInput::<T> { owner_id, provided_id }
 		}
 	}
 
@@ -131,6 +150,8 @@ pub mod pallet {
 		PastTime,
 		/// The message cannot be empty.
 		EmptyMessage,
+		/// The provided_id cannot be empty
+		EmptyProvidedId,
 		/// There can be no duplicate tasks.
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
@@ -174,10 +195,12 @@ pub mod pallet {
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
+		/// * The provided_id's length > 0
 		/// * The time is valid
 		/// * The message's length > 0
 		///
 		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `time`: The unix standard time in seconds for when the task should run.
 		/// * `message`: The message you want the event to have.
 		///
@@ -190,17 +213,22 @@ pub mod pallet {
 		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
 			time: u64,
 			message: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::is_valid_time(time)?;
+			if provided_id.len() == 0 {
+				Err(Error::<T>::EmptyProvidedId)?
+			}
 			if message.len() == 0 {
 				Err(Error::<T>::EmptyMessage)?
 			}
+			Self::is_valid_time(time)?;
 
-			let task = Task::<T>::create_event_task(who.clone(), time, message);
-			let task_id = T::Hashing::hash_of(&task);
+			let task_hash_input =
+				TaskHashInput::<T> { owner_id: who.clone(), provided_id: provided_id.clone() };
+			let task_id = T::Hashing::hash_of(&task_hash_input);
 
 			if let Some(_) = Self::get_task(task_id) {
 				Err(Error::<T>::DuplicateTask)?
@@ -220,7 +248,9 @@ pub mod pallet {
 				},
 			}
 
+			let task = Task::<T>::create_event_task(who.clone(), provided_id, time, message);
 			<Tasks<T>>::insert(task_id, task);
+
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(().into())
 		}
