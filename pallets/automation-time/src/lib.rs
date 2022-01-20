@@ -35,6 +35,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+
 use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
@@ -232,27 +234,7 @@ pub mod pallet {
 			}
 			Self::is_valid_time(time)?;
 
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: who.clone(), provided_id: provided_id.clone() };
-			let task_id = T::Hashing::hash_of(&task_hash_input);
-
-			if let Some(_) = Self::get_task(task_id) {
-				Err(Error::<T>::DuplicateTask)?
-			}
-
-			match Self::get_scheduled_tasks(time) {
-				None => {
-					let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-						vec![task_id].try_into().unwrap();
-					<ScheduledTasks<T>>::insert(time, task_ids);
-				},
-				Some(mut task_ids) => {
-					if let Err(_) = task_ids.try_push(task_id) {
-						Err(Error::<T>::TimeSlotFull)?
-					}
-					<ScheduledTasks<T>>::insert(time, task_ids);
-				},
-			}
+			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 
 			let task = Task::<T>::create_event_task(who.clone(), provided_id, time, message);
 			<Tasks<T>>::insert(task_id, task);
@@ -505,6 +487,35 @@ pub mod pallet {
 
 			<Tasks<T>>::remove(task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
+		}
+
+		fn schedule_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			time: u64,
+		) -> Result<T::Hash, Error<T>> {
+			let task_hash_input =
+				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+			let task_id = T::Hashing::hash_of(&task_hash_input);
+
+			if let Some(_) = Self::get_task(task_id) {
+				Err(Error::<T>::DuplicateTask)?
+			}
+
+			match Self::get_scheduled_tasks(time) {
+				None => {
+					let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+						vec![task_id].try_into().unwrap();
+					<ScheduledTasks<T>>::insert(time, task_ids);
+				},
+				Some(mut task_ids) => {
+					if let Err(_) = task_ids.try_push(task_id) {
+						Err(Error::<T>::TimeSlotFull)?
+					}
+					<ScheduledTasks<T>>::insert(time, task_ids);
+				},
+			}
+			Ok(task_id)
 		}
 	}
 }
