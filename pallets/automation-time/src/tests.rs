@@ -162,7 +162,7 @@ fn schedule_time_slot_full() {
 }
 
 #[test]
-fn cancel_works() {
+fn cancel_works_for_scheduled() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 180;
 		let owner: AccountId = ALICE;
@@ -193,6 +193,26 @@ fn cancel_works() {
 }
 
 #[test]
+fn cancel_works_for_overflow() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 180;
+		let owner: AccountId = ALICE;
+		let task_id = create_overflow_task(owner, vec![40], scheduled_time, vec![2, 4, 5]);
+
+		assert_eq!(task_id, AutomationTime::get_overflow_tasks().unwrap()[0]);
+		assert_eq!(1, AutomationTime::get_overflow_tasks().unwrap().len());
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id,));
+
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id }),]
+		);
+		assert_eq!(0, AutomationTime::get_overflow_tasks().unwrap().len());
+	})
+}
+
+#[test]
 fn cancel_must_be_owner() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 240;
@@ -209,12 +229,31 @@ fn cancel_must_be_owner() {
 fn cancel_task_must_exist() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 300;
-		let task_id = schedule_task(ALICE, vec![40], scheduled_time, vec![2, 4, 5]);
+		let task = Task::<Test>::create_event_task(ALICE, vec![40], scheduled_time, vec![2, 4, 5]);
+		let task_id = BlakeTwo256::hash_of(&task);
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id,));
 		assert_noop!(
 			AutomationTime::cancel_task(Origin::signed(ALICE), task_id),
 			Error::<Test>::TaskDoesNotExist,
+		);
+	})
+}
+
+#[test]
+fn cancel_task_not_found() {
+	new_test_ext().execute_with(|| {
+		let owner: AccountId = ALICE;
+		let task = Task::<Test>::create_event_task(owner, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
+		let task_id = BlakeTwo256::hash_of(&task);
+		<Tasks<Test>>::insert(task_id, task);
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id,));
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskNotFound { task_id }),
+				Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
+			]
 		);
 	})
 }
@@ -495,7 +534,7 @@ fn create_overflow_task(
 	provided_id: Vec<u8>,
 	scheduled_time: u64,
 	message: Vec<u8>,
-) {
+) -> sp_core::H256 {
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
@@ -509,6 +548,7 @@ fn create_overflow_task(
 			<OverlflowTasks<Test>>::put(overflow);
 		},
 	}
+	task_id
 }
 
 fn events() -> Vec<Event> {
