@@ -189,7 +189,9 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
-			Self::trigger_tasks(max_weight)
+			Self::trigger_tasks(max_weight);
+			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
+			max_weight
 		}
 	}
 
