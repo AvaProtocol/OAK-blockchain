@@ -495,6 +495,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
+		/// Schedule task and return it's task_id.
 		pub fn schedule_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
