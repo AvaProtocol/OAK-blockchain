@@ -35,6 +35,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+pub mod weights;
+
 use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
@@ -42,6 +45,8 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, Perbill};
 use sp_std::vec;
+
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -107,6 +112,9 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// Weight information for the extrinsics in this module.
+		type WeightInfo: WeightInfo;
 
 		/// The maximum number of tasks that can be scheduled for a time slot.
 		#[pallet::constant]
@@ -189,7 +197,9 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
-			Self::trigger_tasks(max_weight)
+			Self::trigger_tasks(max_weight);
+			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
+			max_weight
 		}
 	}
 
@@ -214,7 +224,7 @@ pub mod pallet {
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_existing_slot())]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -230,27 +240,7 @@ pub mod pallet {
 			}
 			Self::is_valid_time(time)?;
 
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: who.clone(), provided_id: provided_id.clone() };
-			let task_id = T::Hashing::hash_of(&task_hash_input);
-
-			if let Some(_) = Self::get_task(task_id) {
-				Err(Error::<T>::DuplicateTask)?
-			}
-
-			match Self::get_scheduled_tasks(time) {
-				None => {
-					let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-						vec![task_id].try_into().unwrap();
-					<ScheduledTasks<T>>::insert(time, task_ids);
-				},
-				Some(mut task_ids) => {
-					if let Err(_) = task_ids.try_push(task_id) {
-						Err(Error::<T>::TimeSlotFull)?
-					}
-					<ScheduledTasks<T>>::insert(time, task_ids);
-				},
-			}
+			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 
 			let task = Task::<T>::create_event_task(who.clone(), provided_id, time, message);
 			<Tasks<T>>::insert(task_id, task);
@@ -269,7 +259,7 @@ pub mod pallet {
 		/// # Errors
 		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_overflow_task())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -292,7 +282,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_overflow_task())]
 		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -503,6 +493,36 @@ pub mod pallet {
 
 			<Tasks<T>>::remove(task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
+		}
+
+		/// Schedule task and return it's task_id.
+		pub fn schedule_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			time: u64,
+		) -> Result<T::Hash, Error<T>> {
+			let task_hash_input =
+				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+			let task_id = T::Hashing::hash_of(&task_hash_input);
+
+			if let Some(_) = Self::get_task(task_id) {
+				Err(Error::<T>::DuplicateTask)?
+			}
+
+			match Self::get_scheduled_tasks(time) {
+				None => {
+					let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+						vec![task_id].try_into().unwrap();
+					<ScheduledTasks<T>>::insert(time, task_ids);
+				},
+				Some(mut task_ids) => {
+					if let Err(_) = task_ids.try_push(task_id) {
+						Err(Error::<T>::TimeSlotFull)?
+					}
+					<ScheduledTasks<T>>::insert(time, task_ids);
+				},
+			}
+			Ok(task_id)
 		}
 	}
 }
