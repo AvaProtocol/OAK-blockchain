@@ -1,3 +1,20 @@
+// This file is part of OAK Blockchain.
+
+// Copyright (C) 2021 OAK Network
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate as pallet_automation_time;
 use frame_support::{parameter_types, traits::Everything, weights::Weight};
 use frame_system as system;
@@ -7,6 +24,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	Perbill,
 };
+use sp_std::marker::PhantomData;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -77,12 +95,41 @@ parameter_types! {
 	pub const SecondsPerBlock: u64 = 12;
 }
 
+pub struct MockWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
+	fn schedule_notify_task_new_slot() -> Weight {
+		0
+	}
+	fn schedule_notify_task_existing_slot() -> Weight {
+		0
+	}
+	fn cancel_scheduled_task() -> Weight {
+		0
+	}
+	fn cancel_scheduled_task_full() -> Weight {
+		0
+	}
+	fn cancel_overflow_task() -> Weight {
+		0
+	}
+	fn force_cancel_scheduled_task() -> Weight {
+		0
+	}
+	fn force_cancel_scheduled_task_full() -> Weight {
+		0
+	}
+	fn force_cancel_overflow_task() -> Weight {
+		0
+	}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
+	type WeightInfo = MockWeight<Test>;
 }
 
 // Build genesis storage according to the mock runtime.

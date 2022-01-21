@@ -36,6 +36,7 @@ mod mock;
 mod tests;
 
 mod benchmarking;
+pub mod weights;
 
 use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
@@ -44,6 +45,8 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, Perbill};
 use sp_std::vec;
+
+pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -109,6 +112,9 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// Weight information for the extrinsics in this module.
+		type WeightInfo: WeightInfo;
 
 		/// The maximum number of tasks that can be scheduled for a time slot.
 		#[pallet::constant]
@@ -218,7 +224,7 @@ pub mod pallet {
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_existing_slot())]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -253,7 +259,7 @@ pub mod pallet {
 		/// # Errors
 		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_overflow_task())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -276,7 +282,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(10_000 + T::DbWeight::get().writes(2) + T::DbWeight::get().reads(2))]
+		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_overflow_task())]
 		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -489,7 +495,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
-		fn schedule_task(
+		pub fn schedule_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			time: u64,
