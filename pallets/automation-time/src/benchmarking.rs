@@ -18,11 +18,48 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-// use crate::{ AutomationTime, Task, Tasks};
 use frame_benchmarking::{benchmarks, whitelisted_caller};
 use frame_system::RawOrigin;
 
 use crate::Pallet as AutomationTime;
+
+const MAX_TASKS_PER_SLOT: u8 = 2;
+
+fn schedule_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T::Hash {
+	let mut task_id: T::Hash = T::Hash::default();
+
+	for i in 0..count {
+		let provided_id: Vec<u8> = vec![i];
+		task_id =
+			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), time).unwrap();
+		let task = Task::<T>::create_event_task(owner.clone(), provided_id, time, vec![4, 5, 6]);
+		<Tasks<T>>::insert(task_id, task);
+	}
+	task_id
+}
+
+fn set_overflow_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T::Hash {
+	let mut task_id: T::Hash = T::Hash::default();
+
+	for i in 0..count {
+		let provided_id: Vec<u8> = vec![i];
+		let task_hash_input =
+			TaskHashInput::<T>::create_hash_input(owner.clone(), provided_id.clone());
+		task_id = T::Hashing::hash_of(&task_hash_input);
+		let task =
+			Task::<T>::create_event_task(owner.clone(), provided_id.clone(), time, vec![4, 5, 6]);
+		<Tasks<T>>::insert(task_id, task);
+		let mut task_ids: Vec<T::Hash> = vec![task_id];
+		match AutomationTime::<T>::get_overflow_tasks() {
+			None => <OverlflowTasks<T>>::put(task_ids),
+			Some(mut overflow) => {
+				overflow.append(&mut task_ids);
+				<OverlflowTasks<T>>::put(overflow);
+			},
+		}
+	}
+	task_id
+}
 
 benchmarks! {
 	// First task for a slot
@@ -33,105 +70,52 @@ benchmarks! {
 	// Second task for a slot
 	schedule_notify_task_existing_slot {
 		let caller: T::AccountId = whitelisted_caller();
-		let provided_id: Vec<u8> = vec![40];
 		let time: u64 = 120;
+		let count: u8 = 1;
 
-		let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time).unwrap();
-		let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-		<Tasks<T>>::insert(task_id, task);
-	}: schedule_notify_task(RawOrigin::Signed(caller), vec![50], time, vec![4, 5])
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
+	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
 	cancel_scheduled_task {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
 
-		let provided_id: Vec<u8> = vec![40];
-		let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time).unwrap();
-		let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-		<Tasks<T>>::insert(task_id, task);
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
-		let mut task_id: T::Hash = T::Hash::default();
 
 		// Setup extra tasks
-		for i in 0 .. 2 {
-			let provided_id: Vec<u8> = vec![i];
-			task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
-		}
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_overflow_task {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
-		let mut task_id: T::Hash = T::Hash::default();
 
-		// Setup extra tasks
-		for i in 0 .. 2 {
-			let provided_id: Vec<u8> = vec![i];
-			let task_hash_input = TaskHashInput::<T>::create_hash_input(caller.clone(), provided_id.clone());
-			task_id = T::Hashing::hash_of(&task_hash_input);
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
-			let mut task_ids: Vec<T::Hash> = vec![task_id];
-			match AutomationTime::<T>::get_overflow_tasks() {
-				None => <OverlflowTasks<T>>::put(task_ids),
-				Some(mut overflow) => {
-					overflow.append(&mut task_ids);
-					<OverlflowTasks<T>>::put(overflow);
-				},
-			}
-		}
+		let task_id: T::Hash = set_overflow_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	force_cancel_scheduled_task {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
 
-		let provided_id: Vec<u8> = vec![40];
-		let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time).unwrap();
-		let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-		<Tasks<T>>::insert(task_id, task);
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_scheduled_task_full {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
-		let mut task_id: T::Hash = T::Hash::default();
 
-		// Setup extra tasks
-		for i in 0 .. 2 {
-			let provided_id: Vec<u8> = vec![i];
-			task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
-		}
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_overflow_task {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;
-		let mut task_id: T::Hash = T::Hash::default();
 
-		// Setup extra tasks
-		for i in 0 .. 2 {
-			let provided_id: Vec<u8> = vec![i];
-			let task_hash_input = TaskHashInput::<T>::create_hash_input(caller.clone(), provided_id.clone());
-			task_id = T::Hashing::hash_of(&task_hash_input);
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), time, vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
-			let mut task_ids: Vec<T::Hash> = vec![task_id];
-			match AutomationTime::<T>::get_overflow_tasks() {
-				None => <OverlflowTasks<T>>::put(task_ids),
-				Some(mut overflow) => {
-					overflow.append(&mut task_ids);
-					<OverlflowTasks<T>>::put(overflow);
-				},
-			}
-		}
+		let task_id: T::Hash = set_overflow_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
 	}: force_cancel_task(RawOrigin::Root, task_id)
 }
