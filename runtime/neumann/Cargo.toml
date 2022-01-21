@@ -20,6 +20,7 @@ log = { version = "0.4.14", default-features = false }
 scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
 serde = { version = "1.0.119", optional = true, features = ["derive"] }
 smallvec = "1.6.1"
+hex-literal = "0.3.1"
 
 # Local Dependencies
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
