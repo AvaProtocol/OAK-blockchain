@@ -15,15 +15,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # The automation time pallet!
+//! # Automation time pallet
+//! 
+//! DISCLAIMER: This pallet is still in it's early stages. At this point
+//! we only support scheduling two tasks per minute, and sending an on-chain
+//! with a custom message.
 //!
-//! This pallet allows a user to schedule tasks. We currently support the following tasks.
-//!
+//! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole minute in the future.
+//! In order to run tasks this pallet consumes up to a certain amount of weight during `on_initialize`.
+//! 
+//! The pallet supports the following tasks:
 //! * On-chain events with custom text
-//!
-//! TODO: Finish documentation (ENG-148).
-//!
-//! NOTES: None of the weights are accurate yet.
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -69,12 +71,14 @@ pub mod pallet {
 	/// `MAX_TASK_WEGHT` + `RUN_TASK_LOOP_OVERHEAD`
 	const MAX_LOOP_WEIGHT: Weight = MAX_TASK_WEGHT + RUN_TASK_LOOP_OVERHEAD;
 
+	/// The enum that stores all action specific data.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action {
 		Notify(Vec<u8>),
 	}
 
+	/// The struct that stores all information needed for a task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
@@ -210,8 +214,8 @@ pub mod pallet {
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
-		/// * The time is valid
 		/// * The message's length > 0
+		/// * The time is valid
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
@@ -296,10 +300,9 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Based on the block time return the time slot and if it's the last block in the slot.
+		/// Based on the block time, return the time slot and if it's the last block in the slot.
 		///
-		/// In order to do this we get the most recent timestamp from the block. Then convert
-		/// the ms unix timestamp to seconds. , we bring the timestamp down to the last whole minute.
+		/// In order to do this we:
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole minute.
@@ -405,9 +408,9 @@ pub mod pallet {
 			}
 		}
 
-		/// Runs as many tasks as the weight allows from the provided vec of task_ids
+		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
-		/// Returns a vec with the tasks that were not run and the remaining weight
+		/// Returns a vec with the tasks that were not run and the remaining weight.
 		fn run_tasks(
 			mut task_ids: Vec<T::Hash>,
 			mut weight_left: Weight,
