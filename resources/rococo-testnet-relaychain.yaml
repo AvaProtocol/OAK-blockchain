@@ -3,7 +3,7 @@ networkSpec:
   name: rococo-testnet
   protocol: substrate
   imageRepository: parity/polkadot
-  imageVersion: v0.9.12
+  imageVersion: v0.9.13
   config:
     nodeTypes:
       full:
