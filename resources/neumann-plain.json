@@ -28,22 +28,22 @@
         "balances": [
           [
             "5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh",
-            1152921504606846976
+            3333333333333333333
           ],
           [
             "5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk",
-            1152921504606846976
+            3333333333333333333
           ],
           [
-            "5Hj3xbzsHBfMcRZtzTbZ8icfeBpSvxmstJW6YRuPNL5uVhVE",
-            1152921504606846976
+            "5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w",
+            3333333333333333333
           ]
         ]
       },
       "collatorSelection": {
         "invulnerables": [
-          "5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5",
-          "5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH"
+          "5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL",
+          "5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J"
         ],
         "candidacyBond": 16000000000,
         "desiredCandidates": 0
@@ -51,17 +51,17 @@
       "session": {
         "keys": [
           [
-            "5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5",
-            "5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5",
+            "5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL",
+            "5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL",
             {
-              "aura": "5Fq2CXrxNoUEb2MvaLWhU86QwCe1KzVGzodH81r5todNy8t5"
+              "aura": "5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL"
             }
           ],
           [
-            "5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH",
-            "5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH",
+            "5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J",
+            "5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J",
             {
-              "aura": "5HEPAKfvJ5rG2N7LvYCxtq66H3tYqbiVrczSz7Erm2hGCGYH"
+              "aura": "5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J"
             }
           ]
         ]
@@ -71,7 +71,14 @@
       },
       "auraExt": null,
       "sudo": {
-        "key": "5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh"
+        "key": "5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w"
+      },
+      "treasury": null,
+      "council": {
+        "phantom": null,
+        "members": [
+          "5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w"
+        ]
       }
     }
   }
