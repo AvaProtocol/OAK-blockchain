@@ -8,5 +8,5 @@ resolver = "2"
 members = [
 	"node",
 	"runtime/*",
-	#"pallets/*",
+	"pallets/automation-time",
 ]
