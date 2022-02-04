@@ -702,7 +702,6 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
 			Call::CollatorSelection(_) => false,
-			Call::TransactionPayment(_) => false,
 			Call::Treasury(_) => false,
 			_ => true,
 		}
