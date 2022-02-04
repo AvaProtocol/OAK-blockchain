@@ -16,14 +16,14 @@
 // limitations under the License.
 
 //! # Automation time pallet
-//! 
+//!
 //! DISCLAIMER: This pallet is still in it's early stages. At this point
 //! we only support scheduling two tasks per minute, and sending an on-chain
 //! with a custom message.
 //!
 //! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole minute in the future.
 //! In order to run tasks this pallet consumes up to a certain amount of weight during `on_initialize`.
-//! 
+//!
 //! The pallet supports the following tasks:
 //! * On-chain events with custom text
 //!

@@ -100,9 +100,7 @@ pub(crate) struct ExtBuilder {
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder {
-			valve_closed: false,
-		}
+		ExtBuilder { valve_closed: false }
 	}
 }
 
@@ -118,9 +116,7 @@ impl ExtBuilder {
 			.expect("Frame system builds valid default genesis config");
 
 		GenesisBuild::<Test>::assimilate_storage(
-			&pallet_valve::GenesisConfig {
-				start_with_valve_closed: self.valve_closed,
-			},
+			&pallet_valve::GenesisConfig { start_with_valve_closed: self.valve_closed },
 			&mut t,
 		)
 		.expect("Pallet valve storage can be assimilated");
@@ -135,12 +131,6 @@ pub(crate) fn events() -> Vec<pallet_valve::Event> {
 	System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| {
-			if let Event::Valve(inner) = e {
-				Some(inner)
-			} else {
-				None
-			}
-		})
+		.filter_map(|e| if let Event::Valve(inner) = e { Some(inner) } else { None })
 		.collect::<Vec<_>>()
 }

@@ -16,7 +16,7 @@
 // limitations under the License.
 
 //! # Valve pallet
-//! 
+//!
 //! When the "valve has been shut off" we filter all transactions based on the `ShutOffCallFilter`.
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -31,8 +31,7 @@ pub use pallet::*;
 
 #[pallet]
 pub mod pallet {
-	use frame_support::pallet_prelude::*;
-	use frame_support::traits::Contains;
+	use frame_support::{pallet_prelude::*, traits::Contains};
 	use frame_system::pallet_prelude::*;
 
 	#[pallet::pallet]
@@ -83,10 +82,7 @@ pub mod pallet {
 			// Ensure the valve isn't already off.
 			// This test is not strictly necessary, but seeing the error may help a confused chain
 			// operator during an emergency.
-			ensure!(
-				!ValveClosed::<T>::get(),
-				Error::<T>::ValveAlreadyClosed
-			);
+			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			ValveClosed::<T>::put(true);
 			<Pallet<T>>::deposit_event(Event::ValveClosed);
@@ -105,10 +101,7 @@ pub mod pallet {
 			// Ensure the valve is off.
 			// This test is not strictly necessary, but seeing the error may help a confused chain
 			// operator during an emergency
-			ensure!(
-				ValveClosed::<T>::get(),
-				Error::<T>::ValveAlreadyOpen
-			);
+			ensure!(ValveClosed::<T>::get(), Error::<T>::ValveAlreadyOpen);
 
 			ValveClosed::<T>::put(false);
 			<Pallet<T>>::deposit_event(Event::ValveOpen);

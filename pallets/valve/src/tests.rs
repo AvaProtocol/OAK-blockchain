@@ -15,14 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::mock::{
-	events, Call as OuterCall, ExtBuilder, Origin, Test,
+use crate::{
+	mock::{events, Call as OuterCall, ExtBuilder, Origin, Test},
+	Call, Error, Event,
 };
-use crate::{Call, Error, Event};
-use frame_support::{
-	assert_noop, assert_ok,
-	dispatch::Dispatchable,
-};
+use frame_support::{assert_noop, assert_ok, dispatch::Dispatchable};
 
 #[test]
 fn can_remark_while_valve_open() {
@@ -34,16 +31,10 @@ fn can_remark_while_valve_open() {
 
 #[test]
 fn cannot_remark_while_valve_closed() {
-	ExtBuilder::default()
-		.with_valve_closed(true)
-		.build()
-		.execute_with(|| {
-			let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-			assert_noop!(
-				call.dispatch(Origin::signed(1)),
-				frame_system::Error::<Test>::CallFiltered
-			);
-		})
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+	})
 }
 
 #[test]
@@ -58,66 +49,42 @@ fn can_close_valve() {
 
 #[test]
 fn cannot_close_valve_from_wrong_origin() {
-	ExtBuilder::default()
-		.with_valve_closed(true)
-		.build()
-		.execute_with(|| {
-			let call: OuterCall = Call::close_valve {}.into();
-			assert_noop!(
-				call.dispatch(Origin::signed(1)),
-				frame_system::Error::<Test>::CallFiltered
-			);
-		})
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::close_valve {}.into();
+		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+	})
 }
 
 #[test]
 fn cannot_close_valve_when_already_closed() {
-	ExtBuilder::default()
-		.with_valve_closed(true)
-		.build()
-		.execute_with(|| {
-			let call: OuterCall = Call::close_valve {}.into();
-			assert_noop!(
-				call.dispatch(Origin::root()),
-				Error::<Test>::ValveAlreadyClosed
-			);
-		})
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::close_valve {}.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+	})
 }
 
 #[test]
 fn can_open_valve() {
-	ExtBuilder::default()
-		.with_valve_closed(true)
-		.build()
-		.execute_with(|| {
-			let call: OuterCall = Call::open_valve {}.into();
-			assert_ok!(call.dispatch(Origin::root()));
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::open_valve {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
 
-			assert_eq!(events(), vec![Event::ValveOpen,]);
-		})
+		assert_eq!(events(), vec![Event::ValveOpen,]);
+	})
 }
 
 #[test]
 fn cannot_open_valve_from_wrong_origin() {
-	ExtBuilder::default()
-		.with_valve_closed(true)
-		.build()
-		.execute_with(|| {
-			let call: OuterCall = Call::open_valve {}.into();
-			assert_noop!(
-				call.dispatch(Origin::signed(1)),
-				frame_system::Error::<Test>::CallFiltered
-			);
-		})
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::open_valve {}.into();
+		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+	})
 }
 
 #[test]
 fn cannot_open_valve_while_already_open() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::open_valve {}.into();
-		assert_noop!(
-			call.dispatch(Origin::root()),
-			Error::<Test>::ValveAlreadyOpen
-		);
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyOpen);
 	})
 }
