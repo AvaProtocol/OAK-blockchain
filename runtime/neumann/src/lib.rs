@@ -27,7 +27,7 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	construct_runtime, match_type, parameter_types,
-	traits::{Everything, Nothing},
+	traits::{Contains, Everything, Nothing},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
 		DispatchClass, IdentityFee, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -184,7 +184,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 271,
+	spec_version: 272,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -306,7 +306,7 @@ impl frame_system::Config for Runtime {
 	/// The weight of database operations that the runtime can invoke.
 	type DbWeight = RocksDbWeight;
 	/// The basic call filter to use in dispatchable.
-	type BaseCallFilter = Everything;
+	type BaseCallFilter = Valve;
 	/// Weight information for the extrinsics of this pallet.
 	type SystemWeightInfo = ();
 	/// Block & extrinsics weights: base values and limits.
@@ -694,6 +694,25 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 }
 
+pub struct ClosedCallFilter;
+impl Contains<Call> for ClosedCallFilter {
+	fn contains(c: &Call) -> bool {
+		match c {
+			Call::AutomationTime(_) => false,
+			Call::Balances(_) => false,
+			Call::Bounties(_) => false,
+			Call::CollatorSelection(_) => false,
+			Call::Treasury(_) => false,
+			_ => true,
+		}
+	}
+}
+
+impl pallet_valve::Config for Runtime {
+	type Event = Event;
+	type ClosedCallFilter = ClosedCallFilter;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -720,20 +739,23 @@ construct_runtime!(
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
 
+		// Utilities
+		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event} = 30,
+
 		// XCM helpers.
-		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 30,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 31,
-		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 32,
-		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 33,
+		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
+		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 
 		// Support pallets.
-		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 40,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 41,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 42,
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 43,
+		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 50,
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 51,
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 52,
+		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 53,
 
 		//custom pallets
-		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 51,
+		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 	}
 );
 

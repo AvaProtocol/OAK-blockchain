@@ -1,8 +1,8 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use neumann_runtime::{
-	AccountId, AuraId, CouncilConfig, Signature, SudoConfig, DOLLAR, EXISTENTIAL_DEPOSIT,
-	TOKEN_DECIMALS,
+	AccountId, AuraId, CouncilConfig, Signature, SudoConfig, ValveConfig, DOLLAR,
+	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
@@ -288,5 +288,6 @@ fn testnet_genesis(
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: root_key },
 		treasury: Default::default(),
+		valve: ValveConfig { start_with_valve_closed: false },
 	}
 }

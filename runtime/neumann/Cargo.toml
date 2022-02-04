@@ -24,6 +24,7 @@ hex-literal = "0.3.1"
 
 # Local Dependencies
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
+pallet-valve = { path= "../../pallets/valve", default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -118,6 +119,7 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
+	"pallet-valve/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
 	"cumulus-pallet-xcm/std",
