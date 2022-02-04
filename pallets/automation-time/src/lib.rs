@@ -515,16 +515,4 @@ pub mod pallet {
 			Ok(task_id)
 		}
 	}
-
-	// #[pallet::genesis_config]
-	// #[derive(Default)]
-	// pub struct GenesisConfig;
-
-	// #[pallet::genesis_build]
-	// impl<T: Config> GenesisBuild<T> for GenesisConfig {
-	// 	fn build(&self) {
-	// 		LastTimeSlot::<T>::put(0);
-	// 		TaskQueue::<T>::put(vec![]);
-	// 	}
-	// }
 }
