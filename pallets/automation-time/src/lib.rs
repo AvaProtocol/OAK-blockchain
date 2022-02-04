@@ -312,8 +312,8 @@ pub mod pallet {
 				Err(<Error<T>>::InvalidTime)?;
 			}
 
-			let now = Self::get_current_time_slot();
-			if scheduled_time <= now {
+			let current_time_slot = Self::get_current_time_slot();
+			if scheduled_time <= current_time_slot {
 				Err(<Error<T>>::PastTime)?;
 			}
 
@@ -376,7 +376,7 @@ pub mod pallet {
 					Self::append_to_task_queue(task_queue, last_time_slot, diff);
 				TaskQueue::<T>::put(updated_task_queue);
 				// need to figure out how much it costs for all but the fcn call in this if statement.
-				total_weight += append_weight + 10_00;
+				total_weight += append_weight + 10_000;
 			}
 			LastTimeSlot::<T>::put(time_slot);
 			total_weight
