@@ -9,4 +9,5 @@ members = [
 	"node",
 	"runtime/*",
 	"pallets/automation-time",
+	"pallets/valve",
 ]
