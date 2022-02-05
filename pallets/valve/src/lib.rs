@@ -66,8 +66,6 @@ pub mod pallet {
 		ValveAlreadyClosed,
 		/// The valve is already open.
 		ValveAlreadyOpen,
-		/// Pallet not supported.
-		UnknownPallet,
 		/// Invalid character encoding.
 		InvalidCharacter,
 		/// The valve pallet cannot be paused.
@@ -160,6 +158,9 @@ pub mod pallet {
 		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
 		pub fn loosen_valve(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
+
+			// If the valve is off then you cannot lossen it.
+			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			if TappedPallets::<T>::take(&pallet_name).is_some() {
 				Self::deposit_event(Event::PalletUntapped { pallet_name_bytes: pallet_name });

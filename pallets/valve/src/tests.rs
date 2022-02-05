@@ -68,6 +68,14 @@ fn can_tighten_valve() {
 }
 
 #[test]
+fn cannot_tap_valve_pallet() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::tighten_valve { pallet_name: b"Valve".to_vec() }.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::CannotPause);
+	})
+}
+
+#[test]
 fn cannot_tighten_valve_when_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::tighten_valve { pallet_name: b"System".to_vec() }.into();
@@ -105,6 +113,14 @@ fn can_loosen_valve() {
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_ok!(call.dispatch(Origin::signed(1)));
+	})
+}
+
+#[test]
+fn cannot_loosen_valve_when_closed() {
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::tighten_valve { pallet_name: b"System".to_vec() }.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
 	})
 }
 
