@@ -31,12 +31,13 @@ pub use pallet::*;
 
 #[pallet]
 pub mod pallet {
-	use frame_support::{pallet_prelude::*, traits::Contains};
+	use frame_support::{
+		dispatch::{CallMetadata, GetCallMetadata},
+		pallet_prelude::*,
+		traits::{Contains, PalletInfoAccess},
+	};
 	use frame_system::pallet_prelude::*;
-
-	#[pallet::pallet]
-	#[pallet::generate_storage_info]
-	pub struct Pallet<T>(PhantomData<T>);
+	use sp_std::vec::Vec;
 
 	/// Configuration trait of this pallet.
 	#[pallet::config]
@@ -53,6 +54,10 @@ pub mod pallet {
 		ValveClosed,
 		/// The chain returned to its normal operating state.
 		ValveOpen,
+		/// All the pallet's actions stoped.
+		PalletTapped { pallet_name_bytes: Vec<u8> },
+		/// All the pallet's actions resumed.
+		PalletUntapped { pallet_name_bytes: Vec<u8> },
 	}
 
 	#[pallet::error]
@@ -61,12 +66,27 @@ pub mod pallet {
 		ValveAlreadyClosed,
 		/// The valve is already open.
 		ValveAlreadyOpen,
+		/// Pallet not supported.
+		UnknownPallet,
+		/// Invalid character encoding.
+		InvalidCharacter,
+		/// The valve pallet cannot be paused.
+		CannotPause,
 	}
 
+	#[pallet::pallet]
+	#[pallet::generate_store(pub(super) trait Store)]
+	pub struct Pallet<T>(_);
+
 	#[pallet::storage]
-	#[pallet::getter(fn maintenance_mode)]
-	/// Whether the valve is closed
-	type ValveClosed<T: Config> = StorageValue<_, bool, ValueQuery>;
+	#[pallet::getter(fn valve_closed)]
+	/// Whether the valve is closed.
+	pub type ValveClosed<T: Config> = StorageValue<_, bool, ValueQuery>;
+
+	/// The tapped pallet map. Each pallet in here will not receive transcations or process tasks.
+	#[pallet::storage]
+	#[pallet::getter(fn paused_transactions)]
+	pub type TappedPallets<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, (), OptionQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -86,26 +106,65 @@ pub mod pallet {
 
 			ValveClosed::<T>::put(true);
 			<Pallet<T>>::deposit_event(Event::ValveClosed);
-			Ok(().into())
+			Ok(())
+		}
+
+		/// Tap the valve.
+		///
+		/// If valve is closed you cannot tap a pallet.
+		/// You cannot tap this paller, as then you could never untap it.
+		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		pub fn tighten_valve(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			// Ensure the valve isn't already off.
+			// If the valve is already off there is no need to tap individual pallets.
+			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
+
+			let pallet_name_string =
+				sp_std::str::from_utf8(&pallet_name).map_err(|_| Error::<T>::InvalidCharacter)?;
+
+			// Not allowed to pause calls of this pallet as then you could never unpause them.
+			ensure!(
+				pallet_name_string != <Self as PalletInfoAccess>::name(),
+				Error::<T>::CannotPause
+			);
+
+			TappedPallets::<T>::mutate_exists(pallet_name.clone(), |maybe_tapped| {
+				if maybe_tapped.is_none() {
+					*maybe_tapped = Some(());
+					Self::deposit_event(Event::PalletTapped { pallet_name_bytes: pallet_name });
+				}
+			});
+
+			Ok(())
 		}
 
 		/// Return the chain to normal operating mode.
 		///
 		/// Weight cost is:
 		/// * One DB read to ensure the valve is closed.
-		/// * Two DB writes - 1 for the mode and 1 for the event.
-		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		/// * Three DB writes - 1 for the mode and 1 for the event.
+		#[pallet::weight(T::DbWeight::get().read + 3 * T::DbWeight::get().write)]
 		pub fn open_valve(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			// Ensure the valve is off.
-			// This test is not strictly necessary, but seeing the error may help a confused chain
-			// operator during an emergency
-			ensure!(ValveClosed::<T>::get(), Error::<T>::ValveAlreadyOpen);
-
 			ValveClosed::<T>::put(false);
+			TappedPallets::<T>::remove_all(None);
+
 			<Pallet<T>>::deposit_event(Event::ValveOpen);
-			Ok(().into())
+			Ok(())
+		}
+
+		/// Untap the pallet.
+		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		pub fn loosen_valve(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			if TappedPallets::<T>::take(&pallet_name).is_some() {
+				Self::deposit_event(Event::PalletUntapped { pallet_name_bytes: pallet_name });
+			};
+			Ok(())
 		}
 	}
 
@@ -124,13 +183,16 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Contains<T::Call> for Pallet<T> {
+	impl<T: Config> Contains<T::Call> for Pallet<T>
+	where
+		<T as frame_system::Config>::Call: GetCallMetadata,
+	{
 		fn contains(call: &T::Call) -> bool {
 			if ValveClosed::<T>::get() {
 				T::ClosedCallFilter::contains(call)
 			} else {
-				// Could be used to filter calls we don't want people to access
-				true
+				let CallMetadata { function_name: _, pallet_name } = call.get_call_metadata();
+				!TappedPallets::<T>::contains_key(pallet_name.as_bytes())
 			}
 		}
 	}
