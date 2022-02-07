@@ -115,7 +115,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			// Ensure the valve isn't already off.
-			// If the valve is already off there is no need to tap individual pallets.
+			// If the valve is already off there is no need to close individual pallets.
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			let pallet_name_string =
@@ -127,9 +127,9 @@ pub mod pallet {
 				Error::<T>::CannotCloseGate
 			);
 
-			ClosedPallets::<T>::mutate_exists(pallet_name.clone(), |maybe_tapped| {
-				if maybe_tapped.is_none() {
-					*maybe_tapped = Some(());
+			ClosedPallets::<T>::mutate_exists(pallet_name.clone(), |maybe_closed| {
+				if maybe_closed.is_none() {
+					*maybe_closed = Some(());
 					Self::deposit_event(Event::PalletGateClosed { pallet_name_bytes: pallet_name });
 				}
 			});
