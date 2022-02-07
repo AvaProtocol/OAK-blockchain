@@ -16,9 +16,11 @@
 // limitations under the License.
 
 //! # Valve pallet
-//!
 //! 
-//! This pallet allows you to either turn of all non-critical transactions or to turn of specific pallets.
+//! Close Valve -> Reject all transactions from non-critical pallets.
+//! Close Pallet Gate -> Reject all transactions to the pallet.
+//! Open Valve -> Resume normal chain operations. This includes allowing all non-critical pallets to receive transactions and opening all pallet gates.
+//! Open Pallet Gate -> Allow the pallet to start receiving transactions again.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -40,36 +42,35 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
 
-	/// Configuration trait of this pallet.
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
-		/// The pallets that we want to turn off on demand.
+		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event {
-		/// The valve has been shut. This has stopped transactions from all non-critical pallets.
+		/// The valve has been closed. This has stopped transactions to non-critical pallets.
 		ValveClosed,
 		/// The chain returned to its normal operating state.
 		ValveOpen,
-		/// All pallet's actions stopped.
+		/// The pallet gate has been closed. It can no longer recieve transactions.
 		PalletGateClosed { pallet_name_bytes: Vec<u8> },
-		/// All pallet's actions opened.
-		PalletGateOpen{ pallet_name_bytes: Vec<u8> },
+		/// The pallet gate has been opened. It will now start receiving transactions.
+		PalletGateOpen { pallet_name_bytes: Vec<u8> },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The valve is already off.
+		/// The valve is already closed.
 		ValveAlreadyClosed,
 		/// The valve is already open.
 		ValveAlreadyOpen,
 		/// Invalid character encoding.
 		InvalidCharacter,
-		/// The valve pallet cannot be closed.
+		/// The valve pallet gate cannot be closed.
 		CannotCloseGate,
 	}
 
@@ -82,21 +83,21 @@ pub mod pallet {
 	/// Whether the valve is closed.
 	pub type ValveClosed<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-	/// The closed pallet map. Each pallet in here will not receive transcations or process tasks.
+	/// The closed pallet map. Each pallet in here will not receive transcations.
 	#[pallet::storage]
 	#[pallet::getter(fn paused_transactions)]
 	pub type ClosedPallets<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, (), OptionQuery>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Shut off the valve.
-		/// 
+		/// Close the valve.
+		///
 		/// This will stop all the pallets defined in `ClosedCallFilter` from receiving transactions.
 		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
 		pub fn close_valve(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			// Ensure the valve isn't already off.
+			// Ensure the valve isn't already closed.
 			// This test is not strictly necessary, but seeing the error may help a confused chain
 			// operator during an emergency.
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
@@ -106,22 +107,23 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Stop all of the pallet's actions.
+		/// Close the pallet's gate.
 		///
+		/// Stop the pallet from receiving transactions.
 		/// If valve is closed you cannot close a pallet.
 		/// You cannot close this pallet, as then you could never open it.
 		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
 		pub fn close_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			// Ensure the valve isn't already off.
-			// If the valve is already off there is no need to close individual pallets.
+			// Ensure the valve isn't closed.
+			// If the valve is closed there is no need to close individual pallet gates.
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			let pallet_name_string =
 				sp_std::str::from_utf8(&pallet_name).map_err(|_| Error::<T>::InvalidCharacter)?;
 
-			// Not allowed to stop this pallet as then you could never start it back up.
+			// Not allowed to close this pallet as then you could never open it.
 			ensure!(
 				pallet_name_string != <Self as PalletInfoAccess>::name(),
 				Error::<T>::CannotCloseGate
@@ -152,13 +154,13 @@ pub mod pallet {
 		}
 
 		/// Open the pallet.
-		/// 
-		/// This allows the pallet to resume it's actions.
+		///
+		/// This allows the pallet to receiving transactions.
 		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
 		pub fn open_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			// If the valve is off then you cannot open a specific pallet.
+			// If the valve is closed then you cannot open a specific pallet.
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			if ClosedPallets::<T>::take(&pallet_name).is_some() {
