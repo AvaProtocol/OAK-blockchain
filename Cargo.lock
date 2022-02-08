@@ -4420,7 +4420,7 @@ dependencies = [
 
 [[package]]
 name = "oak-node"
-version = "1.2.3"
+version = "1.2.4"
 dependencies = [
  "cumulus-client-cli",
  "cumulus-client-collator",
