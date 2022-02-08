@@ -61,7 +61,9 @@ pub mod pallet {
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action {
-		Notify(Vec<u8>),
+		Notify {
+			message: Vec<u8>,
+		},
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -81,7 +83,7 @@ pub mod pallet {
 			time: UnixTime,
 			message: Vec<u8>,
 		) -> Task<T> {
-			let action = Action::Notify(message);
+			let action = Action::Notify { message };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -421,7 +423,7 @@ pub mod pallet {
 						10_000
 					},
 					Some(task) => match task.action {
-						Action::Notify(message) => Self::run_notify_task(message),
+						Action::Notify { message } => Self::run_notify_task(message),
 					},
 				};
 
