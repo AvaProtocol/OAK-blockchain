@@ -128,9 +128,12 @@ impl ExtBuilder {
 }
 
 pub(crate) fn events() -> Vec<pallet_valve::Event> {
-	System::events()
+	let evt = System::events()
 		.into_iter()
 		.map(|r| r.event)
 		.filter_map(|e| if let Event::Valve(inner) = e { Some(inner) } else { None })
-		.collect::<Vec<_>>()
+		.collect::<Vec<_>>();
+
+	System::reset_events();
+	evt
 }

@@ -42,16 +42,7 @@ fn can_close_valve() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_valve {}.into();
 		assert_ok!(call.dispatch(Origin::root()));
-
 		assert_eq!(events(), vec![Event::ValveClosed,]);
-	})
-}
-
-#[test]
-fn cannot_close_valve_from_wrong_origin() {
-	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
-		let call: OuterCall = Call::close_valve {}.into();
-		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
 	})
 }
 
@@ -59,6 +50,38 @@ fn cannot_close_valve_from_wrong_origin() {
 fn cannot_close_valve_when_already_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::close_valve {}.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+	})
+}
+
+#[test]
+fn can_close_pallet_gatee() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
+
+		assert_ok!(call.dispatch(Origin::root()));
+		assert_eq!(
+			events(),
+			vec![Event::PalletGateClosed { pallet_name_bytes: b"System".to_vec() },]
+		);
+
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+	})
+}
+
+#[test]
+fn cannot_close_valve_pallet_gate() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Valve".to_vec() }.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::CannotCloseGate);
+	})
+}
+
+#[test]
+fn cannot_close_pallet_gate_when_valve_closed() {
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
 		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
 	})
 }
@@ -74,17 +97,52 @@ fn can_open_valve() {
 }
 
 #[test]
-fn cannot_open_valve_from_wrong_origin() {
-	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
-		let call: OuterCall = Call::open_valve {}.into();
+fn can_open_pallet_gate() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
+
+		assert_ok!(call.dispatch(Origin::root()));
+		assert_eq!(
+			events(),
+			vec![Event::PalletGateClosed { pallet_name_bytes: b"System".to_vec() },]
+		);
+
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+
+		let call: OuterCall = Call::open_pallet_gate { pallet_name: b"System".to_vec() }.into();
+		assert_ok!(call.dispatch(Origin::root()));
+		assert_eq!(
+			events(),
+			vec![Event::PalletGateOpen { pallet_name_bytes: b"System".to_vec() },]
+		);
+
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+		assert_ok!(call.dispatch(Origin::signed(1)));
 	})
 }
 
 #[test]
-fn cannot_open_valve_while_already_open() {
+fn cannot_open_pallet_gate_when_valve_closed() {
+	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+	})
+}
+
+#[test]
+fn opens_all_pallet_gates() {
 	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
+		assert_ok!(call.dispatch(Origin::root()));
+
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+
 		let call: OuterCall = Call::open_valve {}.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyOpen);
+		assert_ok!(call.dispatch(Origin::root()));
+
+		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+		assert_ok!(call.dispatch(Origin::signed(1)));
 	})
 }

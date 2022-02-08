@@ -31,4 +31,5 @@ std = [
 	"frame-system/std",
 	"scale-info/std",
 	"sp-runtime/std",
+	"sp-std/std",
 ]
