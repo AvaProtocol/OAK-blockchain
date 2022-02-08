@@ -71,17 +71,13 @@ pub mod pallet {
 	/// `MAX_TASK_WEGHT` + `RUN_TASK_LOOP_OVERHEAD`
 	const MAX_LOOP_WEIGHT: Weight = MAX_TASK_WEGHT + RUN_TASK_LOOP_OVERHEAD;
 
-	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct NotificationAction {
-		message: Vec<u8>,
-	}
-
 	/// The enum that stores all action specific data.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action {
-		Notify(NotificationAction),
+		Notify {
+			message: Vec<u8>,
+		},
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -101,9 +97,7 @@ pub mod pallet {
 			time: u64,
 			message: Vec<u8>,
 		) -> Task<T> {
-			let action = Action::Notify(NotificationAction {
-				message: message,
-			});
+			let action = Action::Notify { message };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -433,7 +427,7 @@ pub mod pallet {
 						10_000
 					},
 					Some(task) => match task.action {
-						Action::Notify(notification_action) => Self::run_notify_task(notification_action.message),
+						Action::Notify { message } => Self::run_notify_task(message),
 					},
 				};
 
