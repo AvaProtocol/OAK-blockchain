@@ -1,6 +1,6 @@
 networkSpec:
-    displayName: neumann-parachain-testnet-jzia5
-    name: neumann-parachain-testnet-jzia5
+    displayName: neumann-parachain-testnet-customName
+    name: neumann-parachain-testnet-customName
     protocol: polkadot-parachain
     imageRepository: oaknetwork/neumann
     imageVersion: 1.2.4-rc2
@@ -11,8 +11,6 @@ networkSpec:
             - key: "--force-authoring"
             - key: --chain
               file: "neumann.json"
-            - key: --parachain-id
-              value: 2000
             - key: --
             - key: --execution
               value: wasm
@@ -25,8 +23,6 @@ networkSpec:
             - key: "--force-authoring"
             - key: --chain
               file: "neumann.json"
-            - key: --parachain-id
-              value: 2000
             - key: --collator
             - key: --bootnodes # Relay chain p2p address
               value: FILL_ME_IN
@@ -40,7 +36,7 @@ networkSpec:
 validator:
   count: 2
   node:
-    nodeName: neumann-parachain-testnet-collator-jzia5
+    nodeName: neumann-parachain-testnet-collator-customName
     nodeType: collator
     clusterKey: jm
     nodeSpec:
@@ -55,7 +51,7 @@ validator:
 bootNode:
   count: 1
   node:
-    nodeName: neumann-parachain-testnet-bootnode-jzia5
+    nodeName: neumann-parachain-testnet-bootnode-customName
     nodeType: full
     clusterKey: jm
     nodeSpec:
