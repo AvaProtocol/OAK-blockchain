@@ -162,6 +162,8 @@ pub mod pallet {
 		NotTaskOwner,
 		/// The task does not exist.
 		TaskDoesNotExist,
+		/// Block time not set.
+		BlockTimeNotSet,
 	}
 
 	#[pallet::event]
@@ -296,11 +298,14 @@ pub mod pallet {
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole minute.
-		fn get_current_time_slot() -> UnixTime {
+		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
+			if now == 0 {
+				Err(Error::<T>::BlockTimeNotSet)?
+			}
 			let now = now / 1000;
 			let diff_to_min = now % 60;
-			now - diff_to_min
+			Ok(now - diff_to_min)
 		}
 
 		/// Checks to see if the scheduled time is a valid timestamp.
@@ -312,7 +317,7 @@ pub mod pallet {
 				Err(<Error<T>>::InvalidTime)?;
 			}
 
-			let current_time_slot = Self::get_current_time_slot();
+			let current_time_slot = Self::get_current_time_slot()?;
 			if scheduled_time <= current_time_slot {
 				Err(<Error<T>>::PastTime)?;
 			}
@@ -366,7 +371,10 @@ pub mod pallet {
 			let base_weight = 10_000;
 			let mut total_weight = base_weight;
 
-			let time_slot = Self::get_current_time_slot();
+			let time_slot = match Self::get_current_time_slot() {
+				Ok(time_slot) => time_slot,
+				Err(_) => return total_weight,
+			};
 
 			if let Some(last_time_slot) = Self::get_last_slot() {
 				if time_slot != last_time_slot {
