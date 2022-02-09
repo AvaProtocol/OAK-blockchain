@@ -22,6 +22,6 @@ sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
 
-pallet-automation-time-rpc-runtime-api = { version = "0.1.0", path = "./runtime-api" }
+pallet-automation-time-rpc-runtime-api = { path = "./runtime-api" }
 
 
