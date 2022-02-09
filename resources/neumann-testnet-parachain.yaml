@@ -1,3 +1,8 @@
+# NOTE: This does not work on its own. This spins up the network and collators.
+# User will need to do the following to achieve working parachain:
+# 1. Manually remove the `--validator` parameter from collators.
+# 2. Manually create boot/full node on OnFinality and use the P2P address
+#    for the `--bootnodes` value for the collator nodes.
 networkSpec:
     displayName: neumann-parachain-testnet-customName
     name: neumann-parachain-testnet-customName
@@ -45,7 +50,7 @@ validator:
     initFromBackup: false
     publicPort: true
     useApiKey: true
-    storage: 30Gi
+    storage: 100Gi
   sessionsKey: 
     #not needed
 bootNode:
@@ -60,4 +65,4 @@ bootNode:
     initFromBackup: false
     publicPort: true
     useApiKey: true
-    storage: 30Gi
+    storage: 100Gi
