@@ -29,7 +29,7 @@ networkSpec:
             - key: --chain
               file: "neumann.json"
             - key: --collator
-            - key: --bootnodes # Relay chain p2p address
+            - key: --bootnodes # Parachain Boot node p2p address
               value: FILL_ME_IN
             - key: --
             - key: --execution
