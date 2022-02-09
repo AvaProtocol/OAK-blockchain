@@ -298,6 +298,21 @@ fn force_cancel_task_works() {
 //10_000 + 10_000 + 20_000 per task run
 
 #[test]
+fn trigger_tasks_handles_first_run() {
+	new_test_ext().execute_with(|| {
+		let scheduled_time = SCHEDULED_TIME + 600;
+		let start_block_time: u64 = (scheduled_time + 52) * 1000;
+
+		Timestamp::set_timestamp(start_block_time);
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(60_000);
+
+		assert_eq!(events(), vec![],);
+	})
+}
+
+#[test]
 fn trigger_tasks_nothing_to_do() {
 	new_test_ext().execute_with(|| {
 		let scheduled_time = SCHEDULED_TIME + 600;

@@ -61,9 +61,7 @@ pub mod pallet {
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action {
-		Notify {
-			message: Vec<u8>,
-		},
+		Notify { message: Vec<u8> },
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -144,7 +142,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
-	pub type LastTimeSlot<T: Config> = StorageValue<_, UnixTime, ValueQuery>;
+	pub type LastTimeSlot<T: Config> = StorageValue<_, UnixTime>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -369,18 +367,22 @@ pub mod pallet {
 			let mut total_weight = base_weight;
 
 			let time_slot = Self::get_current_time_slot();
-			let last_time_slot = Self::get_last_slot();
 
-			if time_slot != last_time_slot {
-				let task_queue = Self::get_task_queue();
-				let diff = (time_slot - last_time_slot) / 60;
-				let (append_weight, updated_task_queue) =
-					Self::append_to_task_queue(task_queue, last_time_slot, diff);
-				TaskQueue::<T>::put(updated_task_queue);
-				// need to figure out how much it costs for all but the fcn call in this if statement.
-				total_weight += append_weight + 10_000;
+			if let Some(last_time_slot) = Self::get_last_slot() {
+				if time_slot != last_time_slot {
+					let task_queue = Self::get_task_queue();
+					let diff = (time_slot - last_time_slot) / 60;
+					let (append_weight, updated_task_queue) =
+						Self::append_to_task_queue(task_queue, last_time_slot, diff);
+					TaskQueue::<T>::put(updated_task_queue);
+					// need to figure out how much it costs for all but the fcn call in this if statement.
+					total_weight += append_weight + 10_000;
+				}
+				LastTimeSlot::<T>::put(time_slot);
+			} else {
+				LastTimeSlot::<T>::put(time_slot);
 			}
-			LastTimeSlot::<T>::put(time_slot);
+
 			total_weight
 		}
 
