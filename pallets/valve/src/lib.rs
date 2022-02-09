@@ -16,7 +16,7 @@
 // limitations under the License.
 
 //! # Valve pallet
-//! 
+//!
 //! Close Valve -> Reject all transactions from non-critical pallets.
 //! Close Pallet Gate -> Reject all transactions to the pallet.
 //! Open Valve -> Resume normal chain operations. This includes allowing all non-critical pallets to receive transactions and opening all pallet gates.

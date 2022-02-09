@@ -133,9 +133,10 @@ impl pallet_automation_time::Config for Test {
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));
+	ext.execute_with(|| Timestamp::set_timestamp(state_block_time));
 	ext
 }
