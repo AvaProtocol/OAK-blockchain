@@ -860,7 +860,7 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<AccountId, Hash> for Runtime {
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}

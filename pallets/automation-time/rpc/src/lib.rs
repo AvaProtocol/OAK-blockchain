@@ -28,7 +28,7 @@ use std::sync::Arc;
 #[rpc]
 pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 	/// Generates the task_id given the account_id and provided_id.
-	#[rpc(name = "generate_task_id")]
+	#[rpc(name = "automationTime_generateTaskId")]
 	fn generate_task_id(
 		&self,
 		account: AccountId,
