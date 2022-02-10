@@ -1,0 +1,68 @@
+# NOTE: This does not work on its own. This spins up the network and collators.
+# User will need to do the following to achieve working parachain:
+# 1. Manually remove the `--validator` parameter from collators.
+# 2. Manually create boot/full node on OnFinality and use the P2P address
+#    for the `--bootnodes` value for the collator nodes.
+networkSpec:
+    displayName: neumann-parachain-testnet-customName
+    name: neumann-parachain-testnet-customName
+    protocol: polkadot-parachain
+    imageRepository: oaknetwork/neumann
+    imageVersion: 1.2.4-rc2
+    config:
+      nodeTypes:
+        full:
+          args:
+            - key: "--force-authoring"
+            - key: --chain
+              file: "neumann.json"
+            - key: --
+            - key: --execution
+              value: wasm
+            - key: --chain
+              file: "rococo-testnet.json"
+            - key: --bootnodes # Relay chain p2p address
+              value: /dns4/node-6896992096614604800-0.p2p.onfinality.io/tcp/23160/ws/p2p/12D3KooWM1vTue78y2ZjxTjZKgYEPR8gSNFtTda3KETgp3WAhCxK
+        collator:
+          args:
+            - key: "--force-authoring"
+            - key: --chain
+              file: "neumann.json"
+            - key: --collator
+            - key: --bootnodes # Parachain Boot node p2p address
+              value: FILL_ME_IN
+            - key: --
+            - key: --execution
+              value: wasm
+            - key: --chain
+              file: "rococo-testnet.json"
+            - key: --bootnodes # Relay chain p2p address
+              value: /dns4/node-6896992096614604800-0.p2p.onfinality.io/tcp/23160/ws/p2p/12D3KooWM1vTue78y2ZjxTjZKgYEPR8gSNFtTda3KETgp3WAhCxK
+validator:
+  count: 2
+  node:
+    nodeName: neumann-parachain-testnet-collator-customName
+    nodeType: collator
+    clusterKey: jm
+    nodeSpec:
+      key: unit
+      multiplier: 4
+    initFromBackup: false
+    publicPort: true
+    useApiKey: true
+    storage: 100Gi
+  sessionsKey: 
+    #not needed
+bootNode:
+  count: 1
+  node:
+    nodeName: neumann-parachain-testnet-bootnode-customName
+    nodeType: full
+    clusterKey: jm
+    nodeSpec:
+      key: unit
+      multiplier: 4
+    initFromBackup: false
+    publicPort: true
+    useApiKey: true
+    storage: 100Gi
