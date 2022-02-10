@@ -32,7 +32,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 	fn generate_task_id(
 		&self,
 		account: AccountId,
-		provided_id: Vec<u8>,
+		provided_id: String,
 		at: Option<BlockHash>,
 	) -> Result<Hash>;
 }
@@ -76,7 +76,7 @@ where
 	fn generate_task_id(
 		&self,
 		account: AccountId,
-		provided_id: Vec<u8>,
+		provided_id: String,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> Result<Hash> {
 		let api = self.client.runtime_api();
@@ -84,7 +84,7 @@ where
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash));
 
-		let runtime_api_result = api.generate_task_id(&at, account, provided_id);
+		let runtime_api_result = api.generate_task_id(&at, account, provided_id.as_bytes().to_vec());
 		runtime_api_result.map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to generate task_id".into(),
