@@ -682,6 +682,7 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
+	pub const ExistentialDeposit: Balance = EXISTENTIAL_DEPOSIT;
 }
 
 /// Configure the pallet-time-triggers in pallets/time-triggers.
@@ -692,6 +693,9 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
+	type Balance = Balance;
+	type Currency = Balances;
+	type ExistentialDeposit = ExistentialDeposit;
 }
 
 pub struct ClosedCallFilter;
