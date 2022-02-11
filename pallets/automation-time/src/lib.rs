@@ -40,19 +40,23 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
+use codec::{ Codec };
 use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec, traits::{ Currency }};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::SaturatedConversion, Perbill};
+use sp_runtime::{traits::{SaturatedConversion, AtLeast32BitUnsigned, }, Perbill, };
 use sp_std::vec;
+use std::fmt::Debug;
 
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use super::*;
+	use frame_support::traits::ExistenceRequirement;
+
+use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	type UnixTime = u64;
@@ -145,10 +149,19 @@ pub mod pallet {
 		#[pallet::constant]
 		type ExistentialDeposit: Get<Self::Balance>;
 
-		/// The data type for balance amounts.
-		type Balance: Parameter;
+		/// The balance of an account.
+		type Balance: Parameter
+			+ Member
+			+ AtLeast32BitUnsigned
+			+ Codec
+			+ Copy
+			+ Default
+			+ MaybeSerializeDeserialize
+			+ Debug
+			+ MaxEncodedLen
+			+ scale_info::TypeInfo;
 
-		/// The Currency handler for the Kitties pallet.
+		/// The Currency handler
 		type Currency: Currency<Self::AccountId>;
 	}
 
@@ -199,6 +212,8 @@ pub mod pallet {
 		InvalidRecipient,
 		/// Sender cannot transfer money to self.
 		TransferToSelf,
+		/// Sender has insufficient funds in account to complete transaction.
+		InsufficientFunds,
 	}
 
 	#[pallet::event]
@@ -306,6 +321,7 @@ pub mod pallet {
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `InvalidRecipient`: Recipient must be a valid address.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
+		/// * `InsufficientFunds`: Amount in sender account is insufficient.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
 		pub fn schedule_transfer_task(
 			origin: OriginFor<T>,
@@ -315,14 +331,20 @@ pub mod pallet {
 			amount: T::Balance,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let recipientExists = account_exists(recipient_id);
-			
+
 			// check for greater than existential deposit
-			ensure!(amount < T::ExistentialDeposit::get(), Err(<Error<T>>::InvalidAmount)?);
-			// check recipient account exists
-			ensure!(recipientExists == false, Err(Error::<T>::InvalidRecipient)?);
+			// ensure!(amount < T::ExistentialDeposit::get(), Err(<Error<T>>::InvalidAmount)?)?;
+			if amount < T::ExistentialDeposit::get() {
+				Err(<Error<T>>::InvalidAmount)?
+			}
 			// check not sent to self
-			ensure!(who != recipient_id, Err(<Error<T>>::TransferToSelf)?);
+			if who != recipient_id {
+				Err(<Error<T>>::TransferToSelf)?
+			}
+			let senderBalance = <T as Config>::Currency::free_balance(&who);
+			if senderBalance < amount {
+				Err(<Error<T>>::InsufficientFunds)?
+			}
 
 			Self::validate_and_schedule_task(Action::Transfer{ sender: who, recipient: recipient_id, amount }, who.clone(), provided_id, time)?;
 			Ok(().into())
@@ -517,7 +539,8 @@ pub mod pallet {
 					},
 					Some(task) => match task.action {
 						Action::Notify { message } => Self::run_notify_task(message),
-						Action::Transfer { sender, recipient, amount } => Self::transfer(sender, recipient, amount),
+						Action::Transfer { sender, recipient, amount } =>
+							Self::transfer(sender, recipient, amount),
 					},
 				};
 
@@ -547,24 +570,14 @@ pub mod pallet {
 		fn transfer(
 			sender: T::AccountId,
 			recipient: T::AccountId,
-			amount: T::Balance,
+			amount: <<T as pallet::Config>::Currency as frame_support::traits::Currency<<T as frame_system::Config>::AccountId>>::Balance,
 		) -> Weight {
+			
 			// TODO: jzhou fix later
-			// let from = ensure_signed(origin)?;
 
-			// // Ensure receipient account exists
-
-			// // Ensure the tokens exists 
-			// let sender_balance = Self::get_balance(&from);
-			// let receiver_balance = Self::get_balance(&to);
-			// let updated_from_balance = sender_balance.checked_sub(amount).ok_or(<Error<T>>::InsufficientFunds)?;
-			// let updated_to_balance = receiver_balance.checked_add(amount).expect("Entire supply fits in u64; qed");
-
-			// // Verify the token is not transferring back to its owner.
-			// ensure!(from != to, <Error<T>>::TransferToSelf);
-
-			// <Balances<T>>::insert(&from, updated_from_balance);
-			// <Balances<T>>::insert(&to, updated_to_balance);
+			// <<T as pallet::Config>::Currency as frame_support::traits::Currency<<T as frame_system::Config>::AccountId>>::Balance;
+			// <T as pallet::Config>::Balance;
+			<T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive);
 
 			// let message = Vec::new();
 			// message.push("Sent {amount} tokens from {from} to {to}");
