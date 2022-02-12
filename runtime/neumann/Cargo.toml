@@ -24,6 +24,7 @@ hex-literal = "0.3.1"
 
 # Local Dependencies
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
+pallet-automation-time-rpc-runtime-api = { path = "../../pallets/automation-time/rpc/runtime-api", default-features = false }
 pallet-valve = { path= "../../pallets/valve", default-features = false }
 
 # Substrate Dependencies
@@ -109,6 +110,7 @@ std = [
 	"pallet-aura/std",
 	"pallet-authorship/std",
 	"pallet-automation-time/std",
+	"pallet-automation-time-rpc-runtime-api/std",
 	"pallet-balances/std",
 	"pallet-bounties/std",
 	"pallet-collator-selection/std",

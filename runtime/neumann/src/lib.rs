@@ -860,6 +860,12 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
+		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
+			AutomationTime::generate_task_id(account_id, provided_id)
+		}
+	}
+
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info() -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info()
