@@ -339,7 +339,7 @@ use super::*;
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
-			if who != recipient_id {
+			if who == recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
 
