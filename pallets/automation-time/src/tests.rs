@@ -95,7 +95,7 @@ fn schedule_no_provided_id() {
 }
 
 #[test]
-fn schedule_works() {
+fn schedule_notify_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
@@ -118,6 +118,41 @@ fn schedule_works() {
 						vec![50],
 						SCHEDULED_TIME,
 						message,
+					);
+
+					assert_eq!(task, expected_task);
+				},
+			},
+		}
+	})
+}
+
+#[test]
+fn schedule_transfer_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let message: Vec<u8> = vec![2, 4, 5];
+		assert_ok!(AutomationTime::schedule_transfer_task(
+			Origin::signed(ALICE),
+			vec![50],
+			SCHEDULED_TIME,
+			BOB,
+			10_000_000_000,
+		));
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => match AutomationTime::get_task(task_ids[0]) {
+				None => {
+					panic!("A task should exist if it was scheduled")
+				},
+				Some(task) => {
+					let expected_task = Task::<Test>::create_transfer_task(
+						ALICE.clone(),
+						vec![50],
+						SCHEDULED_TIME,
+						BOB,
+						10_000_000_000,
 					);
 
 					assert_eq!(task, expected_task);
