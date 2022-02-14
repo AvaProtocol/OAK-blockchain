@@ -210,12 +210,12 @@ use super::*;
 	pub enum Event<T: Config> {
 		/// Schedule task success.
 		TaskScheduled {
-			who: T::AccountId,
+			who: AccountOf<T>,
 			task_id: T::Hash,
 		},
 		// Cancelled a task.
 		TaskCancelled {
-			who: T::AccountId,
+			who: AccountOf<T>,
 			task_id: T::Hash,
 		},
 		/// Notify event for the task.
@@ -640,9 +640,7 @@ use super::*;
 			provided_id: Vec<u8>,
 			time: u64,
 		) -> Result<T::Hash, Error<T>> {
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
-			let task_id = T::Hashing::hash_of(&task_hash_input);
+			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
 
 			if let Some(_) = Self::get_task(task_id) {
 				Err(Error::<T>::DuplicateTask)?
@@ -685,6 +683,12 @@ use super::*;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
+    }
+
+		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
+			let task_hash_input =
+				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+			T::Hashing::hash_of(&task_hash_input)
 		}
 	}
 }

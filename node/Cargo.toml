@@ -35,6 +35,7 @@ jsonrpc-core = "18.0.0"
 
 # Local Dependencies
 neumann-runtime = { path = "../runtime/neumann" }
+pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
 
 # Substrate Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.13" }
