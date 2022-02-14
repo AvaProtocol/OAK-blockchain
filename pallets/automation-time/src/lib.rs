@@ -47,6 +47,7 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::{ SaturatedConversion }, Perbill};
 use sp_std::vec;
+use log::info;
 
 pub use weights::WeightInfo;
 
@@ -235,6 +236,9 @@ use super::*;
 		},
 		/// Transfer Failed
 		TransferFailed {
+			task_id: T::Hash,
+		},
+		StartingEventProcessing {
 			task_id: T::Hash,
 		},
 		/// Transfer event for the task.
@@ -441,6 +445,8 @@ use super::*;
 			let update_weight = Self::update_task_queue();
 
 			// need to calculate the weight of running just 1 task below.
+			info!("Update Weight: {:?}", update_weight);
+			info!("Weight at start of trigger tasks: {:?}", weight_left);
 			if weight_left < update_weight + 10_000 {
 				return update_weight
 			} else {
@@ -448,12 +454,14 @@ use super::*;
 			}
 
 			let task_queue = Self::get_task_queue();
-
+			info!("Task Queue length: {:?}", task_queue.len());
+			info!("Weight in Trigger Tasks: {:?}", weight_left);
 			if task_queue.len() > 0 {
 				// calculate cost of all but the run_tasks fcn.
 				weight_left -= 10_000;
+				info!("Weight Left Before Run Tasks: {:?}", weight_left);
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-
+				info!("New Weight if Task Queue: {:?}", new_weight_left);
 				TaskQueue::<T>::put(tasks_left);
 				weight_left = new_weight_left;
 			}
@@ -526,9 +534,12 @@ use super::*;
 			weight_left -= 10_000;
 
 			let mut consumed_task_index: usize = 0;
+			info!("Weight Left in run tasks: {:?}", weight_left);
+			info!("Tasks: {:?}", task_ids.len());
+			info!("Task Index: {:?}", consumed_task_index);
 			for task_id in task_ids.iter() {
 				consumed_task_index += 1;
-
+				info!("Task ID: {:?}", task_id);
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
@@ -574,6 +585,7 @@ use super::*;
 			let sender_balance = <T as Config>::Currency::free_balance(&sender);
 			if sender_balance < amount {
 				Self::deposit_event(Event::InsufficientFunds { task_id });
+				return 10_000;
 			}
 			match <T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive) {
 				Ok(_number)  => (),

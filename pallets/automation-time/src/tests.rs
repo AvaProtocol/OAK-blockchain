@@ -130,7 +130,6 @@ fn schedule_notify_works() {
 #[test]
 fn schedule_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -352,7 +351,7 @@ fn trigger_tasks_completes_all_tasks() {
 		let message_one: Vec<u8> = vec![2, 4, 5];
 		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
+		add_transfer_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, BOB, 10_000_000_000);
 
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 		System::reset_events();
@@ -488,6 +487,24 @@ fn add_task_to_task_queue(
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task = Task::<Test>::create_event_task(owner, provided_id, scheduled_time, message);
+	Tasks::<Test>::insert(task_id, task);
+	let mut task_queue = AutomationTime::get_task_queue();
+	task_queue.push(task_id);
+	TaskQueue::<Test>::put(task_queue);
+	task_id
+}
+
+fn add_transfer_task_to_task_queue(
+	owner: AccountId,
+	provided_id: Vec<u8>,
+	scheduled_time: u64,
+	receiver_id: AccountId,
+	amount: Balance
+) -> sp_core::H256 {
+	let task_hash_input =
+		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
+	let task_id = BlakeTwo256::hash_of(&task_hash_input);
+	let task = Task::<Test>::create_transfer_task(owner, provided_id, scheduled_time, receiverId, amount);
 	Tasks::<Test>::insert(task_id, task);
 	let mut task_queue = AutomationTime::get_task_queue();
 	task_queue.push(task_id);
