@@ -76,6 +76,24 @@ benchmarks! {
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
+	// // Third task for a slot
+	// schedule_transfer_task_new_slot {
+	// 	let caller: T::AccountId = whitelisted_caller();
+	// 	let time: u64 = 120;
+	// 	let count: u8 = 1;
+
+	// 	let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
+	// }: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
+
+	// // Fourth task for a slot
+	// schedule_transfer_task_existing_slot {
+	// 	let caller: T::AccountId = whitelisted_caller();
+	// 	let time: u64 = 120;
+	// 	let count: u8 = 1;
+
+	// 	let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
+	// }: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
+
 	cancel_scheduled_task {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 180;

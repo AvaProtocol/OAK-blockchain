@@ -40,15 +40,13 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
-use codec::{ Codec };
 use core::convert::TryInto;
 use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec, traits::{ Currency }};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::{SaturatedConversion, AtLeast32BitUnsigned, }, Perbill, };
+use sp_runtime::{traits::{ SaturatedConversion }, Perbill};
 use sp_std::vec;
-use std::fmt::Debug;
 
 pub use weights::WeightInfo;
 
@@ -59,6 +57,8 @@ pub mod pallet {
 use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
+	type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -69,7 +69,7 @@ use super::*;
 		Transfer {
 			sender: AccountOf<T>,
 			recipient: AccountOf<T>,
-			amount: T::Balance,
+			amount: BalanceOf<T>,
 		},
 	}
 
@@ -98,10 +98,10 @@ use super::*;
 			provided_id: Vec<u8>,
 			time: UnixTime,
 			recipient_id: AccountOf<T>,
-			amount: T::Balance,
+			amount: BalanceOf<T>,
 		) -> Task<T> {
 			let action = Action::Transfer {
-				sender: owner_id,
+				sender: owner_id.clone(),
 				recipient: recipient_id,
 				amount,
 			};
@@ -147,19 +147,7 @@ use super::*;
 
 		/// Lowest Amount that a deposit can possibly be.
 		#[pallet::constant]
-		type ExistentialDeposit: Get<Self::Balance>;
-
-		/// The balance of an account.
-		type Balance: Parameter
-			+ Member
-			+ AtLeast32BitUnsigned
-			+ Codec
-			+ Copy
-			+ Default
-			+ MaybeSerializeDeserialize
-			+ Debug
-			+ MaxEncodedLen
-			+ scale_info::TypeInfo;
+		type ExistentialDeposit: Get<BalanceOf<Self>>;
 
 		/// The Currency handler
 		type Currency: Currency<Self::AccountId>;
@@ -237,10 +225,23 @@ use super::*;
 		TaskNotFound {
 			task_id: T::Hash,
 		},
+		/// Insufficient funds for transfer
+		InsufficientFunds {
+			task_id: T::Hash,
+		},
+		/// Succcessfully transferred funds
+		SuccesfullyTransferredFunds {
+			task_id: T::Hash,
+		},
+		/// Transfer Failed
+		TransferFailed {
+			task_id: T::Hash,
+		},
+		/// Transfer event for the task.
 		Transfer {
 			sender: AccountOf<T>,
 			recipient: AccountOf<T>,
-			amount: T::Balance,
+			amount: BalanceOf<T>,
 		}
 	}
 
@@ -322,18 +323,18 @@ use super::*;
 		/// * `InvalidRecipient`: Recipient must be a valid address.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `InsufficientFunds`: Amount in sender account is insufficient.
+		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
 		pub fn schedule_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			time: UnixTime,
 			recipient_id: T:: AccountId,
-			amount: T::Balance,
+			amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			// ensure!(amount < T::ExistentialDeposit::get(), Err(<Error<T>>::InvalidAmount)?)?;
 			if amount < T::ExistentialDeposit::get() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
@@ -341,12 +342,8 @@ use super::*;
 			if who != recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
-			let senderBalance = <T as Config>::Currency::free_balance(&who);
-			if senderBalance < amount {
-				Err(<Error<T>>::InsufficientFunds)?
-			}
 
-			Self::validate_and_schedule_task(Action::Transfer{ sender: who, recipient: recipient_id, amount }, who.clone(), provided_id, time)?;
+			Self::validate_and_schedule_task(Action::Transfer{ sender: who.clone(), recipient: recipient_id, amount }, who.clone(), provided_id, time)?;
 			Ok(().into())
 		}
 
@@ -540,7 +537,7 @@ use super::*;
 					Some(task) => match task.action {
 						Action::Notify { message } => Self::run_notify_task(message),
 						Action::Transfer { sender, recipient, amount } =>
-							Self::transfer(sender, recipient, amount),
+							Self::transfer(sender, recipient, amount, task_id.clone()),
 					},
 				};
 
@@ -570,18 +567,20 @@ use super::*;
 		fn transfer(
 			sender: T::AccountId,
 			recipient: T::AccountId,
-			amount: <<T as pallet::Config>::Currency as frame_support::traits::Currency<<T as frame_system::Config>::AccountId>>::Balance,
+			amount: BalanceOf<T>,
+			task_id: T::Hash,
 		) -> Weight {
-			
-			// TODO: jzhou fix later
+			// check for sufficient funds in the sender Balance
+			let sender_balance = <T as Config>::Currency::free_balance(&sender);
+			if sender_balance < amount {
+				Self::deposit_event(Event::InsufficientFunds { task_id });
+			}
+			match <T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive) {
+				Ok(_number)  => (),
+        		Err(_e) => Self::deposit_event(Event::TransferFailed { task_id }),
+			};
 
-			// <<T as pallet::Config>::Currency as frame_support::traits::Currency<<T as frame_system::Config>::AccountId>>::Balance;
-			// <T as pallet::Config>::Balance;
-			<T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive);
-
-			// let message = Vec::new();
-			// message.push("Sent {amount} tokens from {from} to {to}");
-			// Self::deposit_event(Event::Notify{ message });
+			Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id });
 
 			10_000
 		}
@@ -667,7 +666,8 @@ use super::*;
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 			let task: Task<T> = match action {
 				Action::Notify { message } => Task::<T>::create_event_task(who.clone(), provided_id, time, message),
-				Action::Transfer { sender, recipient, amount } => Task::<T>::create_transfer_task(sender, provided_id, time, recipient, amount),
+				Action::Transfer { sender, recipient, amount } =>
+					Task::<T>::create_transfer_task(sender.clone(), provided_id, time, recipient, amount),
 			};
 			<Tasks<T>>::insert(task_id, task);
 
