@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate as pallet_automation_time;
-// use crate as pallet_balances;
 use frame_support::{parameter_types, traits::{Everything}, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
@@ -57,9 +56,7 @@ parameter_types! {
 
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
-	/// The type for recording an account's balance.
 	type Balance = Balance;
-	/// The ubiquitous event type.
 	type Event = Event;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;

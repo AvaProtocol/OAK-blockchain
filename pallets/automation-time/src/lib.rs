@@ -45,7 +45,7 @@ use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, 
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::{ SaturatedConversion }, Perbill};
+use sp_runtime::{traits::SaturatedConversion, Perbill};
 use sp_std::vec;
 use log::info;
 
@@ -197,8 +197,6 @@ use super::*;
 		BlockTimeNotSet,
 		/// Amount has to be larger than 0.1 OAK.
 		InvalidAmount,
-		/// Recipient must be a valid address.
-		InvalidRecipient,
 		/// Sender cannot transfer money to self.
 		TransferToSelf,
 		/// Sender has insufficient funds in account to complete transaction.
@@ -236,9 +234,6 @@ use super::*;
 		},
 		/// Transfer Failed
 		TransferFailed {
-			task_id: T::Hash,
-		},
-		StartingEventProcessing {
 			task_id: T::Hash,
 		},
 		/// Transfer event for the task.
@@ -302,12 +297,14 @@ use super::*;
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
 		/// * The time is valid
-		/// * 
+		/// * Larger transfer amount than the acceptable minimum
+		/// * Transfer to account other than to self
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `time`: The unix standard time in seconds for when the task should run.
-		/// * `message`: The message you want the event to have.
+		/// * `recipient_id`: Account ID of the recipient.
+		/// * `amount`: Amount of balance to transfer.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole minute.
@@ -337,8 +334,8 @@ use super::*;
 			if who == recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
-
-			Self::validate_and_schedule_task(Action::Transfer{ sender: who.clone(), recipient: recipient_id, amount }, who.clone(), provided_id, time)?;
+			let action = Action::Transfer{ sender: who.clone(), recipient: recipient_id, amount };
+			Self::validate_and_schedule_task(action, who, provided_id, time)?;
 			Ok(().into())
 		}
 
@@ -436,8 +433,6 @@ use super::*;
 			let update_weight = Self::update_task_queue();
 
 			// need to calculate the weight of running just 1 task below.
-			info!("Update Weight: {:?}", update_weight);
-			info!("Weight at start of trigger tasks: {:?}", weight_left);
 			if weight_left < update_weight + 10_000 {
 				return update_weight
 			} else {
@@ -445,14 +440,10 @@ use super::*;
 			}
 
 			let task_queue = Self::get_task_queue();
-			info!("Task Queue length: {:?}", task_queue.len());
-			info!("Weight in Trigger Tasks: {:?}", weight_left);
 			if task_queue.len() > 0 {
 				// calculate cost of all but the run_tasks fcn.
 				weight_left -= 10_000;
-				info!("Weight Left Before Run Tasks: {:?}", weight_left);
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-				info!("New Weight if Task Queue: {:?}", new_weight_left);
 				TaskQueue::<T>::put(tasks_left);
 				weight_left = new_weight_left;
 			}
@@ -525,12 +516,8 @@ use super::*;
 			weight_left -= 10_000;
 
 			let mut consumed_task_index: usize = 0;
-			info!("Weight Left in run tasks: {:?}", weight_left);
-			info!("Tasks: {:?}", task_ids.len());
-			info!("Task Index: {:?}", consumed_task_index);
 			for task_id in task_ids.iter() {
 				consumed_task_index += 1;
-				info!("Task ID: {:?}", task_id);
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
@@ -572,18 +559,15 @@ use super::*;
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			// check for sufficient funds in the sender Balance
-			let sender_balance = <T as Config>::Currency::free_balance(&sender);
-			if sender_balance < amount {
-				Self::deposit_event(Event::InsufficientFunds { task_id });
-				return 10_000;
-			}
+			// let sender_balance = <T as Config>::Currency::free_balance(&sender);
+			// if sender_balance < amount {
+			// 	Self::deposit_event(Event::InsufficientFunds { task_id });
+			// 	return 10_000;
+			// }
 			match <T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive) {
-				Ok(_number)  => (),
+				Ok(_number)  => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
         		Err(_e) => Self::deposit_event(Event::TransferFailed { task_id }),
 			};
-
-			Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id });
 
 			10_000
 		}
@@ -666,9 +650,9 @@ use super::*;
 
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 			let task: Task<T> = match action {
-				Action::Notify { message } => Task::<T>::create_event_task(who.clone(), provided_id, time, message),
-				Action::Transfer { sender, recipient, amount } =>
-					Task::<T>::create_transfer_task(sender.clone(), provided_id, time, recipient, amount),
+				Action::Notify { message: _ } => Task::<T> { owner_id: who.clone(), provided_id, time, action },
+				Action::Transfer { ref sender, recipient: _, amount: _ } =>
+					Task::<T> { owner_id: sender.clone(), provided_id, time, action },
 			};
 			<Tasks<T>>::insert(task_id, task);
 

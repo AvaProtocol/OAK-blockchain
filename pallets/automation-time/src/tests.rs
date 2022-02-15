@@ -526,24 +526,6 @@ fn add_notify_task_to_task_queue(
 	task_id
 }
 
-fn _add_transfer_task_to_task_queue(
-	owner: AccountId,
-	provided_id: Vec<u8>,
-	scheduled_time: u64,
-	receiver_id: AccountId,
-	amount: Balance
-) -> sp_core::H256 {
-	let task_hash_input =
-		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
-	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task = Task::<Test>::create_transfer_task(owner, provided_id, scheduled_time, receiver_id, amount);
-	Tasks::<Test>::insert(task_id, task);
-	let mut task_queue = AutomationTime::get_task_queue();
-	task_queue.push(task_id);
-	TaskQueue::<Test>::put(task_queue);
-	task_id
-}
-
 fn events() -> Vec<Event> {
 	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
 
