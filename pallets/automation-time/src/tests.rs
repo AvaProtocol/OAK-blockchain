@@ -551,7 +551,7 @@ fn trigger_tasks_completes_some_transfer_tasks() {
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(90_000);
+		AutomationTime::trigger_tasks(120_000);
 
 		assert_eq!(Balances::free_balance(ALICE), 998);
 		assert_eq!(Balances::free_balance(BOB), 2);
