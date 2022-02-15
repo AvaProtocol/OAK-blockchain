@@ -17,7 +17,7 @@
 
 use crate as pallet_automation_time;
 // use crate as pallet_balances;
-use frame_support::{parameter_types, traits::{Everything, Currency}, weights::Weight};
+use frame_support::{parameter_types, traits::{Everything}, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{

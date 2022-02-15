@@ -128,6 +128,38 @@ fn schedule_notify_works() {
 }
 
 #[test]
+fn schedule_transfer_invalid_amount() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_transfer_task(
+				Origin::signed(ALICE),
+				vec![50],
+				SCHEDULED_TIME,
+				BOB,
+				1,
+			),
+			Error::<Test>::InvalidAmount,
+		);
+	})
+}
+
+#[test]
+fn schedule_transfer_cannot_transfer_to_self() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_transfer_task(
+				Origin::signed(ALICE),
+				vec![50],
+				SCHEDULED_TIME,
+				ALICE,
+				10_000_000_000,
+			),
+			Error::<Test>::TransferToSelf,
+		);
+	})
+}
+
+#[test]
 fn schedule_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_ok!(AutomationTime::schedule_transfer_task(
@@ -244,7 +276,7 @@ fn cancel_works_for_scheduled() {
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner: AccountId = ALICE;
-		let task_id = add_task_to_task_queue(owner, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
+		let task_id = add_notify_task_to_task_queue(owner, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
 
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
 		assert_eq!(1, AutomationTime::get_task_queue().len());
@@ -349,9 +381,9 @@ fn trigger_tasks_nothing_to_do() {
 fn trigger_tasks_completes_all_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		add_notify_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_transfer_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, BOB, 10_000_000_000);
+		add_notify_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
 
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 		System::reset_events();
@@ -373,9 +405,9 @@ fn trigger_tasks_completes_all_tasks() {
 fn trigger_tasks_completes_some_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		add_notify_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
+		add_notify_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
 
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 		System::reset_events();
@@ -395,7 +427,7 @@ fn trigger_tasks_completes_some_tasks() {
 fn trigger_tasks_adds_more_tasks_to_task_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		add_notify_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
 		schedule_task(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
 		let message_three: Vec<u8> = vec![2, 4];
@@ -422,7 +454,7 @@ fn trigger_tasks_adds_more_tasks_to_task_queue() {
 fn trigger_tasks_only_adds_tasks_to_task_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		add_notify_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME - 120);
 		System::reset_events();
@@ -437,9 +469,9 @@ fn trigger_tasks_only_adds_tasks_to_task_queue() {
 fn on_init_runs_tasks() {
 	new_test_ext(SCHEDULED_TIME * 1_000).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		add_notify_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
+		add_notify_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
 
 		LastTimeSlot::<Test>::put(SCHEDULED_TIME);
 		System::reset_events();
@@ -477,7 +509,7 @@ fn schedule_task(
 	BlakeTwo256::hash_of(&task_hash_input)
 }
 
-fn add_task_to_task_queue(
+fn add_notify_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
 	scheduled_time: u64,
@@ -494,7 +526,7 @@ fn add_task_to_task_queue(
 	task_id
 }
 
-fn add_transfer_task_to_task_queue(
+fn _add_transfer_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
 	scheduled_time: u64,

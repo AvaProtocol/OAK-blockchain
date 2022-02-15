@@ -288,20 +288,11 @@ use super::*;
 			message: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			if provided_id.len() == 0 {
-				Err(Error::<T>::EmptyProvidedId)?
-			}
 			if message.len() == 0 {
 				Err(Error::<T>::EmptyMessage)?
 			}
-			Self::is_valid_time(time)?;
 
-			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
-
-			let task = Task::<T>::create_event_task(who.clone(), provided_id, time, message);
-			<Tasks<T>>::insert(task_id, task);
-
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Self::validate_and_schedule_task(Action::Notify { message }, who.clone(), provided_id, time)?;
 			Ok(().into())
 		}
 
