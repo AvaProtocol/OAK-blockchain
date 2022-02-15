@@ -334,7 +334,7 @@ use super::*;
 			provided_id: Vec<u8>,
 			time: UnixTime,
 			recipient_id: T:: AccountId,
-			amount: BalanceOf<T>,
+			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
