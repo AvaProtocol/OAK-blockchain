@@ -141,6 +141,10 @@ pub mod pallet {
 	pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn get_missed_queue)]
+	pub type MissedQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
 	pub type LastTimeSlot<T: Config> = StorageValue<_, UnixTime>;
 
@@ -185,6 +189,11 @@ pub mod pallet {
 		},
 		/// A Task was not found.
 		TaskNotFound {
+			task_id: T::Hash,
+		},
+		/// The task could not be run at the scheduled time.
+		TaskMissed {
+			who: T::AccountId,
 			task_id: T::Hash,
 		},
 	}
@@ -338,15 +347,20 @@ pub mod pallet {
 			// Regardless of how long it takes we still need to update the task queue.
 			let update_weight = Self::update_task_queue();
 
-			// need to calculate the weight of running just 1 task below.
-			if weight_left < update_weight + 10_000 {
+			if update_weight >= weight_left {
 				return update_weight
-			} else {
-				weight_left -= update_weight;
 			}
 
-			let task_queue = Self::get_task_queue();
+			weight_left -= update_weight;
 
+			// need to calculate the weight of running just 1 task below.
+			if weight_left < 60_000 {
+				return weight_left
+			}
+
+			// run as many scheduled tasks as we can
+			let task_queue = Self::get_task_queue();
+			weight_left -= 10_000;
 			if task_queue.len() > 0 {
 				// calculate cost of all but the run_tasks fcn.
 				weight_left -= 10_000;
@@ -356,60 +370,93 @@ pub mod pallet {
 				weight_left = new_weight_left;
 			}
 
+			// if there is weight left we need to handled the missed tasks
+			if weight_left >= 60_000 {
+				let missed_queue = Self::get_missed_queue();
+				weight_left -= 10_000;
+				if missed_queue.len() > 0 {
+					// calculate cost of all but the run_tasks fcn.
+					weight_left -= 10_000;
+					let (tasks_left, new_weight_left) =
+						Self::run_missed_tasks(missed_queue, weight_left);
+
+					MissedQueue::<T>::put(tasks_left);
+					weight_left = new_weight_left;
+				}
+			}
+
 			max_weight - weight_left
 		}
 
 		/// Update the task queue.
 		///
-		/// This function will check for any time slots we have passed or are in.
-		/// For all relevant time slots it will append those task_ids to the task queue, starting with the oldest.
-		/// It will then remove those time slots from the Scheduled tasks map.
+		/// This function checks to see if we are in a new time slot, and if so it updates the task queue and missing queue by doing the following.
+		/// 1. Append the current task queue to the missed queue.
+		/// 2. Make all tasks from the new slot into the task queue.
+		/// 3. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
+		/// 4. Remove all relevant time slots from the Scheduled tasks map.
 		///
 		/// TODO (ENG-157): calculate weights.
 		fn update_task_queue() -> Weight {
 			// need to calculate the base fn weight.
-			let base_weight = 10_000;
-			let mut total_weight = base_weight;
+			let mut total_weight = 10_000;
 
-			let time_slot = match Self::get_current_time_slot() {
+			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				Err(_) => return total_weight,
 			};
 
 			if let Some(last_time_slot) = Self::get_last_slot() {
-				if time_slot != last_time_slot {
-					let task_queue = Self::get_task_queue();
-					let diff = (time_slot - last_time_slot) / 60;
-					let (append_weight, updated_task_queue) =
-						Self::append_to_task_queue(task_queue, last_time_slot, diff);
-					TaskQueue::<T>::put(updated_task_queue);
+				if current_time_slot != last_time_slot {
+					// will need to move task queue into missed queue
+					let missed_tasks = Self::get_task_queue();
+
+					// will need to move missed time slots into missed queue
+					let diff = ((current_time_slot - last_time_slot) / 60) - 1;
+					let (append_weight, mut missed_tasks) =
+						Self::append_to_missed_tasks(missed_tasks, last_time_slot, diff);
+
+					// Update the missed queue
+					let mut missed_queue = Self::get_missed_queue();
+					missed_queue.append(&mut missed_tasks);
+					MissedQueue::<T>::put(missed_queue);
+
+					// move current time slot to task queue or clear the task queue
+					if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
+						TaskQueue::<T>::put(task_ids);
+						ScheduledTasks::<T>::remove(current_time_slot);
+					} else {
+						let empty_queue: Vec<T::Hash> = vec![];
+						TaskQueue::<T>::put(empty_queue);
+					}
+
+					LastTimeSlot::<T>::put(current_time_slot);
 					// need to figure out how much it costs for all but the fcn call in this if statement.
-					total_weight += append_weight + 10_000;
+					total_weight += append_weight + 20_000;
 				}
-				LastTimeSlot::<T>::put(time_slot);
 			} else {
-				LastTimeSlot::<T>::put(time_slot);
+				LastTimeSlot::<T>::put(current_time_slot);
 			}
 
 			total_weight
 		}
 
 		/// TODO (ENG-157): calculate weights.
-		fn append_to_task_queue(
-			mut task_queue: Vec<T::Hash>,
+		fn append_to_missed_tasks(
+			mut missed_tasks: Vec<T::Hash>,
 			last_time_slot: UnixTime,
 			diff: u64,
 		) -> (Weight, Vec<T::Hash>) {
 			for i in 0..diff {
 				let new_time_slot = last_time_slot + (i + 1) * 60;
 				if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
-					task_queue.append(&mut task_ids.into_inner());
+					missed_tasks.append(&mut task_ids.into_inner());
 					ScheduledTasks::<T>::remove(new_time_slot);
 				}
 			}
 			// need to figure out how much each iteration costs.
-			let cost = diff * 20_000;
-			(cost, task_queue)
+			let weight = diff * 20_000;
+			(weight, missed_tasks)
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
@@ -432,8 +479,58 @@ pub mod pallet {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
 						10_000
 					},
-					Some(task) => match task.action {
-						Action::Notify { message } => Self::run_notify_task(message),
+					Some(task) => {
+						let action_weight = match task.action {
+							Action::Notify { message } => Self::run_notify_task(message),
+						};
+						Tasks::<T>::remove(task_id);
+						action_weight + 10_000
+					},
+				};
+
+				// need to calculate the look cost minus the action
+				weight_left = weight_left - action_weight - 10_000;
+
+				// need to calculate the max cost of the loop
+				if weight_left < 20_000 {
+					break
+				}
+			}
+
+			if consumed_task_index == task_ids.len() {
+				return (vec![], weight_left)
+			} else {
+				return (task_ids.split_off(consumed_task_index), weight_left)
+			}
+		}
+
+		/// Send events for as many missed tasks as the weight allows from the provided vec of task_ids.
+		///
+		/// Returns a vec with the tasks that were not run and the remaining weight.
+		/// TODO (ENG-157): calculate weights.
+		fn run_missed_tasks(
+			mut task_ids: Vec<T::Hash>,
+			mut weight_left: Weight,
+		) -> (Vec<T::Hash>, Weight) {
+			// need to calculate the weight of the fn minus the loop.
+			weight_left -= 10_000;
+
+			let mut consumed_task_index: usize = 0;
+			for task_id in task_ids.iter() {
+				consumed_task_index += 1;
+
+				let action_weight = match Self::get_task(task_id) {
+					None => {
+						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
+						10_000
+					},
+					Some(task) => {
+						Self::deposit_event(Event::TaskMissed {
+							who: task.owner_id.clone(),
+							task_id: task_id.clone(),
+						});
+						Tasks::<T>::remove(task_id);
+						10_000
 					},
 				};
 

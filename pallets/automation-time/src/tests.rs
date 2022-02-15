@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, Error, LastTimeSlot, Task, TaskHashInput, TaskQueue, Tasks};
+use crate::{mock::*, Error, LastTimeSlot, MissedQueue, Task, TaskHashInput, TaskQueue, Tasks};
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
 use sp_runtime::traits::{BlakeTwo256, Hash};
@@ -210,7 +210,7 @@ fn cancel_works_for_scheduled() {
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner: AccountId = ALICE;
-		let task_id = add_task_to_task_queue(owner, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
+		let task_id = add_task_to_task_queue(owner, vec![40], vec![2, 4, 5]);
 
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
 		assert_eq!(1, AutomationTime::get_task_queue().len());
@@ -287,13 +287,17 @@ fn force_cancel_task_works() {
 // Weights to use for tests below
 //20_000 for nothing
 //10_000 for no updates
-//10_000 + 10_000 + 20_000 per time slot added to queue
-//10_000 + 10_000 + 20_000 per task run
+//20_000 for a new time slot
+//20_000 per time slot missed
+//10_000 to check if we have tasks to run
+//10_000 + 10_000 + 30_000 per task run OR 20_000 per unfound task
+//10_000 to check if we have missed tasks to run
+//10_000 + 10_000 + 30_000 per missed task run
 
 #[test]
 fn trigger_tasks_handles_first_run() {
 	new_test_ext(0).execute_with(|| {
-		AutomationTime::trigger_tasks(60_000);
+		AutomationTime::trigger_tasks(30_000);
 
 		assert_eq!(events(), vec![],);
 	})
@@ -302,11 +306,52 @@ fn trigger_tasks_handles_first_run() {
 #[test]
 fn trigger_tasks_nothing_to_do() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_eq!(START_BLOCK_TIME > LAST_BLOCK_TIME, true);
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 
-		AutomationTime::trigger_tasks(60_000);
+		AutomationTime::trigger_tasks(30_000);
 
+		assert_eq!(events(), vec![],);
+	})
+}
+
+#[test]
+fn trigger_tasks_updates_queues() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let missed_task_id = add_task_to_task_queue(ALICE, vec![40], vec![40]);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+		let scheduled_task_id = schedule_task(ALICE, vec![50], SCHEDULED_TIME, vec![50]);
+		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
+		LastTimeSlot::<Test>::put(SCHEDULED_TIME - 60);
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(50_000);
+
+		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
+		assert_eq!(AutomationTime::get_missed_queue()[0], missed_task_id);
+		assert_eq!(AutomationTime::get_task_queue().len(), 1);
+		assert_eq!(AutomationTime::get_task_queue()[0], scheduled_task_id);
+		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
+		assert_eq!(events(), vec![],);
+	})
+}
+
+#[test]
+fn trigger_tasks_handles_missed_slots() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		add_task_to_task_queue(ALICE, vec![40], vec![40]);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+		let missed_task_id = schedule_task(ALICE, vec![50], SCHEDULED_TIME - 60, vec![50]);
+		let scheduled_task_id = schedule_task(ALICE, vec![60], SCHEDULED_TIME, vec![50]);
+		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
+		LastTimeSlot::<Test>::put(SCHEDULED_TIME - 120);
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(70_000);
+
+		assert_eq!(AutomationTime::get_missed_queue().len(), 2);
+		assert_eq!(AutomationTime::get_missed_queue()[1], missed_task_id);
+		assert_eq!(AutomationTime::get_task_queue().len(), 1);
+		assert_eq!(AutomationTime::get_task_queue()[0], scheduled_task_id);
 		assert_eq!(events(), vec![],);
 	})
 }
@@ -315,61 +360,10 @@ fn trigger_tasks_nothing_to_do() {
 fn trigger_tasks_completes_all_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		let task_id1 = add_task_to_task_queue(ALICE, vec![40], message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
-
+		let task_id2 = add_task_to_task_queue(ALICE, vec![50], message_two.clone());
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
-		System::reset_events();
-
-		AutomationTime::trigger_tasks(90_000);
-
-		assert_eq!(
-			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
-				Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
-			]
-		);
-		assert_eq!(0, AutomationTime::get_task_queue().len());
-	})
-}
-
-#[test]
-fn trigger_tasks_completes_some_tasks() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
-		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
-
-		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
-		System::reset_events();
-
-		AutomationTime::trigger_tasks(70_000);
-
-		assert_eq!(
-			events(),
-			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
-		);
-
-		assert_eq!(1, AutomationTime::get_task_queue().len());
-	})
-}
-
-#[test]
-fn trigger_tasks_adds_more_tasks_to_task_queue() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
-		let message_two: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
-		let message_three: Vec<u8> = vec![2, 4];
-		schedule_task(ALICE, vec![60], SCHEDULED_TIME, message_three.clone());
-
-		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
-		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME + 60);
-		System::reset_events();
 
 		AutomationTime::trigger_tasks(120_000);
 
@@ -380,49 +374,111 @@ fn trigger_tasks_adds_more_tasks_to_task_queue() {
 				Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 			]
 		);
-		assert_eq!(1, AutomationTime::get_task_queue().len());
+		assert_eq!(0, AutomationTime::get_task_queue().len());
+		assert_eq!(AutomationTime::get_task(task_id1), None);
+		assert_eq!(AutomationTime::get_task(task_id2), None);
 	})
 }
 
 #[test]
-fn trigger_tasks_only_adds_tasks_to_task_queue() {
+fn trigger_tasks_handles_nonexisting_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_hash_input = TaskHashInput::<Test>::create_hash_input(ALICE, vec![20]);
+		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
+		let mut task_queue = AutomationTime::get_task_queue();
+		task_queue.push(bad_task_id);
+		TaskQueue::<Test>::put(task_queue);
+		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
+
+		AutomationTime::trigger_tasks(90_000);
+
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::TaskNotFound { task_id: bad_task_id }),]
+		);
+		assert_eq!(0, AutomationTime::get_task_queue().len());
+	})
+}
+
+#[test]
+fn trigger_tasks_completes_some_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
-
-		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME - 120);
-		System::reset_events();
-
-		AutomationTime::trigger_tasks(20_000);
-
-		assert_eq!(events(), vec![],);
-	})
-}
-
-#[test]
-fn on_init_runs_tasks() {
-	new_test_ext(SCHEDULED_TIME * 1_000).execute_with(|| {
-		let message_one: Vec<u8> = vec![2, 4, 5];
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, message_one.clone());
+		let task_id1 = add_task_to_task_queue(ALICE, vec![40], message_one.clone());
 		let message_two: Vec<u8> = vec![2, 4];
-		add_task_to_task_queue(ALICE, vec![50], SCHEDULED_TIME, message_two.clone());
+		let task_id2 = add_task_to_task_queue(ALICE, vec![50], message_two.clone());
+		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 
-		LastTimeSlot::<Test>::put(SCHEDULED_TIME);
-		System::reset_events();
+		AutomationTime::trigger_tasks(90_000);
 
-		AutomationTime::on_initialize(1);
 		assert_eq!(
 			events(),
 			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
 		);
 
+		assert_eq!(1, AutomationTime::get_task_queue().len());
+		assert_eq!(AutomationTime::get_task(task_id1), None);
+		assert_ne!(AutomationTime::get_task(task_id2), None);
+	})
+}
+
+#[test]
+fn trigger_tasks_completes_all_missed_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 = add_task_to_missed_queue(ALICE, vec![40], vec![40]);
+		let task_id2 = add_task_to_missed_queue(ALICE, vec![50], vec![40]);
+		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
+
+		AutomationTime::trigger_tasks(130_000);
+
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1 }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2 }),
+			]
+		);
+
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+		assert_eq!(AutomationTime::get_task(task_id1), None);
+		assert_eq!(AutomationTime::get_task(task_id2), None);
+	})
+}
+
+#[test]
+fn on_init_runs_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let message_one: Vec<u8> = vec![2, 4, 5];
+		let task_id1 = add_task_to_task_queue(ALICE, vec![40], message_one.clone());
+		let message_two: Vec<u8> = vec![2, 4];
+		let task_id2 = add_task_to_task_queue(ALICE, vec![50], message_two.clone());
+		let task_id3 = add_task_to_task_queue(ALICE, vec![60], vec![50]);
+		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
+
+		AutomationTime::on_initialize(1);
+
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+			]
+		);
+		assert_eq!(AutomationTime::get_task(task_id1), None);
+		assert_eq!(AutomationTime::get_task(task_id2), None);
+		assert_ne!(AutomationTime::get_task(task_id3), None);
+		assert_eq!(AutomationTime::get_task_queue().len(), 1);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
+		Timestamp::set_timestamp(START_BLOCK_TIME + (60 * 1_000));
 		AutomationTime::on_initialize(2);
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::Notify { message: message_two.clone() }),]
+			[Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id3 })],
 		);
-
-		assert_eq!(0, AutomationTime::get_task_queue().len());
+		assert_eq!(AutomationTime::get_task(task_id3), None);
+		assert_eq!(AutomationTime::get_task_queue().len(), 0);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 	})
 }
 
@@ -446,6 +502,30 @@ fn schedule_task(
 fn add_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
+	message: Vec<u8>,
+) -> sp_core::H256 {
+	let task_id = create_task(owner, provided_id, 0, message);
+	let mut task_queue = AutomationTime::get_task_queue();
+	task_queue.push(task_id);
+	TaskQueue::<Test>::put(task_queue);
+	task_id
+}
+
+fn add_task_to_missed_queue(
+	owner: AccountId,
+	provided_id: Vec<u8>,
+	message: Vec<u8>,
+) -> sp_core::H256 {
+	let task_id = create_task(owner, provided_id, 0, message);
+	let mut missed_queue = AutomationTime::get_missed_queue();
+	missed_queue.push(task_id);
+	MissedQueue::<Test>::put(missed_queue);
+	task_id
+}
+
+fn create_task(
+	owner: AccountId,
+	provided_id: Vec<u8>,
 	scheduled_time: u64,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
@@ -454,9 +534,6 @@ fn add_task_to_task_queue(
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task = Task::<Test>::create_event_task(owner, provided_id, scheduled_time, message);
 	Tasks::<Test>::insert(task_id, task);
-	let mut task_queue = AutomationTime::get_task_queue();
-	task_queue.push(task_id);
-	TaskQueue::<Test>::put(task_queue);
 	task_id
 }
 
