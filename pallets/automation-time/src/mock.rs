@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate as pallet_automation_time;
-use frame_support::{parameter_types, traits::{Everything}, weights::Weight};
+use frame_support::{parameter_types, traits::Everything, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -112,7 +112,7 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = 700_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
-	pub const ExistentialDeposit: u64 = 10_000_000_000 / 10;
+	pub const ExistentialDeposit: u64 = 1;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -121,9 +121,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		0
 	}
 	fn schedule_notify_task_existing_slot() -> Weight {
-		0
-	}
-	fn schedule_transfer_task_new_slot() -> Weight {
 		0
 	}
 	fn schedule_transfer_task_existing_slot() -> Weight {

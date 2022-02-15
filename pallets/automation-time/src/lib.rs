@@ -41,13 +41,15 @@ mod benchmarking;
 pub mod weights;
 
 use core::convert::TryInto;
-use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec, traits::{ Currency }};
+use frame_support::{
+	inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec,
+};
 use frame_system::pallet_prelude::*;
+use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, Perbill};
 use sp_std::vec;
-use log::info;
 
 pub use weights::WeightInfo;
 
@@ -55,11 +57,10 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use frame_support::traits::ExistenceRequirement;
 
-use super::*;
+	use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -67,11 +68,7 @@ use super::*;
 	#[scale_info(skip_type_params(T))]
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
-		Transfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		},
+		Transfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -101,11 +98,8 @@ use super::*;
 			recipient_id: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> Task<T> {
-			let action = Action::Transfer {
-				sender: owner_id.clone(),
-				recipient: recipient_id,
-				amount,
-			};
+			let action =
+				Action::Transfer { sender: owner_id.clone(), recipient: recipient_id, amount };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -235,13 +229,8 @@ use super::*;
 		/// Transfer Failed
 		TransferFailed {
 			task_id: T::Hash,
+			error: DispatchError,
 		},
-		/// Transfer event for the task.
-		Transfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		}
 	}
 
 	#[pallet::hooks]
@@ -287,11 +276,16 @@ use super::*;
 				Err(Error::<T>::EmptyMessage)?
 			}
 
-			Self::validate_and_schedule_task(Action::Notify { message }, who.clone(), provided_id, time)?;
+			Self::validate_and_schedule_task(
+				Action::Notify { message },
+				who.clone(),
+				provided_id,
+				time,
+			)?;
 			Ok(().into())
 		}
 
-		/// Schedule a task to fire an event with a custom message.
+		/// Schedule a task to transfer balance from sender to recipient.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
@@ -312,7 +306,6 @@ use super::*;
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
-		/// * `InvalidRecipient`: Recipient must be a valid address.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `InsufficientFunds`: Amount in sender account is insufficient.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
@@ -321,7 +314,7 @@ use super::*;
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			time: UnixTime,
-			recipient_id: T:: AccountId,
+			recipient_id: T::AccountId,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -334,7 +327,7 @@ use super::*;
 			if who == recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
-			let action = Action::Transfer{ sender: who.clone(), recipient: recipient_id, amount };
+			let action = Action::Transfer { sender: who.clone(), recipient: recipient_id, amount };
 			Self::validate_and_schedule_task(action, who, provided_id, time)?;
 			Ok(().into())
 		}
@@ -526,7 +519,7 @@ use super::*;
 					Some(task) => match task.action {
 						Action::Notify { message } => Self::run_notify_task(message),
 						Action::Transfer { sender, recipient, amount } =>
-							Self::transfer(sender, recipient, amount, task_id.clone()),
+							Self::run_transfer_task(sender, recipient, amount, task_id.clone()),
 					},
 				};
 
@@ -553,20 +546,20 @@ use super::*;
 			10_000
 		}
 
-		fn transfer(
+		fn run_transfer_task(
 			sender: T::AccountId,
 			recipient: T::AccountId,
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			// let sender_balance = <T as Config>::Currency::free_balance(&sender);
-			// if sender_balance < amount {
-			// 	Self::deposit_event(Event::InsufficientFunds { task_id });
-			// 	return 10_000;
-			// }
-			match <T as Config>::Currency::transfer(&sender, &recipient, amount, ExistenceRequirement::KeepAlive) {
-				Ok(_number)  => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
-        		Err(_e) => Self::deposit_event(Event::TransferFailed { task_id }),
+			match <T as Config>::Currency::transfer(
+				&sender,
+				&recipient,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			) {
+				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
+				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
 
 			10_000
@@ -639,7 +632,7 @@ use super::*;
 
 		pub fn validate_and_schedule_task(
 			action: Action<T>,
-			who: T:: AccountId,
+			who: T::AccountId,
 			provided_id: Vec<u8>,
 			time: UnixTime,
 		) -> Result<(), Error<T>> {
@@ -649,16 +642,12 @@ use super::*;
 			Self::is_valid_time(time)?;
 
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
-			let task: Task<T> = match action {
-				Action::Notify { message: _ } => Task::<T> { owner_id: who.clone(), provided_id, time, action },
-				Action::Transfer { ref sender, recipient: _, amount: _ } =>
-					Task::<T> { owner_id: sender.clone(), provided_id, time, action },
-			};
+			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
 			<Tasks<T>>::insert(task_id, task);
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
-    	}
+		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
 			let task_hash_input =
