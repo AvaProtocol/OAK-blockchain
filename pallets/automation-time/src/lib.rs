@@ -683,7 +683,7 @@ use super::*;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
-    }
+    	}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
 			let task_hash_input =
