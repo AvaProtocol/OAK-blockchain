@@ -195,8 +195,6 @@ pub mod pallet {
 		InvalidAmount,
 		/// Sender cannot transfer money to self.
 		TransferToSelf,
-		/// Sender has insufficient funds in account to complete transaction.
-		InsufficientFunds,
 	}
 
 	#[pallet::event]
@@ -218,10 +216,6 @@ pub mod pallet {
 		},
 		/// A Task was not found.
 		TaskNotFound {
-			task_id: T::Hash,
-		},
-		/// Insufficient funds for transfer
-		InsufficientFunds {
 			task_id: T::Hash,
 		},
 		/// Succcessfully transferred funds
@@ -309,8 +303,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
-		/// * `InsufficientFunds`: Amount in sender account is insufficient.
-		/// * `TransferFailed`: Transfer failed for unknown reason.
+		/// * `TransferFailed`: Transfer failed.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
 		pub fn schedule_transfer_task(
 			origin: OriginFor<T>,
