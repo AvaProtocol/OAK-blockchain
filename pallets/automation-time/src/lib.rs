@@ -125,6 +125,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxTasksPerSlot: Get<u32>;
 
+		/// The farthest out a task can be scheduled.
+		#[pallet::constant]
+		type MaxScheduleSeconds: Get<u64>;
+
 		/// The maximum weight per block.
 		#[pallet::constant]
 		type MaxBlockWeight: Get<Weight>;
@@ -177,6 +181,8 @@ pub mod pallet {
 		InvalidTime,
 		/// Time must be in the future.
 		PastTime,
+		/// Time cannot be too far in the future.
+		TimeTooFarOut,
 		/// The message cannot be empty.
 		EmptyMessage,
 		/// The provided_id cannot be empty
@@ -390,9 +396,12 @@ pub mod pallet {
 			Ok(now - diff_to_min)
 		}
 
-		/// Checks to see if the scheduled time is a valid timestamp.
+		/// Checks to see if the scheduled time is valid.
 		///
-		/// In order for a time to be valid it must end in a whole minute and be in the future.
+		/// In order for a time to be valid it must
+		/// - End in a whole minute
+		/// - Be in the future
+		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
 			let remainder = scheduled_time % 60;
 			if remainder != 0 {
@@ -402,6 +411,10 @@ pub mod pallet {
 			let current_time_slot = Self::get_current_time_slot()?;
 			if scheduled_time <= current_time_slot {
 				Err(<Error<T>>::PastTime)?;
+			}
+
+			if scheduled_time > current_time_slot + T::MaxScheduleSeconds::get() {
+				Err(Error::<T>::TimeTooFarOut)?;
 			}
 
 			Ok(())
