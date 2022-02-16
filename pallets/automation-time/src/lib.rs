@@ -41,7 +41,7 @@ mod benchmarking;
 pub mod weights;
 
 use core::convert::TryInto;
-use frame_support::{ pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec};
+use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
@@ -283,12 +283,7 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
-			Self::validate_and_schedule_task(
-				Action::Notify { message },
-				who,
-				provided_id,
-				time,
-			)?;
+			Self::validate_and_schedule_task(Action::Notify { message }, who, provided_id, time)?;
 			Ok(().into())
 		}
 
