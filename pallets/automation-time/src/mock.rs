@@ -112,6 +112,7 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
@@ -151,6 +152,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
