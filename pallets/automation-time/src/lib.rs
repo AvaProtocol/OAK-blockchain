@@ -41,8 +41,11 @@ mod benchmarking;
 pub mod weights;
 
 use core::convert::TryInto;
-use frame_support::{inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
+use frame_support::{
+	inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec,
+};
 use frame_system::pallet_prelude::*;
+use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, Perbill};
@@ -52,16 +55,20 @@ pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::traits::ExistenceRequirement;
+
 	use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
+	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub enum Action {
+	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
+		Transfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -71,7 +78,7 @@ pub mod pallet {
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
 		time: UnixTime,
-		action: Action,
+		action: Action<T>,
 	}
 
 	impl<T: Config> Task<T> {
@@ -82,6 +89,17 @@ pub mod pallet {
 			message: Vec<u8>,
 		) -> Task<T> {
 			let action = Action::Notify { message };
+			Task::<T> { owner_id, provided_id, time, action }
+		}
+		pub fn create_transfer_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			time: UnixTime,
+			recipient_id: AccountOf<T>,
+			amount: BalanceOf<T>,
+		) -> Task<T> {
+			let action =
+				Action::Transfer { sender: owner_id.clone(), recipient: recipient_id, amount };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -121,6 +139,13 @@ pub mod pallet {
 		/// The time each block takes.
 		#[pallet::constant]
 		type SecondsPerBlock: Get<u64>;
+
+		/// Lowest Amount that a deposit can possibly be.
+		#[pallet::constant]
+		type ExistentialDeposit: Get<BalanceOf<Self>>;
+
+		/// The Currency handler
+		type Currency: Currency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -168,6 +193,12 @@ pub mod pallet {
 		TaskDoesNotExist,
 		/// Block time not set.
 		BlockTimeNotSet,
+		/// Amount has to be larger than 0.1 OAK.
+		InvalidAmount,
+		/// Sender cannot transfer money to self.
+		TransferToSelf,
+		/// Sender has insufficient funds in account to complete transaction.
+		InsufficientFunds,
 	}
 
 	#[pallet::event]
@@ -190,6 +221,19 @@ pub mod pallet {
 		/// A Task was not found.
 		TaskNotFound {
 			task_id: T::Hash,
+		},
+		/// Insufficient funds for transfer
+		InsufficientFunds {
+			task_id: T::Hash,
+		},
+		/// Succcessfully transferred funds
+		SuccesfullyTransferredFunds {
+			task_id: T::Hash,
+		},
+		/// Transfer Failed
+		TransferFailed {
+			task_id: T::Hash,
+			error: DispatchError,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
@@ -237,20 +281,63 @@ pub mod pallet {
 			message: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			if provided_id.len() == 0 {
-				Err(Error::<T>::EmptyProvidedId)?
-			}
 			if message.len() == 0 {
 				Err(Error::<T>::EmptyMessage)?
 			}
-			Self::is_valid_time(time)?;
 
-			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
+			Self::validate_and_schedule_task(
+				Action::Notify { message },
+				who,
+				provided_id,
+				time,
+			)?;
+			Ok(().into())
+		}
 
-			let task = Task::<T>::create_event_task(who.clone(), provided_id, time, message);
-			<Tasks<T>>::insert(task_id, task);
+		/// Schedule a task to transfer balance from sender to recipient.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The provided_id's length > 0
+		/// * The time is valid
+		/// * Larger transfer amount than the acceptable minimum
+		/// * Transfer to account other than to self
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `recipient_id`: Account ID of the recipient.
+		/// * `amount`: Amount of balance to transfer.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Time must end in a whole minute.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
+		/// * `TransferToSelf`: Sender cannot transfer money to self.
+		/// * `InsufficientFunds`: Amount in sender account is insufficient.
+		/// * `TransferFailed`: Transfer failed for unknown reason.
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
+		pub fn schedule_transfer_task(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			time: UnixTime,
+			recipient_id: T::AccountId,
+			#[pallet::compact] amount: BalanceOf<T>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			// check for greater than existential deposit
+			if amount < T::ExistentialDeposit::get() {
+				Err(<Error<T>>::InvalidAmount)?
+			}
+			// check not sent to self
+			if who == recipient_id {
+				Err(<Error<T>>::TransferToSelf)?
+			}
+			let action = Action::Transfer { sender: who.clone(), recipient: recipient_id, amount };
+			Self::validate_and_schedule_task(action, who, provided_id, time)?;
 			Ok(().into())
 		}
 
@@ -365,7 +452,6 @@ pub mod pallet {
 				// calculate cost of all but the run_tasks fcn.
 				weight_left -= 10_000;
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-
 				TaskQueue::<T>::put(tasks_left);
 				weight_left = new_weight_left;
 			}
@@ -473,7 +559,6 @@ pub mod pallet {
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index += 1;
-
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
@@ -482,6 +567,8 @@ pub mod pallet {
 					Some(task) => {
 						let action_weight = match task.action {
 							Action::Notify { message } => Self::run_notify_task(message),
+							Action::Transfer { sender, recipient, amount } =>
+								Self::run_transfer_task(sender, recipient, amount, task_id.clone()),
 						};
 						Tasks::<T>::remove(task_id);
 						action_weight + 10_000
@@ -557,6 +644,25 @@ pub mod pallet {
 			10_000
 		}
 
+		fn run_transfer_task(
+			sender: T::AccountId,
+			recipient: T::AccountId,
+			amount: BalanceOf<T>,
+			task_id: T::Hash,
+		) -> Weight {
+			match <T as Config>::Currency::transfer(
+				&sender,
+				&recipient,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			) {
+				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
+				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
+			};
+
+			10_000
+		}
+
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
 			match Self::get_scheduled_tasks(task.time) {
@@ -620,6 +726,25 @@ pub mod pallet {
 				},
 			}
 			Ok(task_id)
+		}
+
+		pub fn validate_and_schedule_task(
+			action: Action<T>,
+			who: T::AccountId,
+			provided_id: Vec<u8>,
+			time: UnixTime,
+		) -> Result<(), Error<T>> {
+			if provided_id.len() == 0 {
+				Err(Error::<T>::EmptyProvidedId)?
+			}
+			Self::is_valid_time(time)?;
+
+			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
+			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
+			<Tasks<T>>::insert(task_id, task);
+
+			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Ok(())
 		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {

@@ -692,6 +692,8 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
+	type ExistentialDeposit = ExistentialDeposit;
+	type Currency = Balances;
 }
 
 pub struct ClosedCallFilter;

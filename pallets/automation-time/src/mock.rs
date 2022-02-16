@@ -30,6 +30,7 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
 pub type AccountId = u64;
+pub type Balance = u128;
 
 pub const ALICE: AccountId = 1;
 pub const BOB: AccountId = 2;
@@ -43,9 +44,27 @@ frame_support::construct_runtime!(
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
 	}
 );
+
+parameter_types! {
+	pub const MaxLocks: u32 = 50;
+	pub const MaxReserves: u32 = 50;
+}
+
+impl pallet_balances::Config for Test {
+	type MaxLocks = MaxLocks;
+	type Balance = Balance;
+	type Event = Event;
+	type DustRemoval = ();
+	type ExistentialDeposit = ExistentialDeposit;
+	type AccountStore = System;
+	type WeightInfo = ();
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -70,7 +89,7 @@ impl system::Config for Test {
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
-	type AccountData = ();
+	type AccountData = pallet_balances::AccountData<Balance>;
 	type OnNewAccount = ();
 	type OnKilledAccount = ();
 	type SystemWeightInfo = ();
@@ -93,6 +112,7 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
+	pub const ExistentialDeposit: u64 = 1;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -101,6 +121,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		0
 	}
 	fn schedule_notify_task_existing_slot() -> Weight {
+		0
+	}
+	fn schedule_transfer_task_existing_slot() -> Weight {
 		0
 	}
 	fn cancel_scheduled_task() -> Weight {
@@ -130,6 +153,8 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
+	type ExistentialDeposit = ExistentialDeposit;
+	type Currency = Balances;
 }
 
 // Build genesis storage according to the mock runtime.
