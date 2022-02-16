@@ -420,7 +420,7 @@ pub mod pallet {
 				Err(<Error<T>>::PastTime)?;
 			}
 
-			if scheduled_time >= current_time_slot + T::MaxScheduleSeconds::get() {
+			if scheduled_time > current_time_slot + T::MaxScheduleSeconds::get() {
 				Err(Error::<T>::TimeTooFarOut)?;
 			}
 
