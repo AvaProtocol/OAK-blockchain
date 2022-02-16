@@ -287,7 +287,7 @@ pub mod pallet {
 
 			Self::validate_and_schedule_task(
 				Action::Notify { message },
-				who.clone(),
+				who,
 				provided_id,
 				time,
 			)?;
