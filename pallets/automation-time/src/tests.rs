@@ -536,7 +536,7 @@ fn trigger_tasks_completes_all_missed_tasks() {
 #[test]
 fn trigger_tasks_completes_some_transfer_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5);
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],

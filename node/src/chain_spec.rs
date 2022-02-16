@@ -116,6 +116,7 @@ pub fn development_config() -> ChainSpec {
 		None,
 		None,
 		None,
+		None,
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: DEFAULT_PARA_ID,
@@ -173,6 +174,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		None,
 		// Protocol ID
 		Some("template-local"),
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -234,6 +236,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		None,
 		// Protocol ID
 		Some("neumann"),
+		None,
 		// Properties
 		Some(properties),
 		// Extensions
@@ -286,7 +289,7 @@ fn testnet_genesis(
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: vec![root_key.clone()], phantom: Default::default() },
 		parachain_system: Default::default(),
-		sudo: SudoConfig { key: root_key },
+		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false },
 	}

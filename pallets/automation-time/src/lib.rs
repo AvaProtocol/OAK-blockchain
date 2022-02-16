@@ -41,15 +41,12 @@ mod benchmarking;
 pub mod weights;
 
 use core::convert::TryInto;
-use frame_support::{
-	inherent::Vec, pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec,
-};
+use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec};
 use frame_system::pallet_prelude::*;
-use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{traits::SaturatedConversion, Perbill};
-use sp_std::vec;
+use sp_std::{vec, vec::Vec};
 
 pub use weights::WeightInfo;
 
@@ -149,6 +146,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+	#[pallet::without_storage_info]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
@@ -285,12 +283,7 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
-			Self::validate_and_schedule_task(
-				Action::Notify { message },
-				who,
-				provided_id,
-				time,
-			)?;
+			Self::validate_and_schedule_task(Action::Notify { message }, who, provided_id, time)?;
 			Ok(().into())
 		}
 
