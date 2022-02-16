@@ -35,6 +35,7 @@ use sp_std::marker::PhantomData;
 pub trait WeightInfo {
 	fn schedule_notify_task_new_slot() -> Weight;
 	fn schedule_notify_task_existing_slot() -> Weight;
+	fn schedule_transfer_task_existing_slot() -> Weight;
 	fn cancel_scheduled_task() -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn cancel_overflow_task() -> Weight;
@@ -58,6 +59,15 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_notify_task_existing_slot() -> Weight {
+		(18_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	// TODO: this is placeholder, jzhou will fix
+	fn schedule_transfer_task_existing_slot() -> Weight {
 		(18_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
