@@ -175,6 +175,10 @@ pub mod pallet {
 	#[pallet::getter(fn get_last_slot)]
 	pub type LastTimeSlot<T: Config> = StorageValue<_, UnixTime>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn is_shutdown)]
+	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Time must end in a whole minute.
@@ -243,6 +247,11 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
+			if Self::is_shutdown() == true {
+				// Need to return the real weight used (ENG-157).
+				return 10_000
+			}
+
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
 			Self::trigger_tasks(max_weight);
 			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
