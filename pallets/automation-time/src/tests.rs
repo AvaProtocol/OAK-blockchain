@@ -67,6 +67,21 @@ fn schedule_past_time() {
 }
 
 #[test]
+fn schedule_too_far_out() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![50],
+				SCHEDULED_TIME + 1 * 24 * 60 * 60,
+				vec![12]
+			),
+			Error::<Test>::TimeTooFarOut,
+		);
+	})
+}
+
+#[test]
 fn schedule_no_message() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(

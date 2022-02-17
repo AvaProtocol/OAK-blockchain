@@ -683,6 +683,7 @@ impl pallet_treasury::Config for Runtime {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	pub const MaxScheduleSeconds: u64 = 7 * 24 * 6 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
@@ -692,6 +693,7 @@ parameter_types! {
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
