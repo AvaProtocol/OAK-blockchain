@@ -20,7 +20,10 @@ name = "neumann-collator"
 path = "src/main.rs"
 
 [features]
-runtime-benchmarks = ["neumann-runtime/runtime-benchmarks"]
+runtime-benchmarks = [
+    "neumann-runtime/runtime-benchmarks",
+    "polkadot-cli/runtime-benchmarks",
+    ]
 
 [dependencies]
 async-trait = "0.1.48"
