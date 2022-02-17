@@ -62,12 +62,12 @@ fn set_overflow_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T
 }
 
 benchmarks! {
-	// First task for a slot
+	// First notify task for a slot
 	schedule_notify_task_new_slot {
 		let caller = whitelisted_caller();
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![50], 60, vec![4, 5, 6])
 
-	// Second task for a slot
+	// Second notify task for a slot
 	schedule_notify_task_existing_slot {
 		let caller: T::AccountId = whitelisted_caller();
 		let time: u64 = 120;
@@ -75,6 +75,16 @@ benchmarks! {
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
+
+	// First transfer task for a slot
+	schedule_transfer_task_existing_slot {
+		let caller: T::AccountId = whitelisted_caller();
+		let recipient: T::AccountId = whitelisted_caller();
+		let time: u64 = 120;
+		let count: u8 = 1;
+
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
+	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, 10_000_000_000)
 
 	cancel_scheduled_task {
 		let caller: T::AccountId = whitelisted_caller();

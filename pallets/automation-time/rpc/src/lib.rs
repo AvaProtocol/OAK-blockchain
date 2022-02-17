@@ -84,7 +84,8 @@ where
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash));
 
-		let runtime_api_result = api.generate_task_id(&at, account, provided_id.as_bytes().to_vec());
+		let runtime_api_result =
+			api.generate_task_id(&at, account, provided_id.as_bytes().to_vec());
 		runtime_api_result.map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to generate task_id".into(),
