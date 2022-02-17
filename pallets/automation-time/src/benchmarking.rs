@@ -69,7 +69,6 @@ benchmarks! {
 	schedule_notify_task_empty {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
@@ -77,7 +76,6 @@ benchmarks! {
 	schedule_notify_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
@@ -85,7 +83,6 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
 		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
@@ -95,7 +92,6 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
 		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
@@ -112,7 +108,6 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
-		// Setup extra tasks
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
