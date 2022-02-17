@@ -64,8 +64,3 @@ jobs:
           cargo test --all
           grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
           bash <(curl -s https://codecov.io/bash) -f lcov.info
-  changelog:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: vemel/update-changelog@0.0.1
-      - name: Update Changelog
