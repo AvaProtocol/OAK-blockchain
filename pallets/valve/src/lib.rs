@@ -40,10 +40,11 @@ pub mod pallet {
 		traits::{Contains, PalletInfoAccess},
 	};
 	use frame_system::pallet_prelude::*;
+	use pallet_automation_time::{self as automation_time};
 	use sp_std::vec::Vec;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config {
+	pub trait Config: frame_system::Config + pallet_automation_time::Config {
 		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
 		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
@@ -60,6 +61,10 @@ pub mod pallet {
 		PalletGateClosed { pallet_name_bytes: Vec<u8> },
 		/// The pallet gate has been opened. It will now start receiving transactions.
 		PalletGateOpen { pallet_name_bytes: Vec<u8> },
+		/// Scheduled tasks are now longer being run.
+		ScheduledTasksStopped,
+		/// Scheduled tasks will now start running.
+		ScheduledTasksResumed,
 	}
 
 	#[pallet::error]
@@ -72,6 +77,10 @@ pub mod pallet {
 		InvalidCharacter,
 		/// The valve pallet gate cannot be closed.
 		CannotCloseGate,
+		/// Scheduled tasks have already been stopped.
+		ScheduledTasksAlreadyStopped,
+		/// Scheduled tasks are already running.
+		ScheduledTasksAlreadyRunnung,
 	}
 
 	#[pallet::pallet]
@@ -167,6 +176,38 @@ pub mod pallet {
 			if ClosedPallets::<T>::take(&pallet_name).is_some() {
 				Self::deposit_event(Event::PalletGateOpen { pallet_name_bytes: pallet_name });
 			};
+			Ok(())
+		}
+
+		/// Stop all scheduled tasks from running.
+		#[pallet::weight(T::DbWeight::get().read * T::DbWeight::get().write)]
+		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(
+				!<automation_time::Pallet<T>>::is_shutdown(),
+				Error::<T>::ScheduledTasksAlreadyStopped
+			);
+
+			<automation_time::Shutdown<T>>::put(true);
+			Self::deposit_event(Event::ScheduledTasksStopped);
+
+			Ok(())
+		}
+
+		/// Allow scheduled tasks to run again.
+		#[pallet::weight(T::DbWeight::get().read * T::DbWeight::get().write)]
+		pub fn start_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(
+				<automation_time::Pallet<T>>::is_shutdown(),
+				Error::<T>::ScheduledTasksAlreadyRunnung
+			);
+
+			<automation_time::Shutdown<T>>::put(false);
+			Self::deposit_event(Event::ScheduledTasksResumed);
+
 			Ok(())
 		}
 	}

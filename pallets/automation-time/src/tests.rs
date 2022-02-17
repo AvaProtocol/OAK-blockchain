@@ -16,7 +16,8 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, Action, Error, LastTimeSlot, MissedQueue, Task, TaskHashInput, TaskQueue, Tasks,
+	mock::*, Action, Error, LastTimeSlot, MissedQueue, Shutdown, Task, TaskHashInput, TaskQueue,
+	Tasks,
 };
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
@@ -615,6 +616,40 @@ fn on_init_runs_tasks() {
 		);
 		assert_eq!(AutomationTime::get_task(task_id3), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+	})
+}
+
+#[test]
+fn on_init_shutdown() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Shutdown::<Test>::put(true);
+
+		let message_one: Vec<u8> = vec![2, 4, 5];
+		let task_id1 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			Action::Notify { message: message_one.clone() },
+		);
+		let message_two: Vec<u8> = vec![2, 4];
+		let task_id2 = add_task_to_task_queue(
+			ALICE,
+			vec![50],
+			Action::Notify { message: message_two.clone() },
+		);
+		let task_id3 =
+			add_task_to_task_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
+		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
+
+		AutomationTime::on_initialize(1);
+		assert_eq!(events(), []);
+		Timestamp::set_timestamp(START_BLOCK_TIME + (60 * 1_000));
+		AutomationTime::on_initialize(2);
+		assert_eq!(events(), [],);
+		assert_ne!(AutomationTime::get_task(task_id1), None);
+		assert_ne!(AutomationTime::get_task(task_id2), None);
+		assert_ne!(AutomationTime::get_task(task_id3), None);
+		assert_eq!(AutomationTime::get_task_queue().len(), 3);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 	})
 }

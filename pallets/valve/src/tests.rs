@@ -146,3 +146,45 @@ fn opens_all_pallet_gates() {
 		assert_ok!(call.dispatch(Origin::signed(1)));
 	})
 }
+
+#[test]
+fn stop_scheduled_tasks() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
+
+		assert_eq!(events(), vec![Event::ScheduledTasksStopped]);
+	})
+}
+
+#[test]
+fn stop_scheduled_tasks_already_stopped() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
+
+		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ScheduledTasksAlreadyStopped);
+	})
+}
+
+#[test]
+fn start_scheduled_tasks() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
+
+		let call: OuterCall = Call::start_scheduled_tasks {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
+
+		assert_eq!(events(), vec![Event::ScheduledTasksStopped, Event::ScheduledTasksResumed]);
+	})
+}
+
+#[test]
+fn start_scheduled_tasks_not_stopped() {
+	ExtBuilder::default().build().execute_with(|| {
+		let call: OuterCall = Call::start_scheduled_tasks {}.into();
+		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ScheduledTasksAlreadyRunnung);
+	})
+}
