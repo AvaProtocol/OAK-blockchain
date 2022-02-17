@@ -20,8 +20,8 @@
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
-use sp_runtime::traits::Saturating;
 use pallet_timestamp;
+use sp_runtime::traits::Saturating;
 
 use crate::Pallet as AutomationTime;
 
@@ -58,7 +58,7 @@ fn set_task_queue<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::H
 			Task::<T>::create_event_task(owner.clone(), provided_id.clone(), time, vec![4, 5, 6]);
 		<Tasks<T>>::insert(task_id, task);
 		let mut task_ids: Vec<T::Hash> = vec![task_id];
-		let mut task_queue =  AutomationTime::<T>::get_task_queue();
+		let mut task_queue = AutomationTime::<T>::get_task_queue();
 		task_queue.append(&mut task_ids);
 		<TaskQueue<T>>::put(task_queue);
 	}
