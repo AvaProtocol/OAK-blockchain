@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added onfinality neumann cli script
 - Missed tasks for a given time window will not be run
 - Action: wallet to wallet transfer
-- Neumann tasks cannot be scheduled farther than 2 weeks from today
+- Neumann tasks cannot be scheduled farther than 1 week from today
 - Change ss58 prefix to 51 for NEU, TUR, OAK
 
 ## [1.2.4] - 2022-02-08
