@@ -1,14 +1,14 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
 use neumann_runtime::{
-	AccountId, AuraId, CouncilConfig, Signature, SudoConfig, ValveConfig, DOLLAR,
+	AccountId, AuraId, Balance, CouncilConfig, Signature, SudoConfig, ValveConfig, DOLLAR,
 	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
@@ -293,4 +293,138 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false },
 	}
+}
+
+pub fn neumann_latest() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
+
+	ChainSpec::from_genesis(
+		// Name
+		"Neumann Network",
+		// ID
+		"neumann",
+		ChainType::Live,
+		move || {
+			let allocation_json = &include_bytes!("../../distribution/neumann_alloc.json")[..];
+			let initial_allocation: Vec<(AccountId, Balance)> = serde_json::from_slice(allocation_json).unwrap();
+
+			testnet_genesis_temp(
+				// initial collators.
+				vec![
+					(
+						// 5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL
+						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+							.into(),
+						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+							.unchecked_into(),
+					),
+					(
+						// 5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J
+						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+							.into(),
+						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+							.unchecked_into(),
+					),
+				],
+				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
+				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+				initial_allocation,
+				DEFAULT_PARA_ID.into(),
+			)
+		},
+		// Bootnodes
+		Vec::new(),
+		// Telemetry
+		None,
+		// Protocol ID
+		Some("neumann"),
+		None,
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: NEUMANN_RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			para_id: DEFAULT_PARA_ID,
+		},
+	)
+}
+
+fn testnet_genesis_temp(
+	invulnerables: Vec<(AccountId, AuraId)>,
+	root_key: AccountId,
+	endowed_accounts: Vec<(AccountId, Balance)>,
+	id: ParaId,
+) -> neumann_runtime::GenesisConfig {
+
+	validate_endowment(endowed_accounts.clone());
+
+	neumann_runtime::GenesisConfig {
+		system: neumann_runtime::SystemConfig {
+			code: neumann_runtime::WASM_BINARY
+				.expect("WASM binary was not build, please build it!")
+				.to_vec(),
+		},
+		balances: neumann_runtime::BalancesConfig {
+			balances: endowed_accounts,
+		},
+		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: id },
+		collator_selection: neumann_runtime::CollatorSelectionConfig {
+			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+			..Default::default()
+		},
+		session: neumann_runtime::SessionConfig {
+			keys: invulnerables
+				.into_iter()
+				.map(|(acc, aura)| {
+					(
+						acc.clone(),                 // account id
+						acc,                         // validator id
+						template_session_keys(aura), // session keys
+					)
+				})
+				.collect(),
+		},
+		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
+		// of this.
+		aura: Default::default(),
+		aura_ext: Default::default(),
+		council: CouncilConfig { members: vec![root_key.clone()], phantom: Default::default() },
+		parachain_system: Default::default(),
+		sudo: SudoConfig { key: Some(root_key) },
+		treasury: Default::default(),
+		valve: ValveConfig { start_with_valve_closed: false },
+	}
+}
+
+/// Validate that the endowment fits the following criteria:
+/// - no duplicate accounts
+/// - total endowed is equal to TOTAL_TOKENS
+pub fn validate_endowment(endowed_accounts: Vec<(AccountId, Balance)>) {
+	let mut total_endowed: Balance = Zero::zero();
+	let unique_endowed_accounts = endowed_accounts
+	.iter()
+	.map(|(account_id, amount)| {
+		assert!(*amount >= EXISTENTIAL_DEPOSIT, "endowned amount must gte ED");
+		total_endowed = total_endowed
+			.checked_add(*amount)
+			.expect("shouldn't overflow when building genesis");
+
+		account_id
+	})
+	.cloned()
+	.collect::<std::collections::BTreeSet<_>>();
+	assert!(
+		unique_endowed_accounts.len() == endowed_accounts.len(),
+		"duplicate endowed accounts in genesis."
+	);
+	assert_eq!(
+		total_endowed,
+		TOTAL_TOKENS,
+		"total endowed must be equal to 1 billion NEU"
+	);
 }

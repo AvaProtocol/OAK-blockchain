@@ -4720,7 +4720,7 @@ dependencies = [
 
 [[package]]
 name = "oak-node"
-version = "1.2.4"
+version = "1.2.5"
 dependencies = [
  "async-trait",
  "cumulus-client-cli",
@@ -4764,6 +4764,7 @@ dependencies = [
  "sc-transaction-pool",
  "sc-transaction-pool-api",
  "serde",
+ "serde_json",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
@@ -4908,7 +4909,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-automation-time"
-version = "0.0.0"
+version = "1.0.0"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -5736,7 +5737,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-valve"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "frame-support",
  "frame-system",

@@ -8,6 +8,8 @@ mod service;
 mod cli;
 mod command;
 mod rpc;
+#[cfg(test)]
+mod tests;
 
 fn main() -> sc_cli::Result<()> {
 	command::run()
