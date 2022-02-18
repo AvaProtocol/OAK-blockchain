@@ -1,14 +1,15 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
-use neumann_runtime::{
-	AccountId, AuraId, Balance, CouncilConfig, Signature, SudoConfig, ValveConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
-};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
+use neumann_runtime::{
+	AuraId, CouncilConfig, SudoConfig, ValveConfig, DOLLAR,
+	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+};
+use primitives::{AccountId, Balance, Signature};
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;

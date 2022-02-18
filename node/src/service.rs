@@ -4,7 +4,8 @@
 use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
-use neumann_runtime::{opaque::Block, AccountId, Balance, Hash, Index as Nonce, RuntimeApi};
+use neumann_runtime::{opaque::Block, RuntimeApi};
+use primitives::{AccountId, Balance, Hash, Index as Nonce};
 
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};

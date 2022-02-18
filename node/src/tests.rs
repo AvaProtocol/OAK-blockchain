@@ -1,5 +1,5 @@
 use crate::chain_spec::validate_endowment;
-use neumann_runtime::{AccountId, Balance};
+use primitives::{AccountId, Balance};
 
 #[test]
 fn validate_neumann_allocation() {
