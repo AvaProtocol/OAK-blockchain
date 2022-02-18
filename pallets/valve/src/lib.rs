@@ -29,6 +29,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+
 use frame_support::pallet;
 pub use pallet::*;
 
@@ -45,14 +47,14 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_automation_time::Config {
-		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event {
+	pub enum Event<T> {
 		/// The valve has been closed. This has stopped transactions to non-critical pallets.
 		ValveClosed,
 		/// The chain returned to its normal operating state.
