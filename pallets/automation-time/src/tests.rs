@@ -146,10 +146,10 @@ fn schedule_notify_works() {
 }
 
 #[test]
-fn schedule_transfer_invalid_amount() {
+fn schedule_native_transfer_invalid_amount() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_transfer_task(
+			AutomationTime::schedule_native_transfer_task(
 				Origin::signed(ALICE),
 				vec![50],
 				SCHEDULED_TIME,
@@ -162,10 +162,10 @@ fn schedule_transfer_invalid_amount() {
 }
 
 #[test]
-fn schedule_transfer_cannot_transfer_to_self() {
+fn schedule_native_transfer_cannot_transfer_to_self() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_transfer_task(
+			AutomationTime::schedule_native_transfer_task(
 				Origin::signed(ALICE),
 				vec![50],
 				SCHEDULED_TIME,
@@ -178,9 +178,9 @@ fn schedule_transfer_cannot_transfer_to_self() {
 }
 
 #[test]
-fn schedule_transfer_works() {
+fn schedule_native_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_ok!(AutomationTime::schedule_transfer_task(
+		assert_ok!(AutomationTime::schedule_native_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
 			SCHEDULED_TIME,
@@ -196,7 +196,7 @@ fn schedule_transfer_works() {
 					panic!("A task should exist if it was scheduled")
 				},
 				Some(task) => {
-					let expected_task = Task::<Test>::create_transfer_task(
+					let expected_task = Task::<Test>::create_native_transfer_task(
 						ALICE.clone(),
 						vec![50],
 						SCHEDULED_TIME,
@@ -550,18 +550,18 @@ fn trigger_tasks_completes_all_missed_tasks() {
 }
 
 #[test]
-fn trigger_tasks_completes_some_transfer_tasks() {
+fn trigger_tasks_completes_some_native_transfer_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			Action::Transfer { sender: ALICE, recipient: BOB, amount: 1 },
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
 		);
 		add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			Action::Transfer { sender: ALICE, recipient: BOB, amount: 1 },
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
 		);
 
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
@@ -707,7 +707,7 @@ fn create_task(
 	let task = match action {
 		Action::Notify { message } =>
 			Task::<Test>::create_event_task(owner, provided_id, scheduled_time, message),
-		Action::Transfer { sender: _, recipient, amount } => Task::<Test>::create_transfer_task(
+		Action::NativeTransfer { sender: _, recipient, amount } => Task::<Test>::create_native_transfer_task(
 			owner,
 			provided_id,
 			scheduled_time,

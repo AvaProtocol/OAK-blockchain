@@ -126,10 +126,10 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_notify_task_full() -> Weight {
 		0
 	}
-	fn schedule_transfer_task_empty() -> Weight {
+	fn schedule_native_transfer_task_empty() -> Weight {
 		0
 	}
-	fn schedule_transfer_task_full() -> Weight {
+	fn schedule_native_transfer_task_full() -> Weight {
 		0
 	}
 	fn cancel_scheduled_task() -> Weight {

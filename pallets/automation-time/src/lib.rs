@@ -65,7 +65,7 @@ pub mod pallet {
 	#[scale_info(skip_type_params(T))]
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
-		Transfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
+		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -88,7 +88,7 @@ pub mod pallet {
 			let action = Action::Notify { message };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
-		pub fn create_transfer_task(
+		pub fn create_native_transfer_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			time: UnixTime,
@@ -96,7 +96,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 		) -> Task<T> {
 			let action =
-				Action::Transfer { sender: owner_id.clone(), recipient: recipient_id, amount };
+				Action::NativeTransfer { sender: owner_id.clone(), recipient: recipient_id, amount };
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -296,7 +296,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Schedule a task to transfer balance from sender to recipient.
+		/// Schedule a task to transfer native token balance from sender to recipient.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
@@ -319,8 +319,8 @@ pub mod pallet {
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_full())]
-		pub fn schedule_transfer_task(
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full())]
+		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			time: UnixTime,
@@ -337,7 +337,7 @@ pub mod pallet {
 			if who == recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
-			let action = Action::Transfer { sender: who.clone(), recipient: recipient_id, amount };
+			let action = Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
 			Self::validate_and_schedule_task(action, who, provided_id, time)?;
 			Ok(().into())
 		}
@@ -575,8 +575,8 @@ pub mod pallet {
 					Some(task) => {
 						let action_weight = match task.action {
 							Action::Notify { message } => Self::run_notify_task(message),
-							Action::Transfer { sender, recipient, amount } =>
-								Self::run_transfer_task(sender, recipient, amount, task_id.clone()),
+							Action::NativeTransfer { sender, recipient, amount } =>
+								Self::run_native_transfer_task(sender, recipient, amount, task_id.clone()),
 						};
 						Tasks::<T>::remove(task_id);
 						action_weight + 10_000
@@ -652,7 +652,7 @@ pub mod pallet {
 			10_000
 		}
 
-		fn run_transfer_task(
+		fn run_native_transfer_task(
 			sender: T::AccountId,
 			recipient: T::AccountId,
 			amount: BalanceOf<T>,

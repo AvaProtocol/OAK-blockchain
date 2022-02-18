@@ -79,23 +79,23 @@ benchmarks! {
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
-	schedule_transfer_task_empty{
+	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
 		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
+	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
 
-	schedule_transfer_task_full{
+	schedule_native_transfer_task_full{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
 		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
-	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
+	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
 
 	cancel_scheduled_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
