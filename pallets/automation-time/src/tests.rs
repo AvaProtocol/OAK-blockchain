@@ -149,7 +149,7 @@ fn schedule_notify_works() {
 fn schedule_transfer_invalid_amount() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_transfer_task(
+			AutomationTime::schedule_native_transfer_task(
 				Origin::signed(ALICE),
 				vec![50],
 				SCHEDULED_TIME,
@@ -165,7 +165,7 @@ fn schedule_transfer_invalid_amount() {
 fn schedule_transfer_cannot_transfer_to_self() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_transfer_task(
+			AutomationTime::schedule_native_transfer_task(
 				Origin::signed(ALICE),
 				vec![50],
 				SCHEDULED_TIME,
@@ -180,7 +180,7 @@ fn schedule_transfer_cannot_transfer_to_self() {
 #[test]
 fn schedule_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_ok!(AutomationTime::schedule_transfer_task(
+		assert_ok!(AutomationTime::schedule_native_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
 			SCHEDULED_TIME,

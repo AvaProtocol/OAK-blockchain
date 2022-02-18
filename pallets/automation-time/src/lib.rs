@@ -319,8 +319,8 @@ pub mod pallet {
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
-		pub fn schedule_transfer_task(
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_existing_slot())]
+		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			time: UnixTime,

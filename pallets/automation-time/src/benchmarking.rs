@@ -77,14 +77,14 @@ benchmarks! {
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
 	// First transfer task for a slot
-	schedule_transfer_task_existing_slot {
+	schedule_native_transfer_task_existing_slot {
 		let caller: T::AccountId = whitelisted_caller();
 		let recipient: T::AccountId = whitelisted_caller();
 		let time: u64 = 120;
 		let count: u8 = 1;
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
-	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, 10_000_000_000)
+	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, 10_000_000_000)
 
 	cancel_scheduled_task {
 		let caller: T::AccountId = whitelisted_caller();
