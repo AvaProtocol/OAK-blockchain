@@ -280,7 +280,7 @@ pub mod pallet {
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_existing_slot())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full())]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -318,8 +318,8 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
-		/// * `TransferFailed`: Transfer failed.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_existing_slot())]
+		/// * `TransferFailed`: Transfer failed for unknown reason.
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_full())]
 		pub fn schedule_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,

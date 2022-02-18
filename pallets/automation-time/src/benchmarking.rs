@@ -18,17 +18,24 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::{benchmarks, whitelisted_caller};
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
+use pallet_timestamp;
+use sp_runtime::traits::Saturating;
 
 use crate::Pallet as AutomationTime;
 
-const MAX_TASKS_PER_SLOT: u8 = 2;
+const SEED: u32 = 0;
+// existential deposit multiplier
+const ED_MULTIPLIER: u32 = 10;
 
-fn schedule_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T::Hash {
+fn schedule_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::Hash {
+	let time_moment: u32 = time.try_into().unwrap();
+	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	let mut task_id: T::Hash = T::Hash::default();
+	let converted_count: u8 = count.try_into().unwrap();
 
-	for i in 0..count {
+	for i in 0..converted_count {
 		let provided_id: Vec<u8> = vec![i];
 		task_id =
 			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), time).unwrap();
@@ -38,10 +45,11 @@ fn schedule_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T::Ha
 	task_id
 }
 
-fn set_overflow_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T::Hash {
+fn set_task_queue<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::Hash {
 	let mut task_id: T::Hash = T::Hash::default();
+	let converted_count: u8 = count.try_into().unwrap();
 
-	for i in 0..count {
+	for i in 0..converted_count {
 		let provided_id: Vec<u8> = vec![i];
 		let task_hash_input =
 			TaskHashInput::<T>::create_hash_input(owner.clone(), provided_id.clone());
@@ -50,82 +58,84 @@ fn set_overflow_tasks<T: Config>(owner: T::AccountId, time: u64, count: u8) -> T
 			Task::<T>::create_event_task(owner.clone(), provided_id.clone(), time, vec![4, 5, 6]);
 		<Tasks<T>>::insert(task_id, task);
 		let mut task_ids: Vec<T::Hash> = vec![task_id];
-		match AutomationTime::<T>::get_overflow_tasks() {
-			None => <OverlflowTasks<T>>::put(task_ids),
-			Some(mut overflow) => {
-				overflow.append(&mut task_ids);
-				<OverlflowTasks<T>>::put(overflow);
-			},
-		}
+		let mut task_queue = AutomationTime::<T>::get_task_queue();
+		task_queue.append(&mut task_ids);
+		<TaskQueue<T>>::put(task_queue);
 	}
 	task_id
 }
 
 benchmarks! {
-	// First notify task for a slot
-	schedule_notify_task_new_slot {
-		let caller = whitelisted_caller();
-	}: schedule_notify_task(RawOrigin::Signed(caller), vec![50], 60, vec![4, 5, 6])
-
-	// Second notify task for a slot
-	schedule_notify_task_existing_slot {
-		let caller: T::AccountId = whitelisted_caller();
+	schedule_notify_task_empty {
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
-
-		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
+		let time_moment: u32 = time.try_into().unwrap();
+		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
-	// First transfer task for a slot
-	schedule_transfer_task_existing_slot {
-		let caller: T::AccountId = whitelisted_caller();
-		let recipient: T::AccountId = whitelisted_caller();
+	schedule_notify_task_full {
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 120;
-		let count: u8 = 1;
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
+	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
-		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
-	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, 10_000_000_000)
+	schedule_transfer_task_empty{
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let recipient: T::AccountId = account("to", 0, SEED);
+		let time: u64 = 120;
+		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
+		let time_moment: u32 = time.try_into().unwrap();
+		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
+
+	schedule_transfer_task_full{
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let recipient: T::AccountId = account("to", 0, SEED);
+		let time: u64 = 120;
+		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
+
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
+	}: schedule_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
 
 	cancel_scheduled_task {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_scheduled_task_full {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
-		// Setup extra tasks
-		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_overflow_task {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
-		let task_id: T::Hash = set_overflow_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
+		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	force_cancel_scheduled_task {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
 		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, 1);
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_scheduled_task_full {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
-		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
+		let task_id: T::Hash = schedule_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_overflow_task {
-		let caller: T::AccountId = whitelisted_caller();
+		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 180;
 
-		let task_id: T::Hash = set_overflow_tasks::<T>(caller.clone(), time, MAX_TASKS_PER_SLOT);
+		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, task_id)
 }

@@ -120,13 +120,16 @@ parameter_types! {
 
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
-	fn schedule_notify_task_new_slot() -> Weight {
+	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
-	fn schedule_notify_task_existing_slot() -> Weight {
+	fn schedule_notify_task_full() -> Weight {
 		0
 	}
-	fn schedule_transfer_task_existing_slot() -> Weight {
+	fn schedule_transfer_task_empty() -> Weight {
+		0
+	}
+	fn schedule_transfer_task_full() -> Weight {
 		0
 	}
 	fn cancel_scheduled_task() -> Weight {

@@ -19,7 +19,7 @@
 // --extrinsic
 // *
 // --repeat
-// 20
+// 64
 // --raw
 // --output
 // ./pallets/automation-time/src/weights.rs
@@ -33,9 +33,10 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_automation_time.
 pub trait WeightInfo {
-	fn schedule_notify_task_new_slot() -> Weight;
-	fn schedule_notify_task_existing_slot() -> Weight;
-	fn schedule_transfer_task_existing_slot() -> Weight;
+	fn schedule_notify_task_empty() -> Weight;
+	fn schedule_notify_task_full() -> Weight;
+	fn schedule_transfer_task_empty() -> Weight;
+	fn schedule_transfer_task_full() -> Weight;
 	fn cancel_scheduled_task() -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn cancel_overflow_task() -> Weight;
@@ -50,69 +51,76 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
-	fn schedule_notify_task_new_slot() -> Weight {
+	fn schedule_notify_task_empty() -> Weight {
+		(14_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	fn schedule_notify_task_full() -> Weight {
+		(15_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	fn schedule_transfer_task_empty() -> Weight {
+		(15_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	fn schedule_transfer_task_full() -> Weight {
 		(16_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Storage: AutomationTime Tasks (r:1 w:1)
-	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
-	fn schedule_notify_task_existing_slot() -> Weight {
-		(18_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Storage: AutomationTime Tasks (r:1 w:1)
-	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
-	// TODO: this is placeholder, jzhou will fix
-	fn schedule_transfer_task_existing_slot() -> Weight {
-		(18_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn cancel_scheduled_task() -> Weight {
-		(16_000_000 as Weight)
+		(14_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn cancel_scheduled_task_full() -> Weight {
-		(16_000_000 as Weight)
+		(14_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:0)
-	// Storage: AutomationTime OverlflowTasks (r:1 w:1)
+	// Storage: AutomationTime TaskQueue (r:1 w:1)
 	fn cancel_overflow_task() -> Weight {
-		(17_000_000 as Weight)
+		(16_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn force_cancel_scheduled_task() -> Weight {
-		(15_000_000 as Weight)
+		(14_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn force_cancel_scheduled_task_full() -> Weight {
-		(16_000_000 as Weight)
+		(14_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:0)
-	// Storage: AutomationTime OverlflowTasks (r:1 w:1)
+	// Storage: AutomationTime TaskQueue (r:1 w:1)
 	fn force_cancel_overflow_task() -> Weight {
-		(17_000_000 as Weight)
+		(15_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
