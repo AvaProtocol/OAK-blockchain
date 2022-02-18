@@ -17,7 +17,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use sp_core::H256;
-use sp_runtime::{generic, MultiAddress, MultiSignature, traits::{BlakeTwo256, IdentifyAccount, Verify}};
+use sp_runtime::{
+	generic,
+	traits::{BlakeTwo256, IdentifyAccount, Verify},
+	MultiAddress, MultiSignature,
+};
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;

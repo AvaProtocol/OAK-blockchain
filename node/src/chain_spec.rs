@@ -1,15 +1,14 @@
 use cumulus_primitives_core::ParaId;
 use hex_literal::hex;
+use neumann_runtime::{
+	AuraId, CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+};
+use primitives::{AccountId, Balance, Signature};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{crypto::UncheckedInto, sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
-use neumann_runtime::{
-	AuraId, CouncilConfig, SudoConfig, ValveConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
-};
-use primitives::{AccountId, Balance, Signature};
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
@@ -311,7 +310,8 @@ pub fn neumann_latest() -> ChainSpec {
 		ChainType::Live,
 		move || {
 			let allocation_json = &include_bytes!("../../distribution/neumann_alloc.json")[..];
-			let initial_allocation: Vec<(AccountId, Balance)> = serde_json::from_slice(allocation_json).unwrap();
+			let initial_allocation: Vec<(AccountId, Balance)> =
+				serde_json::from_slice(allocation_json).unwrap();
 
 			testnet_genesis_temp(
 				// initial collators.
@@ -360,7 +360,6 @@ fn testnet_genesis_temp(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	id: ParaId,
 ) -> neumann_runtime::GenesisConfig {
-
 	validate_endowment(endowed_accounts.clone());
 
 	neumann_runtime::GenesisConfig {
@@ -369,9 +368,7 @@ fn testnet_genesis_temp(
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
 		},
-		balances: neumann_runtime::BalancesConfig {
-			balances: endowed_accounts,
-		},
+		balances: neumann_runtime::BalancesConfig { balances: endowed_accounts },
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: id },
 		collator_selection: neumann_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
@@ -408,24 +405,20 @@ fn testnet_genesis_temp(
 pub fn validate_endowment(endowed_accounts: Vec<(AccountId, Balance)>) {
 	let mut total_endowed: Balance = Zero::zero();
 	let unique_endowed_accounts = endowed_accounts
-	.iter()
-	.map(|(account_id, amount)| {
-		assert!(*amount >= EXISTENTIAL_DEPOSIT, "endowned amount must gte ED");
-		total_endowed = total_endowed
-			.checked_add(*amount)
-			.expect("shouldn't overflow when building genesis");
+		.iter()
+		.map(|(account_id, amount)| {
+			assert!(*amount >= EXISTENTIAL_DEPOSIT, "endowned amount must gte ED");
+			total_endowed = total_endowed
+				.checked_add(*amount)
+				.expect("shouldn't overflow when building genesis");
 
-		account_id
-	})
-	.cloned()
-	.collect::<std::collections::BTreeSet<_>>();
+			account_id
+		})
+		.cloned()
+		.collect::<std::collections::BTreeSet<_>>();
 	assert!(
 		unique_endowed_accounts.len() == endowed_accounts.len(),
 		"duplicate endowed accounts in genesis."
 	);
-	assert_eq!(
-		total_endowed,
-		TOTAL_TOKENS,
-		"total endowed must be equal to 1 billion NEU"
-	);
+	assert_eq!(total_endowed, TOTAL_TOKENS, "total endowed must be equal to 1 billion NEU");
 }
