@@ -1,7 +1,7 @@
 [package]
 name = "pallet-automation-time"
 description = "Pallet for scheduling and running tasks in the future."
-version = "0.0.0"
+version = "1.0.0"
 edition = "2018"
 authors = ["OAK Developement Team"]
 license = "GPL-3.0"
