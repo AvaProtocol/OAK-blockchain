@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.2.5] - 2022-02-20
 - Automation Time RPC called automationTime_generateTaskId
 - Added onfinality neumann cli script
 - Missed tasks for a given time window will not be run
