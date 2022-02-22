@@ -28,7 +28,6 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		"neumann-latest" => Box::new(chain_spec::neumann::neumann_latest()),
 		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
 		"turing-latest" => Box::new(chain_spec::turing::turing_latest_latest()),
-		// TODO: use the right spec for the file
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
@@ -76,7 +75,6 @@ impl SubstrateCli for Cli {
 		load_spec(id)
 	}
 
-	// TODO: get the right runtime
 	fn native_runtime_version(
 		chain_spec: &Box<dyn sc_service::ChainSpec>,
 	) -> &'static RuntimeVersion {
@@ -225,7 +223,6 @@ pub fn run() -> Result<()> {
 				Ok(cmd.run(components.client, components.backend))
 			})
 		},
-		// TODO fix block import
 		Some(Subcommand::ExportGenesisState(params)) => {
 			let mut builder = sc_cli::LoggerBuilder::new("");
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
@@ -288,7 +285,6 @@ pub fn run() -> Result<()> {
 
 			Ok(())
 		},
-		// TODO fix block import
 		Some(Subcommand::Benchmark(cmd)) =>
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
