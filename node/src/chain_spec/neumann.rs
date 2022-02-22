@@ -14,7 +14,7 @@ use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
-pub const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
+const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 const DEFAULT_PARA_ID: u32 = 2000;

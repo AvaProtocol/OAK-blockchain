@@ -13,16 +13,13 @@ pub mod turing;
 pub type DummyChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
 /// Can be called for a `Configuration` to check if it is a configuration for
-/// the `Moonbeam` network.
+/// the `OAK` network.
 pub trait IdentifyVariant {
 	/// Returns `true` if this is a configuration for the `Neumann` network.
 	fn is_neumann(&self) -> bool;
 
 	/// Returns `true` if this is a configuration for the `Turing` network.
 	fn is_turing(&self) -> bool;
-
-	/// Returns `true` if this is a configuration for the dev network.
-	fn is_dev(&self) -> bool;
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
@@ -32,10 +29,6 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 
 	fn is_turing(&self) -> bool {
 		self.id().starts_with("turing")
-	}
-
-	fn is_dev(&self) -> bool {
-		self.id().ends_with("dev")
 	}
 }
 
