@@ -172,8 +172,8 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("neumann"),
-	impl_name: create_runtime_str!("neumann"),
+	spec_name: create_runtime_str!("turing"),
+	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
 	spec_version: 274,
 	impl_version: 1,

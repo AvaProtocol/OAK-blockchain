@@ -1,37 +1,51 @@
 use crate::{
-	chain_spec,
+	chain_spec::{self, IdentifyVariant},
 	cli::{Cli, RelayChainCli, Subcommand},
-	service::{new_partial, TemplateRuntimeExecutor},
+	service::{new_partial, NeumannExecutor, TuringExecutor},
 };
 use codec::Encode;
 use cumulus_client_service::genesis::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
 use log::info;
-use neumann_runtime::{Block, RuntimeApi};
-use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
-	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
+	CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams,
+	Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
+use polkadot_parachain::primitives::AccountIdConversion;
+
+use neumann_runtime;
+use turing_runtime;
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 	Ok(match id {
-		"dev" => Box::new(chain_spec::development_config()),
-		"template-rococo" => Box::new(chain_spec::local_testnet_config()),
-		"neumann-staging" => Box::new(chain_spec::neumann_staging_testnet_config()),
-		"neumann-latest" => Box::new(chain_spec::neumann_latest()),
-		"" | "local" => Box::new(chain_spec::local_testnet_config()),
-		path => Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		"dev" => Box::new(chain_spec::neumann::development_config()),
+		"" | "local" => Box::new(chain_spec::neumann::local_testnet_config()),
+		"neumann-staging" => Box::new(chain_spec::neumann::neumann_staging_testnet_config()),
+		"neumann-latest" => Box::new(chain_spec::neumann::neumann_latest()),
+		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
+		"turing-latest" => Box::new(chain_spec::turing::turing_latest_latest()),
+		// TODO: use the right spec for the file
+		path => {
+			let path = std::path::PathBuf::from(path);
+			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
+				as Box<dyn sc_service::ChainSpec>;
+
+			if chain_spec.is_turing() {
+				Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
+			} else {
+				Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
+			}
+		},
 	})
 }
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
-		"Neumann Collator".into()
+		"OAK Collator".into()
 	}
 
 	fn impl_version() -> String {
@@ -39,7 +53,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn description() -> String {
-		"Neumann Collator\n\nThe command-line arguments provided first will be \
+		"OAK Collator\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		neumann-collator <parachain-args> -- <relay-chain-args>"
@@ -62,14 +76,21 @@ impl SubstrateCli for Cli {
 		load_spec(id)
 	}
 
-	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&neumann_runtime::VERSION
+	// TODO: get the right runtime
+	fn native_runtime_version(
+		chain_spec: &Box<dyn sc_service::ChainSpec>,
+	) -> &'static RuntimeVersion {
+		if chain_spec.is_turing() {
+			&turing_runtime::VERSION
+		} else {
+			&neumann_runtime::VERSION
+		}
 	}
 }
 
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
-		"Neumann Collator".into()
+		"OAK Collator".into()
 	}
 
 	fn impl_version() -> String {
@@ -77,7 +98,7 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn description() -> String {
-		"Neumann Collator\n\nThe command-line arguments provided first will be \
+		"OAK Collator\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
 		neumann-collator <parachain-args> -- <relay-chain-args>"
@@ -100,7 +121,9 @@ impl SubstrateCli for RelayChainCli {
 		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
 	}
 
-	fn native_runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+	fn native_runtime_version(
+		chain_spec: &Box<dyn sc_service::ChainSpec>,
+	) -> &'static RuntimeVersion {
 		polkadot_cli::Cli::native_runtime_version(chain_spec)
 	}
 }
@@ -118,18 +141,34 @@ fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<V
 macro_rules! construct_async_run {
 	(|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
 		let runner = $cli.create_runner($cmd)?;
-		runner.async_run(|$config| {
-			let $components = new_partial::<
-				RuntimeApi,
-				TemplateRuntimeExecutor,
-				_
-			>(
-				&$config,
-				crate::service::parachain_build_import_queue,
-			)?;
-			let task_manager = $components.task_manager;
-			{ $( $code )* }.map(|v| (v, task_manager))
-		})
+		let chain_spec = &runner.config().chain_spec;
+		if chain_spec.is_turing() {
+			runner.async_run(|$config| {
+				let $components = new_partial::<
+					turing_runtime::RuntimeApi,
+					TuringExecutor,
+					_
+				>(
+					&$config,
+					crate::service::parachain_build_import_queue,
+				)?;
+				let task_manager = $components.task_manager;
+				{ $( $code )* }.map(|v| (v, task_manager))
+			})
+		} else {
+			runner.async_run(|$config| {
+				let $components = new_partial::<
+					neumann_runtime::RuntimeApi,
+					NeumannExecutor,
+					_
+				>(
+					&$config,
+					crate::service::parachain_build_import_queue,
+				)?;
+				let task_manager = $components.task_manager;
+				{ $( $code )* }.map(|v| (v, task_manager))
+			})
+		}
 	}}
 }
 
@@ -186,6 +225,7 @@ pub fn run() -> Result<()> {
 				Ok(cmd.run(components.client, components.backend))
 			})
 		},
+		// TODO fix block import
 		Some(Subcommand::ExportGenesisState(params)) => {
 			let mut builder = sc_cli::LoggerBuilder::new("");
 			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
@@ -193,13 +233,30 @@ pub fn run() -> Result<()> {
 
 			let chain_spec = cli.load_spec(&params.chain.clone().unwrap_or_default())?;
 			let state_version = Cli::native_runtime_version(&chain_spec).state_version();
-			let block: Block = generate_genesis_block(&chain_spec, state_version)
-				.map_err(|e| format!("{:?}", e))?;
-			let raw_header = block.header().encode();
-			let output_buf = if params.raw {
-				raw_header
-			} else {
-				format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+
+			let output_buf = match chain_spec {
+				chain_spec if chain_spec.is_turing() => {
+					let block: turing_runtime::Block =
+						generate_genesis_block(&chain_spec, state_version)?;
+					let raw_header = block.header().encode();
+					let output_buf = if params.raw {
+						raw_header
+					} else {
+						format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+					};
+					output_buf
+				},
+				_ => {
+					let block: neumann_runtime::Block =
+						generate_genesis_block(&chain_spec, state_version)?;
+					let raw_header = block.header().encode();
+					let output_buf = if params.raw {
+						raw_header
+					} else {
+						format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+					};
+					output_buf
+				},
 			};
 
 			if let Some(output) = &params.output {
@@ -231,20 +288,30 @@ pub fn run() -> Result<()> {
 
 			Ok(())
 		},
+		// TODO fix block import
 		Some(Subcommand::Benchmark(cmd)) =>
 			if cfg!(feature = "runtime-benchmarks") {
 				let runner = cli.create_runner(cmd)?;
-
-				runner.sync_run(|config| cmd.run::<Block, TemplateRuntimeExecutor>(config))
+				let chain_spec = &runner.config().chain_spec;
+				if chain_spec.is_turing() {
+					runner
+						.sync_run(|config| cmd.run::<turing_runtime::Block, TuringExecutor>(config))
+				} else {
+					runner.sync_run(|config| {
+						cmd.run::<neumann_runtime::Block, NeumannExecutor>(config)
+					})
+				}
 			} else {
 				Err("Benchmarking wasn't enabled when building the node. \
 				You can enable it with `--features runtime-benchmarks`."
 					.into())
 			},
+		// Fix as this run the node
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 
 			runner.run_node_until_exit(|config| async move {
+				let chain_spec = &config.chain_spec;
 				let para_id = chain_spec::Extensions::try_get(&*config.chain_spec)
 					.map(|e| e.para_id)
 					.ok_or_else(|| "Could not find parachain ID in chain-spec.")?;
@@ -255,29 +322,44 @@ pub fn run() -> Result<()> {
 				);
 
 				let id = ParaId::from(para_id);
-
 				let parachain_account =
 					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
-
-				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
-				let block: Block = generate_genesis_block(&config.chain_spec, state_version)
-					.map_err(|e| format!("{:?}", e))?;
-				let genesis_state = format!("0x{:?}", HexDisplay::from(&block.header().encode()));
-
 				let tokio_handle = config.tokio_handle.clone();
 				let polkadot_config =
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
 						.map_err(|err| format!("Relay chain argument error: {}", err))?;
+
+				let state_version =
+				RelayChainCli::native_runtime_version(&config.chain_spec).state_version();
+				let genesis_state = match chain_spec {
+					spec if spec.is_turing() => {
+						let block: turing_runtime::Block =
+							generate_genesis_block(&spec, state_version)?;
+						format!("0x{:?}", HexDisplay::from(&block.header().encode()))
+					}
+					_ => {
+						let block: neumann_runtime::Block =
+							generate_genesis_block(&config.chain_spec, state_version)?;
+						format!("0x{:?}", HexDisplay::from(&block.header().encode()))
+					}
+				};
 
 				info!("Parachain id: {:?}", id);
 				info!("Parachain Account: {}", parachain_account);
 				info!("Parachain genesis state: {}", genesis_state);
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
-				crate::service::start_parachain_node(config, polkadot_config, id)
+				if chain_spec.is_turing() {
+					crate::service::start_parachain_node::<turing_runtime::RuntimeApi, TuringExecutor>(config, polkadot_config, id)
 					.await
 					.map(|r| r.0)
 					.map_err(Into::into)
+				} else {
+					crate::service::start_parachain_node::<neumann_runtime::RuntimeApi, NeumannExecutor>(config, polkadot_config, id)
+					.await
+					.map(|r| r.0)
+					.map_err(Into::into)
+				}
 			})
 		},
 	}
@@ -340,7 +422,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 	fn prometheus_config(
 		&self,
 		default_listen_port: u16,
-		chain_spec: &Box<dyn ChainSpec>,
+		chain_spec: &Box<dyn sc_service::ChainSpec>,
 	) -> Result<Option<PrometheusConfig>> {
 		self.base.base.prometheus_config(default_listen_port, chain_spec)
 	}
@@ -410,7 +492,7 @@ impl CliConfiguration<Self> for RelayChainCli {
 
 	fn telemetry_endpoints(
 		&self,
-		chain_spec: &Box<dyn ChainSpec>,
+		chain_spec: &Box<dyn sc_service::ChainSpec>,
 	) -> Result<Option<sc_telemetry::TelemetryEndpoints>> {
 		self.base.base.telemetry_endpoints(chain_spec)
 	}

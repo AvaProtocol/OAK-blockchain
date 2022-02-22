@@ -55,7 +55,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 pub use sp_runtime::{MultiAddress, Perbill, Permill};
 
 #[cfg(any(feature = "std", test))]
@@ -80,7 +79,9 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 // Common imports
-use primitives::{AccountId, Address, Balance, BlockNumber, Hash, Header, Index, Signature};
+use primitives::{
+	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+};
 
 // Custom pallet imports
 pub use pallet_automation_time;

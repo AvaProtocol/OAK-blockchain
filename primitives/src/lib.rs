@@ -23,6 +23,8 @@ use sp_runtime::{
 	MultiAddress, MultiSignature,
 };
 
+pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
 pub type Signature = MultiSignature;
 
@@ -47,3 +49,9 @@ pub type Address = MultiAddress<AccountId, ()>;
 
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
+
+/// Opaque, encoded, unchecked extrinsic.
+pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
+
+/// Block type.
+pub type Block = generic::Block<Header, UncheckedExtrinsic>;

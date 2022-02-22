@@ -4784,6 +4784,7 @@ dependencies = [
  "substrate-build-script-utils",
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
+ "turing-runtime",
 ]
 
 [[package]]
@@ -7439,6 +7440,7 @@ dependencies = [
 name = "primitives"
 version = "1.0.0"
 dependencies = [
+ "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
 ]

@@ -40,6 +40,7 @@ jsonrpc-core = "18.0.0"
 
 # Local Dependencies
 neumann-runtime = { path = "../runtime/neumann" }
+turing-runtime = { path ='../runtime/turing'}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
 primitives = {path = "../primitives"}
 
