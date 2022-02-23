@@ -68,7 +68,7 @@ impl SubstrateCli for Cli {
 		"OAK Collator\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
-		neumann-collator <parachain-args> -- <relay-chain-args>"
+		oak-collator <parachain-args> -- <relay-chain-args>"
 			.into()
 	}
 
@@ -121,7 +121,7 @@ impl SubstrateCli for RelayChainCli {
 		"OAK Collator\n\nThe command-line arguments provided first will be \
 		passed to the parachain node, while the arguments provided after -- will be passed \
 		to the relay chain node.\n\n\
-		neumann-collator <parachain-args> -- <relay-chain-args>"
+		oak-collator <parachain-args> -- <relay-chain-args>"
 			.into()
 	}
 

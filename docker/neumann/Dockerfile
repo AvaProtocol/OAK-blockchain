@@ -11,7 +11,7 @@ FROM docker.io/library/ubuntu:20.04
 
 ARG USERNAME=oak
 ARG PROFILE=release
-ARG BINARY=neumann-collator
+ARG BINARY=oak-collator
 
 LABEL maintainer "contact@oak.tech"
 LABEL description="Binary for Neumann Collator"
