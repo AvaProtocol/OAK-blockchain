@@ -49,5 +49,5 @@ VOLUME ["/data"]
 # Change work directory
 WORKDIR /$USERNAME
 
-ENTRYPOINT ["./neumann-collator"]
+ENTRYPOINT ["./oak-collator"]
 
