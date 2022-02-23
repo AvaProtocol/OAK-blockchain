@@ -7,7 +7,9 @@ use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
 
 use primitives::{AccountId, AuraId, Balance, Signature};
 
+#[cfg(feature = "neumann-node")]
 pub mod neumann;
+#[cfg(feature = "turing-node")]
 pub mod turing;
 
 pub type DummyChainSpec = sc_service::GenericChainSpec<(), Extensions>;

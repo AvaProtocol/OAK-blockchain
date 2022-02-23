@@ -4,7 +4,7 @@ FROM docker.io/paritytech/ci-linux:production as builder
 WORKDIR /build
 COPY . /build
 
-RUN cargo build --locked --release
+RUN cargo build --locked --release --features neumann-node
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04

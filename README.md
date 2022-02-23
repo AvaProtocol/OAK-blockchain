@@ -78,7 +78,7 @@ Install the OAK node from git source:
 
 Build your executable:
 
-    cargo build --release
+    cargo build --release --featueres neumann-node/turing-node
 
 Run your Local Network
 -----------
@@ -127,7 +127,7 @@ cargo build --release
 ```bash
 # Compile
 git clone https://github.com/OAK-Foundation/OAK-blockchain
-cargo +nightly build --release
+cargo build --release --features neumann-node
 
 # Export genesis state
 ./target/release/oak-collator export-genesis-state > genesis-state

@@ -4,9 +4,7 @@
 use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
-use neumann_runtime;
 use primitives::{AccountId, Balance, Block, Hash, Index as Nonce};
-use turing_runtime;
 
 // Cumulus Imports
 use cumulus_client_consensus_aura::{AuraConsensus, BuildAuraConsensusParams, SlotProportion};
@@ -31,33 +29,54 @@ use sp_consensus_aura::sr25519::{AuthorityId as AuraId, AuthorityPair as AuraPai
 use sp_keystore::SyncCryptoStorePtr;
 use sp_runtime::traits::BlakeTwo256;
 use substrate_prometheus_endpoint::Registry;
-pub struct NeumannExecutor;
 
-impl sc_executor::NativeExecutionDispatch for NeumannExecutor {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+#[allow(dead_code)]
+pub const NEUMANN_RUNTIME_NOT_AVAILABLE: &str =
+	"Neumann runtime is not available. Please compile the node with `--features neumann-node` to enable it.";
+#[allow(dead_code)]
+pub const TURING_RUNTIME_NOT_AVAILABLE: &str =
+	"Turing runtime is not available. Please compile the node with `--features turing-node` to enable it.";
 
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		neumann_runtime::api::dispatch(method, data)
+#[cfg(feature = "neumann-node")]
+mod neumann_executor {
+	pub use neumann_runtime;
+
+	pub struct NeumannExecutor;
+	impl sc_executor::NativeExecutionDispatch for NeumannExecutor {
+		type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+		fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+			neumann_runtime::api::dispatch(method, data)
+		}
+
+		fn native_version() -> sc_executor::NativeVersion {
+			neumann_runtime::native_version()
+		}
 	}
+}
 
-	fn native_version() -> sc_executor::NativeVersion {
-		neumann_runtime::native_version()
+#[cfg(feature = "turing-node")]
+mod turing_executor {
+	pub use turing_runtime;
+
+	pub struct TuringExecutor;
+	impl sc_executor::NativeExecutionDispatch for TuringExecutor {
+		type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+		fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+			turing_runtime::api::dispatch(method, data)
+		}
+
+		fn native_version() -> sc_executor::NativeVersion {
+			turing_runtime::native_version()
+		}
 	}
 }
 
-pub struct TuringExecutor;
-
-impl sc_executor::NativeExecutionDispatch for TuringExecutor {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
-
-	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-		turing_runtime::api::dispatch(method, data)
-	}
-
-	fn native_version() -> sc_executor::NativeVersion {
-		turing_runtime::native_version()
-	}
-}
+#[cfg(feature = "neumann-node")]
+pub use neumann_executor::*;
+#[cfg(feature = "turing-node")]
+pub use turing_executor::*;
 
 type FullBackend = TFullBackend<Block>;
 

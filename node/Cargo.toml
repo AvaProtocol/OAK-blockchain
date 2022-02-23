@@ -22,8 +22,12 @@ path = "src/main.rs"
 [features]
 runtime-benchmarks = [
     "neumann-runtime/runtime-benchmarks",
+    "turing-runtime/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
     ]
+neumann-node = ["neumann-runtime"]
+turing-node = ["turing-runtime"]
+all-nodes = ["neumann-node", "turing-node"]
 
 [dependencies]
 async-trait = "0.1.48"
@@ -39,8 +43,8 @@ hex-literal = "0.3.1"
 jsonrpc-core = "18.0.0"
 
 # Local Dependencies
-neumann-runtime = { path = "../runtime/neumann" }
-turing-runtime = { path ='../runtime/turing'}
+neumann-runtime = { path = "../runtime/neumann", optional = true}
+turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
 primitives = {path = "../primitives"}
 
