@@ -32,7 +32,7 @@ jobs:
 
       - name: Check Build
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release
+          SKIP_WASM_BUILD=1 cargo check --release --features all-nodes
 
   test-coverage:
     runs-on: ubuntu-20.04
