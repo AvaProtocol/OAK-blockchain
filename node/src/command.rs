@@ -7,6 +7,7 @@ use codec::Encode;
 use cumulus_client_service::genesis::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
 use log::info;
+use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
 	CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams,
 	Result, RuntimeVersion, SharedParams, SubstrateCli,
@@ -15,7 +16,6 @@ use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::Block as BlockT;
 use std::{io::Write, net::SocketAddr};
-use polkadot_parachain::primitives::AccountIdConversion;
 
 use neumann_runtime;
 use turing_runtime;

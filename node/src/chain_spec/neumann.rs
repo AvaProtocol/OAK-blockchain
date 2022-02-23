@@ -229,8 +229,7 @@ pub fn neumann_latest() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
-				validate_allocation(initial_allocation.clone(), TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
-
+			validate_allocation(initial_allocation.clone(), TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
 
 			testnet_genesis(
 				// initial collators.
@@ -325,6 +324,6 @@ mod tests {
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 
-		validate_endowment(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
+		validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
 	}
 }
