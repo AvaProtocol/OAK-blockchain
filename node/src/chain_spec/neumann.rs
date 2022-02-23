@@ -93,9 +93,9 @@ pub fn local_testnet_config() -> ChainSpec {
 
 	ChainSpec::from_genesis(
 		// Name
-		"Local Testnet",
+		"Neumann Local Testnet",
 		// ID
-		"local_testnet",
+		"neumann_local_testnet",
 		ChainType::Local,
 		move || {
 			let accounts = vec![

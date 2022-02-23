@@ -16,7 +16,7 @@ static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
 static RELAY_CHAIN: &str = "rococo-local";
-static TURING_RELAY_CHAIN: &str = "rococo-testnet";
+static TURING_RELAY_CHAIN: &str = "kusama";
 const DEFAULT_PARA_ID: u32 = 2000;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
