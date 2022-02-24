@@ -78,7 +78,7 @@ Install the OAK node from git source:
 
 Build your executable:
 
-    cargo build --release --featueres neumann-node/turing-node
+    cargo build --release --features neumann-node/turing-node
 
 Run your Local Network
 -----------
