@@ -132,7 +132,7 @@ pub fn local_testnet_config() -> ChainSpec {
 		// Bootnodes
 		Vec::new(),
 		// Telemetry
-		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(), //TODO: remove
+		None,
 		// Protocol ID
 		Some("template-local"),
 		None,
