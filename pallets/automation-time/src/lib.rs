@@ -95,8 +95,11 @@ pub mod pallet {
 			recipient_id: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> Task<T> {
-			let action =
-				Action::NativeTransfer { sender: owner_id.clone(), recipient: recipient_id, amount };
+			let action = Action::NativeTransfer {
+				sender: owner_id.clone(),
+				recipient: recipient_id,
+				amount,
+			};
 			Task::<T> { owner_id, provided_id, time, action }
 		}
 	}
@@ -337,7 +340,8 @@ pub mod pallet {
 			if who == recipient_id {
 				Err(<Error<T>>::TransferToSelf)?
 			}
-			let action = Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
+			let action =
+				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
 			Self::validate_and_schedule_task(action, who, provided_id, time)?;
 			Ok(().into())
 		}
@@ -576,7 +580,12 @@ pub mod pallet {
 						let action_weight = match task.action {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(sender, recipient, amount, task_id.clone()),
+								Self::run_native_transfer_task(
+									sender,
+									recipient,
+									amount,
+									task_id.clone(),
+								),
 						};
 						Tasks::<T>::remove(task_id);
 						action_weight + 10_000

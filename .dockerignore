@@ -5,4 +5,4 @@ target
 data
 !resources
 !target/release/oak
-!target/release/neumann-collator
+!target/release/oak-collator

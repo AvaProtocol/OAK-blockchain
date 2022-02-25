@@ -32,7 +32,7 @@ jobs:
 
       - name: Check Build
         run: |
-          SKIP_WASM_BUILD=1 cargo check --release
+          SKIP_WASM_BUILD=1 cargo check --release --features all-nodes
 
   test-coverage:
     runs-on: ubuntu-20.04
@@ -58,10 +58,10 @@ jobs:
           export BUILD_DUMMY_WASM_BINARY=true
           export LLVM_PROFILE_FILE="llvmcoveragedata-%p-%m.profraw"
           export WASM_TARGET_DIRECTORY=/tmp/wasm
-          cargo build
+          cargo build --features all-nodes
           export RUSTFLAGS="-Zinstrument-coverage"
           rm -rf target/debug
-          cargo test --all
+          cargo test --all --features all-nodes
           grcov . --binary-path ./target/debug/ -s . -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
           bash <(curl -s https://codecov.io/bash) -f lcov.info
           

@@ -4,14 +4,14 @@ FROM docker.io/paritytech/ci-linux:production as builder
 WORKDIR /build
 COPY . /build
 
-RUN cargo build --locked --release
+RUN cargo build --locked --release --features neumann-node
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04
 
 ARG USERNAME=oak
 ARG PROFILE=release
-ARG BINARY=neumann-collator
+ARG BINARY=oak-collator
 
 LABEL maintainer "contact@oak.tech"
 LABEL description="Binary for Neumann Collator"
@@ -49,5 +49,5 @@ VOLUME ["/data"]
 # Change work directory
 WORKDIR /$USERNAME
 
-ENTRYPOINT ["./neumann-collator"]
+ENTRYPOINT ["./oak-collator"]
 

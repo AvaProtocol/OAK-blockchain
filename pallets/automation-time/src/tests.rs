@@ -707,13 +707,14 @@ fn create_task(
 	let task = match action {
 		Action::Notify { message } =>
 			Task::<Test>::create_event_task(owner, provided_id, scheduled_time, message),
-		Action::NativeTransfer { sender: _, recipient, amount } => Task::<Test>::create_native_transfer_task(
-			owner,
-			provided_id,
-			scheduled_time,
-			recipient,
-			amount,
-		),
+		Action::NativeTransfer { sender: _, recipient, amount } =>
+			Task::<Test>::create_native_transfer_task(
+				owner,
+				provided_id,
+				scheduled_time,
+				recipient,
+				amount,
+			),
 	};
 	Tasks::<Test>::insert(task_id, task);
 	task_id

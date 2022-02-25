@@ -1,0 +1,22 @@
+[package]
+name = "primitives"
+version = "1.0.0"
+description = "Runtime primitives"
+authors = ["OAK Developement Team"]
+license = "GPL-3.0"
+homepage = "https://oak.tech"
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
+edition = "2018"
+
+[dependencies]
+sp-consensus-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.16" }
+
+
+[features]
+default = ["std"]
+std = [
+	"sp-core/std",
+	"sp-runtime/std",
+]

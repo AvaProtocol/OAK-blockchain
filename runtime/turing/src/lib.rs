@@ -79,9 +79,7 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 // Common imports
-use primitives::{
-	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
-};
+use primitives::{AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature};
 
 // Custom pallet imports
 pub use pallet_automation_time;
@@ -173,10 +171,10 @@ impl_opaque_keys! {
 
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("neumann"),
-	impl_name: create_runtime_str!("neumann"),
+	spec_name: create_runtime_str!("turing"),
+	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 275,
+	spec_version: 274,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 3,
