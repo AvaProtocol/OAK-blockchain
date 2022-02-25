@@ -12,6 +12,7 @@ pub mod neumann;
 #[cfg(feature = "turing-node")]
 pub mod turing;
 
+pub const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 pub type DummyChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
 /// Can be called for a `Configuration` to check if it is a configuration for

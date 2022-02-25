@@ -2,6 +2,7 @@ use hex_literal::hex;
 
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
+use sc_telemetry::TelemetryEndpoints;
 use sp_core::{crypto::UncheckedInto, sr25519};
 
 use crate::chain_spec::{
@@ -11,6 +12,7 @@ use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
 	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
+use super::TELEMETRY_URL;
 
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -130,7 +132,7 @@ pub fn turing_latest_latest() -> ChainSpec {
 		// Bootnodes
 		Vec::new(),
 		// Telemetry
-		None,
+		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
 		// Protocol ID
 		Some("turing"),
 		None,
