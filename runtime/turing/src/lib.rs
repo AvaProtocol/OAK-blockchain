@@ -135,15 +135,13 @@ pub struct WeightToFee;
 impl WeightToFeePolynomial for WeightToFee {
 	type Balance = Balance;
 	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		// in Rococo, extrinsic base weight (smallest non-zero weight) is mapped to 1 CENT:
-		// in our template, we map to 1/10 of that, or 1/10 CENT
-		let p = CENT / 10;
-		let q = 100 * Balance::from(ExtrinsicBaseWeight::get());
+		let weight_to_fee_scalar: Balance = 6;
+
 		smallvec![WeightToFeeCoefficient {
 			degree: 1,
 			negative: false,
-			coeff_frac: Perbill::from_rational(p % q, q),
-			coeff_integer: p / q,
+			coeff_frac: Perbill::zero(),
+			coeff_integer: weight_to_fee_scalar,
 		}]
 	}
 }
@@ -407,7 +405,8 @@ where
 
 
 impl pallet_transaction_payment::Config for Runtime {
-	type OnChargeTransaction = pallet_transaction_payment::CurrencyAdapter<Balances, ()>;
+	type OnChargeTransaction =
+		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
