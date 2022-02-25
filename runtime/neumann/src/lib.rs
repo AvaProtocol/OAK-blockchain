@@ -33,7 +33,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, MultiSignature, Percent,
+	ApplyExtrinsicResult, FixedPointNumber, Percent,
 };
 
 use sp_std::prelude::*;
@@ -57,8 +57,7 @@ use frame_system::{
 };
 use pallet_balances::NegativeImbalance;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
-pub use sp_runtime::{MultiAddress, Perbill, Permill, Perquintill};
+pub use sp_runtime::{Perbill, Permill, Perquintill};
 
 #[cfg(any(feature = "std", test))]
 pub use pallet_sudo::Call as SudoCall;
