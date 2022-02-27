@@ -393,7 +393,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Based on the block time, return the time slot and if it's the last block in the slot.
+		/// Based on the block time, return the time slot.
 		///
 		/// In order to do this we:
 		/// * Get the most recent timestamp from the block.

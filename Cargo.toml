@@ -12,4 +12,5 @@ members = [
 	"pallets/automation-time/rpc",
 	"pallets/automation-time/rpc/runtime-api",
 	"pallets/valve",
+	"pallets/vesting",
 ]
