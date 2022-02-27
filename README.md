@@ -77,8 +77,11 @@ Install the OAK node from git source:
     git clone git@github.com:OAK-Foundation/OAK-blockchain.git    
 
 Build your executable:
-
-    cargo build --release --features neumann-node/turing-node
+```bash
+    cargo build --release --features neumann-node
+    # OR
+    cargo build --release --features turing-node
+```
 
 Run your Local Network
 -----------
@@ -179,11 +182,7 @@ Contacts
 
 **Maintainers**
 
-* [Charles Chen](https://github.com/imstar15)
-* [Ryan Huttman](https://github.com/rhuttman)
-* [Chris Li](https://github.com/chrisli30)
-* [Irsal McGinnis](https://github.com/irsal)
-* [Laura Reesby](https://github.com/lreesby)
+* [OAK Development Team](https://github.com/orgs/OAK-Foundation/people)
 
 * * *
 
