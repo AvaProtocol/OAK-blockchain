@@ -185,12 +185,12 @@ impl Config for Test {
 /// Externality builder for pallet maintenance mode's mock runtime
 pub(crate) struct ExtBuilder {
 	valve_closed: bool,
-	closed_gateds: Vec<Vec<u8>>,
+	closed_gates: Vec<Vec<u8>>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder { valve_closed: false, closed_gateds: vec![] }
+		ExtBuilder { valve_closed: false, closed_gates: vec![] }
 	}
 }
 
@@ -201,7 +201,7 @@ impl ExtBuilder {
 	}
 
 	pub(crate) fn with_gate_closed(mut self, g: Vec<u8>) -> Self {
-		self.closed_gateds = vec![g];
+		self.closed_gates = vec![g];
 		self
 	}
 
@@ -213,7 +213,7 @@ impl ExtBuilder {
 		GenesisBuild::<Test>::assimilate_storage(
 			&pallet_valve::GenesisConfig {
 				start_with_valve_closed: self.valve_closed,
-				closed_gates: self.closed_gateds,
+				closed_gates: self.closed_gates,
 			},
 			&mut t,
 		)
