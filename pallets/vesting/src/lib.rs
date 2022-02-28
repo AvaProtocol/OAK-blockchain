@@ -38,7 +38,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp::{self as timestamp};
 
-
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 	type UnixTime = u64;
@@ -55,7 +54,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A vest occured.
-		Vested { 
+		Vested {
 			account: AccountOf<T>,
 			amount: BalanceOf<T>,
 		},
@@ -63,7 +62,7 @@ pub mod pallet {
 			account: AccountOf<T>,
 			amount: BalanceOf<T>,
 			error: DispatchError,
-		}
+		},
 	}
 
 	#[pallet::error]
@@ -80,7 +79,8 @@ pub mod pallet {
 	/// The closed pallet map. Each pallet in here will not receive transcations.
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_vest)]
-	pub type VestingSchedule<T: Config> = StorageMap<_, Twox64Concat, UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>, OptionQuery>;
+	pub type VestingSchedule<T: Config> =
+		StorageMap<_, Twox64Concat, UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>, OptionQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -113,12 +113,11 @@ pub mod pallet {
 				if let Some(scheduled) = Self::get_scheduled_vest(current_time) {
 					for (account, amount) in scheduled {
 						<T as Config>::Currency::deposit_creating(&account, amount);
-						Self::deposit_event(Event::Vested { account, amount})
+						Self::deposit_event(Event::Vested { account, amount })
 					}
 				}
 				VestingSchedule::<T>::remove(current_time);
 			}
-			
 		}
 	}
 
@@ -141,7 +140,10 @@ pub mod pallet {
 				assert!(time % 3600 == 0, "Invalid time");
 				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
 				for (account, amount) in schedule {
-					assert!(*amount > <T>::Currency::minimum_balance(), "Cannot vest less than the existential deposit");
+					assert!(
+						*amount > <T>::Currency::minimum_balance(),
+						"Cannot vest less than the existential deposit"
+					);
 					scheduled_vests.push((account.clone(), amount.clone()));
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);

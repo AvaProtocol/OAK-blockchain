@@ -23,122 +23,122 @@ const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
 
 #[test]
 fn genesis_default() {
-    ExtBuilder::default().build().execute_with( || {})
+	ExtBuilder::default().build().execute_with(|| {})
 }
 
 #[test]
 #[should_panic = "Invalid time"]
 fn genesis_bad_time() {
-    let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-    let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-    first_vest.push((ALICE, 100));
-    first_vest.push((BOB, 100));
-    scheduled_vests.push((FIRST_VEST_TIME + 120, first_vest));
+	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
+	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
+	first_vest.push((ALICE, 100));
+	first_vest.push((BOB, 100));
+	scheduled_vests.push((FIRST_VEST_TIME + 120, first_vest));
 
-    ExtBuilder::default().schedule(scheduled_vests).build().execute_with( || {})
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {})
 }
 
 #[test]
 #[should_panic = "Cannot vest less than the existential deposit"]
 fn genesis_low_amount() {
-    let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-    let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-    first_vest.push((ALICE, 1));
-    first_vest.push((BOB, 100));
-    scheduled_vests.push((FIRST_VEST_TIME, first_vest));
+	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
+	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
+	first_vest.push((ALICE, 1));
+	first_vest.push((BOB, 100));
+	scheduled_vests.push((FIRST_VEST_TIME, first_vest));
 
-    ExtBuilder::default().schedule(scheduled_vests).build().execute_with( || {})
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {})
 }
 
 #[test]
 fn genesis() {
-    let scheduled_vests = get_schedule();
+	let scheduled_vests = get_schedule();
 
-    ExtBuilder::default().schedule(scheduled_vests).build().execute_with( || {
-        let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
-        let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
+		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
+		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 
-        assert_eq!(first_vest.unwrap().len(), 2);
-        assert_eq!(second_vest.unwrap().len(), 2);
-    })
+		assert_eq!(first_vest.unwrap().len(), 2);
+		assert_eq!(second_vest.unwrap().len(), 2);
+	})
 }
 
 #[test]
 fn on_initialize_with_default() {
-    ExtBuilder::default().build().execute_with( || {
-        Timestamp::set_timestamp(FIRST_VEST_TIME * 1_000);
-        Vesting::on_initialize(1);
-    })
+	ExtBuilder::default().build().execute_with(|| {
+		Timestamp::set_timestamp(FIRST_VEST_TIME * 1_000);
+		Vesting::on_initialize(1);
+	})
 }
 
 #[test]
 fn on_initialize_no_time_set() {
-    let scheduled_vests = get_schedule();
+	let scheduled_vests = get_schedule();
 
-    ExtBuilder::default().schedule(scheduled_vests).build().execute_with( || {
-        Vesting::on_initialize(1);
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
+		Vesting::on_initialize(1);
 
-        let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
-        let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
-        assert_eq!(first_vest.unwrap().len(), 2);
-        assert_eq!(second_vest.unwrap().len(), 2);
-    })
+		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
+		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+		assert_eq!(first_vest.unwrap().len(), 2);
+		assert_eq!(second_vest.unwrap().len(), 2);
+	})
 }
 
 #[test]
 fn on_initialize() {
-    let scheduled_vests = get_schedule();
+	let scheduled_vests = get_schedule();
 
-    ExtBuilder::default().schedule(scheduled_vests).build().execute_with( || {
-        Timestamp::set_timestamp(FIRST_VEST_TIME * 1_000);
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
+		Timestamp::set_timestamp(FIRST_VEST_TIME * 1_000);
 
-        let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
-        let vest_events = vest_to_events(first_vest.unwrap());
-        Vesting::on_initialize(1);
+		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
+		let vest_events = vest_to_events(first_vest.unwrap());
+		Vesting::on_initialize(1);
 
-        let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
-        let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
-        assert_eq!(first_vest, None);
-        assert_eq!(second_vest.unwrap().len(), 2);
-        assert_eq!(events(), vest_events);
-        assert_eq!(Balances::free_balance(ALICE), 100);
+		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
+		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+		assert_eq!(first_vest, None);
+		assert_eq!(second_vest.unwrap().len(), 2);
+		assert_eq!(events(), vest_events);
+		assert_eq!(Balances::free_balance(ALICE), 100);
 		assert_eq!(Balances::free_balance(BOB), 100);
 
-        let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
-        let vest_events = vest_to_events(second_vest.unwrap());
-        Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
-        Vesting::on_initialize(2);
+		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+		let vest_events = vest_to_events(second_vest.unwrap());
+		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
+		Vesting::on_initialize(2);
 
-        let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
-        assert_eq!(second_vest, None);
-        assert_eq!(events(), vest_events);
-        assert_eq!(Balances::free_balance(ALICE), 300);
+		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+		assert_eq!(second_vest, None);
+		assert_eq!(events(), vest_events);
+		assert_eq!(Balances::free_balance(ALICE), 300);
 		assert_eq!(Balances::free_balance(BOB), 300);
 
-        Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
-        Vesting::on_initialize(2);
-    })
+		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
+		Vesting::on_initialize(2);
+	})
 }
 
 fn get_schedule() -> Vec<(u64, Vec<(AccountId, Balance)>)> {
-    let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-    let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-    first_vest.push((ALICE, 100));
-    first_vest.push((BOB, 100));
-    scheduled_vests.push((FIRST_VEST_TIME, first_vest));
-    let mut second_vest: Vec<(AccountId, Balance)> = vec![];
-    second_vest.push((ALICE, 200));
-    second_vest.push((BOB, 200));
-    scheduled_vests.push((SECOND_VEST_TIME, second_vest));
+	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
+	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
+	first_vest.push((ALICE, 100));
+	first_vest.push((BOB, 100));
+	scheduled_vests.push((FIRST_VEST_TIME, first_vest));
+	let mut second_vest: Vec<(AccountId, Balance)> = vec![];
+	second_vest.push((ALICE, 200));
+	second_vest.push((BOB, 200));
+	scheduled_vests.push((SECOND_VEST_TIME, second_vest));
 
-    scheduled_vests
+	scheduled_vests
 }
 
 fn vest_to_events(vests: Vec<(AccountId, Balance)>) -> Vec<Event<Test>> {
-    let mut events: Vec<Event<Test>> = vec![];
-    for (account, amount) in vests {
-        let event = Event::Vested{ account, amount };
-        events.push(event);
-    }
-    events
+	let mut events: Vec<Event<Test>> = vec![];
+	for (account, amount) in vests {
+		let event = Event::Vested { account, amount };
+		events.push(event);
+	}
+	events
 }

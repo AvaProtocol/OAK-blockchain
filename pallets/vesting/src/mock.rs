@@ -48,7 +48,7 @@ construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>},
+		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -131,11 +131,11 @@ impl Default for ExtBuilder {
 }
 
 impl ExtBuilder {
-    pub(crate) fn schedule(mut self, v: Vec<(u64, Vec<(AccountId, Balance)>)>) -> Self {
-        self.vesting_schedule = v;
-        self
-    }
-    
+	pub(crate) fn schedule(mut self, v: Vec<(u64, Vec<(AccountId, Balance)>)>) -> Self {
+		self.vesting_schedule = v;
+		self
+	}
+
 	pub(crate) fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
