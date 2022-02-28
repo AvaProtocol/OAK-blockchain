@@ -26,6 +26,7 @@ hex-literal = "0.3.1"
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
 pallet-automation-time-rpc-runtime-api = { path = "../../pallets/automation-time/rpc/runtime-api", default-features = false }
 pallet-valve = { path= "../../pallets/valve", default-features = false }
+pallet-vesting = { path= "../../pallets/vesting", default-features = false}
 primitives = { path = "../../primitives", default-features = false }
 
 # Substrate Dependencies
@@ -123,6 +124,7 @@ std = [
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-valve/std",
+	"pallet-vesting/std",
 	"primitives/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
