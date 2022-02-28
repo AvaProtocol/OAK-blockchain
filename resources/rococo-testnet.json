@@ -1,7 +1,7 @@
 {
     "name": "Rococo Testnet Relay Chain",
     "id": "rococo_testnet",
-    "chainType": "Live",
+    "chainType": "Local",
     "bootNodes": [],
     "telemetryEndpoints": null,
     "protocolId": "dot",

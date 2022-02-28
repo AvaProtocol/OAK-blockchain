@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.6] - 2022-02-28
 - Add Turing runtime and split chain-specific code (#chain-fork)
 - Add telemetry for node infra
+- Default Turing chain_spec on genesis has all gates closed
+- Adding pallet-vesting for OAK's own vesting schedule and distribution
 
 ## [1.2.5] - 2022-02-20
 - Automation Time RPC called automationTime_generateTaskId
