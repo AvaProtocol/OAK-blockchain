@@ -185,11 +185,12 @@ impl Config for Test {
 /// Externality builder for pallet maintenance mode's mock runtime
 pub(crate) struct ExtBuilder {
 	valve_closed: bool,
+	closed_gates: Vec<Vec<u8>>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder { valve_closed: false }
+		ExtBuilder { valve_closed: false, closed_gates: vec![] }
 	}
 }
 
@@ -199,13 +200,21 @@ impl ExtBuilder {
 		self
 	}
 
+	pub(crate) fn with_gate_closed(mut self, g: Vec<u8>) -> Self {
+		self.closed_gates = vec![g];
+		self
+	}
+
 	pub(crate) fn build(self) -> sp_io::TestExternalities {
 		let mut t = frame_system::GenesisConfig::default()
 			.build_storage::<Test>()
 			.expect("Frame system builds valid default genesis config");
 
 		GenesisBuild::<Test>::assimilate_storage(
-			&pallet_valve::GenesisConfig { start_with_valve_closed: self.valve_closed },
+			&pallet_valve::GenesisConfig {
+				start_with_valve_closed: self.valve_closed,
+				closed_gates: self.closed_gates,
+			},
 			&mut t,
 		)
 		.expect("Pallet valve storage can be assimilated");

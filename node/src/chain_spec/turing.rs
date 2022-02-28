@@ -72,6 +72,7 @@ pub fn turing_development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
+				vec![],
 			)
 		},
 		Vec::new(),
@@ -127,6 +128,7 @@ pub fn turing_latest_latest() -> ChainSpec {
 				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
+				vec![],
 			)
 		},
 		// Bootnodes
@@ -151,6 +153,7 @@ fn testnet_genesis(
 	root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	id: ParaId,
+	pallet_gates_closed: Vec<Vec<u8>>,
 ) -> turing_runtime::GenesisConfig {
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
@@ -185,6 +188,6 @@ fn testnet_genesis(
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
-		valve: ValveConfig { start_with_valve_closed: false },
+		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 	}
 }
