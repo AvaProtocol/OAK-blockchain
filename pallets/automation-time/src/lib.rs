@@ -258,7 +258,8 @@ pub mod pallet {
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
 			Self::trigger_tasks(max_weight);
 			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
-			max_weight
+			// max_weight
+			<T as Config>::WeightInfo::cancel_overflow_task()
 		}
 	}
 

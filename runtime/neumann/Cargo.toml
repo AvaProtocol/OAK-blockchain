@@ -156,5 +156,6 @@ runtime-benchmarks = [
 	"pallet-collective/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
+	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 ]
