@@ -216,6 +216,7 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	pub struct GenesisConfig {
 		pub start_with_valve_closed: bool,
+		pub closed_gates: Vec<Vec<u8>>,
 	}
 
 	#[pallet::genesis_build]
@@ -223,6 +224,10 @@ pub mod pallet {
 		fn build(&self) {
 			if self.start_with_valve_closed {
 				ValveClosed::<T>::put(true);
+			}
+
+			for gate in self.closed_gates.iter() {
+				ClosedPallets::<T>::insert(gate, ());
 			}
 		}
 	}

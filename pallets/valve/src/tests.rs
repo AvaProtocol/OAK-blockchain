@@ -87,6 +87,20 @@ fn cannot_close_pallet_gate_when_valve_closed() {
 }
 
 #[test]
+fn can_start_with_pallet_gate_closed() {
+	ExtBuilder::default()
+		.with_gate_closed(b"System".to_vec())
+		.build()
+		.execute_with(|| {
+			let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
+			assert_noop!(
+				call.dispatch(Origin::signed(1)),
+				frame_system::Error::<Test>::CallFiltered
+			);
+		})
+}
+
+#[test]
 fn can_open_valve() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::open_valve {}.into();

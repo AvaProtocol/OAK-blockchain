@@ -16,10 +16,10 @@
 // limitations under the License.
 
 use super::*;
-use crate as pallet_valve;
+use crate as pallet_vesting;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild},
+	traits::{Everything, GenesisBuild},
 	weights::Weight,
 };
 use sp_core::H256;
@@ -28,16 +28,17 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentityLookup},
 	Perbill,
 };
-use sp_std::marker::PhantomData;
 
 pub type AccountId = u64;
 pub type BlockNumber = u64;
 pub type Balance = u128;
 
+pub const ALICE: AccountId = 1;
+pub const BOB: AccountId = 2;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
-// Configure a mock runtime to test the pallet.
 construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -47,8 +48,7 @@ construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
-		Valve: pallet_valve::{Pallet, Call, Storage, Event, Config},
+		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>},
 	}
 );
 
@@ -60,7 +60,7 @@ parameter_types! {
 	pub const SS58Prefix: u8 = 51;
 }
 impl frame_system::Config for Test {
-	type BaseCallFilter = Valve;
+	type BaseCallFilter = Everything;
 	type DbWeight = ();
 	type Origin = Origin;
 	type Index = u64;
@@ -87,7 +87,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const ExistentialDeposit: u64 = 1;
+	pub const ExistentialDeposit: u64 = 10;
 	pub const MaxLocks: u32 = 50;
 	pub const MaxReserves: u32 = 50;
 }
@@ -115,93 +115,24 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 2;
-	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1200_000;
-	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
-	pub const SecondsPerBlock: u64 = 12;
-}
-
-pub struct MockWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
-	fn schedule_notify_task_empty() -> Weight {
-		0
-	}
-	fn schedule_notify_task_full() -> Weight {
-		0
-	}
-	fn schedule_native_transfer_task_empty() -> Weight {
-		0
-	}
-	fn schedule_native_transfer_task_full() -> Weight {
-		0
-	}
-	fn cancel_scheduled_task() -> Weight {
-		0
-	}
-	fn cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn cancel_overflow_task() -> Weight {
-		0
-	}
-	fn force_cancel_scheduled_task() -> Weight {
-		0
-	}
-	fn force_cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn force_cancel_overflow_task() -> Weight {
-		0
-	}
-}
-
-impl pallet_automation_time::Config for Test {
+impl Config for Test {
 	type Event = Event;
-	type MaxTasksPerSlot = MaxTasksPerSlot;
-	type MaxScheduleSeconds = MaxScheduleSeconds;
-	type MaxBlockWeight = MaxBlockWeight;
-	type MaxWeightPercentage = MaxWeightPercentage;
-	type SecondsPerBlock = SecondsPerBlock;
-	type WeightInfo = MockWeight<Test>;
-	type ExistentialDeposit = ExistentialDeposit;
 	type Currency = Balances;
 }
 
-/// During maintenance mode we will not allow any calls.
-pub struct ClosedCallFilter;
-impl Contains<Call> for ClosedCallFilter {
-	fn contains(_: &Call) -> bool {
-		false
-	}
-}
-
-impl Config for Test {
-	type Event = Event;
-	type ClosedCallFilter = ClosedCallFilter;
-}
-
-/// Externality builder for pallet maintenance mode's mock runtime
 pub(crate) struct ExtBuilder {
-	valve_closed: bool,
-	closed_gates: Vec<Vec<u8>>,
+	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 }
 
 impl Default for ExtBuilder {
 	fn default() -> ExtBuilder {
-		ExtBuilder { valve_closed: false, closed_gates: vec![] }
+		ExtBuilder { vesting_schedule: Default::default() }
 	}
 }
 
 impl ExtBuilder {
-	pub(crate) fn with_valve_closed(mut self, c: bool) -> Self {
-		self.valve_closed = c;
-		self
-	}
-
-	pub(crate) fn with_gate_closed(mut self, g: Vec<u8>) -> Self {
-		self.closed_gates = vec![g];
+	pub(crate) fn schedule(mut self, v: Vec<(u64, Vec<(AccountId, Balance)>)>) -> Self {
+		self.vesting_schedule = v;
 		self
 	}
 
@@ -211,13 +142,10 @@ impl ExtBuilder {
 			.expect("Frame system builds valid default genesis config");
 
 		GenesisBuild::<Test>::assimilate_storage(
-			&pallet_valve::GenesisConfig {
-				start_with_valve_closed: self.valve_closed,
-				closed_gates: self.closed_gates,
-			},
+			&pallet_vesting::GenesisConfig { vesting_schedule: self.vesting_schedule },
 			&mut t,
 		)
-		.expect("Pallet valve storage can be assimilated");
+		.expect("Pallet valve vesting can be assimilated");
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| System::set_block_number(1));
@@ -225,11 +153,11 @@ impl ExtBuilder {
 	}
 }
 
-pub(crate) fn events() -> Vec<pallet_valve::Event> {
+pub(crate) fn events() -> Vec<pallet_vesting::Event<Test>> {
 	let evt = System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let Event::Valve(inner) = e { Some(inner) } else { None })
+		.filter_map(|e| if let Event::Vesting(inner) = e { Some(inner) } else { None })
 		.collect::<Vec<_>>();
 
 	System::reset_events();
