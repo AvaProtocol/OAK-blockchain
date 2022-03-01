@@ -715,6 +715,7 @@ impl pallet_valve::Config for Runtime {
 
 impl pallet_vesting::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = pallet_vesting::weights::VestingWeight<Runtime>;
 	type Currency = Balances;
 }
 

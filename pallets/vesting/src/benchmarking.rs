@@ -14,20 +14,35 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use core::convert::TryInto;
 use frame_benchmarking::{account, benchmarks};
-use frame_system::RawOrigin;
+use frame_support::traits::Currency;
 use pallet_timestamp;
+use sp_runtime::traits::{Saturating, SaturatedConversion};
+use sp_std::{vec, vec::Vec};
 
 use crate::Pallet as Vesting;
 
-const FIRST_VEST_TIME: u64 = 1646028000;
+const FIRST_VEST_TIME: u64 = 3600;
+const ED_MULTIPLIER: u32 = 10;
 
 benchmarks! {
     vest {
-        let pallet_time: u32 = 3600 * 1_000;
+        let v in 0 .. 20;
+
+        if v > 0 {
+            let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
+            let amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+            for i in 0 .. v {
+                let vesting_account = account("person", 0, i);
+                scheduled_vests.push((vesting_account, amount.clone()));
+            } 
+            VestingSchedule::<T>::insert(FIRST_VEST_TIME, scheduled_vests);
+        }
+
+        let pallet_time: u32 = (FIRST_VEST_TIME * 1_000).saturated_into::<u32>();
         <pallet_timestamp::Pallet<T>>::set_timestamp(pallet_time.into());
     }: { Vesting::<T>::vest() }
 } 
