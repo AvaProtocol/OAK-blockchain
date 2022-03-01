@@ -43,7 +43,6 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp::{self as timestamp};
 
-
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 	type UnixTime = u64;
