@@ -3,7 +3,7 @@ networkSpec:
   name: rococo-testnet
   protocol: substrate
   imageRepository: parity/polkadot
-  imageVersion: v0.9.13
+  imageVersion: v0.9.16
   config:
     nodeTypes:
       full:
@@ -16,15 +16,12 @@ networkSpec:
         - key: "--force-authoring"
         - key: "--chain"
           file: rococo-testnet.json
+        - key: "--no-mdns"
 validator:
   count: 6
   sudoArgs: #sudo args is to reduce the setting of sudo users for each node. For example, there will be 3 nodes running, the first node will be assgin --alice, the second node will be assgin --bob, and the third will be assgin --charlie. 
     - --alice
     - --bob
-    - --charlie
-    - --dave
-    - --eve
-    - --ferdie
   node:
     nodeName: rococo-testnet-validator
     nodeType: validator
