@@ -752,6 +752,7 @@ impl Contains<Call> for ClosedCallFilter {
 
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 }
 
@@ -782,7 +783,7 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
 
 		// Utilities
-		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event} = 30,
+		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,

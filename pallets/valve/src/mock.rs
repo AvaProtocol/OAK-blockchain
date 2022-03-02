@@ -48,7 +48,7 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
-		Valve: pallet_valve::{Pallet, Call, Storage, Event, Config},
+		Valve: pallet_valve::{Pallet, Call, Storage, Event<T>, Config},
 	}
 );
 
@@ -123,8 +123,8 @@ parameter_types! {
 	pub const SecondsPerBlock: u64 = 12;
 }
 
-pub struct MockWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
+pub struct MockAutomationTimeWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockAutomationTimeWeight<Test> {
 	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
@@ -164,7 +164,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
-	type WeightInfo = MockWeight<Test>;
+	type WeightInfo = MockAutomationTimeWeight<Test>;
 	type ExistentialDeposit = ExistentialDeposit;
 	type Currency = Balances;
 }
@@ -177,8 +177,37 @@ impl Contains<Call> for ClosedCallFilter {
 	}
 }
 
+pub struct MockWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_valve::WeightInfo for MockWeight<Test> {
+	fn close_valve() -> Weight {
+		0
+	}
+	fn open_valve() -> Weight {
+		0
+	}
+	fn close_pallet_gate_new() -> Weight {
+		0
+	}
+	fn close_pallet_gate_existing() -> Weight {
+		0
+	}
+	fn open_pallet_gate() -> Weight {
+		0
+	}
+	fn open_pallet_gates() -> Weight {
+		0
+	}
+	fn stop_scheduled_tasks() -> Weight {
+		0
+	}
+	fn start_scheduled_tasks() -> Weight {
+		0
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
+	type WeightInfo = MockWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
 }
 
@@ -225,7 +254,7 @@ impl ExtBuilder {
 	}
 }
 
-pub(crate) fn events() -> Vec<pallet_valve::Event> {
+pub(crate) fn events() -> Vec<pallet_valve::Event<Test>> {
 	let evt = System::events()
 		.into_iter()
 		.map(|r| r.event)

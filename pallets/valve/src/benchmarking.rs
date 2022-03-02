@@ -27,18 +27,31 @@ benchmarks! {
     }: _(RawOrigin::Root)
 
     open_valve {
-        ClosedPallets::<T>::insert(b"System".to_vec(), ());
-        ClosedPallets::<T>::insert(b"Balances".to_vec(), ());
+        ValveClosed::<T>::put(true);
     }: _(RawOrigin::Root)
 
-    close_pallet_gate {
+    close_pallet_gate_new {
 
-    }: _(RawOrigin::Root, b"System".to_vec())
+    }: close_pallet_gate(RawOrigin::Root, b"System".to_vec())
+
+    close_pallet_gate_existing {
+        ClosedPallets::<T>::insert(b"System".to_vec(), ());
+    }: close_pallet_gate(RawOrigin::Root, b"System".to_vec())
+
 
     open_pallet_gate {
         let pallet_name = b"System".to_vec();
         ClosedPallets::<T>::insert(pallet_name.clone(), ());
     }: _(RawOrigin::Root, pallet_name)
+
+    open_pallet_gates {
+        ClosedPallets::<T>::insert(b"System".to_vec(), ());
+        ClosedPallets::<T>::insert(b"Balances".to_vec(), ());
+        ClosedPallets::<T>::insert(b"Bounties".to_vec(), ());
+        ClosedPallets::<T>::insert(b"CollatorSelection".to_vec(), ());
+        ClosedPallets::<T>::insert(b"Treasury".to_vec(), ());
+        ClosedPalletCount::<T>::put(5);
+    }: _(RawOrigin::Root)
 
     stop_scheduled_tasks {
 
