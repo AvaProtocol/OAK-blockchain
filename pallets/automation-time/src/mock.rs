@@ -17,7 +17,7 @@
 
 use super::*;
 use crate as pallet_automation_time;
-use frame_support::{construct_runtime, parameter_types, traits::Everything, weights::Weight};
+use frame_support::{construct_runtime, parameter_types, traits::{Everything, OnUnbalanced}, weights::Weight};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
@@ -26,6 +26,7 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::marker::PhantomData;
+use pallet_balances::NegativeImbalance;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -116,6 +117,7 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
+	pub const ExecutionWeightFee: Balance = 12;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -152,6 +154,14 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 }
 
+pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
+where
+	R: pallet_balances::Config
+{
+	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -160,8 +170,8 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
-	type ExistentialDeposit = ExistentialDeposit;
-	type Currency = Balances;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 }
 
 // Build genesis storage according to the mock runtime.
