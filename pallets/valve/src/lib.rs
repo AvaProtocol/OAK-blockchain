@@ -76,7 +76,7 @@ pub mod pallet {
 		/// Scheduled tasks will now start running.
 		ScheduledTasksResumed,
 		/// The number of pallet gates still closed.
-		PalletGatesClosed{ count: u8 },
+		PalletGatesClosed { count: u8 },
 	}
 
 	#[pallet::error]
@@ -206,7 +206,7 @@ pub mod pallet {
 		}
 
 		/// Open the pallet gates.
-		/// 
+		///
 		/// In order to ensure this call is safe it will only open five gates at once.
 		/// It will send the PalletGatesClosed with a count of how many gates are still closed.
 		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gates())]

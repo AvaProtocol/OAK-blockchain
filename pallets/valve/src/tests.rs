@@ -137,10 +137,7 @@ fn can_open_pallet_gate() {
 
 		let call: OuterCall = Call::open_pallet_gate { pallet_name: b"System".to_vec() }.into();
 		assert_ok!(call.dispatch(Origin::root()));
-		assert_eq!(
-			events(),
-			vec![Event::PalletGateOpen { pallet_name_bytes: b"System".to_vec() }]
-		);
+		assert_eq!(events(), vec![Event::PalletGateOpen { pallet_name_bytes: b"System".to_vec() }]);
 		assert_eq!(0, Valve::count_of_closed_gates());
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
@@ -169,23 +166,18 @@ fn opens_all_pallet_gates() {
 		assert_ok!(call.dispatch(Origin::root()));
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Council".to_vec() }.into();
 		assert_ok!(call.dispatch(Origin::root()));
-		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"AutomationTime".to_vec() }.into();
+		let call: OuterCall =
+			Call::close_pallet_gate { pallet_name: b"AutomationTime".to_vec() }.into();
 		assert_ok!(call.dispatch(Origin::root()));
 		events();
-	
-		let call: OuterCall = Call::open_pallet_gates {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
-		assert_eq!(
-			events(),
-			vec![Event::PalletGatesClosed { count: 1 }]
-		);
 
 		let call: OuterCall = Call::open_pallet_gates {}.into();
 		assert_ok!(call.dispatch(Origin::root()));
-		assert_eq!(
-			events(),
-			vec![Event::PalletGatesClosed { count: 0 }]
-		);
+		assert_eq!(events(), vec![Event::PalletGatesClosed { count: 1 }]);
+
+		let call: OuterCall = Call::open_pallet_gates {}.into();
+		assert_ok!(call.dispatch(Origin::root()));
+		assert_eq!(events(), vec![Event::PalletGatesClosed { count: 0 }]);
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_ok!(call.dispatch(Origin::signed(1)));

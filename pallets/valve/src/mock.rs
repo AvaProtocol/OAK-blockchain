@@ -124,7 +124,9 @@ parameter_types! {
 }
 
 pub struct MockAutomationTimeWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockAutomationTimeWeight<Test> {
+impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
+	for MockAutomationTimeWeight<Test>
+{
 	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
