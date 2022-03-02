@@ -1,4 +1,4 @@
-use structopt::StructOpt;
+use clap::Parser;
 
 use std::{
 	path::{PathBuf, Path}, collections::HashMap, fs::{File, OpenOptions, self}, io::{Read, Write},
@@ -23,13 +23,13 @@ const SUBSTRATE_GIT_URL: &str = "https://github.com/paritytech/substrate.git";
 
 type CargoToml = HashMap<String, toml::Value>;
 
-#[derive(StructOpt)]
+#[derive(Parser)]
 struct Options {
 	/// The path to the `node-template` source.
-	#[structopt(parse(from_os_str))]
+	#[clap(parse(from_os_str))]
 	node_template: PathBuf,
 	/// The path where to output the generated `tar.gz` file.
-	#[structopt(parse(from_os_str))]
+	#[clap(parse(from_os_str))]
 	output: PathBuf,
 }
 
