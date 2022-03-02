@@ -768,6 +768,7 @@ pub mod pallet {
 			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
 			<Tasks<T>>::insert(task_id, task);
 
+			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
 
