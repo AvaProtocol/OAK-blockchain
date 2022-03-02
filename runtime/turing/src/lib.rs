@@ -81,7 +81,9 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 // Common imports
-use primitives::{AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature};
+use primitives::{
+	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+};
 
 // Custom pallet imports
 pub use pallet_automation_time;
@@ -751,7 +753,7 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
-	pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 }
 
 pub struct ClosedCallFilter;

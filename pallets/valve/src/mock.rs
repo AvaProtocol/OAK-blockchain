@@ -22,6 +22,7 @@ use frame_support::{
 	traits::{Contains, GenesisBuild, OnUnbalanced},
 	weights::Weight,
 };
+use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -29,7 +30,6 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::marker::PhantomData;
-use pallet_balances::NegativeImbalance;
 
 pub type AccountId = u64;
 pub type BlockNumber = u64;
@@ -162,11 +162,10 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
 where
-	R: pallet_balances::Config
+	R: pallet_balances::Config,
 {
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
-
 
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
@@ -177,7 +176,8 @@ impl pallet_automation_time::Config for Test {
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
-	type NativeTokenExchange = pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
+	type NativeTokenExchange =
+		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 }
 
 /// During maintenance mode we will not allow any calls.

@@ -17,8 +17,13 @@
 
 use super::*;
 use crate as pallet_automation_time;
-use frame_support::{construct_runtime, parameter_types, traits::{Everything, OnUnbalanced}, weights::Weight};
+use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{Everything, OnUnbalanced},
+	weights::Weight,
+};
 use frame_system as system;
+use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -26,7 +31,6 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::marker::PhantomData;
-use pallet_balances::NegativeImbalance;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -157,7 +161,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
 where
-	R: pallet_balances::Config
+	R: pallet_balances::Config,
 {
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }

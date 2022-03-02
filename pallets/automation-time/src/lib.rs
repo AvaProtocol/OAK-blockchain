@@ -48,7 +48,10 @@ use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::{Saturating, SaturatedConversion}, Perbill};
+use sp_runtime::{
+	traits::{SaturatedConversion, Saturating},
+	Perbill,
+};
 use sp_std::{vec, vec::Vec};
 
 pub use weights::WeightInfo;
@@ -149,7 +152,7 @@ pub mod pallet {
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
 		/// Handler for fees and native token transfers.
-		type NativeTokenExchange: NativeTokenExchange<Self>; 
+		type NativeTokenExchange: NativeTokenExchange<Self>;
 	}
 
 	#[pallet::pallet]
@@ -671,11 +674,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match T::NativeTokenExchange::transfer(
-				&sender,
-				&recipient,
-				amount,
-			) {
+			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
 				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
@@ -762,13 +761,15 @@ pub mod pallet {
 			Self::is_valid_time(time)?;
 
 			let fee = Self::calculate_execution_fee(&action);
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone()).map_err(|_| Error::InsufficientBalance)?;
+			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+				.map_err(|_| Error::InsufficientBalance)?;
 
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
 			<Tasks<T>>::insert(task_id, task);
 
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone()).map_err(|_| Error::LiquidityRestrictions)?;
+			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+				.map_err(|_| Error::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())

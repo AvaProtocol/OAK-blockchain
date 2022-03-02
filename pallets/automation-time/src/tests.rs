@@ -691,7 +691,6 @@ fn schedule_task(
 	BlakeTwo256::hash_of(&task_hash_input)
 }
 
-
 fn add_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
