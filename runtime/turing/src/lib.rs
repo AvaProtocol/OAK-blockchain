@@ -757,6 +757,12 @@ impl pallet_valve::Config for Runtime {
 	type ClosedCallFilter = ClosedCallFilter;
 }
 
+impl pallet_vesting::Config for Runtime {
+	type Event = Event;
+	type WeightInfo = pallet_vesting::weights::VestingWeight<Runtime>;
+	type Currency = Balances;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -800,6 +806,7 @@ construct_runtime!(
 
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
+		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 	}
 );
 
@@ -926,10 +933,12 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_vesting::Pallet as Vesting;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
+			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -943,6 +952,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_vesting::Pallet as Vesting;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -961,6 +971,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
+			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)
