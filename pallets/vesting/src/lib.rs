@@ -31,7 +31,7 @@ pub use pallet::*;
 
 #[pallet]
 pub mod pallet {
-	use sp_runtime::traits::SaturatedConversion;
+	use sp_runtime::traits::{Saturating, SaturatedConversion};
 	use sp_std::vec::Vec;
 
 	use frame_support::{pallet_prelude::*, traits::Currency};
@@ -102,9 +102,9 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
+			let now = now.saturating_div(1000);
 			let diff_to_min = now % 3600;
-			Ok(now - diff_to_min)
+			Ok(now.saturating_sub(diff_to_min))
 		}
 
 		/// Mint tokens for any accounts that have vested.

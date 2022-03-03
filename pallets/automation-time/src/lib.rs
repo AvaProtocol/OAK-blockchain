@@ -45,7 +45,7 @@ use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::Currenc
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::SaturatedConversion, Perbill};
+use sp_runtime::{traits::{Saturating, SaturatedConversion}, Perbill};
 use sp_std::{vec, vec::Vec};
 
 pub use weights::WeightInfo;
@@ -255,7 +255,8 @@ pub mod pallet {
 				return 10_000
 			}
 
-			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
+			let max_weight: Weight = T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
+			
 			Self::trigger_tasks(max_weight);
 			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
 			max_weight
@@ -404,9 +405,9 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
+			let now = now.saturating_div(1000);
 			let diff_to_min = now % 60;
-			Ok(now - diff_to_min)
+			Ok(now.saturating_sub(diff_to_min))
 		}
 
 		/// Checks to see if the scheduled time is valid.
@@ -439,7 +440,7 @@ pub mod pallet {
 		/// TODO (ENG-157): calculate weights.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			// need to calculate cost of all but the inner IF.
-			let mut weight_left: Weight = max_weight - 20_000;
+			let mut weight_left: Weight = max_weight.saturating_sub(20_000);
 
 			// There is a chance we use more than our max_weight to update the task queue.
 			// This would occur if the system is not producting blocks for a very long time.
@@ -450,7 +451,7 @@ pub mod pallet {
 				return update_weight
 			}
 
-			weight_left -= update_weight;
+			weight_left = weight_left.saturating_sub(update_weight);
 
 			// need to calculate the weight of running just 1 task below.
 			if weight_left < 60_000 {
@@ -459,10 +460,10 @@ pub mod pallet {
 
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
-			weight_left -= 10_000;
+			weight_left = weight_left.saturating_sub(10_000);
 			if task_queue.len() > 0 {
 				// calculate cost of all but the run_tasks fcn.
-				weight_left -= 10_000;
+				weight_left = weight_left.saturating_sub(10_000);
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueue::<T>::put(tasks_left);
 				weight_left = new_weight_left;
@@ -471,10 +472,10 @@ pub mod pallet {
 			// if there is weight left we need to handled the missed tasks
 			if weight_left >= 60_000 {
 				let missed_queue = Self::get_missed_queue();
-				weight_left -= 10_000;
+				weight_left = weight_left.saturating_sub(10_000);
 				if missed_queue.len() > 0 {
 					// calculate cost of all but the run_tasks fcn.
-					weight_left -= 10_000;
+					weight_left = weight_left.saturating_sub(10_000);
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
@@ -483,7 +484,7 @@ pub mod pallet {
 				}
 			}
 
-			max_weight - weight_left
+			max_weight.saturating_sub(weight_left)
 		}
 
 		/// Update the task queue.
@@ -510,7 +511,8 @@ pub mod pallet {
 					let missed_tasks = Self::get_task_queue();
 
 					// will need to move missed time slots into missed queue
-					let diff = ((current_time_slot - last_time_slot) / 60) - 1;
+					// FIXXXXXXX
+					let diff = current_time_slot.saturating_sub(last_time_slot).saturating_div(60).saturating_sub(1);
 					let (append_weight, mut missed_tasks) =
 						Self::append_to_missed_tasks(missed_tasks, last_time_slot, diff);
 
@@ -530,7 +532,7 @@ pub mod pallet {
 
 					LastTimeSlot::<T>::put(current_time_slot);
 					// need to figure out how much it costs for all but the fcn call in this if statement.
-					total_weight += append_weight + 20_000;
+					total_weight = total_weight.saturating_add(append_weight).saturating_add(20_000);
 				}
 			} else {
 				LastTimeSlot::<T>::put(current_time_slot);
@@ -545,15 +547,17 @@ pub mod pallet {
 			last_time_slot: UnixTime,
 			diff: u64,
 		) -> (Weight, Vec<T::Hash>) {
+			let seconds_in_slot = 60;
 			for i in 0..diff {
-				let new_time_slot = last_time_slot + (i + 1) * 60;
+				let shift = seconds_in_slot.saturating_mul(i+1);
+				let new_time_slot = last_time_slot.saturating_add(shift);
 				if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 					missed_tasks.append(&mut task_ids.into_inner());
 					ScheduledTasks::<T>::remove(new_time_slot);
 				}
 			}
 			// need to figure out how much each iteration costs.
-			let weight = diff * 20_000;
+			let weight = diff.saturating_mul(20_000);
 			(weight, missed_tasks)
 		}
 
@@ -566,11 +570,11 @@ pub mod pallet {
 			mut weight_left: Weight,
 		) -> (Vec<T::Hash>, Weight) {
 			// need to calculate the weight of the fn minus the loop.
-			weight_left -= 10_000;
+			weight_left = weight_left.saturating_sub(10_000);
 
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
-				consumed_task_index += 1;
+				consumed_task_index.saturating_inc();
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
@@ -588,12 +592,12 @@ pub mod pallet {
 								),
 						};
 						Tasks::<T>::remove(task_id);
-						action_weight + 10_000
+						action_weight.saturating_add(10_000)
 					},
 				};
 
 				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight - 10_000;
+				weight_left = weight_left.saturating_sub(action_weight).saturating_sub(10_000);
 
 				// need to calculate the max cost of the loop
 				if weight_left < 20_000 {
@@ -617,7 +621,7 @@ pub mod pallet {
 			mut weight_left: Weight,
 		) -> (Vec<T::Hash>, Weight) {
 			// need to calculate the weight of the fn minus the loop.
-			weight_left -= 10_000;
+			weight_left = weight_left.saturating_sub(10_000);
 
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
@@ -639,7 +643,7 @@ pub mod pallet {
 				};
 
 				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight - 10_000;
+				weight_left = weight_left.saturating_sub(action_weight).saturating_sub(10_000);
 
 				// need to calculate the max cost of the loop
 				if weight_left < 20_000 {
