@@ -26,11 +26,16 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+pub mod weights;
+pub use weights::WeightInfo;
+
 use frame_support::pallet;
 pub use pallet::*;
 
 #[pallet]
 pub mod pallet {
+	use super::*;
 	use sp_runtime::traits::SaturatedConversion;
 	use sp_std::vec::Vec;
 
@@ -38,13 +43,16 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use pallet_timestamp::{self as timestamp};
 
-	type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
+	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
+	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 	type UnixTime = u64;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// Weight information for the extrinsics in this module.
+		type WeightInfo: WeightInfo;
 
 		/// The Currency handler
 		type Currency: Currency<Self::AccountId>;
@@ -85,8 +93,8 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
-			Self::vest();
-			0
+			let vest_count = Self::vest();
+			<T as Config>::WeightInfo::vest(vest_count)
 		}
 	}
 
@@ -108,9 +116,11 @@ pub mod pallet {
 		}
 
 		/// Mint tokens for any accounts that have vested.
-		pub fn vest() {
+		pub fn vest() -> u32 {
+			let mut num_vests: u32 = 0;
 			if let Ok(current_time) = Self::get_current_time_slot() {
 				if let Some(scheduled) = Self::get_scheduled_vest(current_time) {
+					num_vests = scheduled.len().saturated_into::<u32>();
 					for (account, amount) in scheduled {
 						<T as Config>::Currency::deposit_creating(&account, amount);
 						Self::deposit_event(Event::Vested { account, amount })
@@ -118,6 +128,7 @@ pub mod pallet {
 				}
 				VestingSchedule::<T>::remove(current_time);
 			}
+			num_vests
 		}
 	}
 
