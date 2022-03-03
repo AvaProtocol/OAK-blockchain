@@ -155,6 +155,60 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn force_cancel_overflow_task() -> Weight {
 		0
 	}
+	fn run_notify_task() -> Weight {
+		0
+	}
+	fn run_native_transfer_task() -> Weight {
+		0
+	}
+	fn run_missed_tasks_none() -> Weight {
+		0
+	}
+	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
+		0
+	}
+	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
+		0
+	}
+	fn run_missed_tasks_split_off(v: u32, ) -> Weight {
+		0
+	}
+	fn run_tasks_none() -> Weight {
+		0
+	}
+	fn run_tasks_many_found(v: u32, ) -> Weight {
+		0
+	}
+	fn run_tasks_many_missing(v: u32, ) -> Weight {
+		0
+	}
+	fn update_task_queue_overhead() -> Weight {
+		0
+	}
+	fn update_task_queue_max_current() -> Weight {
+		0
+	}
+	fn update_task_queue_min_current() -> Weight {
+		0
+	}
+	fn update_task_queue_max_next() -> Weight {
+		0
+	}
+	fn update_task_queue_min_next() -> Weight {
+		0
+	}
+	fn trigger_tasks_overhead() -> Weight {
+		0
+	}
+	fn test_missing_tasks_remove_events(v: u32, ) -> Weight {
+		0
+	}
+	fn write() -> Weight {
+		0
+	}
+	fn read() -> Weight {
+		0
+	}
 }
 
 impl pallet_automation_time::Config for Test {
