@@ -17,7 +17,7 @@
 // --pallet
 // pallet_automation_time
 // --extrinsic
-// "*""
+// "*"
 // --repeat
 // 64
 // --raw

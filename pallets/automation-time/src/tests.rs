@@ -511,7 +511,7 @@ fn trigger_tasks_completes_some_tasks() {
 		);
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 
-		AutomationTime::trigger_tasks(90_000);
+		AutomationTime::trigger_tasks(80_000);
 
 		assert_eq!(
 			events(),
