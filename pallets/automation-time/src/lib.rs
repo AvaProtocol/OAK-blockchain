@@ -40,24 +40,28 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
+mod exchange;
+pub use exchange::*;
+
 use core::convert::TryInto;
-use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec};
+use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::SaturatedConversion, Perbill};
+use sp_runtime::{
+	traits::{SaturatedConversion, Saturating},
+	Perbill,
+};
 use sp_std::{vec, vec::Vec};
 
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::traits::ExistenceRequirement;
-
 	use super::*;
 
 	type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
+	type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -144,12 +148,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type SecondsPerBlock: Get<u64>;
 
-		/// Lowest Amount that a deposit can possibly be.
 		#[pallet::constant]
-		type ExistentialDeposit: Get<BalanceOf<Self>>;
+		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
-		/// The Currency handler
-		type Currency: Currency<Self::AccountId>;
+		/// Handler for fees and native token transfers.
+		type NativeTokenExchange: NativeTokenExchange<Self>;
 	}
 
 	#[pallet::pallet]
@@ -208,6 +211,10 @@ pub mod pallet {
 		InvalidAmount,
 		/// Sender cannot transfer money to self.
 		TransferToSelf,
+		/// Insufficient balance to pay execution fee.
+		InsufficientBalance,
+		/// Account liquidity restrictions prevent withdrawal.
+		LiquidityRestrictions,
 	}
 
 	#[pallet::event]
@@ -333,7 +340,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			if amount < T::ExistentialDeposit::get() {
+			if amount < T::NativeTokenExchange::minimum_balance() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
@@ -667,12 +674,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match <T as Config>::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
+			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
 				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
@@ -745,6 +747,8 @@ pub mod pallet {
 			Ok(task_id)
 		}
 
+		/// Validate and schedule task.
+		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
 			action: Action<T>,
 			who: T::AccountId,
@@ -756,9 +760,17 @@ pub mod pallet {
 			}
 			Self::is_valid_time(time)?;
 
+			let fee = Self::calculate_execution_fee(&action);
+			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+				.map_err(|_| Error::InsufficientBalance)?;
+
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
 			<Tasks<T>>::insert(task_id, task);
+
+			// This should never error if can_pay_fee passed.
+			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+				.map_err(|_| Error::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
@@ -768,6 +780,15 @@ pub mod pallet {
 			let task_hash_input =
 				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
 			T::Hashing::hash_of(&task_hash_input)
+		}
+
+		fn calculate_execution_fee(action: &Action<T>) -> BalanceOf<T> {
+			let raw_weight = match action {
+				Action::Notify { message: _ } => 1_000u32,
+				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
+			};
+			let weight = <BalanceOf<T>>::from(raw_weight);
+			T::ExecutionWeightFee::get().saturating_mul(weight)
 		}
 	}
 }
