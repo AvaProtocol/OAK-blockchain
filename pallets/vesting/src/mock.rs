@@ -25,9 +25,10 @@ use frame_support::{
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, IdentityLookup, SaturatedConversion},
 	Perbill,
 };
+use sp_std::marker::PhantomData;
 
 pub type AccountId = u64;
 pub type BlockNumber = u64;
@@ -115,8 +116,16 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+pub struct MockWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_vesting::WeightInfo for MockWeight<Test> {
+	fn vest(v: u32) -> Weight {
+		(1_000 + 1_000 * v).saturated_into::<u64>()
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
+	type WeightInfo = MockWeight<Test>;
 	type Currency = Balances;
 }
 

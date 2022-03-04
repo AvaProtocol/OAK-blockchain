@@ -1,4 +1,4 @@
-<a href="https://github.com/w3f/Open-Grants-Program/pull/268"><img src="https://user-images.githubusercontent.com/2616844/113636716-e3857f80-9627-11eb-842a-dcb1e1a96689.png" alt="oak-web3-open-grant" /></a>
+<a href="https://github.com/w3f/Open-Grants-Program/pull/268"><img src="https://user-images.githubusercontent.com/1693789/156277834-ed433b60-9e82-4267-8b4f-e30438dbec54.png" alt="oak-web3-open-grant" /></a>
 OAK(Onchain Autonomous Framework) is a unique blockchain built on Substrate framework with event-driven smart contract VM, autonomous transactions, and on-chain scheduler.
 
 Documentation
@@ -10,18 +10,10 @@ Documentation
 Community
 --------- 
 
-* General discussion: [Telegram (Coming Soon)]()
+* General discussion: [Telegram](https://t.me/OAK_Announcements)
 * Technical discussion: [Discord](https://discord.gg/7W9UDvsbwh)
 * Subscribe on [OAK Twitter](https://twitter.com/oak_network)
 * Subscribe on [Founder's Twitter](https://twitter.com/chrisli2046)
-
-Table of Contents
------------------
-
-* [Introduction](https://github.com/OAK-Foundation/OAK-blockchain#introduction)
-* [Install OAK](https://github.com/OAK-Foundation/OAK-blockchain#install-oak-blockchain)
-* [OAK Validator Program](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/docs/validator-setup.md)
-* OAK Collator Program - Stay tuned
 
 Introduction
 ============
@@ -32,7 +24,7 @@ Based on the above, OAK has some features.
 - **OAK Virtual Machine**
 - **Autonomous Transactions**
 - **On-chain Relayer**
-- **Validator Staking**
+- **Collator Staking**
 
 Live Networks
 ============
@@ -46,9 +38,6 @@ Install OAK Blockchain
 =============
 
 * OAK releases [releases](https://github.com/OAK-Foundation/OAK-blockchain/releases).
-* Node [custom types](). 
-
-> Latest version you can try to build from source.
 
 Building from source
 --------------------

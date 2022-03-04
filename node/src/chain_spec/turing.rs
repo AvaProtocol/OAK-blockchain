@@ -189,5 +189,6 @@ fn testnet_genesis(
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
+		vesting: Default::default(),
 	}
 }
