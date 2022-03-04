@@ -453,7 +453,10 @@ pub mod pallet {
 			weight_left -= update_weight;
 
 			// need to calculate the weight of running just 1 task below.
-			if weight_left < <T as Config>::WeightInfo::run_tasks_many_found(1) {
+			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
+				+ <T as Config>::WeightInfo::read()
+				+ <T as Config>::WeightInfo::write();
+			if weight_left < run_task_weight {
 				return weight_left
 			}
 
@@ -469,7 +472,10 @@ pub mod pallet {
 			}
 
 			// if there is weight left we need to handled the missed tasks
-			if weight_left >= <T as Config>::WeightInfo::run_missed_tasks_many_found(1) {
+			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
+				+ <T as Config>::WeightInfo::read()
+				+ <T as Config>::WeightInfo::write();
+			if weight_left >= run_missed_task_weight {
 				let missed_queue = Self::get_missed_queue();
 				weight_left -= <T as Config>::WeightInfo::read();
 				if missed_queue.len() > 0 {
