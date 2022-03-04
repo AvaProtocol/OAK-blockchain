@@ -113,8 +113,24 @@ fn schedule_no_provided_id() {
 }
 
 #[test]
+fn schedule_not_enough_for_fees() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![60],
+				SCHEDULED_TIME,
+				vec![12]
+			),
+			Error::<Test>::InsufficientBalance,
+		);
+	})
+}
+
+#[test]
 fn schedule_notify_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
@@ -180,6 +196,7 @@ fn schedule_native_transfer_cannot_transfer_to_self() {
 #[test]
 fn schedule_native_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_native_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -214,6 +231,7 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -235,6 +253,7 @@ fn schedule_duplicates_errors() {
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -660,6 +679,7 @@ fn schedule_task(
 	scheduled_time: u64,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
+	Balances::set_balance(RawOrigin::Root.into(), owner, 100_000, 5).unwrap();
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
