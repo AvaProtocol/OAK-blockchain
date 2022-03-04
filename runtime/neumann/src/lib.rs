@@ -773,6 +773,7 @@ impl Contains<Call> for ClosedCallFilter {
 
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
+	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 }
 
@@ -809,7 +810,7 @@ construct_runtime!(
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
 
 		// Utilities
-		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event} = 30,
+		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
@@ -952,11 +953,13 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
+			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
@@ -971,6 +974,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
@@ -990,6 +994,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
+			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }

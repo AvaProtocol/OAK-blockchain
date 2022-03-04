@@ -5,6 +5,7 @@ use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use sp_core::{crypto::UncheckedInto, sr25519};
 
+use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
 };
@@ -12,7 +13,6 @@ use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
 	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
-use super::TELEMETRY_URL;
 
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
