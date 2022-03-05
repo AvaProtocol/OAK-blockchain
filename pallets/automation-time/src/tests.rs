@@ -113,8 +113,24 @@ fn schedule_no_provided_id() {
 }
 
 #[test]
+fn schedule_not_enough_for_fees() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![60],
+				SCHEDULED_TIME,
+				vec![12]
+			),
+			Error::<Test>::InsufficientBalance,
+		);
+	})
+}
+
+#[test]
 fn schedule_notify_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
@@ -180,6 +196,7 @@ fn schedule_native_transfer_cannot_transfer_to_self() {
 #[test]
 fn schedule_native_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_native_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -214,6 +231,7 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -235,6 +253,7 @@ fn schedule_duplicates_errors() {
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -370,14 +389,14 @@ fn force_cancel_task_works() {
 }
 
 // Weights to use for tests below
-//20_000 for nothing
-//10_000 for no updates
-//20_000 for a new time slot
-//20_000 per time slot missed
-//10_000 to check if we have tasks to run
-//10_000 + 10_000 + 30_000 per task run OR 20_000 per unfound task
-//10_000 to check if we have missed tasks to run
-//10_000 + 10_000 + 30_000 per missed task run
+// 20_000: run scheduled task (run_notify_task, run_native_transfer_task)
+// 10_000v: run per missed task (run_missed_tasks_many_found)
+// 10_000v: run per task not found in map (run_missed_tasks_many_missing, run_tasks_many_missing)
+// 50_000v: weight check for running 1 more task, current static v=1 (run_tasks_many_found)
+// 10_000: update task queue function overhead (update_task_queue_overhead)
+// 20_000: inner if weight check for running update_task_queue (update_task_queue_max_current_and_next)
+// 20_000v: for each old time slot to missed tasks (append_to_missed_tasks)
+// 20_000: trigger tasks function overhead (trigger_tasks_overhead)
 
 #[test]
 fn trigger_tasks_handles_first_run() {
@@ -660,6 +679,7 @@ fn schedule_task(
 	scheduled_time: u64,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
+	Balances::set_balance(RawOrigin::Root.into(), owner, 100_000, 5).unwrap();
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(

@@ -30,10 +30,12 @@ const SEED: u32 = 0;
 const ED_MULTIPLIER: u32 = 10;
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::Hash {
-	let time_moment: u32 = time.try_into().unwrap();
+	let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+	T::NativeTokenExchange::deposit_creating(&owner, transfer_amount.clone());
+	let time_moment: u32 = time.saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	let mut task_id: T::Hash = T::Hash::default();
-	let converted_count: u8 = count.try_into().unwrap();
+	let converted_count: u8 = count.saturated_into();
 
 	for i in 0..converted_count {
 		let provided_id: Vec<u8> = vec![i];
@@ -45,11 +47,13 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) 
 	task_id
 }
 
-fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32, recipient: T::AccountId, amount: BalanceOf<T>) -> T::Hash {
-	let time_moment: u32 = time.try_into().unwrap();
+fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::Hash {
+	let time_moment: u32 = time.saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	let mut task_id: T::Hash = T::Hash::default();
-	let converted_count: u8 = count.try_into().unwrap();
+	let converted_count: u8 = count.saturated_into();
+	let recipient: T::AccountId = account("recipient", 0, SEED);
+	let amount: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
 	for i in 0..converted_count {
 		let provided_id: Vec<u8> = vec![i];
@@ -87,6 +91,8 @@ benchmarks! {
 		let time: u64 = 120;
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], time, vec![4, 5])
 
 	schedule_notify_task_full {
@@ -94,22 +100,26 @@ benchmarks! {
 		let time: u64 = 120;
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
 		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![provided_id], time, vec![4, 5])
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
-		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], time, recipient, transfer_amount)
 
 	schedule_native_transfer_task_full{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let time: u64 = 120;
-		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
 		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
@@ -163,29 +173,21 @@ benchmarks! {
 
 	run_native_transfer_task {
 		let starting_multiplier: u32 = 20;
-		let amount_starting: BalanceOf<T> = T::ExistentialDeposit::get().saturating_mul(starting_multiplier.into());
+		let amount_starting: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(starting_multiplier.into());
 		let caller: T::AccountId = account("caller", 0, SEED);
-		T::Currency::deposit_creating(&caller, amount_starting.clone());
-		let recipient: T::AccountId = account("recipient", 0, SEED);
+		T::NativeTokenExchange::deposit_creating(&caller, amount_starting.clone());
 		let time: u64 = 180;
+		let recipient: T::AccountId = account("recipient", 0, SEED);
+		let amount_transferred: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
-		let amount_transferred: BalanceOf<T> = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
-		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1, recipient.clone(), amount_transferred.clone());
+		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
 	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
 
 	/*
 	* This section is to test run_missed_tasks.
-	* run_missed_tasks_none: measuring base overhead of run_missed_tasks
-	* run_missed_tasks_many_found: measuring many tasks for linear progression
-	* run_missed_tasks_many_missing: measuring number of tasks if not found in queue, to find slope of growth
+	* run_missed_tasks_many_found: measuring many existing tasks for linear progression
+	* run_missed_tasks_many_missing: measuring many non existing tasks for linear progression
 	*/
-	run_missed_tasks_none {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
-		let weight_left = 500_000_000_000;
-		let task_ids = vec![];
-	}: { AutomationTime::<T>::run_missed_tasks(task_ids, weight_left) }
-
 	run_missed_tasks_many_found {
 		let v in 0 .. 1;
 
@@ -218,34 +220,11 @@ benchmarks! {
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(task_ids, weight_left) }
 
-	run_missed_tasks_split_off {
-		let v in 2 .. 10;
-
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
-		let mut task_ids = vec![];
-		let weight_left = 20_000;
-
-		for i in 0..v {
-			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			task_ids.push(task_id)
-		}
-	}: { AutomationTime::<T>::run_missed_tasks(task_ids, weight_left) }
-
 	/*
 	* This section is to test run_tasks.
-	* run_tasks_none: tests base framework of run_tasks
-	* run_tasks_many_found: tests many tasks for linear progression
-	* run_tasks_many_missing: tests number of tasks if not found in queue, to find slope of growth
+	* run_tasks_many_found: tests many existing tasks for linear progression
+	* run_tasks_many_missing: tests many non existing tasks for linear progression
 	*/
-	run_tasks_none {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
-		let weight_left = 500_000_000_000;
-		let task_ids = vec![];
-	}: { AutomationTime::<T>::run_tasks(task_ids, weight_left) }
-
 	run_tasks_many_found {
 		let v in 0 .. 1;
 		let weight_left = 500_000_000_000;
@@ -253,8 +232,8 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time = 180;
 		let recipient: T::AccountId = account("to", 0, SEED);
-		let transfer_amount = T::ExistentialDeposit::get().saturating_mul(ED_MULTIPLIER.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.clone());
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 		
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -280,11 +259,10 @@ benchmarks! {
 	}: { AutomationTime::<T>::run_tasks(task_ids, weight_left) }
 
 	/*
-	* This section is to test update_task_queue.
-	* update_task_queue_max_current: 100 current time expired, 0 next time slot
-	* update_task_queue_min_current: 1 current time expired, 0 next time slot
-	* update_task_queue_max_next: 0 current time expired, 100 next time slot
-	* update_task_queue_min_next: 0 current time expired, 1 next time slot 
+	* This section is to test update_task_queue. This only tests for 1 single missed slot.
+	* update_task_queue_overhead: gets overhead of fn without any items
+	* append_to_missed_tasks: measures appending to missed tasks
+	* update_task_queue_max_current_and_next: measures fn overhead with both current and future tasks
 	*/
 
 	update_task_queue_overhead {
@@ -298,66 +276,43 @@ benchmarks! {
 		schedule_notify_tasks::<T>(caller.clone(), current_time, T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::update_task_queue() }
 
-	update_task_queue_min_current {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let current_time: u64 = 180;
-		let next_time: u64 = 240;
+	append_to_missed_tasks {
+		let v in 0 .. 1;
+		let caller: T::AccountId = account("callerName", 0, SEED);
+		let last_time_slot: u64 = 180;
+		let current_time: u64 = 240;
+		let missed_tasks: Vec<T::Hash> = vec![];
 
-		schedule_notify_tasks::<T>(caller.clone(), current_time, 1);
-	}: { AutomationTime::<T>::update_task_queue() }
+		for i in 0..v {
+			schedule_notify_tasks::<T>(caller.clone(), current_time, v);
+		}
+		
+		let time_moment: u32 = current_time.try_into().unwrap();
+		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	}: { AutomationTime::<T>::append_to_missed_tasks(missed_tasks, last_time_slot, 1) }
 
-	update_task_queue_max_next {
+	update_task_queue_max_current_and_next {
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let current_time: u64 = 180;
 		let next_time: u64 = 240;
+		let time_moment: u32 = current_time.try_into().unwrap();
+		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 		
 		schedule_notify_tasks::<T>(caller.clone(), current_time, T::MaxTasksPerSlot::get());
-		let time_moment: u32 = current_time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-	}: { AutomationTime::<T>::update_task_queue() }
 
-	update_task_queue_min_next {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let current_time: u64 = 180;
-		let next_time: u64 = 240;
-
-		schedule_notify_tasks::<T>(caller.clone(), current_time, 1);
-		let time_moment: u32 = current_time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		for i in 0..T::MaxTasksPerSlot::get() {
+			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), 180];
+			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), next_time.into()).unwrap();
+			let task = Task::<T>::create_event_task(caller.clone(), provided_id, next_time.into(), vec![4, 5, 6]);
+			<Tasks<T>>::insert(task_id, task);
+		}
 	}: { AutomationTime::<T>::update_task_queue() }
 
 	/*
 	* This section is to measure trigger_tasks overhead.
 	* trigger_tasks_overhead: min trigger, no tasks anywhere
 	*/
-
 	trigger_tasks_overhead {
 		let weight_left = 500_000_000_000;
 	}: { AutomationTime::<T>::trigger_tasks(weight_left) }
-
-	test_missing_tasks_remove_events {
-		let v in 0 .. 100;
-		let mut task_ids = vec![];
-		let caller: T::AccountId = account("caller", 0, SEED);
-		
-		for i in 0..v {
-			let time = 180 + i;
-			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time.into()).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id, time.into(), vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
-			task_ids.push(task_id)
-		}
-	}: { AutomationTime::<T>::test_missing_tasks_remove_events(task_ids) }
-
-	/*
-	* Utils: read and write
-	* read: read action
-	* write: write action
-	*/
-	write {
-		let time: u64 = 120;
-		let time_moment: u32 = time.try_into().unwrap();
-	}: { <pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into()) }
-	read {}: { <pallet_timestamp::Pallet<T>>::get().saturated_into::<u64>() }
 }

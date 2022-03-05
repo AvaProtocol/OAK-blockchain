@@ -40,24 +40,28 @@ mod tests;
 mod benchmarking;
 pub mod weights;
 
+mod exchange;
+pub use exchange::*;
+
 use core::convert::TryInto;
-use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, BoundedVec};
+use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, BoundedVec};
 use frame_system::pallet_prelude::*;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::SaturatedConversion, Perbill};
+use sp_runtime::{
+	traits::{SaturatedConversion, Saturating},
+	Perbill,
+};
 use sp_std::{vec, vec::Vec};
 
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
 pub mod pallet {
-	use frame_support::traits::ExistenceRequirement;
-
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
+	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -144,12 +148,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type SecondsPerBlock: Get<u64>;
 
-		/// Lowest Amount that a deposit can possibly be.
 		#[pallet::constant]
-		type ExistentialDeposit: Get<BalanceOf<Self>>;
+		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
-		/// The Currency handler
-		type Currency: Currency<Self::AccountId>;
+		/// Handler for fees and native token transfers.
+		type NativeTokenExchange: NativeTokenExchange<Self>;
 	}
 
 	#[pallet::pallet]
@@ -208,6 +211,10 @@ pub mod pallet {
 		InvalidAmount,
 		/// Sender cannot transfer money to self.
 		TransferToSelf,
+		/// Insufficient balance to pay execution fee.
+		InsufficientBalance,
+		/// Account liquidity restrictions prevent withdrawal.
+		LiquidityRestrictions,
 	}
 
 	#[pallet::event]
@@ -251,14 +258,11 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
-				// Need to return the real weight used (ENG-157).
-				return <T as Config>::WeightInfo::read();
+				return T::DbWeight::get().reads(1 as Weight);
 			}
 
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
-			Self::trigger_tasks(max_weight);
-			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
-			max_weight
+			Self::trigger_tasks(max_weight)
 		}
 	}
 
@@ -333,7 +337,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			if amount < T::ExistentialDeposit::get() {
+			if amount < T::NativeTokenExchange::minimum_balance() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
@@ -436,10 +440,8 @@ pub mod pallet {
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
-		/// TODO (ENG-157): calculate weights.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
-			// need to calculate cost of all but the inner IF.
-			let mut weight_left: Weight = max_weight - <T as Config>::WeightInfo::trigger_tasks_overhead();
+			let mut weight_left: Weight = max_weight.saturating_sub(<T as Config>::WeightInfo::trigger_tasks_overhead());
 
 			// There is a chance we use more than our max_weight to update the task queue.
 			// This would occur if the system is not producting blocks for a very long time.
@@ -450,46 +452,42 @@ pub mod pallet {
 				return update_weight
 			}
 
-			weight_left -= update_weight;
+			weight_left = weight_left.saturating_sub(update_weight);
 
 			// need to calculate the weight of running just 1 task below.
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
-				+ <T as Config>::WeightInfo::read()
-				+ <T as Config>::WeightInfo::write();
+				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				.saturating_add(T::DbWeight::get().writes(1 as Weight));
 			if weight_left < run_task_weight {
 				return weight_left
 			}
 
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
-			weight_left -= <T as Config>::WeightInfo::read();
+			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 			if task_queue.len() > 0 {
-				// calculate cost of all but the run_tasks fcn.
-				weight_left -= <T as Config>::WeightInfo::write();
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueue::<T>::put(tasks_left);
-				weight_left = new_weight_left;
+				weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
 
 			// if there is weight left we need to handled the missed tasks
 			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
-				+ <T as Config>::WeightInfo::read()
-				+ <T as Config>::WeightInfo::write();
+				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				.saturating_add(T::DbWeight::get().writes(1 as Weight));
 			if weight_left >= run_missed_task_weight {
 				let missed_queue = Self::get_missed_queue();
-				weight_left -= <T as Config>::WeightInfo::read();
+				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 				if missed_queue.len() > 0 {
-					// calculate cost of all but the run_tasks fcn.
-					weight_left -= <T as Config>::WeightInfo::write();
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
 					MissedQueue::<T>::put(tasks_left);
-					weight_left = new_weight_left;
+					weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
 			}
 
-			max_weight - weight_left
+			max_weight.saturating_sub(weight_left)
 		}
 
 		/// Update the task queue.
@@ -500,14 +498,12 @@ pub mod pallet {
 		/// 3. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
 		/// 4. Remove all relevant time slots from the Scheduled tasks map.
 		///
-		/// TODO (ENG-157): calculate weights.
 		pub fn update_task_queue() -> Weight {
-			// need to calculate the base fn weight.
 			let mut total_weight = <T as Config>::WeightInfo::update_task_queue_overhead();
 
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
-				Err(_) => return total_weight,
+				Err(_) => return total_weight.saturating_add(T::DbWeight::get().reads(1 as Weight)),
 			};
 
 			if let Some(last_time_slot) = Self::get_last_slot() {
@@ -536,18 +532,19 @@ pub mod pallet {
 
 					LastTimeSlot::<T>::put(current_time_slot);
 					// need to figure out how much it costs for all but the fcn call in this if statement.
-					total_weight += append_weight;
+					total_weight = total_weight
+						.saturating_add(append_weight)
+						.saturating_add(<T as Config>::WeightInfo::update_task_queue_max_current_and_next());
 				}
 			} else {
 				LastTimeSlot::<T>::put(current_time_slot);
-				total_weight += <T as Config>::WeightInfo::write()
+				total_weight = total_weight.saturating_add(T::DbWeight::get().writes(1 as Weight));
 			}
 
 			total_weight
 		}
 
-		/// TODO (ENG-157): calculate weights.
-		fn append_to_missed_tasks(
+		pub fn append_to_missed_tasks(
 			mut missed_tasks: Vec<T::Hash>,
 			last_time_slot: UnixTime,
 			diff: u64,
@@ -559,15 +556,13 @@ pub mod pallet {
 					ScheduledTasks::<T>::remove(new_time_slot);
 				}
 			}
-			// need to figure out how much each iteration costs.
-			let weight = diff * <T as Config>::WeightInfo::update_task_queue_max_current();
+			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, missed_tasks)
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
-		/// TODO (ENG-157): calculate weights.
 		pub fn run_tasks(
 			mut task_ids: Vec<T::Hash>,
 			mut weight_left: Weight,
@@ -581,7 +576,7 @@ pub mod pallet {
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						match task.action {
+						let task_action_weight = match task.action {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
@@ -592,14 +587,12 @@ pub mod pallet {
 								),
 						};
 						Tasks::<T>::remove(task_id);
-						<T as Config>::WeightInfo::run_tasks_many_found(1)
+						task_action_weight.saturating_add(T::DbWeight::get().writes(1 as Weight))
 					},
 				};
 
-				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight;
+				weight_left = weight_left.saturating_sub(action_weight);
 
-				// need to calculate the max cost of the loop
 				if weight_left < <T as Config>::WeightInfo::run_tasks_many_found(1) {
 					break
 				}
@@ -615,7 +608,6 @@ pub mod pallet {
 		/// Send events for as many missed tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
-		/// TODO (ENG-157): calculate weights.
 		pub fn run_missed_tasks(
 			mut task_ids: Vec<T::Hash>,
 			mut weight_left: Weight,
@@ -639,10 +631,8 @@ pub mod pallet {
 					},
 				};
 
-				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight;
+				weight_left = weight_left.saturating_sub(action_weight);
 
-				// need to calculate the max cost of the loop
 				if weight_left < <T as Config>::WeightInfo::run_missed_tasks_many_found(1) {
 					break
 				}
@@ -655,29 +645,7 @@ pub mod pallet {
 			}
 		}
 
-		pub fn test_missing_tasks_remove_events(
-			task_ids: Vec<T::Hash>,
-		) {
-			for task_id in task_ids.iter() {
-				match Self::get_task(task_id) {
-					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
-						<T as Config>::WeightInfo::test_missing_tasks_remove_events(1)
-					},
-					Some(task) => {
-						Self::deposit_event(Event::TaskMissed {
-							who: task.owner_id.clone(),
-							task_id: task_id.clone(),
-						});
-						Tasks::<T>::remove(task_id);
-						<T as Config>::WeightInfo::test_missing_tasks_remove_events(1)
-					},
-				};
-			}
-		}
-
 		/// Fire the notify event with the custom message.
-		/// TODO: Calculate weight (ENG-157).
 		pub fn run_notify_task(message: Vec<u8>) -> Weight {
 			Self::deposit_event(Event::Notify { message });
 			<T as Config>::WeightInfo::run_notify_task()
@@ -689,12 +657,7 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match <T as Config>::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
+			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
 				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
@@ -767,6 +730,8 @@ pub mod pallet {
 			Ok(task_id)
 		}
 
+		/// Validate and schedule task.
+		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
 			action: Action<T>,
 			who: T::AccountId,
@@ -778,9 +743,17 @@ pub mod pallet {
 			}
 			Self::is_valid_time(time)?;
 
+			let fee = Self::calculate_execution_fee(&action);
+			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+				.map_err(|_| Error::InsufficientBalance)?;
+
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), time)?;
 			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, time, action };
 			<Tasks<T>>::insert(task_id, task);
+
+			// This should never error if can_pay_fee passed.
+			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+				.map_err(|_| Error::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
@@ -790,6 +763,15 @@ pub mod pallet {
 			let task_hash_input =
 				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
 			T::Hashing::hash_of(&task_hash_input)
+		}
+
+		fn calculate_execution_fee(action: &Action<T>) -> BalanceOf<T> {
+			let raw_weight = match action {
+				Action::Notify { message: _ } => 1_000u32,
+				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
+			};
+			let weight = <BalanceOf<T>>::from(raw_weight);
+			T::ExecutionWeightFee::get().saturating_mul(weight)
 		}
 	}
 }

@@ -81,7 +81,9 @@ use xcm_builder::{
 use xcm_executor::{Config, XcmExecutor};
 
 // Common imports
-use primitives::{AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature};
+use primitives::{
+	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+};
 
 // Custom pallet imports
 pub use pallet_automation_time;
@@ -383,8 +385,8 @@ parameter_types! {
 pub type SlowAdjustingFeeUpdate<R> =
 	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
 
-pub struct DealWithFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithFees<R>
+pub struct DealWithInclusionFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithInclusionFees<R>
 where
 	R: pallet_balances::Config + pallet_treasury::Config,
 	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
@@ -405,7 +407,7 @@ where
 
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction =
-		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithFees<Runtime>>;
+		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
 	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = WeightToFee;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
@@ -723,9 +725,26 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
+	pub const ExecutionWeightFee: Balance = 12;
 }
 
-/// Configure the pallet-time-triggers in pallets/time-triggers.
+pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
+where
+	R: pallet_balances::Config + pallet_treasury::Config,
+	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
+{
+	fn on_unbalanceds<B>(mut fees: impl Iterator<Item = NegativeImbalance<R>>) {
+		if let Some(fees) = fees.next() {
+			// 80% burned, 20% to the treasury
+			let (_, to_treasury) = fees.ration(80, 20);
+			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
+			// total_supply accordingly
+			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
+		}
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -734,8 +753,9 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
-	type ExistentialDeposit = ExistentialDeposit;
-	type Currency = Balances;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type NativeTokenExchange =
+		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 }
 
 pub struct ClosedCallFilter;

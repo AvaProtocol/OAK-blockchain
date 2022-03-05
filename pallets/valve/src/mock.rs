@@ -19,9 +19,10 @@ use super::*;
 use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild},
+	traits::{Contains, GenesisBuild, OnUnbalanced},
 	weights::Weight,
 };
+use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -121,6 +122,7 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
+	pub const ExecutionWeightFee: Balance = 12;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -161,19 +163,10 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_native_transfer_task() -> Weight {
 		0
 	}
-	fn run_missed_tasks_none() -> Weight {
-		0
-	}
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
 		0
 	}
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
-		0
-	}
-	fn run_missed_tasks_split_off(v: u32, ) -> Weight {
-		0
-	}
-	fn run_tasks_none() -> Weight {
 		0
 	}
 	fn run_tasks_many_found(v: u32, ) -> Weight {
@@ -188,27 +181,23 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn update_task_queue_max_current() -> Weight {
 		0
 	}
-	fn update_task_queue_min_current() -> Weight {
+	fn append_to_missed_tasks(v: u32, ) -> Weight {
 		0
 	}
-	fn update_task_queue_max_next() -> Weight {
-		0
-	}
-	fn update_task_queue_min_next() -> Weight {
+	fn update_task_queue_max_current_and_next() -> Weight {
 		0
 	}
 	fn trigger_tasks_overhead() -> Weight {
 		0
 	}
-	fn test_missing_tasks_remove_events(v: u32, ) -> Weight {
-		0
-	}
-	fn write() -> Weight {
-		0
-	}
-	fn read() -> Weight {
-		0
-	}
+}
+
+pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
+where
+	R: pallet_balances::Config,
+{
+	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
 impl pallet_automation_time::Config for Test {
@@ -219,8 +208,9 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
-	type ExistentialDeposit = ExistentialDeposit;
-	type Currency = Balances;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type NativeTokenExchange =
+		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 }
 
 /// During maintenance mode we will not allow any calls.

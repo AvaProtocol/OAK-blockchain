@@ -17,8 +17,13 @@
 
 use super::*;
 use crate as pallet_automation_time;
-use frame_support::{construct_runtime, parameter_types, traits::Everything, weights::Weight};
+use frame_support::{
+	construct_runtime, parameter_types,
+	traits::{Everything, OnUnbalanced},
+	weights::Weight,
+};
 use frame_system as system;
+use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -113,9 +118,10 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1200_000;
-	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(8);
+	pub const MaxBlockWeight: Weight = 1_000_000;
+	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
+	pub const ExecutionWeightFee: Balance = 12;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -151,59 +157,46 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		0
 	}
 	fn run_notify_task() -> Weight {
-		10_000
+		20_000
 	}
 	fn run_native_transfer_task() -> Weight {
-		10_000
-	}
-	fn run_missed_tasks_none() -> Weight {
-		0
+		20_000
 	}
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
-		10_000
+		(10_000 * v).into()
 	}
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
-		10_000
-	}
-	fn run_missed_tasks_split_off(v: u32, ) -> Weight {
-		0
-	}
-	fn run_tasks_none() -> Weight {
-		0
+		(10_000 * v).into()
 	}
 	fn run_tasks_many_found(v: u32, ) -> Weight {
-		10_000
+		(50_000 * v).into()
 	}
 	fn run_tasks_many_missing(v: u32, ) -> Weight {
-		10_000
+		(10_000 * v).into()
 	}
 	fn update_task_queue_overhead() -> Weight {
-		30_000
+		10_000
 	}
 	fn update_task_queue_max_current() -> Weight {
 		20_000
 	}
-	fn update_task_queue_min_current() -> Weight {
-		0
+	fn append_to_missed_tasks(v: u32, ) -> Weight {
+		(20_000 * v).into()
 	}
-	fn update_task_queue_max_next() -> Weight {
-		0
-	}
-	fn update_task_queue_min_next() -> Weight {
-		0
+	fn update_task_queue_max_current_and_next() -> Weight {
+		20_000
 	}
 	fn trigger_tasks_overhead() -> Weight {
 		20_000
 	}
-	fn test_missing_tasks_remove_events(v: u32, ) -> Weight {
-		0
-	}
-	fn write() -> Weight {
-		10_000
-	}
-	fn read() -> Weight {
-		10_000
-	}
+}
+
+pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
+impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
+where
+	R: pallet_balances::Config,
+{
+	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
 impl pallet_automation_time::Config for Test {
@@ -214,8 +207,8 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
-	type ExistentialDeposit = ExistentialDeposit;
-	type Currency = Balances;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 }
 
 // Build genesis storage according to the mock runtime.
