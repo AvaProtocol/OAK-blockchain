@@ -19,8 +19,9 @@
 //!
 //! Close Valve -> Reject all transactions from non-critical pallets.
 //! Close Pallet Gate -> Reject all transactions to the pallet.
-//! Open Valve -> Resume normal chain operations. This includes allowing all non-critical pallets to receive transactions and opening all pallet gates.
+//! Open Valve -> Resume normal chain operations. This includes allowing all non-critical pallets to receive transactions but not opening pallet gates.
 //! Open Pallet Gate -> Allow the pallet to start receiving transactions again.
+//! Open Pallet Gates -> Open the pallet gates. To ensure this call is safe it will only open five gates at once and fire an event with how many gates are still closed.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -29,11 +30,16 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+pub mod weights;
+pub use weights::WeightInfo;
+
 use frame_support::pallet;
 pub use pallet::*;
 
 #[pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::{
 		dispatch::{CallMetadata, GetCallMetadata},
 		pallet_prelude::*,
@@ -45,14 +51,18 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_automation_time::Config {
-		type Event: From<Event> + IsType<<Self as frame_system::Config>::Event>;
+		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		/// Weight information for the extrinsics in this module.
+		type WeightInfo: WeightInfo;
+
 		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
 	}
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event {
+	pub enum Event<T> {
 		/// The valve has been closed. This has stopped transactions to non-critical pallets.
 		ValveClosed,
 		/// The chain returned to its normal operating state.
@@ -65,6 +75,8 @@ pub mod pallet {
 		ScheduledTasksStopped,
 		/// Scheduled tasks will now start running.
 		ScheduledTasksResumed,
+		/// The number of pallet gates still closed.
+		PalletGatesClosed { count: u8 },
 	}
 
 	#[pallet::error]
@@ -98,12 +110,17 @@ pub mod pallet {
 	#[pallet::getter(fn paused_transactions)]
 	pub type ClosedPallets<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, (), OptionQuery>;
 
+	/// The closed pallet map. Each pallet in here will not receive transcations.
+	#[pallet::storage]
+	#[pallet::getter(fn count_of_closed_gates)]
+	pub type ClosedPalletCount<T: Config> = StorageValue<_, u8, ValueQuery>;
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Close the valve.
 		///
 		/// This will stop all the pallets defined in `ClosedCallFilter` from receiving transactions.
-		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		#[pallet::weight(<T as Config>::WeightInfo::close_valve())]
 		pub fn close_valve(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -122,7 +139,7 @@ pub mod pallet {
 		/// Stop the pallet from receiving transactions.
 		/// If valve is closed you cannot close a pallet.
 		/// You cannot close this pallet, as then you could never open it.
-		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		#[pallet::weight(<T as Config>::WeightInfo::close_pallet_gate_new())]
 		pub fn close_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -142,6 +159,9 @@ pub mod pallet {
 			ClosedPallets::<T>::mutate_exists(pallet_name.clone(), |maybe_closed| {
 				if maybe_closed.is_none() {
 					*maybe_closed = Some(());
+					ClosedPalletCount::<T>::mutate(|count| {
+						*count = count.saturating_add(1);
+					});
 					Self::deposit_event(Event::PalletGateClosed { pallet_name_bytes: pallet_name });
 				}
 			});
@@ -151,14 +171,17 @@ pub mod pallet {
 
 		/// Return the chain to normal operating mode.
 		///
-		/// This will open the valve and open all pallet gates.
-		#[pallet::weight(T::DbWeight::get().read + 3 * T::DbWeight::get().write)]
+		/// This will open the valve but not any closed pallet gates.
+		#[pallet::weight(<T as Config>::WeightInfo::open_valve())]
 		pub fn open_valve(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ValveClosed::<T>::put(false);
-			ClosedPallets::<T>::remove_all(None);
+			// Ensure the valve is closed.
+			// This test is not strictly necessary, but seeing the error may help a confused chain
+			// operator during an emergency.
+			ensure!(ValveClosed::<T>::get(), Error::<T>::ValveAlreadyOpen);
 
+			ValveClosed::<T>::put(false);
 			<Pallet<T>>::deposit_event(Event::ValveOpen);
 			Ok(())
 		}
@@ -166,7 +189,7 @@ pub mod pallet {
 		/// Open the pallet.
 		///
 		/// This allows the pallet to receiving transactions.
-		#[pallet::weight(T::DbWeight::get().read + 2 * T::DbWeight::get().write)]
+		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gate())]
 		pub fn open_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -174,13 +197,33 @@ pub mod pallet {
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
 
 			if ClosedPallets::<T>::take(&pallet_name).is_some() {
+				ClosedPalletCount::<T>::mutate(|count| {
+					*count = count.saturating_sub(1);
+				});
 				Self::deposit_event(Event::PalletGateOpen { pallet_name_bytes: pallet_name });
 			};
 			Ok(())
 		}
 
+		/// Open the pallet gates.
+		///
+		/// In order to ensure this call is safe it will only open five gates at once.
+		/// It will send the PalletGatesClosed with a count of how many gates are still closed.
+		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gates())]
+		pub fn open_pallet_gates(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ClosedPallets::<T>::remove_all(Some(5));
+			let closed_pallet_count = Self::count_of_closed_gates();
+			let closed_pallet_count = closed_pallet_count.saturating_sub(5);
+			ClosedPalletCount::<T>::put(closed_pallet_count);
+			Self::deposit_event(Event::PalletGatesClosed { count: closed_pallet_count });
+
+			Ok(())
+		}
+
 		/// Stop all scheduled tasks from running.
-		#[pallet::weight(T::DbWeight::get().read * T::DbWeight::get().write)]
+		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
 		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -196,7 +239,7 @@ pub mod pallet {
 		}
 
 		/// Allow scheduled tasks to run again.
-		#[pallet::weight(T::DbWeight::get().read * T::DbWeight::get().write)]
+		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -226,9 +269,12 @@ pub mod pallet {
 				ValveClosed::<T>::put(true);
 			}
 
+			let mut closed_pallet_count = ClosedPalletCount::<T>::get();
 			for gate in self.closed_gates.iter() {
 				ClosedPallets::<T>::insert(gate, ());
+				closed_pallet_count = closed_pallet_count.saturating_add(1);
 			}
+			ClosedPalletCount::<T>::put(closed_pallet_count);
 		}
 	}
 
