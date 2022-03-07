@@ -189,9 +189,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn update_task_queue_max_current_and_next() -> Weight {
 		0
 	}
-	fn trigger_tasks_overhead() -> Weight {
-		0
-	}
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);

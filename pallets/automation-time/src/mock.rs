@@ -186,9 +186,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn update_task_queue_max_current_and_next() -> Weight {
 		20_000
 	}
-	fn trigger_tasks_overhead() -> Weight {
-		20_000
-	}
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);

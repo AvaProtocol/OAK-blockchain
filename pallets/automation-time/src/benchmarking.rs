@@ -232,8 +232,10 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time = 180;
 		let recipient: T::AccountId = account("to", 0, SEED);
+		let starting_multiplier: u32 = 20;
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+		let starting_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(starting_multiplier.into());
+		T::NativeTokenExchange::deposit_creating(&caller, starting_amount.clone());
 		
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -277,27 +279,28 @@ benchmarks! {
 	}: { AutomationTime::<T>::update_task_queue() }
 
 	append_to_missed_tasks {
-		let v in 0 .. 1;
+		let v in 0 .. 2;
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let last_time_slot: u64 = 180;
-		let current_time: u64 = 240;
+		let last_time_slot: u64 = 60;
+		let time = last_time_slot;
 		let missed_tasks: Vec<T::Hash> = vec![];
 
 		for i in 0..v {
-			schedule_notify_tasks::<T>(caller.clone(), current_time, v);
+			let time = time.saturating_add(60);
+			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
+			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time.into()).unwrap();
+			let task = Task::<T>::create_event_task(caller.clone(), provided_id, time.into(), vec![4, 5, 6]);
+			<Tasks<T>>::insert(task_id, task);
 		}
-		
-		let time_moment: u32 = current_time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-	}: { AutomationTime::<T>::append_to_missed_tasks(missed_tasks, last_time_slot, 1) }
+	}: { AutomationTime::<T>::append_to_missed_tasks(missed_tasks, last_time_slot, v.into()) }
 
 	update_task_queue_max_current_and_next {
 		let caller: T::AccountId = account("callerName", 0, SEED);
+		let last_time: u64 = 120;
 		let current_time: u64 = 180;
 		let next_time: u64 = 240;
-		let time_moment: u32 = current_time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-		
+		let time_moment: u32 = (current_time * 1000).try_into().unwrap();
+
 		schedule_notify_tasks::<T>(caller.clone(), current_time, T::MaxTasksPerSlot::get());
 
 		for i in 0..T::MaxTasksPerSlot::get() {
@@ -306,13 +309,7 @@ benchmarks! {
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, next_time.into(), vec![4, 5, 6]);
 			<Tasks<T>>::insert(task_id, task);
 		}
+		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		<LastTimeSlot<T>>::put(last_time);
 	}: { AutomationTime::<T>::update_task_queue() }
-
-	/*
-	* This section is to measure trigger_tasks overhead.
-	* trigger_tasks_overhead: min trigger, no tasks anywhere
-	*/
-	trigger_tasks_overhead {
-		let weight_left = 500_000_000_000;
-	}: { AutomationTime::<T>::trigger_tasks(weight_left) }
 }

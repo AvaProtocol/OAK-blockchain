@@ -441,7 +441,7 @@ pub mod pallet {
 		///
 		/// Complete as many tasks as possible given the maximum weight.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
-			let mut weight_left: Weight = max_weight.saturating_sub(<T as Config>::WeightInfo::trigger_tasks_overhead());
+			let mut weight_left: Weight = max_weight;
 
 			// There is a chance we use more than our max_weight to update the task queue.
 			// This would occur if the system is not producting blocks for a very long time.
@@ -503,7 +503,7 @@ pub mod pallet {
 
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
-				Err(_) => return total_weight.saturating_add(T::DbWeight::get().reads(1 as Weight)),
+				Err(_) => return total_weight,
 			};
 
 			if let Some(last_time_slot) = Self::get_last_slot() {
@@ -538,7 +538,9 @@ pub mod pallet {
 				}
 			} else {
 				LastTimeSlot::<T>::put(current_time_slot);
-				total_weight = total_weight.saturating_add(T::DbWeight::get().writes(1 as Weight));
+				total_weight = total_weight
+				.saturating_add(T::DbWeight::get().writes(1 as Weight))
+				.saturating_add(T::DbWeight::get().reads(1 as Weight));
 			}
 
 			total_weight
@@ -587,7 +589,9 @@ pub mod pallet {
 								),
 						};
 						Tasks::<T>::remove(task_id);
-						task_action_weight.saturating_add(T::DbWeight::get().writes(1 as Weight))
+						task_action_weight
+							.saturating_add(T::DbWeight::get().writes(1 as Weight))
+							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
 				};
 
