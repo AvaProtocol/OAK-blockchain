@@ -118,7 +118,7 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1_000_000;
+	pub const MaxBlockWeight: Weight = 900_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
