@@ -5,8 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.2.7] - 2022-03-07
 - Removed Quadratic funding pallet; can now be found [here](https://github.com/OAK-Foundation/quadratic-funding-pallet)
 - Added inclusion fees for OAK transactions
+- Modified execution fees
+- Added weights for pallet-valve
+- Upgraded polkadot client to v0.9.17
+- Added vesting on initialize
 
 ## [1.2.6] - 2022-03-01
 - Add Turing runtime and split chain-specific code (#chain-fork)
