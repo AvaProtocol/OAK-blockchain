@@ -60,8 +60,8 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 
-	type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
+	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -258,14 +258,11 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
-				// Need to return the real weight used (ENG-157).
-				return 10_000
+				return T::DbWeight::get().reads(1 as Weight);
 			}
 
 			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
-			Self::trigger_tasks(max_weight);
-			// Until we calculate the weights (ENG-157) we will just assumed we used the max weight.
-			max_weight
+			Self::trigger_tasks(max_weight)
 		}
 	}
 
@@ -443,10 +440,8 @@ pub mod pallet {
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
-		/// TODO (ENG-157): calculate weights.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
-			// need to calculate cost of all but the inner IF.
-			let mut weight_left: Weight = max_weight - 20_000;
+			let mut weight_left: Weight = max_weight;
 
 			// There is a chance we use more than our max_weight to update the task queue.
 			// This would occur if the system is not producting blocks for a very long time.
@@ -457,40 +452,42 @@ pub mod pallet {
 				return update_weight
 			}
 
-			weight_left -= update_weight;
+			weight_left = weight_left.saturating_sub(update_weight);
 
 			// need to calculate the weight of running just 1 task below.
-			if weight_left < 60_000 {
+			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
+				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				.saturating_add(T::DbWeight::get().writes(1 as Weight));
+			if weight_left < run_task_weight {
 				return weight_left
 			}
 
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
-			weight_left -= 10_000;
+			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 			if task_queue.len() > 0 {
-				// calculate cost of all but the run_tasks fcn.
-				weight_left -= 10_000;
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueue::<T>::put(tasks_left);
-				weight_left = new_weight_left;
+				weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
 
 			// if there is weight left we need to handled the missed tasks
-			if weight_left >= 60_000 {
+			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
+				.saturating_add(T::DbWeight::get().reads(1 as Weight))
+				.saturating_add(T::DbWeight::get().writes(1 as Weight));
+			if weight_left >= run_missed_task_weight {
 				let missed_queue = Self::get_missed_queue();
-				weight_left -= 10_000;
+				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 				if missed_queue.len() > 0 {
-					// calculate cost of all but the run_tasks fcn.
-					weight_left -= 10_000;
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
 					MissedQueue::<T>::put(tasks_left);
-					weight_left = new_weight_left;
+					weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
 			}
 
-			max_weight - weight_left
+			max_weight.saturating_sub(weight_left)
 		}
 
 		/// Update the task queue.
@@ -501,10 +498,8 @@ pub mod pallet {
 		/// 3. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
 		/// 4. Remove all relevant time slots from the Scheduled tasks map.
 		///
-		/// TODO (ENG-157): calculate weights.
-		fn update_task_queue() -> Weight {
-			// need to calculate the base fn weight.
-			let mut total_weight = 10_000;
+		pub fn update_task_queue() -> Weight {
+			let mut total_weight = <T as Config>::WeightInfo::update_task_queue_overhead();
 
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
@@ -537,17 +532,21 @@ pub mod pallet {
 
 					LastTimeSlot::<T>::put(current_time_slot);
 					// need to figure out how much it costs for all but the fcn call in this if statement.
-					total_weight += append_weight + 20_000;
+					total_weight = total_weight
+						.saturating_add(append_weight)
+						.saturating_add(<T as Config>::WeightInfo::update_task_queue_max_current_and_next());
 				}
 			} else {
 				LastTimeSlot::<T>::put(current_time_slot);
+				total_weight = total_weight
+				.saturating_add(T::DbWeight::get().writes(1 as Weight))
+				.saturating_add(T::DbWeight::get().reads(1 as Weight));
 			}
 
 			total_weight
 		}
 
-		/// TODO (ENG-157): calculate weights.
-		fn append_to_missed_tasks(
+		pub fn append_to_missed_tasks(
 			mut missed_tasks: Vec<T::Hash>,
 			last_time_slot: UnixTime,
 			diff: u64,
@@ -559,32 +558,27 @@ pub mod pallet {
 					ScheduledTasks::<T>::remove(new_time_slot);
 				}
 			}
-			// need to figure out how much each iteration costs.
-			let weight = diff * 20_000;
+			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, missed_tasks)
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
-		/// TODO (ENG-157): calculate weights.
-		fn run_tasks(
+		pub fn run_tasks(
 			mut task_ids: Vec<T::Hash>,
 			mut weight_left: Weight,
 		) -> (Vec<T::Hash>, Weight) {
-			// need to calculate the weight of the fn minus the loop.
-			weight_left -= 10_000;
-
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index += 1;
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
-						10_000
+						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						let action_weight = match task.action {
+						let task_action_weight = match task.action {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
@@ -595,15 +589,15 @@ pub mod pallet {
 								),
 						};
 						Tasks::<T>::remove(task_id);
-						action_weight + 10_000
+						task_action_weight
+							.saturating_add(T::DbWeight::get().writes(1 as Weight))
+							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
 				};
 
-				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight - 10_000;
+				weight_left = weight_left.saturating_sub(action_weight);
 
-				// need to calculate the max cost of the loop
-				if weight_left < 20_000 {
+				if weight_left < <T as Config>::WeightInfo::run_tasks_many_found(1) {
 					break
 				}
 			}
@@ -618,14 +612,10 @@ pub mod pallet {
 		/// Send events for as many missed tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
-		/// TODO (ENG-157): calculate weights.
-		fn run_missed_tasks(
+		pub fn run_missed_tasks(
 			mut task_ids: Vec<T::Hash>,
 			mut weight_left: Weight,
 		) -> (Vec<T::Hash>, Weight) {
-			// need to calculate the weight of the fn minus the loop.
-			weight_left -= 10_000;
-
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index += 1;
@@ -633,7 +623,7 @@ pub mod pallet {
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
-						10_000
+						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 					},
 					Some(task) => {
 						Self::deposit_event(Event::TaskMissed {
@@ -641,15 +631,13 @@ pub mod pallet {
 							task_id: task_id.clone(),
 						});
 						Tasks::<T>::remove(task_id);
-						10_000
+						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 					},
 				};
 
-				// need to calculate the look cost minus the action
-				weight_left = weight_left - action_weight - 10_000;
+				weight_left = weight_left.saturating_sub(action_weight);
 
-				// need to calculate the max cost of the loop
-				if weight_left < 20_000 {
+				if weight_left < <T as Config>::WeightInfo::run_missed_tasks_many_found(1) {
 					break
 				}
 			}
@@ -662,13 +650,12 @@ pub mod pallet {
 		}
 
 		/// Fire the notify event with the custom message.
-		/// TODO: Calculate weight (ENG-157).
-		fn run_notify_task(message: Vec<u8>) -> Weight {
+		pub fn run_notify_task(message: Vec<u8>) -> Weight {
 			Self::deposit_event(Event::Notify { message });
-			10_000
+			<T as Config>::WeightInfo::run_notify_task()
 		}
 
-		fn run_native_transfer_task(
+		pub fn run_native_transfer_task(
 			sender: T::AccountId,
 			recipient: T::AccountId,
 			amount: BalanceOf<T>,
@@ -679,7 +666,7 @@ pub mod pallet {
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
 
-			10_000
+			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
 		fn remove_task(task_id: T::Hash, task: Task<T>) {

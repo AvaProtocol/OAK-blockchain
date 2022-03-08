@@ -118,7 +118,7 @@ impl pallet_timestamp::Config for Test {
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1200_000;
+	pub const MaxBlockWeight: Weight = 900_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
@@ -155,6 +155,36 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn force_cancel_overflow_task() -> Weight {
 		0
+	}
+	fn run_notify_task() -> Weight {
+		20_000
+	}
+	fn run_native_transfer_task() -> Weight {
+		20_000
+	}
+	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
+		(10_000 * v).into()
+	}
+	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
+		(10_000 * v).into()
+	}
+	fn run_tasks_many_found(v: u32, ) -> Weight {
+		(50_000 * v).into()
+	}
+	fn run_tasks_many_missing(v: u32, ) -> Weight {
+		(10_000 * v).into()
+	}
+	fn update_task_queue_overhead() -> Weight {
+		10_000
+	}
+	fn update_task_queue_max_current() -> Weight {
+		20_000
+	}
+	fn append_to_missed_tasks(v: u32, ) -> Weight {
+		(20_000 * v).into()
+	}
+	fn update_task_queue_max_current_and_next() -> Weight {
+		20_000
 	}
 }
 

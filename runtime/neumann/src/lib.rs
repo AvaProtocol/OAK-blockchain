@@ -720,7 +720,7 @@ impl pallet_treasury::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 2;
+	pub const MaxTasksPerSlot: u32 = 100;
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 6 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
