@@ -57,6 +57,17 @@ pub trait NativeTokenExchange<T: Config> {
 		value: Self::Balance,
 	) -> Result<(), DispatchError>;
 
+	/// Deposit some `value` into the free balance of `who`, possibly creating a new account.
+	///
+	/// This function is a no-op if:
+	/// - the `value` to be deposited is zero; or
+	/// - the `value` to be deposited is less than the required ED and the account does not yet
+	///   exist; or
+	/// - the deposit would necessitate the account to exist and there are no provider references;
+	///   or
+	/// - `value` is so large it would cause the balance of `who` to overflow.
+	fn deposit_creating(who: &T::AccountId, value: Self::Balance);
+
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(who: &T::AccountId, fee: Self::Balance) -> Result<(), DispatchError>;
 
@@ -108,6 +119,11 @@ where
 	) -> Result<(), DispatchError> {
 		C::transfer(source, dest, value, ExistenceRequirement::KeepAlive)?;
 		Ok(())
+	}
+
+	// Creates new account and deposits balance into account
+	fn deposit_creating(who: &T::AccountId, value: Self::Balance) {
+		C::deposit_creating(who, value);
 	}
 
 	// Ensure the fee can be paid.

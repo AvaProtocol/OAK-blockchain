@@ -49,7 +49,7 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
-		Valve: pallet_valve::{Pallet, Call, Storage, Event, Config},
+		Valve: pallet_valve::{Pallet, Call, Storage, Event<T>, Config},
 	}
 );
 
@@ -125,8 +125,10 @@ parameter_types! {
 	pub const ExecutionWeightFee: Balance = 12;
 }
 
-pub struct MockWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
+pub struct MockAutomationTimeWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
+	for MockAutomationTimeWeight<Test>
+{
 	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
@@ -157,6 +159,36 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn force_cancel_overflow_task() -> Weight {
 		0
 	}
+	fn run_notify_task() -> Weight {
+		0
+	}
+	fn run_native_transfer_task() -> Weight {
+		0
+	}
+	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
+		0
+	}
+	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
+		0
+	}
+	fn run_tasks_many_found(v: u32, ) -> Weight {
+		0
+	}
+	fn run_tasks_many_missing(v: u32, ) -> Weight {
+		0
+	}
+	fn update_task_queue_overhead() -> Weight {
+		0
+	}
+	fn update_task_queue_max_current() -> Weight {
+		0
+	}
+	fn append_to_missed_tasks(v: u32, ) -> Weight {
+		0
+	}
+	fn update_task_queue_max_current_and_next() -> Weight {
+		0
+	}
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
@@ -174,7 +206,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type SecondsPerBlock = SecondsPerBlock;
-	type WeightInfo = MockWeight<Test>;
+	type WeightInfo = MockAutomationTimeWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
@@ -188,8 +220,37 @@ impl Contains<Call> for ClosedCallFilter {
 	}
 }
 
+pub struct MockWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_valve::WeightInfo for MockWeight<Test> {
+	fn close_valve() -> Weight {
+		0
+	}
+	fn open_valve() -> Weight {
+		0
+	}
+	fn close_pallet_gate_new() -> Weight {
+		0
+	}
+	fn close_pallet_gate_existing() -> Weight {
+		0
+	}
+	fn open_pallet_gate() -> Weight {
+		0
+	}
+	fn open_pallet_gates() -> Weight {
+		0
+	}
+	fn stop_scheduled_tasks() -> Weight {
+		0
+	}
+	fn start_scheduled_tasks() -> Weight {
+		0
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
+	type WeightInfo = MockWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
 }
 
@@ -236,7 +297,7 @@ impl ExtBuilder {
 	}
 }
 
-pub(crate) fn events() -> Vec<pallet_valve::Event> {
+pub(crate) fn events() -> Vec<pallet_valve::Event<Test>> {
 	let evt = System::events()
 		.into_iter()
 		.map(|r| r.event)
