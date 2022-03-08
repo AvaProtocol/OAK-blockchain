@@ -613,7 +613,6 @@ fn on_init_runs_tasks() {
 		LastTimeSlot::<Test>::put(LAST_BLOCK_TIME);
 
 		AutomationTime::on_initialize(1);
-
 		assert_eq!(
 			events(),
 			[

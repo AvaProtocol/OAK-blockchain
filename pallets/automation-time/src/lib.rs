@@ -261,7 +261,7 @@ pub mod pallet {
 				return T::DbWeight::get().reads(1 as Weight);
 			}
 
-			let max_weight: Weight = T::MaxWeightPercentage::get() * T::MaxBlockWeight::get();
+			let max_weight: Weight = T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
 		}
 	}
@@ -408,9 +408,9 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
+			let now = now.saturating_div(1000);
 			let diff_to_min = now % 60;
-			Ok(now - diff_to_min)
+			Ok(now.saturating_sub(diff_to_min))
 		}
 
 		/// Checks to see if the scheduled time is valid.
@@ -512,7 +512,7 @@ pub mod pallet {
 					let missed_tasks = Self::get_task_queue();
 
 					// will need to move missed time slots into missed queue
-					let diff = ((current_time_slot - last_time_slot) / 60) - 1;
+					let diff = current_time_slot.saturating_sub(last_time_slot).saturating_div(60).saturating_sub(1);
 					let (append_weight, mut missed_tasks) =
 						Self::append_to_missed_tasks(missed_tasks, last_time_slot, diff);
 
@@ -551,8 +551,10 @@ pub mod pallet {
 			last_time_slot: UnixTime,
 			diff: u64,
 		) -> (Weight, Vec<T::Hash>) {
+			let seconds_in_slot = 60;
 			for i in 0..diff {
-				let new_time_slot = last_time_slot + (i + 1) * 60;
+				let shift = seconds_in_slot.saturating_mul(i+1);
+				let new_time_slot = last_time_slot.saturating_add(shift);
 				if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 					missed_tasks.append(&mut task_ids.into_inner());
 					ScheduledTasks::<T>::remove(new_time_slot);
@@ -571,7 +573,7 @@ pub mod pallet {
 		) -> (Vec<T::Hash>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
-				consumed_task_index += 1;
+				consumed_task_index.saturating_inc();
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
