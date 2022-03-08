@@ -512,7 +512,6 @@ pub mod pallet {
 					let missed_tasks = Self::get_task_queue();
 
 					// will need to move missed time slots into missed queue
-					// FIXXXXXXX
 					let diff = current_time_slot.saturating_sub(last_time_slot).saturating_div(60).saturating_sub(1);
 					let (append_weight, mut missed_tasks) =
 						Self::append_to_missed_tasks(missed_tasks, last_time_slot, diff);
