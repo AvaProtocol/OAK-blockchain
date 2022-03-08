@@ -102,8 +102,8 @@ cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus",
 cumulus-relay-chain-local = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.17" }
 
 # Polkadot dependencies
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.17" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.17" }
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.17" }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.17" }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.17" }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "polkadot-v0.9.17" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "polkadot-v0.9.17" }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "polkadot-v0.9.17" }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "polkadot-v0.9.17" }
+polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "polkadot-v0.9.17" }
