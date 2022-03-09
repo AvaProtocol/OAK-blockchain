@@ -39,6 +39,7 @@ mod tests;
 
 mod benchmarking;
 pub mod weights;
+pub mod migrations;
 
 mod exchange;
 pub use exchange::*;
@@ -189,6 +190,10 @@ pub mod pallet {
 	#[pallet::getter(fn is_shutdown)]
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_automation_time_storage_version)]
+	pub type AutomationTimeStorageVersion<T: Config> = StorageValue<_, u16>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Time must end in a whole minute.
@@ -267,6 +272,10 @@ pub mod pallet {
 
 			let max_weight: Weight = T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
+		}
+
+		fn on_runtime_upgrade() -> Weight {
+			migrations::v1::migrate::<T>()
 		}
 	}
 
