@@ -21,6 +21,7 @@ use super::*;
 		).expect("Must have last slot value");
 
     // TODO: (jzhou) Gate migration on not having storage version
+    // TODO: (jzhou) What if stored_data is None?
     let storage_version = AutomationTimeStorageVersion::<T>::get();
     if storage_version == None || storage_version < Some(1) {
       LastTimeSlot::<T>::put((stored_data, stored_data));

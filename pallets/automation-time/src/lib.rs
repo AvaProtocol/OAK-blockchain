@@ -54,6 +54,7 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::{vec, vec::Vec};
+use log::info;
 
 pub use weights::WeightInfo;
 
@@ -521,6 +522,8 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, last_missed_slot)) = Self::get_last_slot() {
+				info!("last_time_slot: {}", last_time_slot);
+				info!("last_missed_slot: {}", last_missed_slot);
 				let missed_queue_allotted_weight = allotted_weight
 					.saturating_sub(T::DbWeight::get().reads(1 as Weight))
 					.saturating_sub(T::DbWeight::get().writes(1 as Weight))
