@@ -14,7 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgraded polkadot client to v0.9.17
 - Added vesting on initialize
 - Benchmarks for automation time pallet
-- Safely calculate timeslots and other items
+- Safely math calculations
+- Disable treasury burn in runtime
+- Split update queue behavior for missed and scheduled queues
+- 
 
 ## [1.2.6] - 2022-03-01
 - Add Turing runtime and split chain-specific code (#chain-fork)
