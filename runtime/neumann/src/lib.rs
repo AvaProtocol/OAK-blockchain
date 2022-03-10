@@ -212,7 +212,7 @@ pub const MILLICENT: Balance = CENT / 1_000; // 100_000
 pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
 
 /// We use at most 10% of the block weight running scheduled tasks during `on_initialize`.
-const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
