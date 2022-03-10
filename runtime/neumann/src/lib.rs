@@ -214,9 +214,6 @@ pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
 /// We use at most 10% of the block weight running scheduled tasks during `on_initialize`.
 const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
 
-/// Out of block weight for scheduled tasks, we use at most 50% of the block weight for updating task queue.
-const UPDATE_QUEUE_RATIO: Perbill = Perbill::from_percent(50);
-
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
@@ -727,7 +724,7 @@ parameter_types! {
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 6 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
-	pub const UpdateQueueRatio: Perbill = UPDATE_QUEUE_RATIO;
+	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
 	pub const ExecutionWeightFee: Balance = 12;
 }

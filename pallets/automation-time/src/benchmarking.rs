@@ -289,8 +289,6 @@ benchmarks! {
 				<Tasks<T>>::insert(task_id, task);
 			}
 		}
-		let time_moment: u32 = (current_time * 1000).try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	}: { AutomationTime::<T>::append_to_missed_tasks(current_time, last_time_slot, weight_left) }
 
 	update_scheduled_task_queue {

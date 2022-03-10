@@ -58,7 +58,9 @@ use log::info;
 
 pub use weights::WeightInfo;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+// NOTE: this is the current storage version for the code.
+// On migration, you will need to increment this.
+const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -277,8 +279,8 @@ pub mod pallet {
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			let storage_version = StorageVersion::get::<Pallet<T>>();
-			if storage_version < STORAGE_VERSION {
+			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
+			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
 				migrations::v1::migrate::<T>()
 			} else {
 				info!("migration already run before");
@@ -464,15 +466,10 @@ pub mod pallet {
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			let mut weight_left: Weight = max_weight;
 
-			// There is a chance we use more than our max_weight to update the task queue.
-			// This would occur if the system is not producting blocks for a very long time.
-			// Regardless of how long it takes we still need to update the task queue.
+			// The last_missed_slot might not be caught up within just 1 block. 
+			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
 			let max_update_weight: Weight = T::UpdateQueueRatio::get().mul_floor(weight_left);
 			let update_weight = Self::update_task_queue(max_update_weight);
-
-			if update_weight >= weight_left {
-				return update_weight
-			}
 
 			weight_left = weight_left.saturating_sub(update_weight);
 
@@ -515,10 +512,10 @@ pub mod pallet {
 		/// Update the task queue.
 		///
 		/// This function checks to see if we are in a new time slot, and if so it updates the task queue and missing queue by doing the following.
-		/// 1. Append the current task queue to the missed queue.
-		/// 2. Make all tasks from the new slot into the task queue.
-		/// 3. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
-		/// 4. Remove all relevant time slots from the Scheduled tasks map.
+		/// 1. (update_scheduled_task_queue) If new slot, append the current task queue to the missed queue and remove tasks from task queue.
+		/// 2. (update_scheduled_task_queue) Move all tasks from the new slot into the task queue and remove the slot from Scheduled tasks map.
+		/// 3. (update_missed_queue) If we skipped any time slots (due to an outage) move those tasks to the missed queue.
+		/// 4. (update_missed_queue) Remove all missed time slots that were moved to missed queue from the Scheduled tasks map.
 		///
 		pub fn update_task_queue(allotted_weight: Weight) -> Weight {
 			let mut total_weight = <T as Config>::WeightInfo::update_task_queue_overhead();
@@ -552,6 +549,10 @@ pub mod pallet {
 			total_weight
 		}
 
+		/// Update the task queue with scheduled tasks for the current slot
+		///
+		/// 1. If new slot, append the current task queue to the missed queue and remove tasks from task queue.
+		/// 2. Move all tasks from the new slot into the task queue and remove the slot from Scheduled tasks map.
 		pub fn update_scheduled_task_queue(current_time_slot: u64, last_time_slot: u64) -> (Weight, u64) {
 			if current_time_slot != last_time_slot {
 				let mut missed_tasks = Self::get_task_queue();
@@ -571,21 +572,25 @@ pub mod pallet {
 			(current_time_slot, weight_used)
 		}
 
+		/// Checks if append_to_missed_tasks needs to run and then runs and measures weight as needed
 		pub fn update_missed_queue(current_time_slot: u64, last_missed_slot: u64, allotted_weight: Weight) -> (Weight, u64) {
-			let mut last_missed_slot_tracker = last_missed_slot;
-			let mut used_weight = 0;
-			if current_time_slot != last_missed_slot_tracker {
+			if current_time_slot != last_missed_slot {
 				// will need to move missed time slots into missed queue
 				let (append_weight, missed_slots_moved) =
 					Self::append_to_missed_tasks(current_time_slot, last_missed_slot, allotted_weight);
 
-				last_missed_slot_tracker = last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(60));
-				used_weight = used_weight
-					.saturating_add(append_weight);
+				let last_missed_slot_tracker = last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(60));
+				let used_weight = append_weight;
+				(last_missed_slot_tracker, used_weight)
+			} else {
+				(last_missed_slot, 0)
 			}
-			(last_missed_slot_tracker, used_weight)
 		}
 
+		/// Checks each previous time slots to move any missed tasks into the missed_queue
+		/// 
+		/// 1. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
+		/// 2. Remove all missed time slots that were moved to missed queue from the Scheduled tasks map.
 		pub fn append_to_missed_tasks(
 			current_time_slot: UnixTime,
 			last_missed_slot: UnixTime,
@@ -611,6 +616,10 @@ pub mod pallet {
 			(weight, diff)
 		}
 
+		/// Grabs all of the missed tasks from a time slot.
+		/// The time slot to grab missed tasks is calculated given:
+		/// 1. last missed slot that was stored
+		/// 2. the number of slots that it should skip after that
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
