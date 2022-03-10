@@ -121,6 +121,7 @@ parameter_types! {
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
+	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
 }
@@ -165,28 +166,28 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn run_native_transfer_task() -> Weight {
 		0
 	}
-	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
+	fn run_missed_tasks_many_found(_v: u32, ) -> Weight {
 		0
 	}
-	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
+	fn run_missed_tasks_many_missing(_v: u32, ) -> Weight {
 		0
 	}
-	fn run_tasks_many_found(v: u32, ) -> Weight {
+	fn run_tasks_many_found(_v: u32, ) -> Weight {
 		0
 	}
-	fn run_tasks_many_missing(v: u32, ) -> Weight {
+	fn run_tasks_many_missing(_v: u32, ) -> Weight {
 		0
 	}
 	fn update_task_queue_overhead() -> Weight {
 		0
 	}
-	fn update_task_queue_max_current() -> Weight {
+	fn append_to_missed_tasks(_v: u32, ) -> Weight {
 		0
 	}
-	fn append_to_missed_tasks(v: u32, ) -> Weight {
+	fn update_scheduled_task_queue() -> Weight {
 		0
 	}
-	fn update_task_queue_max_current_and_next() -> Weight {
+	fn shift_missed_tasks() -> Weight {
 		0
 	}
 }
@@ -205,6 +206,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
+	type UpdateQueueRatio = UpdateQueueRatio;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockAutomationTimeWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
