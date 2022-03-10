@@ -396,6 +396,7 @@ fn force_cancel_task_works() {
 // 10_000: update task queue function overhead (update_task_queue_overhead)
 // 20_000: update task queue for scheduled tasks (update_scheduled_task_queue)
 // 20_000v: for each old time slot to missed tasks (append_to_missed_tasks)
+// 20_000: to move a single time slot to missed tasks (shift_missed_tasks)
 
 #[test]
 fn trigger_tasks_handles_first_run() {

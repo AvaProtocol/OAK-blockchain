@@ -187,6 +187,9 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
+	// NOTE: The 2 UnixTime stamps represent (last_time_slot, last_missed_slot).
+	// `last_time_slot` represents the last time slot that the task queue was updated.
+	// `last_missed_slot` represents the last scheduled slot where the missed queue has checked for missed tasks.
 	pub type LastTimeSlot<T: Config> = StorageValue<_, (UnixTime, UnixTime)>;
 
 	#[pallet::storage]
@@ -526,8 +529,6 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, last_missed_slot)) = Self::get_last_slot() {
-				info!("last_time_slot: {}", last_time_slot);
-				info!("last_missed_slot: {}", last_missed_slot);
 				let missed_queue_allotted_weight = allotted_weight
 					.saturating_sub(T::DbWeight::get().reads(1 as Weight))
 					.saturating_sub(T::DbWeight::get().writes(1 as Weight))
