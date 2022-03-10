@@ -14,12 +14,7 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:$IMAGE_TAG .
-      - docker run -it oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=$CHAIN > genesis-state
-      - docker run -it oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=$CHAIN > genesis-wasm
-      - docker run -it oaknetwork/neumann:$IMAGE_TAG build-spec --disable-default-bootnode --chain=$CHAIN --raw > $CHAIN.json
+      - printenv
   post_build:
     commands:
       - echo Build completed on `date`
-      - echo Pushing the Docker image...
-      - docker push oaknetwork/neumann:$IMAGE_TAG
