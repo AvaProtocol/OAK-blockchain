@@ -359,7 +359,7 @@ impl pallet_balances::Config for Runtime {
 parameter_types! {
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(1);
+	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(50);
 	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
 	/// change the fees more rapidly.
 	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
