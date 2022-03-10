@@ -308,10 +308,9 @@ benchmarks! {
 
 	shift_missed_tasks {
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let missed_tasks = vec![];
 		let last_time_slot: u64 = 120;
 		let new_time_slot: u64 = 240;
 		let diff = 1;
 		schedule_notify_tasks::<T>(caller.clone(), new_time_slot, 1);
-	}: { AutomationTime::<T>::shift_missed_tasks(missed_tasks, last_time_slot, diff) }
+	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 }

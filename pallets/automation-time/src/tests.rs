@@ -675,6 +675,57 @@ fn on_init_runs_tasks() {
 }
 
 #[test]
+fn on_init_check_task_queue() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME - 120));
+		let mut tasks = vec![];
+
+		for i in 0..5 {
+			let task_id = add_task_to_task_queue(
+				ALICE,
+				vec![i],
+				Action::Notify { message: vec![i] },
+			);
+			tasks.push(task_id);
+		}
+		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
+		AutomationTime::on_initialize(1);
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::Notify { message: vec![0] }),
+			],
+		);
+		assert_eq!(AutomationTime::get_task_queue().len(), 4);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
+		Timestamp::set_timestamp(START_BLOCK_TIME + (40 * 1000));
+		AutomationTime::on_initialize(2);
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::Notify { message: vec![1] }),
+				Event::AutomationTime(crate::Event::Notify { message: vec![2] }),
+			],
+		);
+		assert_eq!(AutomationTime::get_task_queue().len(), 2);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
+		Timestamp::set_timestamp(START_BLOCK_TIME + (60 * 1000));
+		AutomationTime::on_initialize(3);
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[3] }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[4] }),
+			],
+		);
+		assert_eq!(AutomationTime::get_task_queue().len(), 0);
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+	})
+}
+
+#[test]
 fn on_init_shutdown() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		Shutdown::<Test>::put(true);
