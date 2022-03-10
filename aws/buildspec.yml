@@ -1,6 +1,15 @@
 version: 0.2
 
+env:
+  secrets-manager:
+    DOCKERHUB_PASS: "dockerhub/credentials:password"
+    DOCKERHUB_USERNAME: "dockerhub/credentials:username"
+
 phases:
+  pre_build:
+    commands:
+      - echo Logging in to Docker hub...
+      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
   build:
     commands:
       - echo Build started on `date`
@@ -12,3 +21,5 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push oaknetwork/neumann:$IMAGE_TAG
