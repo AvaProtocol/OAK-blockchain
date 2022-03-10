@@ -431,7 +431,7 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now.saturating_div(1000);
+			let now = now / 1000;
 			let diff_to_min = now % 60;
 			Ok(now.saturating_sub(diff_to_min))
 		}
@@ -598,7 +598,7 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff = current_time_slot.saturating_sub(last_missed_slot).saturating_div(60).saturating_sub(1);
+			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) / 60).saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
 					diff = i;
