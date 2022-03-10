@@ -3,9 +3,9 @@ use frame_support::traits::Get;
 use log::info;
 
 pub mod v1 {
-	use frame_support::{migration::get_storage_value};
+	use frame_support::{migration::get_storage_value, traits::StorageVersion};
 
-  use crate::{LastTimeSlot, AutomationTimeStorageVersion};
+  use crate::{LastTimeSlot, Pallet};
 
 use super::*;
 
@@ -22,7 +22,7 @@ use super::*;
 
     LastTimeSlot::<T>::put((stored_data, stored_data));
     info!(target: "automation-time", "Completed automation-time migration to v1");
-    AutomationTimeStorageVersion::<T>::put(1);
+    StorageVersion::new(1).put::<Pallet<T>>();
     T::DbWeight::get().reads_writes(1, 1)
 	}
 }

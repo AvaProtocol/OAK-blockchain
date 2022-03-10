@@ -193,10 +193,6 @@ pub mod pallet {
 	#[pallet::getter(fn is_shutdown)]
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn get_automation_time_storage_version)]
-	pub type AutomationTimeStorageVersion<T: Config> = StorageValue<_, u16>;
-
 	#[pallet::error]
 	pub enum Error<T> {
 		/// Time must end in a whole minute.
