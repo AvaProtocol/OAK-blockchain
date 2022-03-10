@@ -33,6 +33,8 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
+COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/neumann-runtime/neumann_runtime.compact.compressed.wasm  /tmp/neumann_runtime.compact.compressed.wasm
+COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/neumann-runtime/neumann_runtime.compact.wasm  /tmp/neumann_runtime.compact.wasm
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
 
 # Open network port
