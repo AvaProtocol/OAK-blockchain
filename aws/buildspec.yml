@@ -15,6 +15,10 @@ phases:
       - echo Build started on `date`
       - echo Building the Docker image...
       - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:$IMAGE_TAG .
+      - mkdir neumann-dev
+      - mkdir neumann-local
+      - mkdir neumann-staging
+      - mkdir neumann-latest
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=dev > neumann-dev/genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=local > neumann-local/genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-staging >  neumann-staging/genesis-state

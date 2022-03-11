@@ -37,7 +37,10 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
-
+COPY --chown=$USERNAME --from=builder /build/neumann-dev-chain-spec.json  /$USERNAME/neumann-dev-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-local-chain-spec.json  /$USERNAME/neumann-local-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-staging-chain-spec.json  /$USERNAME/neumann-staging-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-latest-chain-spec.json  /$USERNAME/neumann-latest-chain-spec.json
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
 
 # Open network port
