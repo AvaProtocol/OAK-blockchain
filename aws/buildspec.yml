@@ -15,11 +15,12 @@ phases:
       - echo Build started on `date`
       - echo Building the Docker image...
       - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:$IMAGE_TAG .
+      - docker build -f ./docker/neumann/Dockerfile.cat -t oaknetwork/neumann-cat .
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=$CHAIN > genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=$CHAIN > genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG build-spec --disable-default-bootnode --chain=$CHAIN --raw > $CHAIN.json
-      - docker run --entrypoint cat oaknetwork/neumann:$IMAGE_TAG /tmp/neumann_runtime.compact.compressed.wasm > neumann_runtime.compact.compressed.wasm
-      - docker run --entrypoint cat oaknetwork/neumann:$IMAGE_TAG /tmp/neumann_runtime.compact.wasm > neumann_runtime.compact.wasm
+      - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.compressed.wasm > neumann_runtime.compact.compressed.wasm
+      - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.wasm > neumann_runtime.compact.wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/neumann:$IMAGE_TAG
   post_build:
