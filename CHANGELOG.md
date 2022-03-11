@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 - Disable treasury burn in runtime
 - Split update queue behavior for missed and scheduled queues
+- Added Democracy pallet and Technical Committee
 
 ## [1.2.7] - 2022-03-10
 - Removed Quadratic funding pallet; can now be found [here](https://github.com/OAK-Foundation/quadratic-funding-pallet)
