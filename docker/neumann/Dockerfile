@@ -52,4 +52,3 @@ VOLUME ["/data"]
 WORKDIR /$USERNAME
 
 ENTRYPOINT ["./oak-collator"]
-
