@@ -28,8 +28,8 @@ phases:
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
       - docker create --name artifact_holder oaknetwork/neumann:$IMAGE_TAG
-      - docker cp artifact_holder:./neumann_runtime.compact.compressed.wasm ./neumann_runtime.compact.compressed.wasm
-      - docker cp artifact_holder:./neumann_runtime.compact.wasm ./neumann_runtime.compact.wasm
+      - docker cp artifact_holder:./oak/neumann_runtime.compact.compressed.wasm ./neumann_runtime.compact.compressed.wasm
+      - docker cp artifact_holder:./oak/neumann_runtime.compact.wasm ./neumann_runtime.compact.wasm
       - echo Pushing the Docker image...
   post_build:
     commands:
