@@ -35,11 +35,10 @@ USER $USERNAME
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
 
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
-RUN mkdir chain-spec
-RUN ./oak-collator build-spec --disable-default-bootnode --chain=dev --raw > chain-spec/neumann-dev-chain-spec.json
-RUN ./oak-collator build-spec --disable-default-bootnode --chain=local --raw > chain-spec/neumann-local-chain-spec.json
-RUN ./oak-collator build-spec --disable-default-bootnode --chain=neumann-staging --raw > chain-spec/neumann-staging-chain-spec.json
-RUN ./oak-collator build-spec --disable-default-bootnode --chain=neumann-latest --raw > chain-spec/neumann-latest-chain-spec.json
+RUN /$USERNAME/oak-collator build-spec --disable-default-bootnode --chain=dev --raw > /$USERNAME/neumann-dev-chain-spec.json
+RUN /$USERNAME/oak-collator build-spec --disable-default-bootnode --chain=local --raw > /$USERNAME/neumann-local-chain-spec.json
+RUN /$USERNAME/oak-collator build-spec --disable-default-bootnode --chain=neumann-staging --raw > /$USERNAME/neumann-staging-chain-spec.json
+RUN /$USERNAME/oak-collator build-spec --disable-default-bootnode --chain=neumann-latest --raw > /$USERNAME/neumann-latest-chain-spec.json
 
 # Open network port
 # 30333 for parachain p2p
