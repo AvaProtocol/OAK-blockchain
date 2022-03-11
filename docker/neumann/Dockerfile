@@ -37,6 +37,8 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
+COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/neumann-runtime/neumann_runtime.compact.compressed.wasm  /$USERNAME/neumann_runtime.compact.compressed.wasm 
+COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/neumann-runtime/neumann_runtime.compact.wasm  /$USERNAME/neumann_runtime.compact.wasm
 COPY --chown=$USERNAME --from=builder /build/neumann-dev-chain-spec.json  /$USERNAME/neumann-dev-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/neumann-local-chain-spec.json  /$USERNAME/neumann-local-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/neumann-staging-chain-spec.json  /$USERNAME/neumann-staging-chain-spec.json
