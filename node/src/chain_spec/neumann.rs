@@ -7,7 +7,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
@@ -346,17 +346,9 @@ mod tests {
 
 	#[test]
 	fn validate_neumann_vesting() {
-		let accounts = vec![
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-				get_account_id_from_seed::<sr25519::Public>("Eve"),
-				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-			];
-		let initial_balance: u128 = TOTAL_TOKENS / accounts.len() as u128;
-		let endowed_accounts: Vec<(AccountId, Balance)> =
-			accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
+		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
 
 		let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
 		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
@@ -375,10 +367,13 @@ mod tests {
 				),
 			],
 			get_account_id_from_seed::<sr25519::Public>("Alice"),
-			endowed_accounts,
+			initial_allocation.clone(),
 			DEFAULT_PARA_ID.into(),
 			vec![],
-			initial_vesting,
+			initial_vesting.clone(),
 		);
+
+		let vested_tokens = DOLLAR * 10_000_000;
+		validate_vesting(initial_allocation, initial_vesting, TOTAL_TOKENS + vested_tokens, EXISTENTIAL_DEPOSIT);
 	}
 }
