@@ -34,12 +34,12 @@ phases:
   post_build:
     commands:
       - echo Build completed on `date`
-  artifacts:
-    files:
-      - neumann_runtime.compact.compressed.wasm
-      - neumann_runtime.compact.wasm
-      - neumann-dev/*
-      - neumann-local/*
-      - neumann-staging/*
-      - neumann-latest/*
-    name: neumann-$IMAGE_TAG
+artifacts:
+  files:
+    - neumann_runtime.compact.compressed.wasm
+    - neumann_runtime.compact.wasm
+    - neumann-dev/*
+    - neumann-local/*
+    - neumann-staging/*
+    - neumann-latest/*
+  name: neumann-$IMAGE_TAG
