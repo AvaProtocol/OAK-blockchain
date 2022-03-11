@@ -374,6 +374,8 @@ mod tests {
 		);
 
 		let vested_tokens = DOLLAR * 10_000_000;
-		validate_vesting(initial_allocation, initial_vesting, TOTAL_TOKENS + vested_tokens, EXISTENTIAL_DEPOSIT);
+		let vest_starting_time: u64 = 1647273600;
+		let vest_ending_time: u64 = 1647288000;
+		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 	}
 }
