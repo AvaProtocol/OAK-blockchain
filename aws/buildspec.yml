@@ -23,8 +23,9 @@ phases:
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=local > neumann-local/genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
-      - docker run --entrypoint cat oaknetwork/neumann:$IMAGE_TAG /tmp/neumann_runtime.compact.compressed.wasm > neumann_runtime.compact.compressed.wasm
-      - docker run --entrypoint cat oaknetwork/neumann:$IMAGE_TAG /tmp/neumann_runtime.compact.wasm > neumann_runtime.compact.wasm
+      - docker build -f ./docker/neumann/Dockerfile.cat -t oaknetwork/neumann-cat .
+      - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.compressed.wasm > neumann_runtime.compact.compressed.wasm
+      - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.wasm > neumann_runtime.compact.wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/neumann:$IMAGE_TAG
   post_build:
