@@ -343,15 +343,23 @@ mod tests {
 
 		validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
 	}
-}
 
-#[cfg(test)]
-mod tests {
-	use super::*;
 	#[test]
 	fn validate_neumann_vesting() {
+		let accounts = vec![
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				get_account_id_from_seed::<sr25519::Public>("Bob"),
+				get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				get_account_id_from_seed::<sr25519::Public>("Dave"),
+				get_account_id_from_seed::<sr25519::Public>("Eve"),
+				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+			];
+		let initial_balance: u128 = TOTAL_TOKENS / accounts.len() as u128;
+		let endowed_accounts: Vec<(AccountId, Balance)> =
+			accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
+
 		let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
-		let initial_vesting: Vec<(AccountId, Balance)> =
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 			serde_json::from_slice(vesting_json).unwrap();
 
 		testnet_genesis(
