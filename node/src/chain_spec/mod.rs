@@ -116,7 +116,7 @@ pub fn validate_vesting(
 	vest_starting: u64,
 	vest_ending: u64
 ) {
-	let mut total_allocated: Balance = Zero::zero();
+	let mut total_vested: Balance = Zero::zero();
 	let unique_vested_slots = vesting_timeslots
 		.iter()
 		.map(|(timestamp, schedules)| {
@@ -132,7 +132,7 @@ pub fn validate_vesting(
 				.iter()
 				.map(|(account_id, amount)| {
 					assert!(*amount >= existential_deposit, "allocated amount must gte ED");
-					total_allocated = total_allocated
+					total_vested = total_vested
 						.checked_add(*amount)
 						.expect("shouldn't overflow when building genesis");
 					account_id
@@ -152,5 +152,5 @@ pub fn validate_vesting(
 		"duplicate vesting timeslots in genesis."
 	);
 
-	assert_eq!(total_allocated, total_tokens, "total allocated does not equal the desired amount");
+	assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
 }
