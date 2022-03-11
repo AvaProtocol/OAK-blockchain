@@ -10,7 +10,7 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalCommitteeConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -315,6 +315,8 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: vec![root_key.clone()], phantom: Default::default() },
+		democracy: Default::default(),
+		technical_committee: TechnicalCommitteeConfig { members: vec![root_key.clone()], phantom: Default::default() },
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),

@@ -11,7 +11,7 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalCommitteeConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 static TOKEN_SYMBOL: &str = "TUR";
@@ -185,6 +185,8 @@ fn testnet_genesis(
 		aura: Default::default(),
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: vec![root_key.clone()], phantom: Default::default() },
+		democracy: Default::default(),
+		technical_committee: TechnicalCommitteeConfig { members: vec![root_key.clone()], phantom: Default::default() },
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
