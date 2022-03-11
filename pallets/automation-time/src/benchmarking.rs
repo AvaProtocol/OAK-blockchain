@@ -268,48 +268,47 @@ benchmarks! {
 	*/
 
 	update_task_queue_overhead {
-	}: { AutomationTime::<T>::update_task_queue() }
-
-	update_task_queue_max_current {
-		let caller: T::AccountId = account("callerName", 0, SEED);
-		let current_time: u64 = 180;
-		let next_time: u64 = 240;
-		
-		schedule_notify_tasks::<T>(caller.clone(), current_time, T::MaxTasksPerSlot::get());
-	}: { AutomationTime::<T>::update_task_queue() }
+		let weight_left = 500_000_000_000;
+	}: { AutomationTime::<T>::update_task_queue(weight_left) }
 
 	append_to_missed_tasks {
+		let weight_left = 500_000_000_000;
 		let v in 0 .. 2;
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let last_time_slot: u64 = 60;
 		let time = last_time_slot;
-		let missed_tasks: Vec<T::Hash> = vec![];
+		let time_change: u64 = (v * 60).into();
+		let current_time = last_time_slot + time_change;
 
 		for i in 0..v {
-			let time = time.saturating_add(60);
-			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time.into()).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id, time.into(), vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
+			for j in 0..1 {
+				let time = time.saturating_add(60);
+				let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
+				let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time.into()).unwrap();
+				let task = Task::<T>::create_event_task(caller.clone(), provided_id, time.into(), vec![4, 5, 6]);
+				<Tasks<T>>::insert(task_id, task);
+			}
 		}
-	}: { AutomationTime::<T>::append_to_missed_tasks(missed_tasks, last_time_slot, v.into()) }
+	}: { AutomationTime::<T>::append_to_missed_tasks(current_time, last_time_slot, weight_left) }
 
-	update_task_queue_max_current_and_next {
+	update_scheduled_task_queue {
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let last_time: u64 = 120;
-		let current_time: u64 = 180;
-		let next_time: u64 = 240;
-		let time_moment: u32 = (current_time * 1000).try_into().unwrap();
-
-		schedule_notify_tasks::<T>(caller.clone(), current_time, T::MaxTasksPerSlot::get());
+		let last_time_slot: u64 = 120;
+		let current_time = 180;
 
 		for i in 0..T::MaxTasksPerSlot::get() {
-			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), 180];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), next_time.into()).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id, next_time.into(), vec![4, 5, 6]);
+			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
+			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), current_time.into()).unwrap();
+			let task = Task::<T>::create_event_task(caller.clone(), provided_id, current_time.into(), vec![4, 5, 6]);
 			<Tasks<T>>::insert(task_id, task);
 		}
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-		<LastTimeSlot<T>>::put(last_time);
-	}: { AutomationTime::<T>::update_task_queue() }
+	}: { AutomationTime::<T>::update_scheduled_task_queue(current_time, last_time_slot) }
+
+	shift_missed_tasks {
+		let caller: T::AccountId = account("callerName", 0, SEED);
+		let last_time_slot: u64 = 120;
+		let new_time_slot: u64 = 240;
+		let diff = 1;
+		schedule_notify_tasks::<T>(caller.clone(), new_time_slot, 1);
+	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 }

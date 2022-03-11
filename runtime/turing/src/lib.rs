@@ -176,10 +176,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 275,
+	spec_version: 276,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 3,
+	transaction_version: 4,
 	state_version: 0,
 };
 
@@ -680,7 +680,7 @@ parameter_types! {
 	pub const ProposalBondMinimum: Balance = 1 * DOLLAR;
 	pub const ProposalBondMaximum: Balance = 5 * DOLLAR;
 	pub const SpendPeriod: BlockNumber = 1 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(50);
+	pub const Burn: Permill = Permill::from_percent(0);
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
 	pub const TipReportDepositBase: Balance = 1 * UNIT;
@@ -724,6 +724,7 @@ parameter_types! {
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 6 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
+	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
 	pub const ExecutionWeightFee: Balance = 12;
 }
@@ -751,6 +752,7 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
+	type UpdateQueueRatio = UpdateQueueRatio;
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
