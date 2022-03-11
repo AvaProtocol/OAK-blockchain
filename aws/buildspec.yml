@@ -31,7 +31,6 @@ phases:
       - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.compressed.wasm > neumann_runtime.compact.compressed.wasm
       - docker run oaknetwork/neumann-cat /oak/neumann_runtime.compact.wasm > neumann_runtime.compact.wasm
       - echo Pushing the Docker image...
-      - docker push oaknetwork/neumann:$IMAGE_TAG
   post_build:
     commands:
       - echo Build completed on `date`
