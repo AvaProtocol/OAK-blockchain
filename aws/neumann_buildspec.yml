@@ -14,7 +14,9 @@ phases:
     commands:
       - echo Build started on `date`
       - echo Building the Docker image...
-      - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:$IMAGE_TAG .
+      - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:latest .
+      - docker tag oaknetwork/neumann:latest oaknetwork/neumann:$IMAGE_TAG
+      - echo Building artifacts...
       - mkdir neumann-dev
       - mkdir neumann-local
       - mkdir neumann-staging
@@ -31,6 +33,8 @@ phases:
       - docker cp artifact_holder:./oak/neumann_runtime.compact.compressed.wasm ./neumann_runtime.compact.compressed.wasm
       - docker cp artifact_holder:./oak/neumann_runtime.compact.wasm ./neumann_runtime.compact.wasm
       - echo Pushing the Docker image...
+      - docker push oaknetwork/neumann:$IMAGE_TAG
+      - docker push oaknetwork/neumann:latest
   post_build:
     commands:
       - echo Build completed on `date`
