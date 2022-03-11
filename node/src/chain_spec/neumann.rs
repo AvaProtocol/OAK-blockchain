@@ -10,7 +10,7 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -73,6 +73,7 @@ pub fn development_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 			)
 		},
 		Vec::new(),
@@ -113,6 +114,10 @@ pub fn local_testnet_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -129,6 +134,7 @@ pub fn local_testnet_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes
@@ -197,6 +203,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 			)
 		},
 		// Bootnodes
@@ -259,6 +266,7 @@ pub fn neumann_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 			)
 		},
 		// Bootnodes
@@ -284,6 +292,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
+	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -319,7 +328,7 @@ fn testnet_genesis(
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
-		vesting: Default::default(),
+		vesting: VestingConfig { vesting_schedule },
 	}
 }
 
