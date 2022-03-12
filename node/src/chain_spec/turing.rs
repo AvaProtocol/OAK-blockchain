@@ -237,7 +237,7 @@ mod tests {
 			initial_vesting.clone(),
 		);
 
-		let vested_tokens = DOLLAR * 10_000_000;
+		let vested_tokens = 9419999999999999919;
 		let vest_starting_time: u64 = 1651777200;
 		let vest_ending_time: u64 = 1743879600;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
