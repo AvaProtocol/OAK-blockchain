@@ -7,7 +7,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
@@ -16,7 +16,7 @@ use turing_runtime::{
 
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
-const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
+const TOTAL_TOKENS: u128 = DOLLAR * 58_000_000;
 static RELAY_CHAIN: &str = "rococo-local";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
 const DEFAULT_PARA_ID: u32 = 2000;
@@ -73,6 +73,7 @@ pub fn turing_development_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 			)
 		},
 		Vec::new(),
@@ -100,7 +101,7 @@ pub fn turing_latest_latest() -> ChainSpec {
 		"turing",
 		ChainType::Live,
 		move || {
-			let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
+			let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
@@ -129,6 +130,7 @@ pub fn turing_latest_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 			)
 		},
 		// Bootnodes
@@ -154,6 +156,7 @@ fn testnet_genesis(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
+	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 ) -> turing_runtime::GenesisConfig {
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
@@ -190,5 +193,53 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: Default::default(),
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	fn validate_turing_allocation() {
+		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+
+		validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
+	}
+
+	#[test]
+	fn validate_turing_vesting() {
+		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+
+		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		testnet_genesis(
+			// initial collators.
+			vec![
+				(
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_collator_keys_from_seed("Alice"),
+				),
+				(
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_collator_keys_from_seed("Bob"),
+				),
+			],
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			initial_allocation.clone(),
+			DEFAULT_PARA_ID.into(),
+			vec![],
+			initial_vesting.clone(),
+		);
+
+		let vested_tokens = DOLLAR * 10_000_000;
+		let vest_starting_time: u64 = 1651777200;
+		let vest_ending_time: u64 = 1743879600;
+		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 	}
 }
