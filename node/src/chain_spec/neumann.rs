@@ -180,7 +180,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
-			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting_local.json")[..];
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
