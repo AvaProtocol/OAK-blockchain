@@ -110,7 +110,7 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now.saturating_div(1000);
+			let now = now / 1000;
 			let diff_to_min = now % 3600;
 			Ok(now.saturating_sub(diff_to_min))
 		}
