@@ -7,7 +7,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, vesting_monthly_totals, vesting_address_totals, vesting_address_monthly, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
@@ -241,5 +241,34 @@ mod tests {
 		let vest_starting_time: u64 = 1651777200;
 		let vest_ending_time: u64 = 1743879600;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+	}
+
+	#[test]
+	fn totals_per_month() {
+		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		vesting_monthly_totals(initial_vesting, DOLLAR, TOTAL_TOKENS);
+	}
+
+	#[test]
+	fn totals_per_address() {
+		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		vesting_address_totals(initial_vesting, TOTAL_TOKENS);
+	}
+
+	#[test]
+	fn totals_by_account_per_month() {
+		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+			const collator_alloc: u128 = DOLLAR * 10_000_000;
+			const crowdloan_alloc: u128 = DOLLAR * 48_000_000;
+			vesting_address_monthly(initial_vesting, collator_alloc, crowdloan_alloc);
 	}
 }

@@ -335,14 +335,14 @@ fn testnet_genesis(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	#[test]
-	fn validate_neumann_allocation() {
-		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
-		let initial_allocation: Vec<(AccountId, Balance)> =
-			serde_json::from_slice(allocation_json).unwrap();
+	// #[test]
+	// fn validate_neumann_allocation() {
+	// 	let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
+	// 	let initial_allocation: Vec<(AccountId, Balance)> =
+	// 		serde_json::from_slice(allocation_json).unwrap();
 
-		validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
-	}
+	// 	validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
+	// }
 
 	#[test]
 	fn validate_neumann_vesting() {
