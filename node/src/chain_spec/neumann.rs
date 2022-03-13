@@ -207,7 +207,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes
@@ -251,6 +251,11 @@ pub fn neumann_latest() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
+			let vested_tokens = DOLLAR * 10_000_000;
+			let vest_starting_time: u64 = 1647187200;
+			let vest_ending_time: u64 = 1647277200;
+			validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -274,7 +279,7 @@ pub fn neumann_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes
