@@ -254,7 +254,7 @@ pub fn neumann_latest() -> ChainSpec {
 			let vested_tokens = DOLLAR * 10_000_000;
 			let vest_starting_time: u64 = 1647187200;
 			let vest_ending_time: u64 = 1647277200;
-			validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			testnet_genesis(
 				// initial collators.
