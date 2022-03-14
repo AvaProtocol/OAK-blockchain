@@ -17,8 +17,7 @@ phases:
       - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:latest .
       - docker tag oaknetwork/turing:latest oaknetwork/turing:$IMAGE_TAG
       - echo Building artifacts...
-      - mkdir turing-dev
-      - mkdir turing-latest
+      - mkdir turing-dev turing-latest
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-dev > turing-dev/genesis-state
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-latest > turing-latest/genesis-state
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-dev > turing-dev/genesis-wasm
