@@ -127,17 +127,19 @@ pub fn turing_staging() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// 5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+						// SS58 prefix 51: 68eS5bmdz2nY45KxBfBFePVH88xupaPvjzExMxcnGuRBLcSK
+						// SS58 prefix substrate: 5CdDSsMpHjCkdqX49iyaozNrnLEZ4xUkk2mX4N6cVbxxpYhy
+						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
 							.into(),
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
 							.unchecked_into(),
 					),
 					(
-						// 5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+						// SS58 prefix 51: 6BKgyjBS7exBgGKCVMGbYYcdTLHnXdJFHXD86Vr3vX4vpzPz
+						// SS58 prefix substrate: 5HWVKNhY1PcSWcpSX5QgXJ7iYxJkAubDxxBB4p2v4wBRXQkE
+						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
 							.into(),
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
 							.unchecked_into(),
 					),
 				],
@@ -221,17 +223,19 @@ pub fn turing_live() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// 5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+						// SS58 prefix 51: 68eS5bmdz2nY45KxBfBFePVH88xupaPvjzExMxcnGuRBLcSK
+						// SS58 prefix substrate: 5CdDSsMpHjCkdqX49iyaozNrnLEZ4xUkk2mX4N6cVbxxpYhy
+						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
 							.into(),
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
+						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
 							.unchecked_into(),
 					),
 					(
-						// 5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+						// SS58 prefix 51: 6BKgyjBS7exBgGKCVMGbYYcdTLHnXdJFHXD86Vr3vX4vpzPz
+						// SS58 prefix substrate: 5HWVKNhY1PcSWcpSX5QgXJ7iYxJkAubDxxBB4p2v4wBRXQkE
+						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
 							.into(),
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
+						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
 							.unchecked_into(),
 					),
 				],
