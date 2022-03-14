@@ -57,6 +57,8 @@ pub fn development_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -80,6 +82,7 @@ pub fn development_config() -> ChainSpec {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
+				collator_bond,
 			)
 		},
 		Vec::new(),
@@ -125,6 +128,8 @@ pub fn local_testnet_config() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -148,6 +153,7 @@ pub fn local_testnet_config() -> ChainSpec {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -197,6 +203,8 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let vest_ending_time: u64 = 1647277200;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -243,6 +251,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -282,6 +291,8 @@ pub fn neumann_latest() -> ChainSpec {
 
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
 			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
 			testnet_genesis(
 				// initial collators.
@@ -329,6 +340,7 @@ pub fn neumann_latest() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -357,6 +369,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
+	collator_bond: u128,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -368,7 +381,7 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
 		collator_selection: neumann_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+			candidacy_bond: collator_bond,
 			..Default::default()
 		},
 		session: neumann_runtime::SessionConfig {

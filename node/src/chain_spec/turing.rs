@@ -57,6 +57,8 @@ pub fn turing_development_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -80,6 +82,7 @@ pub fn turing_development_config() -> ChainSpec {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
+				collator_bond,
 			)
 		},
 		Vec::new(),
@@ -122,6 +125,8 @@ pub fn turing_staging() -> ChainSpec {
 			let vest_starting_time: u64 = 1651777200;
 			let vest_ending_time: u64 = 1743879600;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
+			let collator_bond = 400_000 * DOLLAR;
 
 			testnet_genesis(
 				// initial collators.
@@ -171,6 +176,7 @@ pub fn turing_staging() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -219,6 +225,8 @@ pub fn turing_live() -> ChainSpec {
 			let vest_ending_time: u64 = 1743879600;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
+			let collator_bond = 400_000 * DOLLAR;
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -267,6 +275,7 @@ pub fn turing_live() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -295,6 +304,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
+	collator_bond: u128,
 ) -> turing_runtime::GenesisConfig {
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
@@ -306,7 +316,7 @@ fn testnet_genesis(
 		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: para_id },
 		collator_selection: turing_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+			candidacy_bond: collator_bond,
 			..Default::default()
 		},
 		session: turing_runtime::SessionConfig {
