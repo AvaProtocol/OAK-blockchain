@@ -13,24 +13,8 @@ phases:
   build:
     commands:
       - echo Build started on `date`
+      - cargo install --git https://github.com/chevdor/srtool-cli
       - srtool help
-      - echo Building the Docker image...
-      - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:latest .
-      - docker tag oaknetwork/neumann:latest oaknetwork/neumann:$IMAGE_TAG
-      - echo Building artifacts...
-      - mkdir neumann-dev neumann-local neumann-staging neumann-latest
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=dev > neumann-dev/genesis-state
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=local > neumann-local/genesis-state
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-staging >  neumann-staging/genesis-state
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-latest > neumann-latest/genesis-state
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=dev > neumann-dev/genesis-wasm
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=local > neumann-local/genesis-wasm
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
-      - docker create --name artifact_holder oaknetwork/neumann:$IMAGE_TAG
-      - docker cp artifact_holder:./oak/neumann_runtime.compact.compressed.wasm ./neumann_runtime.compact.compressed.wasm
-      - docker cp artifact_holder:./oak/neumann_runtime.compact.wasm ./neumann_runtime.compact.wasm
-      - echo Pushing the Docker image...
   post_build:
     commands:
       - echo Build completed on `date`
