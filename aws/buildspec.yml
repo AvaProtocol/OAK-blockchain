@@ -13,8 +13,8 @@ phases:
   build:
     commands:
       - echo Build started on `date`
-      - cargo install --git https://github.com/chevdor/srtool-cli
-      - srtool help
+      - echo Building the Docker image...
+      - docker build -f ./docker/testing/Dockerfile -t oaknetwork/neumann:srtool .
   post_build:
     commands:
       - echo Build completed on `date`
