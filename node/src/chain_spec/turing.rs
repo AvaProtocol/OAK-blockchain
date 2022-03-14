@@ -72,7 +72,7 @@ pub fn turing_development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
-				vec![],
+				vec![b"AutomationTime", b"Balances", b"Democracy"],
 				vec![],
 			)
 		},
@@ -139,7 +139,7 @@ pub fn turing_staging() -> ChainSpec {
 				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
-				vec![],
+				vec![b"AutomationTime", b"Balances", b"Democracy"],
 				initial_vesting,
 			)
 		},
@@ -211,7 +211,7 @@ pub fn turing_live() -> ChainSpec {
 				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
-				vec![],
+				vec![b"AutomationTime", b"Balances", b"Democracy"],
 				initial_vesting,
 			)
 		},
