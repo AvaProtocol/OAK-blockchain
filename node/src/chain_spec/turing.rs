@@ -203,6 +203,8 @@ pub fn turing_live() -> ChainSpec {
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
 
+	let LIVE_PARA_ID = 2114;
+
 	ChainSpec::from_genesis(
 		// Name
 		"Turing Network",
@@ -226,7 +228,6 @@ pub fn turing_live() -> ChainSpec {
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
-			let LIVE_PARA_ID = 2114;
 
 			testnet_genesis(
 				// initial collators.
