@@ -11,7 +11,7 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 static TOKEN_SYMBOL: &str = "TUR";
@@ -73,6 +73,12 @@ pub fn turing_development_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+				],
 			)
 		},
 		Vec::new(),
@@ -129,6 +135,28 @@ pub fn turing_latest_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![
+					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
+					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
+					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
+					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
+					// 67D6ecyNhnAzZqgRbxr3MdGnxB9Bw8VadMhjpLAYB3wf5Pq6
+					hex!["2edf0fd8948ea642f135b314b1358c77ec6d0a4af83220b6ea18136e5ce36277"].into(),
+					// 6AMsXyV1CYc3LMTk155JTDGEzbgVPvsX9aXp7VXz9heC3iuP
+					hex!["ba44d2c00d9528c2d1fc51cef8ce8b9c3939928ecda8f404cdc46e3a2c090627"].into(),
+				],
+				vec![
+					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
+					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
+					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
+					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
+					// 6A6VuGbeUwm3J2HqLduH7VFZTvrYQs8GuqzdhopLGN2JKMAe
+					hex!["ae8b51cd0aa290645e593a4f54673ae62bab95791a137b943723bb6070533830"].into(),
+					// 699YyPF2uA83zsFnQU4GCAvZXzucvyS5rx8LS9UrL9kEv8PP
+					hex!["84a328f5f568d82ecd91861df7eae1065c1a2f1bcfec0950d4124e9363205b4a"].into(),
+					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
+					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
+				],
 			)
 		},
 		// Bootnodes
@@ -152,8 +180,10 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
-	id: ParaId,
+	para_id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
+	general_councils: Vec<AccountId>,
+	technical_memberships: Vec<AccountId>,
 ) -> turing_runtime::GenesisConfig {
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
@@ -162,7 +192,7 @@ fn testnet_genesis(
 				.to_vec(),
 		},
 		balances: turing_runtime::BalancesConfig { balances: endowed_accounts },
-		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: id },
+		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: para_id },
 		collator_selection: turing_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
 			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
@@ -184,7 +214,13 @@ fn testnet_genesis(
 		// of this.
 		aura: Default::default(),
 		aura_ext: Default::default(),
-		council: CouncilConfig { members: vec![root_key.clone()], phantom: Default::default() },
+		council: CouncilConfig { members: general_councils, phantom: Default::default() },
+		democracy: Default::default(),
+		technical_committee: Default::default(),
+		technical_membership: TechnicalMembershipConfig {
+			members: technical_memberships,
+			phantom: Default::default(),
+		},
 		parachain_system: Default::default(),
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
