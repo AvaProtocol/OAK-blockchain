@@ -148,7 +148,7 @@ pub fn turing_staging() -> ChainSpec {
 							.unchecked_into(),
 					),
 				],
-				// 5CUNZycgKvB5dCExSnsDrXsRX7VJPWC9ZcGamPNZVCSsGxP3
+				// 5CGLdvHNAMRZM3T52crEcP46YTsmq2GVke5wc6w3Z1epBDVy
 				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
@@ -248,7 +248,7 @@ pub fn turing_live() -> ChainSpec {
 							.unchecked_into(),
 					),
 				],
-				// 5CUNZycgKvB5dCExSnsDrXsRX7VJPWC9ZcGamPNZVCSsGxP3
+				// 5CGLdvHNAMRZM3T52crEcP46YTsmq2GVke5wc6w3Z1epBDVy
 				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
 				LIVE_PARA_ID.into(),
