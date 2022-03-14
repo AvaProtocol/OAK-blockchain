@@ -107,6 +107,15 @@ pub fn turing_latest_latest() -> ChainSpec {
 
 			validate_allocation(initial_allocation.clone(), TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
 
+			let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let vested_tokens = 9_419_999_999_999_999_919;
+			let vest_starting_time: u64 = 1651777200;
+			let vest_ending_time: u64 = 1743879600;
+			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -130,7 +139,7 @@ pub fn turing_latest_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes

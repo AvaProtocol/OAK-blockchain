@@ -180,6 +180,15 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let vested_tokens = DOLLAR * 10_000_000;
+			let vest_starting_time: u64 = 1647187200;
+			let vest_ending_time: u64 = 1647277200;
+			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -203,7 +212,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes
@@ -243,6 +252,15 @@ pub fn neumann_latest() -> ChainSpec {
 
 			validate_allocation(initial_allocation.clone(), TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
 
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let vested_tokens = DOLLAR * 10_000_000;
+			let vest_starting_time: u64 = 1647187200;
+			let vest_ending_time: u64 = 1647277200;
+			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -266,7 +284,7 @@ pub fn neumann_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 			)
 		},
 		// Bootnodes
@@ -374,8 +392,8 @@ mod tests {
 		);
 
 		let vested_tokens = DOLLAR * 10_000_000;
-		let vest_starting_time: u64 = 1647273600;
-		let vest_ending_time: u64 = 1647288000;
+		let vest_starting_time: u64 = 1647187200;
+		let vest_ending_time: u64 = 1647277200;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 	}
 }
