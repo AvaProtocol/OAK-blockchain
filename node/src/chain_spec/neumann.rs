@@ -155,7 +155,7 @@ pub fn local_testnet_config() -> ChainSpec {
 	)
 }
 
-pub fn neumann_vesting_testnet() -> ChainSpec {
+pub fn neumann_staging_testnet_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
@@ -209,76 +209,6 @@ pub fn neumann_vesting_testnet() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				initial_vesting,
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
-		// Protocol ID
-		Some("neumann"),
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
-		Extensions {
-			relay_chain: NEUMANN_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: DEFAULT_PARA_ID,
-		},
-	)
-}
-
-pub fn neumann_staging_testnet_config() -> ChainSpec {
-	// Give your base currency a unit name and decimal places
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
-	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
-	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	ChainSpec::from_genesis(
-		// Name
-		"Neumann Network",
-		// ID
-		"neumann",
-		ChainType::Live,
-		move || {
-			let accounts = vec![
-				// 5Cd7iTSbkuRqRJw791trBUZQq76Z4VPEuwyJwGpgW4ShzPvh
-				hex!["18b82ae2626d2e644cc2aaca59c4f370359ed9ee1aa1be3a78d93d64d132f639"].into(),
-				// 5CM2JyPHnbs81Cu8GzbraqHiwjeNwX3c9Rr5nXkJfwK9fwrk
-				hex!["0c720beb3f580f0143f9cb18ae694cddb767161060850025a57a4f72a71bf475"].into(),
-				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
-				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
-			];
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
-			let initial_balance: u128 = ALLOC_TOKENS_TOTAL / accounts.len() as u128;
-			let endowed_accounts: Vec<(AccountId, Balance)> =
-				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
-
-			testnet_genesis(
-				// initial collators.
-				vec![
-					(
-						// 5ECasnYivb8cQ4wBrQsdjwRTW4dzJ1ZcFqJNCLJwcc2N6WGL
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
-							.into(),
-						hex!["5e7aee4ee53ef08d5032ba5db9f7a6fdd9eef52423ac8c1aa960236377b46610"]
-							.unchecked_into(),
-					),
-					(
-						// 5D2VxzUBZBkYtLxnpZ9uAV7Vht2Jz5MwqSco2GaqyLwGDZ4J
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
-							.into(),
-						hex!["2a8db6ca2e0cb5679e0eff0609de708c9957f465af49abbe7ff0a3594d52933e"]
-							.unchecked_into(),
-					),
-				],
-				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
-				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
-				endowed_accounts,
-				DEFAULT_PARA_ID.into(),
-				vec![],
-				vec![],
 			)
 		},
 		// Bootnodes
