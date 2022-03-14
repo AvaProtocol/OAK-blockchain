@@ -18,7 +18,7 @@ static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
-const DEFAULT_PARA_ID: u32 = 2114;
+const DEFAULT_PARA_ID: u32 = 2000;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -148,8 +148,8 @@ pub fn turing_staging() -> ChainSpec {
 							.unchecked_into(),
 					),
 				],
-				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
-				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+				// 5CUNZycgKvB5dCExSnsDrXsRX7VJPWC9ZcGamPNZVCSsGxP3
+				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
@@ -190,7 +190,7 @@ pub fn turing_staging() -> ChainSpec {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: TURING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: DEFAULT_PARA_ID,
 		},
 	)
@@ -226,6 +226,7 @@ pub fn turing_live() -> ChainSpec {
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
+			let LIVE_PARA_ID = 2114;
 
 			testnet_genesis(
 				// initial collators.
@@ -247,10 +248,10 @@ pub fn turing_live() -> ChainSpec {
 							.unchecked_into(),
 					),
 				],
-				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
-				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
+				// 5CUNZycgKvB5dCExSnsDrXsRX7VJPWC9ZcGamPNZVCSsGxP3
+				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
-				DEFAULT_PARA_ID.into(),
+				LIVE_PARA_ID.into(),
 				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
 				initial_vesting,
 				vec![
@@ -290,7 +291,7 @@ pub fn turing_live() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: TURING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: DEFAULT_PARA_ID,
+			para_id: LIVE_PARA_ID,
 		},
 	)
 }
