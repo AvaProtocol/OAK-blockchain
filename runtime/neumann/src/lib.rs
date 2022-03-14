@@ -692,6 +692,24 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
+type MoreThanHalfCouncil = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionMoreThan<_1, _2, AccountId, CouncilCollective>,
+>;
+
+impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
+	type Event = Event;
+	type AddOrigin = MoreThanHalfCouncil;
+	type RemoveOrigin = MoreThanHalfCouncil;
+	type SwapOrigin = MoreThanHalfCouncil;
+	type ResetOrigin = MoreThanHalfCouncil;
+	type PrimeOrigin = MoreThanHalfCouncil;
+	type MembershipInitialized = TechnicalCommittee;
+	type MembershipChanged = TechnicalCommittee;
+	type MaxMembers = TechnicalMaxMembers;
+	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+}
+
 impl pallet_sudo::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
@@ -976,10 +994,11 @@ construct_runtime!(
 		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 51,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 52,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 53,
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 54,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 55,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 56,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 57,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
+		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 55,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 56,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 57,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 58,
 
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
