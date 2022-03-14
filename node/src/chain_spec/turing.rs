@@ -17,6 +17,8 @@ use turing_runtime::{
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
+static TURING_RELAY_CHAIN: &str = "ksmcc3";
+const DEFAULT_PARA_ID: u32 = 2000;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -34,8 +36,6 @@ pub fn turing_development_config() -> ChainSpec {
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	const DEFAULT_PARA_ID: u32 = 2000;
 
 	ChainSpec::from_genesis(
 		// Name
@@ -94,9 +94,6 @@ pub fn turing_staging() -> ChainSpec {
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	static TURING_RELAY_CHAIN: &str = "ksmcc3";
-	const DEFAULT_PARA_ID: u32 = 2000;
 
 	ChainSpec::from_genesis(
 		// Name
@@ -169,9 +166,6 @@ pub fn turing_live() -> ChainSpec {
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	static TURING_RELAY_CHAIN: &str = "ksmcc3";
-	const DEFAULT_PARA_ID: u32 = 2000;
 
 	ChainSpec::from_genesis(
 		// Name

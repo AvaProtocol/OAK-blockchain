@@ -413,11 +413,11 @@ mod tests {
 	use super::*;
 	#[test]
 	fn validate_neumann_allocation() {
-		let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 
-		const EXPECTED_ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 990_000_000;
+		const EXPECTED_ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
 		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
 	}
 
