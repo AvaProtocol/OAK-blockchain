@@ -155,3 +155,33 @@ pub fn validate_vesting(
 
 	assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
 }
+
+/// Validate that the vested fits the following criteria:
+/// - allocated and vesting tokens add up to equal total number of expected tokens
+pub fn validate_total_tokens(
+	allocated_accounts: Vec<(AccountId, Balance)>,
+	vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+	total_expected_tokens: u128,
+) {
+	let mut total_tokens: Balance = Zero::zero();
+	vesting_timeslots
+		.iter()
+		.for_each(|(_, schedules)| {
+			schedules
+				.iter()
+				.for_each(|(_, amount)| {
+					total_tokens = total_tokens
+						.checked_add(*amount)
+						.expect("shouldn't overflow when building genesis");
+				});
+		});
+	allocated_accounts
+		.iter()
+		.for_each(|(_, amount)| {
+			total_tokens = total_tokens
+				.checked_add(*amount)
+				.expect("shouldn't overflow when building genesis");
+		});
+
+	assert_eq!(total_tokens, total_expected_tokens, "total vested does not equal the desired amount");
+}

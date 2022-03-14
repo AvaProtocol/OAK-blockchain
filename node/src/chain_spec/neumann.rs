@@ -7,7 +7,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, validate_total_tokens, Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
@@ -431,5 +431,21 @@ mod tests {
 		let vest_starting_time: u64 = 1647187200;
 		let vest_ending_time: u64 = 1647277200;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+	}
+	
+	#[test]
+	fn validate_total_neumann_tokens() {
+		let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+
+		let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		let expected_vested_tokens = DOLLAR * 10_000_000;
+		let expected_allocated_tokens = DOLLAR * 990_000_000;
+		let expected_total_tokens = expected_vested_tokens + expected_allocated_tokens;
+		validate_total_tokens(initial_allocation, initial_vesting, expected_total_tokens);
 	}
 }
