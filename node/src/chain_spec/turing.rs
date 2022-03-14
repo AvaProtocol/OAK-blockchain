@@ -18,7 +18,7 @@ static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
-const DEFAULT_PARA_ID: u32 = 2000;
+const DEFAULT_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
