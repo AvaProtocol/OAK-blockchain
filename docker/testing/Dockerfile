@@ -4,5 +4,6 @@ FROM docker.io/paritytech/ci-linux:production as builder
 WORKDIR /build
 COPY . /build
 
-RUN srtool --help
+RUN cargo install --git https://github.com/chevdor/srtool-cli
+RUN srtool build -p neumann-runtime
 
