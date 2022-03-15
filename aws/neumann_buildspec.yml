@@ -14,7 +14,6 @@ phases:
     commands:
       - echo Build started on `date`
       - IMAGE_TAG=$(git describe --exact-match | cut -c 2-)
-      - IMAGE_TAG=test
       - |
         if [ -z "${IMAGE_TAG}" ]; then
           echo Exiting build, untagged commit
@@ -43,9 +42,6 @@ phases:
     commands:
       - echo Build completed on `date`
 artifacts:
-  files:
-    - neumann_*
-    - neumann-*/*
   secondary-artifacts:
     chain_artifacts:
       files:
