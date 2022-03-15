@@ -13,7 +13,7 @@ phases:
     commands:
       - echo Logging in to Docker hub...
       - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
-      - IMAGE_TAG=$(git describe --abbrev=0)
+      - IMAGE_TAG=$(git describe --abbrev=0 | cut -c 2-)
       - |
         if [ -z "${IMAGE_TAG}" ]; then
           echo Exiting build, untagged commit
