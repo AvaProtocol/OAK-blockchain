@@ -14,10 +14,10 @@ phases:
     commands:
       - echo Build started on `date`
       - IMAGE_TAG=$(git describe --exact-match | cut -c 2-)
+      - IMAGE_TAG=test
       - |
         if [ -z "${IMAGE_TAG}" ]; then
           echo Exiting build, untagged commit
-          exit 1
         else
           echo Building the Docker image with tag $IMAGE_TAG...
           docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:latest .
