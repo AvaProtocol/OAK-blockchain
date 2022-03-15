@@ -39,5 +39,6 @@ artifacts:
     - turing_runtime.compact.compressed.wasm
     - turing_runtime.compact.wasm
     - turing-dev/*
-    - turing-latest/*
+    - turing-staging/*
+    - turing-live/*
   name: turing-$IMAGE_TAG
