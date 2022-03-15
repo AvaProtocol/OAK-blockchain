@@ -11,7 +11,7 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 static TOKEN_SYMBOL: &str = "TUR";
