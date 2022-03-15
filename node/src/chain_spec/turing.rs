@@ -17,6 +17,7 @@ use turing_runtime::{
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
+static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
 const DEFAULT_PARA_ID: u32 = 2000;
 
@@ -190,7 +191,7 @@ pub fn turing_staging() -> ChainSpec {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			relay_chain: STAGING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: DEFAULT_PARA_ID,
 		},
 	)
