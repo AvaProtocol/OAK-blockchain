@@ -7,16 +7,15 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, validate_total_tokens, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
-const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 const DEFAULT_PARA_ID: u32 = 2000;
@@ -53,9 +52,12 @@ pub fn development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Eve"),
 				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 			];
-			let initial_balance: u128 = TOTAL_TOKENS / accounts.len() as u128;
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			let initial_balance: u128 = ALLOC_TOKENS_TOTAL / accounts.len() as u128;
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
+
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
 			testnet_genesis(
 				// initial collators.
@@ -73,12 +75,14 @@ pub fn development_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
+				collator_bond,
 			)
 		},
 		Vec::new(),
@@ -115,9 +119,16 @@ pub fn local_testnet_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Eve"),
 				get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 			];
-			let initial_balance: u128 = TOTAL_TOKENS / accounts.len() as u128;
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			let initial_balance: u128 = ALLOC_TOKENS_TOTAL / accounts.len() as u128;
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
+
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting_local.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
 			testnet_genesis(
 				// initial collators.
@@ -135,12 +146,14 @@ pub fn local_testnet_config() -> ChainSpec {
 				endowed_accounts,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				initial_vesting,
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -174,25 +187,23 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		"neumann",
 		ChainType::Live,
 		move || {
-			let accounts = vec![
-				// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
-				hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
-				// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
-				hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
-				// 6A6VuGbeUwm3J2HqLduH7VFZTvrYQs8GuqzdhopLGN2JKMAe
-				hex!["ae8b51cd0aa290645e593a4f54673ae62bab95791a137b943723bb6070533830"].into(),
-				// 699YyPF2uA83zsFnQU4GCAvZXzucvyS5rx8LS9UrL9kEv8PP
-				hex!["84a328f5f568d82ecd91861df7eae1065c1a2f1bcfec0950d4124e9363205b4a"].into(),
-				// 67D6ecyNhnAzZqgRbxr3MdGnxB9Bw8VadMhjpLAYB3wf5Pq6
-				hex!["2edf0fd8948ea642f135b314b1358c77ec6d0a4af83220b6ea18136e5ce36277"].into(),
-				// 6AMsXyV1CYc3LMTk155JTDGEzbgVPvsX9aXp7VXz9heC3iuP
-				hex!["ba44d2c00d9528c2d1fc51cef8ce8b9c3939928ecda8f404cdc46e3a2c090627"].into(),
-				// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
-				hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
-			];
-			let initial_balance: u128 = TOTAL_TOKENS / accounts.len() as u128;
-			let endowed_accounts: Vec<(AccountId, Balance)> =
-				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
+			let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+			let initial_allocation: Vec<(AccountId, Balance)> =
+				serde_json::from_slice(allocation_json).unwrap();
+
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 990_000_000;
+			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+
+			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let vested_tokens = DOLLAR * 10_000_000;
+			let vest_starting_time: u64 = 1647212400;
+			let vest_ending_time: u64 = 1647277200;
+			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
 			testnet_genesis(
 				// initial collators.
@@ -214,9 +225,10 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				],
 				// 5GcD1vPdWzBd3VPTPgVFWL9K7b27A2tPYcVTJoGwKcLjdG5w
 				hex!["c8f7b3791290f2d0f66a08b6ae1ebafe8d1efff56e31b0bb14e8d98157379028"].into(),
-				endowed_accounts,
+				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				initial_vesting,
 				vec![
 					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
 					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
@@ -239,6 +251,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -276,7 +289,10 @@ pub fn neumann_latest() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
-			validate_allocation(initial_allocation.clone(), TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+
+			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
 			testnet_genesis(
 				// initial collators.
@@ -301,6 +317,7 @@ pub fn neumann_latest() -> ChainSpec {
 				initial_allocation,
 				DEFAULT_PARA_ID.into(),
 				vec![],
+				vec![],
 				vec![
 					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
 					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
@@ -323,6 +340,7 @@ pub fn neumann_latest() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
+				collator_bond,
 			)
 		},
 		// Bootnodes
@@ -348,8 +366,10 @@ fn testnet_genesis(
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	para_id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
+	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
+	collator_bond: u128,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -361,7 +381,7 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
 		collator_selection: neumann_runtime::CollatorSelectionConfig {
 			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: EXISTENTIAL_DEPOSIT * 16,
+			candidacy_bond: collator_bond,
 			..Default::default()
 		},
 		session: neumann_runtime::SessionConfig {
@@ -391,7 +411,7 @@ fn testnet_genesis(
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
-		vesting: Default::default(),
+		vesting: VestingConfig { vesting_schedule },
 	}
 }
 
@@ -404,6 +424,35 @@ mod tests {
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 
-		validate_allocation(initial_allocation, TOTAL_TOKENS, EXISTENTIAL_DEPOSIT);
+		const EXPECTED_ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+	}
+
+	#[test]
+	fn validate_neumann_vesting() {
+		let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		let vested_tokens = DOLLAR * 10_000_000;
+		let vest_starting_time: u64 = 1647212400;
+		let vest_ending_time: u64 = 1647277200;
+		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+	}
+	
+	#[test]
+	fn validate_total_neumann_tokens() {
+		let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+
+		let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		let expected_vested_tokens = DOLLAR * 10_000_000;
+		let expected_allocated_tokens = DOLLAR * 990_000_000;
+		let expected_total_tokens = expected_vested_tokens + expected_allocated_tokens;
+		validate_total_tokens(initial_allocation, initial_vesting, expected_total_tokens);
 	}
 }

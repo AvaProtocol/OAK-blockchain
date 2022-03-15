@@ -20,6 +20,8 @@
 // "*"
 // --repeat
 // 64
+// --steps
+// 100
 // --raw
 // --output
 // ./pallets/automation-time/src/weights.rs
