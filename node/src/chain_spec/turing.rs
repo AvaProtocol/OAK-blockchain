@@ -122,8 +122,8 @@ pub fn turing_staging() -> ChainSpec {
 				serde_json::from_slice(vesting_json).unwrap();
 
 			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651777200;
-			let vest_ending_time: u64 = 1743879600;
+			let vest_starting_time: u64 = 1651431600;
+			let vest_ending_time: u64 = 1743534000;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
@@ -223,8 +223,8 @@ pub fn turing_live() -> ChainSpec {
 				serde_json::from_slice(vesting_json).unwrap();
 
 			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651777200;
-			let vest_ending_time: u64 = 1743879600;
+			let vest_starting_time: u64 = 1651431600;
+			let vest_ending_time: u64 = 1743534000;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
@@ -371,8 +371,8 @@ mod tests {
 			serde_json::from_slice(vesting_json).unwrap();
 
 		let vested_tokens = 9_419_999_999_999_999_919;
-		let vest_starting_time: u64 = 1651777200;
-		let vest_ending_time: u64 = 1743879600;
+		let vest_starting_time: u64 = 1651431600;
+		let vest_ending_time: u64 = 1743534000;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 	}
 
