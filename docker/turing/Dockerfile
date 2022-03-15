@@ -36,9 +36,7 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
-COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/turing-runtime/turing_runtime.compact.compressed.wasm  /$USERNAME/turing_runtime.compact.compressed.wasm 
-COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/turing-runtime/turing_runtime.compact.wasm  /$USERNAME/turing_runtime.compact.wasm
-COPY --chown=$USERNAME ./resources /$USERNAME/resources
+RUN mkdir /$USERNAME/resources
 COPY --chown=$USERNAME --from=builder /build/turing-dev-chain-spec.json  /$USERNAME/resources/turing-dev-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/turing-staging-chain-spec.json  /$USERNAME/resources/turing-staging-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/turing-live-chain-spec.json /$USERNAME/resources/turing-live-chain-spec.json

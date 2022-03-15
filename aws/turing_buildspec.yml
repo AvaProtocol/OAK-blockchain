@@ -8,11 +8,11 @@ env:
 phases:
   pre_build:
     commands:
-      - echo Logging in to Docker hub...
-      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+      - echo Build started on `date`
   build:
     commands:
-      - echo Build started on `date`
+      - echo Logging in to Docker hub...
+      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
       - echo Building the Docker image...
       - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:latest .
       - docker tag oaknetwork/turing:latest oaknetwork/turing:$IMAGE_TAG
@@ -24,10 +24,6 @@ phases:
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-dev > turing-dev/genesis-wasm
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-staging > turing-staging/genesis-wasm
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-live > turing-live/genesis-wasm
-      - docker create --name artifact_holder oaknetwork/turing:$IMAGE_TAG
-      - docker cp artifact_holder:./oak/turing_runtime.compact.compressed.wasm ./turing_runtime.compact.compressed.wasm
-      - docker cp artifact_holder:./oak/turing_runtime.compact.wasm ./turing_runtime.compact.wasm
-      - docker cp artifact_holder:./oak/resources/turing-staging-chain-spec.json ./turing-staging/turing-staging-chain-spec.json
       - echo Pushing the Docker image...
       - docker push oaknetwork/turing:$IMAGE_TAG
       - docker push oaknetwork/turing:latest
@@ -36,9 +32,7 @@ phases:
       - echo Build completed on `date`
 artifacts:
   files:
-    - turing_runtime.compact.compressed.wasm
-    - turing_runtime.compact.wasm
     - turing-dev/*
     - turing-staging/*
     - turing-live/*
-  name: turing-$IMAGE_TAG
+  name: turing-genesis-$IMAGE_TAG

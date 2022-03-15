@@ -8,12 +8,12 @@ env:
 phases:
   pre_build:
     commands:
-      - echo Logging in to Docker hub...
-      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+      - echo Build started on `date`
   build:
     commands:
-      - echo Build started on `date`
-      - IMAGE_TAG=$(git describe --exact-match | cut -c 2-)
+      - echo Logging in to Docker hub...
+      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+      - IMAGE_TAG=$(git describe --abbrev=0)
       - |
         if [ -z "${IMAGE_TAG}" ]; then
           echo Exiting build, untagged commit
@@ -31,9 +31,6 @@ phases:
           docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=local > neumann-local/genesis-wasm
           docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
           docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
-          docker create --name artifact_holder oaknetwork/neumann:$IMAGE_TAG
-          docker cp artifact_holder:./oak/neumann_runtime.compact.compressed.wasm ./neumann_runtime.compact.compressed.wasm
-          docker cp artifact_holder:./oak/neumann_runtime.compact.wasm ./neumann_runtime.compact.wasm
           echo Pushing the Docker image...
           docker push oaknetwork/neumann:$IMAGE_TAG
           docker push oaknetwork/neumann:latest
@@ -45,10 +42,8 @@ artifacts:
   secondary-artifacts:
     chain_artifacts:
       files:
-        - neumann_runtime.compact.compressed.wasm
-        - neumann_runtime.compact.wasm
         - neumann-dev/*
         - neumann-local/*
         - neumann-staging/*
         - neumann-latest/*
-      name: neumann-$IMAGE_TAG
+      name: neumann-genesis-$IMAGE_TAG
