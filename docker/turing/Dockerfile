@@ -6,7 +6,8 @@ COPY . /build
 
 RUN cargo build --locked --release --features turing-node
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-dev --raw > turing-dev-chain-spec.json
-RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-latest --raw > turing-latest-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-staging --raw > turing-staging-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-live --raw > turing-live-chain-spec.json
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04
@@ -37,9 +38,10 @@ USER $USERNAME
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
 COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/turing-runtime/turing_runtime.compact.compressed.wasm  /$USERNAME/turing_runtime.compact.compressed.wasm 
 COPY --chown=$USERNAME --from=builder /build/target/release/wbuild/turing-runtime/turing_runtime.compact.wasm  /$USERNAME/turing_runtime.compact.wasm
-COPY --chown=$USERNAME --from=builder /build/turing-dev-chain-spec.json  /$USERNAME/turing-dev-chain-spec.json
-COPY --chown=$USERNAME --from=builder /build/turing-latest-chain-spec.json  /$USERNAME/turing-latest-chain-spec.json
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
+COPY --chown=$USERNAME --from=builder /build/turing-dev-chain-spec.json  /$USERNAME/resources/turing-dev-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/turing-staging-chain-spec.json  /$USERNAME/resources/turing-staging-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/turing-live-chain-spec.json /$USERNAME/resources/turing-live-chain-spec.json
 
 # Open network port
 # 30333 for parachain p2p

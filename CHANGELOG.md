@@ -5,9 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [277] - 2022-03-14
+Note: Runtime-only release
 - Disable treasury burn in runtime
 - Split update queue behavior for missed and scheduled queues
-- Added Democracy pallet and Technical Committee
+- Added Democracy pallet and Technical Committee (#bump-tx-version)
+- Added Turing initial allocation & vesting for wallets
+- Change vesting from the 5th of the month to the 1st of the month
 
 ## [1.2.7] - 2022-03-10
 - Removed Quadratic funding pallet; can now be found [here](https://github.com/OAK-Foundation/quadratic-funding-pallet)
