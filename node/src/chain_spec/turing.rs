@@ -11,7 +11,7 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 static TOKEN_SYMBOL: &str = "TUR";
@@ -349,7 +349,7 @@ fn testnet_genesis(
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
-		vesting: Default::default(),
+		vesting: VestingConfig { vesting_schedule },
 	}
 }
 
