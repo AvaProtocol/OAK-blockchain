@@ -27,7 +27,7 @@ phases:
       - docker create --name artifact_holder oaknetwork/turing:$IMAGE_TAG
       - docker cp artifact_holder:./oak/turing_runtime.compact.compressed.wasm ./turing_runtime.compact.compressed.wasm
       - docker cp artifact_holder:./oak/turing_runtime.compact.wasm ./turing_runtime.compact.wasm
-      - docker cp artifact_holder:./oak/turing-staging-chain-spec.json ./turing-staging/turing-staging-chain-spec.json
+      - docker cp artifact_holder:./oak/resources/turing-staging-chain-spec.json ./turing-staging/turing-staging-chain-spec.json
       - echo Pushing the Docker image...
       - docker push oaknetwork/turing:$IMAGE_TAG
       - docker push oaknetwork/turing:latest
