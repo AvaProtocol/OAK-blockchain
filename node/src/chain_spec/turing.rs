@@ -17,6 +17,7 @@ use turing_runtime::{
 static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
+static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
 const DEFAULT_PARA_ID: u32 = 2000;
 
@@ -122,8 +123,8 @@ pub fn turing_staging() -> ChainSpec {
 				serde_json::from_slice(vesting_json).unwrap();
 
 			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651777200;
-			let vest_ending_time: u64 = 1743879600;
+			let vest_starting_time: u64 = 1651431600;
+			let vest_ending_time: u64 = 1743534000;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
@@ -190,7 +191,7 @@ pub fn turing_staging() -> ChainSpec {
 		Some(properties),
 		// Extensions
 		Extensions {
-			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			relay_chain: STAGING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: DEFAULT_PARA_ID,
 		},
 	)
@@ -223,8 +224,8 @@ pub fn turing_live() -> ChainSpec {
 				serde_json::from_slice(vesting_json).unwrap();
 
 			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651777200;
-			let vest_ending_time: u64 = 1743879600;
+			let vest_starting_time: u64 = 1651431600;
+			let vest_ending_time: u64 = 1743534000;
 			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 
 			let collator_bond = 400_000 * DOLLAR;
@@ -371,8 +372,8 @@ mod tests {
 			serde_json::from_slice(vesting_json).unwrap();
 
 		let vested_tokens = 9_419_999_999_999_999_919;
-		let vest_starting_time: u64 = 1651777200;
-		let vest_ending_time: u64 = 1743879600;
+		let vest_starting_time: u64 = 1651431600;
+		let vest_ending_time: u64 = 1743534000;
 		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
 	}
 
