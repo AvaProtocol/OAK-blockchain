@@ -37,7 +37,7 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
-RUN mkdir /$USERNAME/resources
+COPY --chown=$USERNAME ./resources /$USERNAME/resources
 COPY --chown=$USERNAME --from=builder /build/neumann-dev-chain-spec.json  /$USERNAME/resources/neumann-dev-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/neumann-local-chain-spec.json  /$USERNAME/resources/neumann-local-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/neumann-staging-chain-spec.json  /$USERNAME/resources/neumann-staging-chain-spec.json

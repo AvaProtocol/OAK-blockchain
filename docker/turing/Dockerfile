@@ -36,7 +36,7 @@ USER $USERNAME
 
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
-RUN mkdir /$USERNAME/resources
+COPY --chown=$USERNAME ./resources /$USERNAME/resources
 COPY --chown=$USERNAME --from=builder /build/turing-dev-chain-spec.json  /$USERNAME/resources/turing-dev-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/turing-staging-chain-spec.json  /$USERNAME/resources/turing-staging-chain-spec.json
 COPY --chown=$USERNAME --from=builder /build/turing-live-chain-spec.json /$USERNAME/resources/turing-live-chain-spec.json
