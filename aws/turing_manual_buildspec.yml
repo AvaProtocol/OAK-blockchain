@@ -35,4 +35,4 @@ artifacts:
     - turing-dev/*
     - turing-staging/*
     - turing-live/*
-  name: turing-genesis-$IMAGE_TAG
+  name: turing/turing-genesis-$IMAGE_TAG

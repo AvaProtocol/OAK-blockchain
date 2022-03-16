@@ -38,4 +38,4 @@ artifacts:
     - neumann-local/*
     - neumann-staging/*
     - neumann-latest/*
-  name: neumann-genesis-$IMAGE_TAG
+  name: neumann/neumann-genesis-$IMAGE_TAG
