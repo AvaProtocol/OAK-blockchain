@@ -5,6 +5,10 @@ WORKDIR /build
 COPY . /build
 
 RUN cargo build --locked --release --features neumann-node
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=dev --raw > neumann-dev-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=local --raw > neumann-local-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=neumann-staging --raw > neumann-staging-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=neumann-latest --raw > neumann-latest-chain-spec.json
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04
@@ -34,6 +38,10 @@ USER $USERNAME
 # Copy files
 COPY --chown=$USERNAME --from=builder /build/target/release/$BINARY  /$USERNAME/$BINARY
 COPY --chown=$USERNAME ./resources /$USERNAME/resources
+COPY --chown=$USERNAME --from=builder /build/neumann-dev-chain-spec.json  /$USERNAME/resources/neumann-dev-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-local-chain-spec.json  /$USERNAME/resources/neumann-local-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-staging-chain-spec.json  /$USERNAME/resources/neumann-staging-chain-spec.json
+COPY --chown=$USERNAME --from=builder /build/neumann-latest-chain-spec.json  /$USERNAME/resources/neumann-latest-chain-spec.json
 
 # Open network port
 # 30333 for parachain p2p
@@ -50,4 +58,3 @@ VOLUME ["/data"]
 WORKDIR /$USERNAME
 
 ENTRYPOINT ["./oak-collator"]
-

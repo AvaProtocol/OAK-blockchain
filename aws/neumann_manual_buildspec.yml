@@ -1,0 +1,41 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    DOCKERHUB_PASS: "dockerhub/credentials:password"
+    DOCKERHUB_USERNAME: "dockerhub/credentials:username"
+
+phases:
+  pre_build:
+    commands:
+      - echo Build started on `date`
+  build:
+    commands:
+      - echo Logging in to Docker hub...
+      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+      - echo Building the Docker image...
+      - docker build -f ./docker/neumann/Dockerfile -t oaknetwork/neumann:latest .
+      - docker tag oaknetwork/neumann:latest oaknetwork/neumann:$IMAGE_TAG
+      - echo Building artifacts...
+      - mkdir neumann-dev neumann-local neumann-staging neumann-latest
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=dev > neumann-dev/genesis-state
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=local > neumann-local/genesis-state
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-staging >  neumann-staging/genesis-state
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-latest > neumann-latest/genesis-state
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=dev > neumann-dev/genesis-wasm
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=local > neumann-local/genesis-wasm
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
+      - echo Pushing the Docker image...
+      - docker push oaknetwork/neumann:$IMAGE_TAG
+      - docker push oaknetwork/neumann:latest
+  post_build:
+    commands:
+      - echo Build completed on `date`
+artifacts:
+  files:
+    - neumann-dev/*
+    - neumann-local/*
+    - neumann-staging/*
+    - neumann-latest/*
+  name: neumann/neumann-genesis-$IMAGE_TAG
