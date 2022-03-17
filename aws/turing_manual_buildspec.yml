@@ -14,8 +14,7 @@ phases:
       - echo Logging in to Docker hub...
       - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
       - echo Building the Docker image...
-      - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:latest .
-      - docker tag oaknetwork/turing:latest oaknetwork/turing:$IMAGE_TAG
+      - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$IMAGE_TAG .
       - echo Building artifacts...
       - mkdir turing-dev turing-staging turing-live
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-dev > turing-dev/genesis-state
@@ -26,7 +25,6 @@ phases:
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-live > turing-live/genesis-wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/turing:$IMAGE_TAG
-      - docker push oaknetwork/turing:latest
   post_build:
     commands:
       - echo Build completed on `date`
@@ -35,4 +33,4 @@ artifacts:
     - turing-dev/*
     - turing-staging/*
     - turing-live/*
-  name: turing/turing-genesis-$IMAGE_TAG
+  name: turing-genesis-$IMAGE_TAG
