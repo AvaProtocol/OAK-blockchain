@@ -19,7 +19,7 @@ const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
-const DEFAULT_PARA_ID: u32 = 2000;
+const DEFAULT_PARA_ID: u32 = 2012;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
