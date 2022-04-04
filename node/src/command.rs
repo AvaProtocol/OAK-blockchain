@@ -326,6 +326,7 @@ pub fn run() -> Result<()> {
 		// Fix as this run the node
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
+			let collator_options = cli.run.collator_options();
 
 			runner.run_node_until_exit(|config| async move {
 				let chain_spec = &config.chain_spec;
@@ -366,6 +367,7 @@ pub fn run() -> Result<()> {
 						crate::service::start_parachain_node::<RuntimeApi, Executor>(
 							config,
 							polkadot_config,
+							collator_options,
 							id,
 						)
 						.await
