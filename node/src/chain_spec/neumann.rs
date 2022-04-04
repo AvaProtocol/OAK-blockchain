@@ -7,10 +7,12 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, validate_total_tokens, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation,
+	validate_total_tokens, validate_vesting, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
+	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -76,12 +78,8 @@ pub fn development_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				vec![],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				collator_bond,
 			)
 		},
@@ -124,7 +122,8 @@ pub fn local_testnet_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
-			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting_local.json")[..];
+			let vesting_json =
+				&include_bytes!("../../../distribution/neumann_vesting_local.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
@@ -147,12 +146,8 @@ pub fn local_testnet_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				initial_vesting,
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				collator_bond,
 			)
 		},
@@ -187,12 +182,17 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 		"neumann",
 		ChainType::Live,
 		move || {
-			let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+			let allocation_json =
+				&include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 990_000_000;
-			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
 
 			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
@@ -201,7 +201,13 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let vested_tokens = DOLLAR * 10_000_000;
 			let vest_starting_time: u64 = 1647212400;
 			let vest_ending_time: u64 = 1647277200;
-			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+			validate_vesting(
+				initial_vesting.clone(),
+				vested_tokens,
+				EXISTENTIAL_DEPOSIT,
+				vest_starting_time,
+				vest_ending_time,
+			);
 
 			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
@@ -290,7 +296,11 @@ pub fn neumann_latest() -> ChainSpec {
 				serde_json::from_slice(allocation_json).unwrap();
 
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
-			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
 
 			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
 
@@ -437,12 +447,19 @@ mod tests {
 		let vested_tokens = DOLLAR * 10_000_000;
 		let vest_starting_time: u64 = 1647212400;
 		let vest_ending_time: u64 = 1647277200;
-		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+		validate_vesting(
+			initial_vesting,
+			vested_tokens,
+			EXISTENTIAL_DEPOSIT,
+			vest_starting_time,
+			vest_ending_time,
+		);
 	}
-	
+
 	#[test]
 	fn validate_total_neumann_tokens() {
-		let allocation_json = &include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
+		let allocation_json =
+			&include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 

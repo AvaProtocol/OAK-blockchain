@@ -163,22 +163,22 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_native_transfer_task() -> Weight {
 		20_000
 	}
-	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
+	fn run_missed_tasks_many_found(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
-	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
+	fn run_missed_tasks_many_missing(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
-	fn run_tasks_many_found(v: u32, ) -> Weight {
+	fn run_tasks_many_found(v: u32) -> Weight {
 		(50_000 * v).into()
 	}
-	fn run_tasks_many_missing(v: u32, ) -> Weight {
+	fn run_tasks_many_missing(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
 	fn update_task_queue_overhead() -> Weight {
 		10_000
 	}
-	fn append_to_missed_tasks(v: u32, ) -> Weight {
+	fn append_to_missed_tasks(v: u32) -> Weight {
 		(20_000 * v).into()
 	}
 	fn update_scheduled_task_queue() -> Weight {
