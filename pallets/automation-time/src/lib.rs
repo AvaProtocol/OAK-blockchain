@@ -38,15 +38,18 @@ mod mock;
 mod tests;
 
 mod benchmarking;
-pub mod weights;
 pub mod migrations;
+pub mod weights;
 
 mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use frame_support::{pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec};
+use frame_support::{
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec,
+};
 use frame_system::pallet_prelude::*;
+use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{
@@ -54,7 +57,6 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::{vec, vec::Vec};
-use log::info;
 
 pub use weights::WeightInfo;
 
@@ -271,10 +273,11 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
-				return T::DbWeight::get().reads(1 as Weight);
+				return T::DbWeight::get().reads(1 as Weight)
 			}
 
-			let max_weight: Weight = T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
+			let max_weight: Weight =
+				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
 		}
 
@@ -466,7 +469,7 @@ pub mod pallet {
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			let mut weight_left: Weight = max_weight;
 
-			// The last_missed_slot might not be caught up within just 1 block. 
+			// The last_missed_slot might not be caught up within just 1 block.
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
 			let max_update_weight: Weight = T::UpdateQueueRatio::get().mul_floor(weight_left);
 			let update_weight = Self::update_task_queue(max_update_weight);
@@ -487,7 +490,8 @@ pub mod pallet {
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueue::<T>::put(tasks_left);
-				weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
+				weight_left =
+					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
 
 			// if there is weight left we need to handled the missed tasks
@@ -502,7 +506,8 @@ pub mod pallet {
 						Self::run_missed_tasks(missed_queue, weight_left);
 
 					MissedQueue::<T>::put(tasks_left);
-					weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
+					weight_left =
+						new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
 			}
 
@@ -533,7 +538,11 @@ pub mod pallet {
 				let (updated_last_time_slot, scheduled_queue_update_weight) =
 					Self::update_scheduled_task_queue(current_time_slot, last_time_slot);
 				let (updated_last_missed_slot, missed_queue_update_weight) =
-					Self::update_missed_queue(current_time_slot, last_missed_slot, missed_queue_allotted_weight);
+					Self::update_missed_queue(
+						current_time_slot,
+						last_missed_slot,
+						missed_queue_allotted_weight,
+					);
 				LastTimeSlot::<T>::put((updated_last_time_slot, updated_last_missed_slot));
 				total_weight = total_weight
 					.saturating_add(missed_queue_update_weight)
@@ -542,8 +551,8 @@ pub mod pallet {
 			} else {
 				LastTimeSlot::<T>::put((current_time_slot, current_time_slot));
 				total_weight = total_weight
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
-				.saturating_add(T::DbWeight::get().reads(1 as Weight));
+					.saturating_add(T::DbWeight::get().writes(1 as Weight))
+					.saturating_add(T::DbWeight::get().reads(1 as Weight));
 			}
 
 			total_weight
@@ -553,7 +562,10 @@ pub mod pallet {
 		///
 		/// 1. If new slot, append the current task queue to the missed queue and remove tasks from task queue.
 		/// 2. Move all tasks from the new slot into the task queue and remove the slot from Scheduled tasks map.
-		pub fn update_scheduled_task_queue(current_time_slot: u64, last_time_slot: u64) -> (Weight, u64) {
+		pub fn update_scheduled_task_queue(
+			current_time_slot: u64,
+			last_time_slot: u64,
+		) -> (Weight, u64) {
 			if current_time_slot != last_time_slot {
 				let mut missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
@@ -573,13 +585,21 @@ pub mod pallet {
 		}
 
 		/// Checks if append_to_missed_tasks needs to run and then runs and measures weight as needed
-		pub fn update_missed_queue(current_time_slot: u64, last_missed_slot: u64, allotted_weight: Weight) -> (Weight, u64) {
+		pub fn update_missed_queue(
+			current_time_slot: u64,
+			last_missed_slot: u64,
+			allotted_weight: Weight,
+		) -> (Weight, u64) {
 			if current_time_slot != last_missed_slot {
 				// will need to move missed time slots into missed queue
-				let (append_weight, missed_slots_moved) =
-					Self::append_to_missed_tasks(current_time_slot, last_missed_slot, allotted_weight);
+				let (append_weight, missed_slots_moved) = Self::append_to_missed_tasks(
+					current_time_slot,
+					last_missed_slot,
+					allotted_weight,
+				);
 
-				let last_missed_slot_tracker = last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(60));
+				let last_missed_slot_tracker =
+					last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(60));
 				let used_weight = append_weight;
 				(last_missed_slot_tracker, used_weight)
 			} else {
@@ -588,7 +608,7 @@ pub mod pallet {
 		}
 
 		/// Checks each previous time slots to move any missed tasks into the missed_queue
-		/// 
+		///
 		/// 1. If we skipped any time slots (due to an outage) move those tasks to the missed queue.
 		/// 2. Remove all missed time slots that were moved to missed queue from the Scheduled tasks map.
 		pub fn append_to_missed_tasks(
@@ -598,15 +618,17 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) / 60).saturating_sub(1);
+			let mut diff =
+				(current_time_slot.saturating_sub(last_missed_slot) / 60).saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
 					diff = i;
 					break
 				}
 				let mut slot_missed_tasks = Self::shift_missed_tasks(last_missed_slot, i);
-				missed_tasks.append(& mut slot_missed_tasks);
-				allotted_weight = allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
+				missed_tasks.append(&mut slot_missed_tasks);
+				allotted_weight =
+					allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
 			}
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();

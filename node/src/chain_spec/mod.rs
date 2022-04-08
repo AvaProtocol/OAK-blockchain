@@ -4,7 +4,6 @@ use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainSpec;
 use sp_core::{Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
-use std::collections::HashMap;
 
 use primitives::{AccountId, AuraId, Balance, Signature};
 
@@ -115,20 +114,14 @@ pub fn validate_vesting(
 	total_tokens: u128,
 	existential_deposit: Balance,
 	vest_starting: u64,
-	vest_ending: u64
+	vest_ending: u64,
 ) {
 	let mut total_vested: Balance = Zero::zero();
 	let unique_vested_slots = vesting_timeslots
 		.iter()
 		.map(|(timestamp, schedules)| {
-			assert!(
-				timestamp <= &vest_ending,
-				"greater than largest expected timestamp."
-			);
-			assert!(
-				timestamp >= &vest_starting,
-				"smaller than smallest expected timestamp."
-			);
+			assert!(timestamp <= &vest_ending, "greater than largest expected timestamp.");
+			assert!(timestamp >= &vest_starting, "smaller than smallest expected timestamp.");
 			let unique_vesting_accounts = schedules
 				.iter()
 				.map(|(account_id, amount)| {
@@ -164,24 +157,21 @@ pub fn validate_total_tokens(
 	total_expected_tokens: u128,
 ) {
 	let mut total_tokens: Balance = Zero::zero();
-	vesting_timeslots
-		.iter()
-		.for_each(|(_, schedules)| {
-			schedules
-				.iter()
-				.for_each(|(_, amount)| {
-					total_tokens = total_tokens
-						.checked_add(*amount)
-						.expect("shouldn't overflow when building genesis");
-				});
-		});
-	allocated_accounts
-		.iter()
-		.for_each(|(_, amount)| {
+	vesting_timeslots.iter().for_each(|(_, schedules)| {
+		schedules.iter().for_each(|(_, amount)| {
 			total_tokens = total_tokens
 				.checked_add(*amount)
 				.expect("shouldn't overflow when building genesis");
 		});
+	});
+	allocated_accounts.iter().for_each(|(_, amount)| {
+		total_tokens = total_tokens
+			.checked_add(*amount)
+			.expect("shouldn't overflow when building genesis");
+	});
 
-	assert_eq!(total_tokens, total_expected_tokens, "total vested does not equal the desired amount");
+	assert_eq!(
+		total_tokens, total_expected_tokens,
+		"total vested does not equal the desired amount"
+	);
 }

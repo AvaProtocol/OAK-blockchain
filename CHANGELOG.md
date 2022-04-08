@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.8] - 2022-04-05
+- Updated to substrate 0.9.18
+
 ## [277] - 2022-03-14
 Note: Runtime-only release
 - Disable treasury burn in runtime

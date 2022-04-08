@@ -2,7 +2,6 @@ use crate::chain_spec;
 use clap::Parser;
 use std::path::PathBuf;
 
-
 /// Sub-commands supported by the collator.
 #[derive(Debug, Parser)]
 pub enum Subcommand {

@@ -464,7 +464,8 @@ fn trigger_tasks_handles_missed_slots() {
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let missing_task_id0 = add_task_to_task_queue(ALICE, vec![40], Action::Notify { message: vec![40] });
+		let missing_task_id0 =
+			add_task_to_task_queue(ALICE, vec![40], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		Timestamp::set_timestamp((SCHEDULED_TIME - 420) * 1_000);
 		let missing_task_id1 = schedule_task(ALICE, vec![50], SCHEDULED_TIME - 60, vec![50]);
@@ -479,17 +480,31 @@ fn trigger_tasks_limits_missed_slots() {
 
 		AutomationTime::trigger_tasks(200_000);
 
-		if let Some((updated_last_time_slot, updated_last_missed_slot)) = AutomationTime::get_last_slot() {
+		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
+			AutomationTime::get_last_slot()
+		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
 			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - 180);
 			assert_eq!(
 				events(),
 				[
 					Event::AutomationTime(crate::Event::Notify { message: vec![50] }),
-					Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: missing_task_id0 }),
-					Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: missing_task_id5 }),
-					Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: missing_task_id4 }),
-					Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: missing_task_id3 }),
+					Event::AutomationTime(crate::Event::TaskMissed {
+						who: ALICE,
+						task_id: missing_task_id0
+					}),
+					Event::AutomationTime(crate::Event::TaskMissed {
+						who: ALICE,
+						task_id: missing_task_id5
+					}),
+					Event::AutomationTime(crate::Event::TaskMissed {
+						who: ALICE,
+						task_id: missing_task_id4
+					}),
+					Event::AutomationTime(crate::Event::TaskMissed {
+						who: ALICE,
+						task_id: missing_task_id3
+					}),
 				]
 			);
 		} else {
@@ -700,21 +715,13 @@ fn on_init_check_task_queue() {
 		let mut tasks = vec![];
 
 		for i in 0..5 {
-			let task_id = add_task_to_task_queue(
-				ALICE,
-				vec![i],
-				Action::Notify { message: vec![i] },
-			);
+			let task_id =
+				add_task_to_task_queue(ALICE, vec![i], Action::Notify { message: vec![i] });
 			tasks.push(task_id);
 		}
 		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
 		AutomationTime::on_initialize(1);
-		assert_eq!(
-			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: vec![0] }),
-			],
-		);
+		assert_eq!(events(), [Event::AutomationTime(crate::Event::Notify { message: vec![0] }),],);
 		assert_eq!(AutomationTime::get_task_queue().len(), 4);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 

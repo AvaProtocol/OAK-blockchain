@@ -166,22 +166,22 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn run_native_transfer_task() -> Weight {
 		0
 	}
-	fn run_missed_tasks_many_found(_v: u32, ) -> Weight {
+	fn run_missed_tasks_many_found(_v: u32) -> Weight {
 		0
 	}
-	fn run_missed_tasks_many_missing(_v: u32, ) -> Weight {
+	fn run_missed_tasks_many_missing(_v: u32) -> Weight {
 		0
 	}
-	fn run_tasks_many_found(_v: u32, ) -> Weight {
+	fn run_tasks_many_found(_v: u32) -> Weight {
 		0
 	}
-	fn run_tasks_many_missing(_v: u32, ) -> Weight {
+	fn run_tasks_many_missing(_v: u32) -> Weight {
 		0
 	}
 	fn update_task_queue_overhead() -> Weight {
 		0
 	}
-	fn append_to_missed_tasks(_v: u32, ) -> Weight {
+	fn append_to_missed_tasks(_v: u32) -> Weight {
 		0
 	}
 	fn update_scheduled_task_queue() -> Weight {

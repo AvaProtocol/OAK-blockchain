@@ -7,11 +7,13 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting, validate_total_tokens, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation,
+	validate_total_tokens, validate_vesting, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
+	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 static TOKEN_SYMBOL: &str = "TUR";
@@ -77,12 +79,8 @@ pub fn turing_development_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
 				vec![],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
-				vec![
-					get_account_id_from_seed::<sr25519::Public>("Alice"),
-				],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				collator_bond,
 			)
 		},
@@ -116,7 +114,11 @@ pub fn turing_staging() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
-			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
 
 			let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
@@ -125,7 +127,13 @@ pub fn turing_staging() -> ChainSpec {
 			let vested_tokens = 9_419_999_999_999_999_919;
 			let vest_starting_time: u64 = 1651431600;
 			let vest_ending_time: u64 = 1743534000;
-			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+			validate_vesting(
+				initial_vesting.clone(),
+				vested_tokens,
+				EXISTENTIAL_DEPOSIT,
+				vest_starting_time,
+				vest_ending_time,
+			);
 
 			let collator_bond = 400_000 * DOLLAR;
 
@@ -217,7 +225,11 @@ pub fn turing_live() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
-			validate_allocation(initial_allocation.clone(), ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
 
 			let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
@@ -226,7 +238,13 @@ pub fn turing_live() -> ChainSpec {
 			let vested_tokens = 9_419_999_999_999_999_919;
 			let vest_starting_time: u64 = 1651431600;
 			let vest_ending_time: u64 = 1743534000;
-			validate_vesting(initial_vesting.clone(), vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+			validate_vesting(
+				initial_vesting.clone(),
+				vested_tokens,
+				EXISTENTIAL_DEPOSIT,
+				vest_starting_time,
+				vest_ending_time,
+			);
 
 			let collator_bond = 400_000 * DOLLAR;
 
@@ -374,7 +392,13 @@ mod tests {
 		let vested_tokens = 9_419_999_999_999_999_919;
 		let vest_starting_time: u64 = 1651431600;
 		let vest_ending_time: u64 = 1743534000;
-		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+		validate_vesting(
+			initial_vesting,
+			vested_tokens,
+			EXISTENTIAL_DEPOSIT,
+			vest_starting_time,
+			vest_ending_time,
+		);
 	}
 
 	#[test]
