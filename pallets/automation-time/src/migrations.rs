@@ -23,3 +23,30 @@ pub mod v1 {
 		T::DbWeight::get().reads_writes(1, 1)
 	}
 }
+
+pub mod v2 {
+	use frame_support::{migration::{storage_iter, storage_key_iter}, traits::StorageVersion, Twox64Concat, BoundedVec};
+
+	use crate::{Pallet, Task};
+
+	use super::*;
+
+	pub fn migrate<T: Config>() -> Weight {
+		info!(target: "automation-time", "Migrating automation-time v2");
+		let pallet_prefix: &[u8] = b"AutomationTime";
+
+		let missed_queue_prefix: &[u8] = b"MissedQueue";
+		storage_iter::<T::Hash>(pallet_prefix, missed_queue_prefix).drain();
+		let task_queue_prefix: &[u8] = b"TaskQueue";
+		storage_iter::<T::Hash>(pallet_prefix, task_queue_prefix).drain();
+
+		let tasks_prefix: &[u8] = b"Tasks";
+		storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix).drain();
+		let scheduled_tasks_prefix: &[u8] = b"ScheduledTasks";
+		storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(pallet_prefix, scheduled_tasks_prefix).drain();
+
+		info!(target: "automation-time", "Completed automation-time migration to v2");
+		StorageVersion::new(2).put::<Pallet<T>>();
+		T::DbWeight::get().reads_writes(4, 4)
+	}
+}
