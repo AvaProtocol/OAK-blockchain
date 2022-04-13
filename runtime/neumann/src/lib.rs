@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 278,
+	spec_version: 279,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 5,

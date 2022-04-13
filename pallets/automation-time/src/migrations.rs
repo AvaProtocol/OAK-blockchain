@@ -36,14 +36,22 @@ pub mod v2 {
 		let pallet_prefix: &[u8] = b"AutomationTime";
 
 		let missed_queue_prefix: &[u8] = b"MissedQueue";
-		storage_iter::<T::Hash>(pallet_prefix, missed_queue_prefix).drain();
+		let _missed_tasks: Vec<_> = storage_iter::<T::Hash>(pallet_prefix, missed_queue_prefix)
+			.drain()
+			.collect();
 		let task_queue_prefix: &[u8] = b"TaskQueue";
-		storage_iter::<T::Hash>(pallet_prefix, task_queue_prefix).drain();
+		let _running_tasks: Vec<_> = storage_iter::<T::Hash>(pallet_prefix, task_queue_prefix)
+			.drain()
+			.collect();
 
 		let tasks_prefix: &[u8] = b"Tasks";
-		storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix).drain();
+		let _tasks: Vec<_> = storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix)
+			.drain()
+			.collect();
 		let scheduled_tasks_prefix: &[u8] = b"ScheduledTasks";
-		storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(pallet_prefix, scheduled_tasks_prefix).drain();
+		let _scheduled_tasks: Vec<_> = storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(pallet_prefix, scheduled_tasks_prefix)
+			.drain()
+			.collect();
 
 		info!(target: "automation-time", "Completed automation-time migration to v2");
 		StorageVersion::new(2).put::<Pallet<T>>();
