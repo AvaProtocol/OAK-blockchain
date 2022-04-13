@@ -469,6 +469,14 @@ pub mod pallet {
 			Ok(())
 		}
 
+		fn clean_execution_times_vector(execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>) -> Vec<UnixTime> {
+			let mut cleaned_times = execution_times.to_vec();
+			cleaned_times.sort_unstable();
+			cleaned_times.dedup();
+			
+			return cleaned_times;
+		}
+
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
@@ -778,9 +786,7 @@ pub mod pallet {
 				Err(_) => return false, // fix error
 			};
 
-			let mut scheduled_times = execution_times.to_vec();
-			scheduled_times.sort_unstable();
-			scheduled_times.dedup();
+			let scheduled_times = Self::clean_execution_times_vector(execution_times);
 
 			return *scheduled_times.last().unwrap() <= current_time_slot;
 		}
@@ -791,10 +797,7 @@ pub mod pallet {
 				Err(_) => return, // fix error
 			};
 			let mut found_task: bool = false;
-			let mut execution_times: Vec<UnixTime> = task.execution_times.to_vec();
-
-			execution_times.sort_unstable();
-			execution_times.dedup();
+			let execution_times = Self::clean_execution_times_vector(task.execution_times);
 
 			for time in execution_times.iter().rev() {
 				if *time < current_time_slot { break; }
@@ -877,9 +880,7 @@ pub mod pallet {
 			}
 
 			// Sort list of times then remove consecutive duplicates
-			let mut cleaned_times = execution_times.to_vec();
-			cleaned_times.sort_unstable();
-			cleaned_times.dedup();
+			let cleaned_times = Self::clean_execution_times_vector(execution_times);
 			if cleaned_times.len() > T::MaxRecurringTimes::get().try_into().unwrap() {
 				Err(Error::<T>::TooManyRecurringTimes)?;
 			}
