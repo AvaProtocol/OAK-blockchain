@@ -808,6 +808,8 @@ pub mod pallet {
 								found_task = true;
 								break
 							}
+							found_task = true;
+							break
 						}
 					},
 					Some(mut task_ids) =>
