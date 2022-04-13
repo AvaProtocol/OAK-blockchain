@@ -787,7 +787,6 @@ pub mod pallet {
 			};
 
 			let scheduled_times = Self::clean_execution_times_vector(execution_times);
-
 			return *scheduled_times.last().unwrap() <= current_time_slot;
 		}
 
