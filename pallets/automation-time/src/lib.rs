@@ -469,6 +469,9 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Cleans the executions times by removing duplicates and putting in ascending order.
+		/// 
+		/// Returns a vec with the cleaned execution times.
 		fn clean_execution_times_vector(execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>) -> Vec<UnixTime> {
 			let mut cleaned_times = execution_times.to_vec();
 			cleaned_times.sort_unstable();
@@ -780,6 +783,10 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
+		/// Determines if a task has been completed.
+		/// 
+		/// A task has been completed if all execution times exist in the past and/or are in the current time slot.
+		/// This means there a no more execution times to be run.
 		fn is_completed_task(execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>) -> bool {
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
@@ -790,6 +797,8 @@ pub mod pallet {
 			return *scheduled_times.last().unwrap() <= current_time_slot;
 		}
 
+		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
+		///
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
@@ -801,17 +810,6 @@ pub mod pallet {
 			for time in execution_times.iter().rev() {
 				if *time < current_time_slot { break; }
 				match Self::get_scheduled_tasks(*time) {
-					None => {
-						let mut task_queue = Self::get_task_queue();
-						for i in 0..task_queue.len() {
-							if task_queue[i] == task_id {
-								task_queue.remove(i);
-								TaskQueue::<T>::put(task_queue);
-								found_task = true;
-								break
-							}
-						}
-					},
 					Some(mut task_ids) =>
 						for i in 0..task_ids.len() {
 							if task_ids[i] == task_id {
@@ -825,6 +823,16 @@ pub mod pallet {
 								break
 							}
 						},
+					_ => (),
+				}
+				let mut task_queue = Self::get_task_queue();
+				for i in 0..task_queue.len() {
+					if task_queue[i] == task_id {
+						task_queue.remove(i);
+						TaskQueue::<T>::put(task_queue);
+						found_task = true;
+						break
+					}
 				}
 			}
 
