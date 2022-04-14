@@ -35,6 +35,10 @@ pub mod v2 {
 		info!(target: "automation-time", "Migrating automation-time v2");
 		let pallet_prefix: &[u8] = b"AutomationTime";
 
+		let scheduled_tasks_prefix: &[u8] = b"ScheduledTasks";
+		let _scheduled_tasks: Vec<_> = storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(pallet_prefix, scheduled_tasks_prefix)
+			.drain()
+			.collect();
 		let missed_queue_prefix: &[u8] = b"MissedQueue";
 		let _missed_tasks: Vec<_> = storage_iter::<T::Hash>(pallet_prefix, missed_queue_prefix)
 			.drain()
@@ -43,13 +47,8 @@ pub mod v2 {
 		let _running_tasks: Vec<_> = storage_iter::<T::Hash>(pallet_prefix, task_queue_prefix)
 			.drain()
 			.collect();
-
 		let tasks_prefix: &[u8] = b"Tasks";
 		let _tasks: Vec<_> = storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix)
-			.drain()
-			.collect();
-		let scheduled_tasks_prefix: &[u8] = b"ScheduledTasks";
-		let _scheduled_tasks: Vec<_> = storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(pallet_prefix, scheduled_tasks_prefix)
 			.drain()
 			.collect();
 
