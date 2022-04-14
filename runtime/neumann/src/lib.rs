@@ -212,7 +212,7 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
 
 /// We use at most 10% of the block weight running scheduled tasks during `on_initialize`.
-const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
+const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
 
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
 /// used to limit the maximal weight of a single extrinsic.
@@ -886,7 +886,7 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 100;
+	pub const MaxTasksPerSlot: u32 = 1000;
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 6 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;

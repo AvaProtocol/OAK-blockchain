@@ -283,8 +283,9 @@ pub mod pallet {
 
 		fn on_runtime_upgrade() -> Weight {
 			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
+			info!("on chain storage version, {:?}", on_chain_storage_version);
 			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v1::migrate::<T>()
+				migrations::v2::migrate::<T>()
 			} else {
 				info!("migration already run before");
 				0

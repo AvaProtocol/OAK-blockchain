@@ -27,7 +27,7 @@ pub mod v1 {
 pub mod v2 {
 	use frame_support::{migration::{storage_iter, storage_key_iter}, traits::StorageVersion, Twox64Concat, BoundedVec};
 
-	use crate::{Pallet, Task};
+	use crate::{Pallet, Task, Vec};
 
 	use super::*;
 
