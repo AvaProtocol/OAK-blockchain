@@ -1,12 +1,12 @@
 use super::{
-	AccountId, Balance, Balances, Call, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm, Runtime, XcmpQueue,
-	MAXIMUM_BLOCK_WEIGHT
+	AccountId, Balance, Balances, Call, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
+	Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 
 use frame_support::{
 	match_type, parameter_types,
 	traits::{Everything, Nothing},
-	weights::{Weight, IdentityFee},
+	weights::{IdentityFee, Weight},
 };
 use frame_system::EnsureRoot;
 
