@@ -8,7 +8,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation,
-	validate_total_tokens, validate_vesting, Extensions,
+	validate_vesting, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
@@ -212,7 +212,7 @@ pub fn turing_live() -> ChainSpec {
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
 	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
 
-	let LIVE_PARA_ID = 2114;
+	let live_para_id = 2114;
 
 	ChainSpec::from_genesis(
 		// Name
@@ -271,7 +271,7 @@ pub fn turing_live() -> ChainSpec {
 				// 5CGLdvHNAMRZM3T52crEcP46YTsmq2GVke5wc6w3Z1epBDVy
 				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
-				LIVE_PARA_ID.into(),
+				live_para_id.into(),
 				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
 				initial_vesting,
 				vec![
@@ -311,7 +311,7 @@ pub fn turing_live() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: TURING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: LIVE_PARA_ID,
+			para_id: live_para_id,
 		},
 	)
 }
@@ -403,6 +403,7 @@ mod tests {
 
 	#[test]
 	fn validate_total_turing_tokens() {
+		use crate::chain_spec::validate_total_tokens;
 		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
