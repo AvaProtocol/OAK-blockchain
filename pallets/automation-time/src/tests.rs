@@ -17,7 +17,7 @@
 
 use crate::{
 	mock::*, Action, Error, LastTimeSlot, MissedQueue, Shutdown, Task, TaskHashInput, TaskQueue,
-	Tasks,
+	Tasks, migrations::{v1, v2},
 };
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
@@ -782,6 +782,49 @@ fn on_init_shutdown() {
 		assert_ne!(AutomationTime::get_task(task_id3), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 3);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+	})
+}
+
+#[test]
+fn migration_v1() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		AutomationTime::on_initialize(1);
+		let new_timestamp = START_BLOCK_TIME + (3600 * 1_000);
+		Timestamp::set_timestamp(new_timestamp);
+		v1::migrate::<Test>();
+		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
+			AutomationTime::get_last_slot()
+		{
+			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
+			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
+		}
+	})
+}
+
+#[test]
+fn migration_v2() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		add_task_to_task_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
+		add_task_to_missed_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
+		schedule_task(ALICE, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+
+		v2::migrate::<Test>();
+		Timestamp::set_timestamp(START_BLOCK_TIME + (3600 * 1_000));
+		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
+			AutomationTime::get_last_slot()
+		{
+			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
+			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
+		}
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			None => {},
+			Some(task_ids) => {
+				panic!("Has scheduled Tasks: {:?}", task_ids)
+			},
+		}
+		assert_eq!(AutomationTime::get_task_queue(), []);
+		assert_eq!(AutomationTime::get_missed_queue(), []);
 	})
 }
 
