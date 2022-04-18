@@ -252,6 +252,35 @@ fn schedule_duplicates_errors() {
 }
 
 #[test]
+fn schedule_max_execution_times_errors() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![50],
+				vec![SCHEDULED_TIME, SCHEDULED_TIME + 120, SCHEDULED_TIME + 240, SCHEDULED_TIME + 360],
+				vec![2, 4]
+			),
+			Error::<Test>::TooManyExecutionsTimes,
+		);
+	})
+}
+
+#[test]
+fn schedule_execution_times_removes_dupes() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		assert_ok!(AutomationTime::schedule_notify_task(
+			Origin::signed(ALICE),
+			vec![50],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME + 360],
+			vec![2, 4]
+		));
+	})
+}
+
+#[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
@@ -306,6 +335,70 @@ fn cancel_works_for_scheduled() {
 					who: owner,
 					task_id: task_id2
 				}),
+			]
+		);
+	})
+}
+
+#[test]
+fn cancel_works_for_multiple_executions_scheduled() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner: AccountId = ALICE;
+		let task_id1 = schedule_task(
+			owner,
+			vec![40],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 120, SCHEDULED_TIME + 240],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 420, SCHEDULED_TIME - 420));
+		System::reset_events();
+
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => {
+				assert_eq!(task_ids.len(), 1);
+				assert_eq!(task_ids[0], task_id1);
+			},
+		}
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 120) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => {
+				assert_eq!(task_ids.len(), 1);
+				assert_eq!(task_ids[0], task_id1);
+			},
+		}
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 240) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => {
+				assert_eq!(task_ids.len(), 1);
+				assert_eq!(task_ids[0], task_id1);
+			},
+		}
+
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			panic!("Tasks scheduled for the time it should have been deleted")
+		}
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 120) {
+			panic!("Tasks scheduled for the time it should have been deleted")
+		}
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 240) {
+			panic!("Tasks scheduled for the time it should have been deleted")
+		}
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskCancelled {
+					who: owner,
+					task_id: task_id1
+				})
 			]
 		);
 	})

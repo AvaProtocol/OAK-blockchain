@@ -799,6 +799,8 @@ pub mod pallet {
 		/// A task has been completed if all execution times exist in the past and/or are in the current time slot.
 		/// This means there a no more execution times to be run.
 		fn is_completed_task(execution_times: Vec<UnixTime>) -> bool {
+			if execution_times.len() == 0 { return true };
+
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
