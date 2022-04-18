@@ -24,7 +24,7 @@
 // 100
 // --raw
 // --output
-// ./pallets/automation-time/src/weights.rs
+// ./pallets/automation-time/src/weights2.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]

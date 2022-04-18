@@ -413,7 +413,7 @@ pub mod pallet {
 					if who != task.owner_id {
 						Err(Error::<T>::NotTaskOwner)?
 					}
-					Self::remove_task(task_id, task)?;
+					Self::remove_task(task_id, task);
 				},
 			}
 			Ok(().into())
@@ -432,7 +432,7 @@ pub mod pallet {
 
 			match Self::get_task(task_id) {
 				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => Self::remove_task(task_id, task)?,
+				Some(task) => Self::remove_task(task_id, task),
 			}
 
 			Ok(().into())
@@ -812,10 +812,14 @@ pub mod pallet {
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		///
-		fn remove_task(task_id: T::Hash, task: Task<T>) -> Result<(), Error<T>> {
+		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
-			let current_time_slot = Self::get_current_time_slot()?;
 			let execution_times = Self::clean_execution_times_vector(task.execution_times.to_vec());
+			let current_time_slot = match Self::get_current_time_slot() {
+				Ok(time_slot) => time_slot,
+				// This will only occur for the first block in the chain.
+				Err(_) => 0,
+			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
 				for time in execution_times.iter().rev() {
@@ -863,8 +867,6 @@ pub mod pallet {
 
 			<Tasks<T>>::remove(task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
-
-			Ok(())
 		}
 
 		/// Schedule tasks and return it's task_id.
