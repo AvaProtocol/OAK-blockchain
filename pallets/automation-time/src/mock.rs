@@ -117,6 +117,8 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	#[derive(Debug)]
+	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = 1_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
@@ -200,6 +202,7 @@ where
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;

@@ -81,20 +81,31 @@ pub mod pallet {
 	}
 
 	/// The struct that stores all information needed for a task.
-	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 		action: Action<T>,
+	}
+
+	impl<T: Config> PartialEq for Task<T> {
+		fn eq(&self, other: &Self) -> bool {
+			self.owner_id == other.owner_id &&
+			self.provided_id == other.provided_id &&
+			self.action == other.action &&
+			self.execution_times.len() == other.execution_times.len() &&
+			self.execution_times.capacity() == other.execution_times.capacity() &&
+			self.execution_times.to_vec() == other.execution_times.to_vec()
+		}
 	}
 
 	impl<T: Config> Task<T> {
 		pub fn create_event_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			message: Vec<u8>,
 		) -> Task<T> {
 			let action = Action::Notify { message };
@@ -103,7 +114,7 @@ pub mod pallet {
 		pub fn create_native_transfer_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			recipient_id: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> Task<T> {
@@ -142,7 +153,7 @@ pub mod pallet {
 
 		/// The maximum number of times that a task can be scheduled for.
 		#[pallet::constant]
-		type MaxRecurringTimes: Get<u32>;
+		type MaxExecutionTimes: Get<u32>;
 
 		/// The farthest out a task can be scheduled.
 		#[pallet::constant]
@@ -234,8 +245,8 @@ pub mod pallet {
 		InsufficientBalance,
 		/// Account liquidity restrictions prevent withdrawal.
 		LiquidityRestrictions,
-		/// Too many recurring task times.
-		TooManyRecurringTimes,
+		/// Too many execution times provided.
+		TooManyExecutionsTimes,
 	}
 
 	#[pallet::event]
@@ -323,7 +334,7 @@ pub mod pallet {
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+			execution_times: Vec<UnixTime>,
 			message: Vec<u8>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -362,7 +373,7 @@ pub mod pallet {
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+			execution_times: Vec<UnixTime>,
 			recipient_id: T::AccountId,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
@@ -402,7 +413,7 @@ pub mod pallet {
 					if who != task.owner_id {
 						Err(Error::<T>::NotTaskOwner)?
 					}
-					Self::remove_task(task_id, task);
+					Self::remove_task(task_id, task)?;
 				},
 			}
 			Ok(().into())
@@ -421,7 +432,7 @@ pub mod pallet {
 
 			match Self::get_task(task_id) {
 				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => Self::remove_task(task_id, task),
+				Some(task) => Self::remove_task(task_id, task)?,
 			}
 
 			Ok(().into())
@@ -472,8 +483,8 @@ pub mod pallet {
 		/// Cleans the executions times by removing duplicates and putting in ascending order.
 		/// 
 		/// Returns a vec with the cleaned execution times.
-		fn clean_execution_times_vector(execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>) -> Vec<UnixTime> {
-			let mut cleaned_times = execution_times.to_vec();
+		fn clean_execution_times_vector(execution_times: Vec<UnixTime>) -> Vec<UnixTime> {
+			let mut cleaned_times = execution_times.clone();
 			cleaned_times.sort_unstable();
 			cleaned_times.dedup();
 			
@@ -700,7 +711,7 @@ pub mod pallet {
 									task_id.clone(),
 								),
 						};
-						if Self::is_completed_task(task.execution_times.clone()) {
+						if Self::is_completed_task(task.execution_times.to_vec()) {
 							Tasks::<T>::remove(task_id);
 						}
 						task_action_weight
@@ -787,52 +798,62 @@ pub mod pallet {
 		/// 
 		/// A task has been completed if all execution times exist in the past and/or are in the current time slot.
 		/// This means there a no more execution times to be run.
-		fn is_completed_task(execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>) -> bool {
+		fn is_completed_task(execution_times: Vec<UnixTime>) -> bool {
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
-				Err(_) => return false, // fix error
+				// This will only occur for the first block in the chain.
+				Err(_) => return false,
 			};
 
 			let scheduled_times = Self::clean_execution_times_vector(execution_times);
-			return *scheduled_times.last().unwrap() <= current_time_slot;
+			let is_complete = *scheduled_times.last().unwrap() <= current_time_slot;
+			return is_complete;
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		///
-		fn remove_task(task_id: T::Hash, task: Task<T>) {
-			let current_time_slot = match Self::get_current_time_slot() {
-				Ok(time_slot) => time_slot,
-				Err(_) => return, // fix error
-			};
+		fn remove_task(task_id: T::Hash, task: Task<T>) -> Result<(), Error<T>> {
 			let mut found_task: bool = false;
-			let execution_times = Self::clean_execution_times_vector(task.execution_times);
+			let current_time_slot = Self::get_current_time_slot()?;
+			let execution_times = Self::clean_execution_times_vector(task.execution_times.to_vec());
 
-			for time in execution_times.iter().rev() {
-				if *time < current_time_slot { break; }
-				match Self::get_scheduled_tasks(*time) {
-					Some(mut task_ids) =>
-						for i in 0..task_ids.len() {
-							if task_ids[i] == task_id {
-								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*time);
-								} else {
-									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*time, task_ids);
-								}
+			if let Some((last_time_slot, _)) = Self::get_last_slot() {
+				for time in execution_times.iter().rev() {
+					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
+					if *time < current_time_slot { 
+						break
+					}
+					// Execution time is equal to last time slot and task queue should be checked for task id.
+					// After checking task queue no other execution times need to be removed.
+					if *time == last_time_slot { 
+						let mut task_queue = Self::get_task_queue();
+						for i in 0..task_queue.len() {
+							if task_queue[i] == task_id {
+								task_queue.remove(i);
+								TaskQueue::<T>::put(task_queue);
 								found_task = true;
 								break
 							}
-						},
-					_ => (),
-				}
-				let mut task_queue = Self::get_task_queue();
-				for i in 0..task_queue.len() {
-					if task_queue[i] == task_id {
-						task_queue.remove(i);
-						TaskQueue::<T>::put(task_queue);
-						found_task = true;
+						}
 						break
 					}
+					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
+					match Self::get_scheduled_tasks(*time) {
+						Some(mut task_ids) =>
+							for i in 0..task_ids.len() {
+								if task_ids[i] == task_id {
+									if task_ids.len() == 1 {
+										<ScheduledTasks<T>>::remove(*time);
+									} else {
+										task_ids.remove(i);
+										<ScheduledTasks<T>>::insert(*time, task_ids);
+									}
+									found_task = true;
+									break
+								}
+							},
+						_ => (),
+					}				
 				}
 			}
 
@@ -842,6 +863,8 @@ pub mod pallet {
 
 			<Tasks<T>>::remove(task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
+
+			Ok(())
 		}
 
 		/// Schedule tasks and return it's task_id.
@@ -871,6 +894,7 @@ pub mod pallet {
 					},
 				}
 			}
+
 			Ok(task_id)
 		}
 
@@ -880,7 +904,7 @@ pub mod pallet {
 			action: Action<T>,
 			who: T::AccountId,
 			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxRecurringTimes>,
+			execution_times: Vec<UnixTime>,
 		) -> Result<(), Error<T>> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
@@ -888,14 +912,14 @@ pub mod pallet {
 
 			// Sort list of times then remove consecutive duplicates
 			let cleaned_times = Self::clean_execution_times_vector(execution_times);
-			if cleaned_times.len() > T::MaxRecurringTimes::get().try_into().unwrap() {
-				Err(Error::<T>::TooManyRecurringTimes)?;
+			if cleaned_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
+				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
 			for time in cleaned_times.iter() {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee = Self::calculate_execution_fee(&action);
+			let fee = Self::calculate_execution_fee(&action, cleaned_times.len().try_into().unwrap());
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
@@ -917,11 +941,12 @@ pub mod pallet {
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
-		fn calculate_execution_fee(action: &Action<T>) -> BalanceOf<T> {
+		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
 			let raw_weight = match action {
 				Action::Notify { message: _ } => 1_000u32,
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
 			};
+			let raw_weight = raw_weight.saturating_mul(executions);
 			let weight = <BalanceOf<T>>::from(raw_weight);
 			T::ExecutionWeightFee::get().saturating_mul(weight)
 		}
