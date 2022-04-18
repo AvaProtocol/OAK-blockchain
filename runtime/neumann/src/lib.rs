@@ -211,7 +211,7 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 /// The existential deposit. Set to 1/10 of the Connected Relay Chain.
 pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
 
-/// We use at most 10% of the block weight running scheduled tasks during `on_initialize`.
+/// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
 const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
 
 /// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
