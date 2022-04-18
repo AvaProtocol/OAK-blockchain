@@ -797,6 +797,8 @@ fn migration_v1() {
 		{
 			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
 			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
+		} else {
+			panic!("migration_v1 test did not have LastTimeSlot updated")
 		}
 	})
 }
@@ -806,7 +808,7 @@ fn migration_v2() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		add_task_to_task_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
 		add_task_to_missed_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
-		schedule_task(ALICE, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
+		let task_id = schedule_task(ALICE, vec![40], SCHEDULED_TIME, vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		v2::migrate::<Test>();
@@ -816,11 +818,19 @@ fn migration_v2() {
 		{
 			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
 			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
+		} else {
+			panic!("migration_v2 test did not have LastTimeSlot updated")
 		}
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			None => {},
 			Some(task_ids) => {
 				panic!("Has scheduled Tasks: {:?}", task_ids)
+			},
+		}
+		match AutomationTime::get_task(task_id) {
+			None => {},
+			Some(task_ids) => {
+				panic!("Has Tasks in Task Map: {:?}", task_ids)
 			},
 		}
 		assert_eq!(AutomationTime::get_task_queue(), []);
