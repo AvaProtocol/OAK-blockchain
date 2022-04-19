@@ -8,7 +8,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation,
-	validate_total_tokens, validate_vesting, Extensions,
+	validate_vesting, Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
@@ -458,6 +458,7 @@ mod tests {
 
 	#[test]
 	fn validate_total_neumann_tokens() {
+		use crate::chain_spec::validate_total_tokens;
 		let allocation_json =
 			&include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =

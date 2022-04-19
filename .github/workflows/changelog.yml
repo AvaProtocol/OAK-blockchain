@@ -1,0 +1,23 @@
+name: Generate CHANGELOG.md
+on:
+  pull_request_target:
+    branches:
+      - master
+    types:
+      - closed
+
+jobs:
+  generate:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/checkout@v2
+
+      - uses: OAK-Foundation/unreleased-changelog-action@v0.0.1
+
+      - name: Commit and push CHANGELOG.md
+        uses: EndBug/add-and-commit@v7
+        with:
+          add: CHANGELOG.md
+          message: "chore: Update CHANGELOG.md"
+          branch: master
