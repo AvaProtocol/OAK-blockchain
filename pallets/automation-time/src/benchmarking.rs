@@ -96,7 +96,7 @@ fn set_task_queue<T: Config>(owner: T::AccountId, time: u64, count: u32) -> T::H
 benchmarks! {
 	schedule_notify_task_empty {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 120;
+		let time: u64 = 7200;
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -105,7 +105,7 @@ benchmarks! {
 
 	schedule_notify_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 120;
+		let time: u64 = 7200;
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get() - 1);
 		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -115,7 +115,7 @@ benchmarks! {
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
-		let time: u64 = 120;
+		let time: u64 = 7200;
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
@@ -125,7 +125,7 @@ benchmarks! {
 	schedule_native_transfer_task_full{
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
-		let time: u64 = 120;
+		let time: u64 = 7200;
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 
@@ -135,42 +135,42 @@ benchmarks! {
 
 	cancel_scheduled_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, 1);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_overflow_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	force_cancel_scheduled_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, 1);
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	force_cancel_overflow_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 
 		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), time, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, task_id)
@@ -184,7 +184,7 @@ benchmarks! {
 		let amount_starting: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(starting_multiplier.into());
 		let caller: T::AccountId = account("caller", 0, SEED);
 		T::NativeTokenExchange::deposit_creating(&caller, amount_starting.clone());
-		let time: u64 = 180;
+		let time: u64 = 10800;
 		let recipient: T::AccountId = account("recipient", 0, SEED);
 		let amount_transferred: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
@@ -202,7 +202,7 @@ benchmarks! {
 		let weight_left = 50_000_000_000;
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u32 = 180;
+		let time: u32 = 10800;
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -217,7 +217,7 @@ benchmarks! {
 		let v in 0 .. 1;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 		let mut task_ids = vec![];
 		let weight_left = 500_000_000_000;
 
@@ -238,7 +238,7 @@ benchmarks! {
 		let weight_left = 500_000_000_000;
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time = 180;
+		let time = 10800;
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let starting_multiplier: u32 = 20;
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -257,7 +257,7 @@ benchmarks! {
 	run_tasks_many_missing {
 		let v in 0 .. 1;
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 180;
+		let time: u64 = 10800;
 		let mut task_ids = vec![];
 		let weight_left = 500_000_000_000;
 
@@ -283,14 +283,14 @@ benchmarks! {
 		let weight_left = 500_000_000_000;
 		let v in 0 .. 2;
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let last_time_slot: u64 = 60;
+		let last_time_slot: u64 = 3600;
 		let time = last_time_slot;
-		let time_change: u64 = (v * 60).into();
+		let time_change: u64 = (v * 3600).into();
 		let current_time = last_time_slot + time_change;
 
 		for i in 0..v {
 			for j in 0..1 {
-				let time = time.saturating_add(60);
+				let time = time.saturating_add(3600);
 				let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
 				let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), time.into()).unwrap();
 				let task = Task::<T>::create_event_task(caller.clone(), provided_id, time.into(), vec![4, 5, 6]);
@@ -301,8 +301,8 @@ benchmarks! {
 
 	update_scheduled_task_queue {
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let last_time_slot: u64 = 120;
-		let current_time = 180;
+		let last_time_slot: u64 = 7200;
+		let current_time = 10800;
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -314,8 +314,8 @@ benchmarks! {
 
 	shift_missed_tasks {
 		let caller: T::AccountId = account("callerName", 0, SEED);
-		let last_time_slot: u64 = 120;
-		let new_time_slot: u64 = 240;
+		let last_time_slot: u64 = 7200;
+		let new_time_slot: u64 = 14400;
 		let diff = 1;
 		schedule_notify_tasks::<T>(caller.clone(), new_time_slot, 1);
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }

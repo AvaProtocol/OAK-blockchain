@@ -151,6 +151,7 @@ pub fn validate_vesting(
 
 /// Validate that the vested fits the following criteria:
 /// - allocated and vesting tokens add up to equal total number of expected tokens
+#[cfg(test)]
 pub fn validate_total_tokens(
 	allocated_accounts: Vec<(AccountId, Balance)>,
 	vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,

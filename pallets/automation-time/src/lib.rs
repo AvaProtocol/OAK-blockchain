@@ -18,10 +18,10 @@
 //! # Automation time pallet
 //!
 //! DISCLAIMER: This pallet is still in it's early stages. At this point
-//! we only support scheduling two tasks per minute, and sending an on-chain
+//! we only support scheduling two tasks per hour, and sending an on-chain
 //! with a custom message.
 //!
-//! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole minute in the future.
+//! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole hour in the future.
 //! In order to run tasks this pallet consumes up to a certain amount of weight during `on_initialize`.
 //!
 //! The pallet supports the following tasks:
@@ -202,7 +202,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// Time must end in a whole minute.
+		/// Time must end in a whole hour.
 		InvalidTime,
 		/// Time must be in the future.
 		PastTime,
@@ -283,8 +283,9 @@ pub mod pallet {
 
 		fn on_runtime_upgrade() -> Weight {
 			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
+			info!("on chain storage version, {:?}", on_chain_storage_version);
 			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v1::migrate::<T>()
+				migrations::v2::migrate::<T>()
 			} else {
 				info!("migration already run before");
 				0
@@ -308,7 +309,7 @@ pub mod pallet {
 		/// * `message`: The message you want the event to have.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole minute.
+		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
@@ -345,7 +346,7 @@ pub mod pallet {
 		/// * `amount`: Amount of balance to transfer.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole minute.
+		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -428,25 +429,25 @@ pub mod pallet {
 		/// In order to do this we:
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
-		/// * Bring the timestamp down to the last whole minute.
+		/// * Bring the timestamp down to the last whole hour.
 		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
 			let now = now / 1000;
-			let diff_to_min = now % 60;
-			Ok(now.saturating_sub(diff_to_min))
+			let diff_to_hour = now % 3600;
+			Ok(now.saturating_sub(diff_to_hour))
 		}
 
 		/// Checks to see if the scheduled time is valid.
 		///
 		/// In order for a time to be valid it must
-		/// - End in a whole minute
+		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
-			let remainder = scheduled_time % 60;
+			let remainder = scheduled_time % 3600;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
 			}
@@ -599,7 +600,7 @@ pub mod pallet {
 				);
 
 				let last_missed_slot_tracker =
-					last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(60));
+					last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(3600));
 				let used_weight = append_weight;
 				(last_missed_slot_tracker, used_weight)
 			} else {
@@ -619,7 +620,7 @@ pub mod pallet {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
 			let mut diff =
-				(current_time_slot.saturating_sub(last_missed_slot) / 60).saturating_sub(1);
+				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
 					diff = i;
@@ -646,7 +647,7 @@ pub mod pallet {
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
 		) -> Vec<T::Hash> {
-			let seconds_in_slot = 60;
+			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
 			if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
