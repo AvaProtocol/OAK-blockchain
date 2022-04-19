@@ -325,6 +325,42 @@ fn schedule_time_slot_full() {
 }
 
 #[test]
+fn schedule_time_slot_full_rolls_back() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 240], vec![2, 4, 5]);
+		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 240], vec![2, 4]);
+
+		assert_noop!(
+			AutomationTime::schedule_notify_task(
+				Origin::signed(ALICE),
+				vec![70],
+				vec![SCHEDULED_TIME, SCHEDULED_TIME + 120, SCHEDULED_TIME + 240],
+				vec![2]
+			),
+			Error::<Test>::TimeSlotFull,
+		);
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			panic!("Tasks scheduled for the time it should have been rolled back")
+		}
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 120) {
+			panic!("Tasks scheduled for the time it should have been rolled back")
+		}
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 240) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => {
+				assert_eq!(task_ids.len(), 2);
+				assert_eq!(task_ids[0], task_id1);
+				assert_eq!(task_ids[1], task_id2);
+			},
+		}
+	})
+}
+
+#[test]
 fn cancel_works_for_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner: AccountId = ALICE;
