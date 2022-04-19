@@ -46,7 +46,8 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec,
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec, 
+	storage::{with_transaction, TransactionOutcome::*},
 };
 use frame_system::pallet_prelude::*;
 use log::info;
@@ -883,23 +884,25 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
-			for time in execution_times.iter() {
-				match Self::get_scheduled_tasks(*time) {
-					None => {
-						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-							vec![task_id].try_into().unwrap();
-						<ScheduledTasks<T>>::insert(*time, task_ids);
-					},
-					Some(mut task_ids) => {
-						if let Err(_) = task_ids.try_push(task_id) {
-							Err(Error::<T>::TimeSlotFull)?
-						}
-						<ScheduledTasks<T>>::insert(*time, task_ids);
-					},
+			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {
+				for time in execution_times.iter() {
+					match Self::get_scheduled_tasks(*time) {
+						None => {
+							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+								vec![task_id].try_into().unwrap();
+							<ScheduledTasks<T>>::insert(*time, task_ids);
+						},
+						Some(mut task_ids) => {
+							if let Err(_) = task_ids.try_push(task_id) {
+								return Rollback(Err(Error::<T>::TimeSlotFull))
+							}
+							<ScheduledTasks<T>>::insert(*time, task_ids);
+						},
+					}
 				}
-			}
 
-			Ok(task_id)
+				Commit(Ok(task_id))
+			})
 		}
 
 		/// Validate and schedule task.
