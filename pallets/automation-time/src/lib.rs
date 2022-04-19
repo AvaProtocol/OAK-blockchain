@@ -486,12 +486,9 @@ pub mod pallet {
 		/// Cleans the executions times by removing duplicates and putting in ascending order.
 		/// 
 		/// Returns a vec with the cleaned execution times.
-		fn clean_execution_times_vector(execution_times: Vec<UnixTime>) -> Vec<UnixTime> {
-			let mut cleaned_times = execution_times.clone();
-			cleaned_times.sort_unstable();
-			cleaned_times.dedup();
-			
-			return cleaned_times;
+		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
+			execution_times.sort_unstable();
+			execution_times.dedup();
 		}
 
 		/// Trigger tasks for the block time.
@@ -758,7 +755,9 @@ pub mod pallet {
 							who: task.owner_id.clone(),
 							task_id: task_id.clone(),
 						});
-						Tasks::<T>::remove(task_id);
+						if Self::is_completed_task(task.execution_times.to_vec()) {
+							Tasks::<T>::remove(task_id);
+						}
 						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 					},
 				};
@@ -801,7 +800,7 @@ pub mod pallet {
 		/// 
 		/// A task has been completed if all execution times exist in the past and/or are in the current time slot.
 		/// This means there a no more execution times to be run.
-		fn is_completed_task(execution_times: Vec<UnixTime>) -> bool {
+		fn is_completed_task(mut execution_times: Vec<UnixTime>) -> bool {
 			if execution_times.len() == 0 { return true };
 
 			let current_time_slot = match Self::get_current_time_slot() {
@@ -810,8 +809,8 @@ pub mod pallet {
 				Err(_) => return false,
 			};
 
-			let scheduled_times = Self::clean_execution_times_vector(execution_times);
-			let is_complete = *scheduled_times.last().unwrap() <= current_time_slot;
+			Self::clean_execution_times_vector(&mut execution_times);
+			let is_complete = *execution_times.last().unwrap() <= current_time_slot;
 			return is_complete;
 		}
 
@@ -819,7 +818,7 @@ pub mod pallet {
 		///
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
-			let execution_times = Self::clean_execution_times_vector(task.execution_times.to_vec());
+			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
@@ -827,7 +826,7 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
-				for time in execution_times.iter().rev() {
+				for time in task.execution_times.iter().rev() {
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
 					if *time < current_time_slot { 
 						break
@@ -847,22 +846,38 @@ pub mod pallet {
 						break
 					}
 					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
-					match Self::get_scheduled_tasks(*time) {
-						Some(mut task_ids) =>
-							for i in 0..task_ids.len() {
-								if task_ids[i] == task_id {
-									if task_ids.len() == 1 {
-										<ScheduledTasks<T>>::remove(*time);
-									} else {
-										task_ids.remove(i);
-										<ScheduledTasks<T>>::insert(*time, task_ids);
-									}
-									found_task = true;
-									break
+					if let Some(mut task_ids) = Self::get_scheduled_tasks(*time) {
+						for i in 0..task_ids.len() {
+							if task_ids[i] == task_id {
+								if task_ids.len() == 1 {
+									<ScheduledTasks<T>>::remove(*time);
+								} else {
+									task_ids.remove(i);
+									<ScheduledTasks<T>>::insert(*time, task_ids);
 								}
-							},
-						_ => (),
+								found_task = true;
+								break
+							}
+						}
 					}				
+				}
+			} else {
+				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
+				for time in task.execution_times.iter().rev() {
+					if let Some(mut task_ids) = Self::get_scheduled_tasks(*time) {
+						for i in 0..task_ids.len() {
+							if task_ids[i] == task_id {
+								if task_ids.len() == 1 {
+									<ScheduledTasks<T>>::remove(*time);
+								} else {
+									task_ids.remove(i);
+									<ScheduledTasks<T>>::insert(*time, task_ids);
+								}
+								found_task = true;
+								break
+							}
+						}
+					}
 				}
 			}
 
@@ -875,6 +890,8 @@ pub mod pallet {
 		}
 
 		/// Schedule task and return it's task_id.
+		/// With transaction will protect against a partial success where N of M execution times might be full,
+		/// rolling back any successful insertions into the schedule task table.
 		pub fn schedule_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
@@ -913,27 +930,27 @@ pub mod pallet {
 			action: Action<T>,
 			who: T::AccountId,
 			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
+			mut execution_times: Vec<UnixTime>,
 		) -> Result<(), Error<T>> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
 			// Sort list of times then remove consecutive duplicates
-			let cleaned_times = Self::clean_execution_times_vector(execution_times);
-			if cleaned_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
+			Self::clean_execution_times_vector(&mut execution_times);
+			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
-			for time in cleaned_times.iter() {
+			for time in execution_times.iter() {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee = Self::calculate_execution_fee(&action, cleaned_times.len().try_into().unwrap());
+			let fee = Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
-			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), cleaned_times.clone())?;
-			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, execution_times: cleaned_times.try_into().unwrap(), action };
+			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
+			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, execution_times: execution_times.try_into().unwrap(), action };
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
