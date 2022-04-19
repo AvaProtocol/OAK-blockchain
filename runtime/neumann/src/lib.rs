@@ -27,7 +27,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedPointNumber, Percent,
 };
@@ -437,10 +437,10 @@ impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
 	// we don't have stash and controller, thus we don't need the convert as well.
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
+	type ValidatorIdOf = ConvertInto;
 	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
 	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager = CollatorSelection;
+	type SessionManager = ParachainStaking;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
@@ -476,9 +476,56 @@ impl pallet_collator_selection::Config for Runtime {
 	// should be a multiple of session or things will get inconsistent
 	type KickThreshold = Period;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
+	type ValidatorIdOf = ConvertInto;
 	type ValidatorRegistration = Session;
 	type WeightInfo = ();
+}
+
+parameter_types! {
+	/// Default fixed percent a collator takes off the top of due rewards
+	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
+	/// Default percent of inflation set aside for parachain bond every round
+	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
+}
+impl parachain_staking::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
+	/// Minimum round length is 2 minutes (10 * 12 second block times)
+	type MinBlocksPerRound = frame_support::traits::ConstU32<10>;
+	/// Blocks per round
+	type DefaultBlocksPerRound = frame_support::traits::ConstU32<{ 2 * HOURS }>;
+	/// Rounds before the collator leaving the candidates request can be executed
+	type LeaveCandidatesDelay = frame_support::traits::ConstU32<24>;
+	/// Rounds before the candidate bond increase/decrease can be executed
+	type CandidateBondLessDelay = frame_support::traits::ConstU32<24>;
+	/// Rounds before the delegator exit can be executed
+	type LeaveDelegatorsDelay = frame_support::traits::ConstU32<24>;
+	/// Rounds before the delegator revocation can be executed
+	type RevokeDelegationDelay = frame_support::traits::ConstU32<24>;
+	/// Rounds before the delegator bond increase/decrease can be executed
+	type DelegationBondLessDelay = frame_support::traits::ConstU32<24>;
+	/// Rounds before the reward is paid
+	type RewardPaymentDelay = frame_support::traits::ConstU32<2>;
+	/// Minimum collators selected per round, default at genesis and minimum forever after
+	type MinSelectedCandidates = frame_support::traits::ConstU32<8>;
+	/// Maximum top delegations per candidate
+	type MaxTopDelegationsPerCandidate = frame_support::traits::ConstU32<300>;
+	/// Maximum bottom delegations per candidate
+	type MaxBottomDelegationsPerCandidate = frame_support::traits::ConstU32<50>;
+	/// Maximum delegations per delegator
+	type MaxDelegationsPerDelegator = frame_support::traits::ConstU32<100>;
+	type DefaultCollatorCommission = DefaultCollatorCommission;
+	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
+	/// Minimum stake required to become a collator
+	type MinCollatorStk = frame_support::traits::ConstU128<{ 1000 * 1_000_000_000_000_000_000 }>;
+	/// Minimum stake required to be reserved to be a candidate
+	type MinCandidateStk = frame_support::traits::ConstU128<{ 500 * 1_000_000_000_000_000_000 }>;
+	/// Minimum stake required to be reserved to be a delegator
+	type MinDelegation = frame_support::traits::ConstU128<{ 5 * 1_000_000_000_000_000_000 }>;
+	/// Minimum stake required to be reserved to be a delegator
+	type MinDelegatorStk = frame_support::traits::ConstU128<{ 5 * 1_000_000_000_000_000_000 }>;
+	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -817,6 +864,7 @@ construct_runtime!(
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
+		ParachainStaking: parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 25,
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,

@@ -89,6 +89,9 @@ xcm = { git = "https://github.com/paritytech/polkadot", default-features = false
 xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 
+# Moonbeam Dependencies
+parachain-staking = { path = "../../../moonbeam/pallets/parachain-staking", default-features = false }
+
 [features]
 default = [
 	"std",
@@ -134,6 +137,7 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-valve/std",
 	"pallet-vesting/std",
+	"parachain-staking/std",
 	"primitives/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
@@ -168,4 +172,5 @@ runtime-benchmarks = [
 	"pallet-valve/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"parachain-staking/runtime-benchmarks",
 ]
