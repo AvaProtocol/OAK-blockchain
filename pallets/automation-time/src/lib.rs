@@ -91,6 +91,7 @@ pub mod pallet {
 		action: Action<T>,
 	}
 
+	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
 	impl<T: Config> PartialEq for Task<T> {
 		fn eq(&self, other: &Self) -> bool {
 			self.owner_id == other.owner_id &&
@@ -873,7 +874,7 @@ pub mod pallet {
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
-		/// Schedule tasks and return it's task_id.
+		/// Schedule task and return it's task_id.
 		pub fn schedule_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
