@@ -271,12 +271,27 @@ fn schedule_max_execution_times_errors() {
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
-		assert_ok!(AutomationTime::schedule_notify_task(
-			Origin::signed(ALICE),
+		let task_id1 = schedule_task(
+			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME + 360],
 			vec![2, 4]
-		));
+		);
+		match AutomationTime::get_task(task_id1) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				let expected_task = Task::<Test>::create_event_task(
+					ALICE.clone(),
+					vec![50],
+					vec![SCHEDULED_TIME, SCHEDULED_TIME + 360].try_into().unwrap(),
+					vec![2, 4],
+				);
+
+				assert_eq!(task, expected_task);
+			},
+		}
 	})
 }
 
@@ -383,6 +398,7 @@ fn cancel_works_for_multiple_executions_scheduled() {
 
 		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
 
+		assert_eq!(AutomationTime::get_task(task_id1), None);
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			panic!("Tasks scheduled for the time it should have been deleted")
 		}
