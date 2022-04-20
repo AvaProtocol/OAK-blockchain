@@ -74,7 +74,7 @@ pub mod pallet {
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
-	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
@@ -734,7 +734,7 @@ pub mod pallet {
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						let task_action_weight = match task.action {
+						let task_action_weight = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
@@ -744,15 +744,12 @@ pub mod pallet {
 									task_id.clone(),
 								),
 						};
+						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
 				};
-
-				if let Some(task) = Self::get_task(task_id) {
-					Self::decrement_task_and_remove_if_complete(*task_id, task);
-				}
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
