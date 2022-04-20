@@ -81,6 +81,20 @@ pub mod pallet {
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
+	/// The enum that stores all action specific data.
+	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct MissedTask<T: Config> {
+		task_id: T::Hash,
+		execution_time: UnixTime,
+	}
+
+	impl<T: Config> MissedTask<T> {
+		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
+			MissedTask::<T> { task_id, execution_time }
+		}
+	}
+
 	/// The struct that stores all information needed for a task.
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
@@ -212,7 +226,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
-	pub type MissedQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
@@ -293,6 +307,7 @@ pub mod pallet {
 		TaskMissed {
 			who: T::AccountId,
 			task_id: T::Hash,
+			execution_time: UnixTime,
 		},
 	}
 
@@ -601,9 +616,15 @@ pub mod pallet {
 			last_time_slot: u64,
 		) -> (Weight, u64) {
 			if current_time_slot != last_time_slot {
-				let mut missed_tasks = Self::get_task_queue();
+				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
-				missed_queue.append(&mut missed_tasks);
+				for missed_task in missed_tasks {
+					let new_missed_task: MissedTask<T> = MissedTask::<T> {
+						task_id: missed_task,
+						execution_time: last_time_slot,
+					};
+					missed_queue.push(new_missed_task);
+				}
 				MissedQueue::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
 				if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
@@ -666,7 +687,13 @@ pub mod pallet {
 			}
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
-			missed_queue.append(&mut missed_tasks);
+			for missed_task in missed_tasks {
+				let new_missed_task: MissedTask<T> = MissedTask::<T> {
+					task_id: missed_task,
+					execution_time: last_missed_slot,
+				};
+				missed_queue.push(new_missed_task);
+			}
 			MissedQueue::<T>::put(missed_queue);
 			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, diff)
@@ -745,24 +772,25 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_missed_tasks(
-			mut task_ids: Vec<T::Hash>,
+			mut missed_tasks: Vec<MissedTask<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<T::Hash>, Weight) {
+		) -> (Vec<MissedTask<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
-			for task_id in task_ids.iter() {
+			for missed_task in missed_tasks.iter() {
 				consumed_task_index += 1;
 
-				let action_weight = match Self::get_task(task_id) {
+				let action_weight = match Self::get_task(missed_task.task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
+						Self::deposit_event(Event::TaskNotFound { task_id: missed_task.task_id.clone() });
 						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 					},
 					Some(task) => {
 						Self::deposit_event(Event::TaskMissed {
 							who: task.owner_id.clone(),
-							task_id: task_id.clone(),
+							task_id: missed_task.task_id.clone(),
+							execution_time: missed_task.execution_time,
 						});
-						Self::decrement_task_and_remove_if_complete(*task_id, task);
+						Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
 						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 					},
 				};
@@ -774,10 +802,10 @@ pub mod pallet {
 				}
 			}
 
-			if consumed_task_index == task_ids.len() {
+			if consumed_task_index == missed_tasks.len() {
 				return (vec![], weight_left)
 			} else {
-				return (task_ids.split_off(consumed_task_index), weight_left)
+				return (missed_tasks.split_off(consumed_task_index), weight_left)
 			}
 		}
 
@@ -806,7 +834,7 @@ pub mod pallet {
 		/// A task has been completed if executions left equals 0.
 		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
 			task.executions_left = task.executions_left - 1;
-			if task.executions_left == 0 {
+			if task.executions_left <= 0 {
 				Tasks::<T>::remove(task_id);
 			} else {
 				Tasks::<T>::insert(task_id, task);

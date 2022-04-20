@@ -27,7 +27,7 @@ pub mod v1 {
 pub mod v2 {
 	use frame_support::{migration::{storage_key_iter, get_storage_value}, traits::StorageVersion, Twox64Concat, BoundedVec};
 
-	use crate::{LastTimeSlot, Pallet, Task, Vec, TaskQueue, MissedQueue};
+	use crate::{LastTimeSlot, Pallet, Task, Vec, TaskQueue, MissedQueue, MissedTask};
 
 	use super::*;
 
@@ -41,7 +41,7 @@ pub mod v2 {
 			.collect();
 		let empty_task_queue: Vec<T::Hash> = Vec::new();
 		TaskQueue::<T>::put(empty_task_queue);
-		let empty_missed_queue: Vec<T::Hash> = Vec::new();
+		let empty_missed_queue: Vec<MissedTask<T>> = Vec::new();
 		MissedQueue::<T>::put(empty_missed_queue);
 		let tasks_prefix: &[u8] = b"Tasks";
 		let _tasks: Vec<_> = storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix)

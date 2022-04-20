@@ -17,7 +17,7 @@
 
 use crate::{
 	mock::*, Action, Error, LastTimeSlot, MissedQueue, Shutdown, Task, TaskHashInput, TaskQueue,
-	Tasks, migrations::{v1, v2},
+	Tasks, migrations::{v1, v2}, MissedTask,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
@@ -581,7 +581,8 @@ fn trigger_tasks_nothing_to_do() {
 fn trigger_tasks_updates_queues() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let missed_task_id =
-			add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
+			add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME - 3600], Action::Notify { message: vec![40] });
+		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -591,7 +592,7 @@ fn trigger_tasks_updates_queues() {
 		AutomationTime::trigger_tasks(50_000);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
-		assert_eq!(AutomationTime::get_missed_queue()[0], missed_task_id);
+		assert_eq!(AutomationTime::get_missed_queue()[0], missed_task);
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue()[0], scheduled_task_id);
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
@@ -605,6 +606,7 @@ fn trigger_tasks_handles_missed_slots() {
 		add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 7200);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -613,7 +615,7 @@ fn trigger_tasks_handles_missed_slots() {
 		AutomationTime::trigger_tasks(90_000);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 2);
-		assert_eq!(AutomationTime::get_missed_queue()[1], missed_task_id);
+		assert_eq!(AutomationTime::get_missed_queue()[1], missed_task);
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue()[0], scheduled_task_id);
 		assert_eq!(events(), vec![],);
@@ -650,19 +652,23 @@ fn trigger_tasks_limits_missed_slots() {
 					Event::AutomationTime(crate::Event::Notify { message: vec![50] }),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
-						task_id: missing_task_id0
+						task_id: missing_task_id0,
+						execution_time: SCHEDULED_TIME - 25200,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
-						task_id: missing_task_id5
+						task_id: missing_task_id5,
+						execution_time: SCHEDULED_TIME - 25200,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
-						task_id: missing_task_id4
+						task_id: missing_task_id4,
+						execution_time: SCHEDULED_TIME - 25200,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
-						task_id: missing_task_id3
+						task_id: missing_task_id3,
+						execution_time: SCHEDULED_TIME - 25200,
 					}),
 				]
 			);
@@ -790,8 +796,8 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1 }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2 }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1, execution_time: 0 }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2, execution_time: 0 }),
 			]
 		);
 
@@ -840,8 +846,8 @@ fn missed_tasks_updates_executions_left() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1 }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2 }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1, execution_time: SCHEDULED_TIME }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2, execution_time: SCHEDULED_TIME }),
 			]
 		);
 
@@ -1000,7 +1006,7 @@ fn on_init_runs_tasks() {
 		AutomationTime::on_initialize(2);
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id3 })],
+			[Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id3, execution_time: LAST_BLOCK_TIME })],
 		);
 		assert_eq!(AutomationTime::get_task(task_id3), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
@@ -1042,8 +1048,8 @@ fn on_init_check_task_queue() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[3] }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[4] }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[3], execution_time: LAST_BLOCK_TIME }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[4], execution_time: LAST_BLOCK_TIME }),
 			],
 		);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
@@ -1177,9 +1183,10 @@ fn add_task_to_missed_queue(
 	scheduled_time: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, scheduled_time, action);
+	let task_id = create_task(owner, provided_id, scheduled_time.clone(), action);
+	let missed_task = MissedTask::<Test>::create_missed_task(task_id, scheduled_time[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
-	missed_queue.push(task_id);
+	missed_queue.push(missed_task);
 	MissedQueue::<Test>::put(missed_queue);
 	task_id
 }
