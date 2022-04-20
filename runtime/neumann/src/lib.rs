@@ -457,8 +457,7 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
-	pub const DefaultBlocksPerRound: u32 = 10 * MINUTES;
-	pub const  MinCollatorStk: u128 = 1_000_000_000;
+	pub const DefaultBlocksPerRound: u32 = 1 * MINUTES;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -491,7 +490,7 @@ impl parachain_staking::Config for Runtime {
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	/// Minimum stake required to become a collator
-	type MinCollatorStk = MinCollatorStk;
+	type MinCollatorStk = ConstU128<1_000_000_000>;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<1_000_000>;
 	/// Minimum stake required to be reserved to be a delegator
