@@ -39,7 +39,7 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
+	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
@@ -303,7 +303,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	/// The action to take on a Runtime Upgrade
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 parameter_types! {
@@ -457,46 +457,46 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
-	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
+	pub const DefaultBlocksPerRound: u32 = 10 * MINUTES;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
-	type MinBlocksPerRound = frame_support::traits::ConstU32<10>;
+	type MinBlocksPerRound = ConstU32<10>;
 	/// Blocks per round
 	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = frame_support::traits::ConstU32<24>;
+	type LeaveCandidatesDelay = ConstU32<24>;
 	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = frame_support::traits::ConstU32<24>;
+	type CandidateBondLessDelay = ConstU32<24>;
 	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = frame_support::traits::ConstU32<24>;
+	type LeaveDelegatorsDelay = ConstU32<24>;
 	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = frame_support::traits::ConstU32<24>;
+	type RevokeDelegationDelay = ConstU32<24>;
 	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = frame_support::traits::ConstU32<24>;
+	type DelegationBondLessDelay = ConstU32<24>;
 	/// Rounds before the reward is paid
-	type RewardPaymentDelay = frame_support::traits::ConstU32<2>;
+	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = frame_support::traits::ConstU32<8>;
+	type MinSelectedCandidates = ConstU32<2>;
 	/// Maximum top delegations per candidate
-	type MaxTopDelegationsPerCandidate = frame_support::traits::ConstU32<300>;
+	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
-	type MaxBottomDelegationsPerCandidate = frame_support::traits::ConstU32<50>;
+	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
 	/// Maximum delegations per delegator
-	type MaxDelegationsPerDelegator = frame_support::traits::ConstU32<100>;
+	type MaxDelegationsPerDelegator = ConstU32<100>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	/// Minimum stake required to become a collator
-	type MinCollatorStk = frame_support::traits::ConstU128<{ 1000 * 1_000_000_000_000_000_000 }>;
+	type MinCollatorStk = ConstU128<1_000_000_000>;
 	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = frame_support::traits::ConstU128<{ 500 * 1_000_000_000_000_000_000 }>;
+	type MinCandidateStk = ConstU128<1_000_000>;
 	/// Minimum stake required to be reserved to be a delegator
-	type MinDelegation = frame_support::traits::ConstU128<{ 5 * 1_000_000_000_000_000_000 }>;
+	type MinDelegation = ConstU128<100>;
 	/// Minimum stake required to be reserved to be a delegator
-	type MinDelegatorStk = frame_support::traits::ConstU128<{ 5 * 1_000_000_000_000_000_000 }>;
+	type MinDelegatorStk = ConstU128<1_000>;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
