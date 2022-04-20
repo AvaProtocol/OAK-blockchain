@@ -7,14 +7,16 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation,
-	validate_vesting, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
+	Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
 	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
+use parachain_staking::{inflation, InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
+use sp_runtime::Perbill;
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
@@ -370,6 +372,31 @@ pub fn neumann_latest() -> ChainSpec {
 	)
 }
 
+pub fn neumann_inflation_config() -> InflationInfo<Balance> {
+	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
+		inflation::perbill_annual_to_perbill_round(
+			annual,
+			// rounds per year
+			inflation::BLOCKS_PER_YEAR / neumann_runtime::DefaultBlocksPerRound::get(),
+		)
+	}
+	let annual = Range {
+		min: Perbill::from_percent(4),
+		ideal: Perbill::from_percent(5),
+		max: Perbill::from_percent(5),
+	};
+	InflationInfo {
+		// staking expectations
+		expect: Range {
+			min: 100_000 * 1_000_000_000_000_000_000,
+			ideal: 200_000 * 1_000_000_000_000_000_000,
+			max: 500_000 * 1_000_000_000_000_000_000,
+		},
+		annual,
+		round: to_round_inflation(annual),
+	}
+}
+
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,
@@ -389,10 +416,14 @@ fn testnet_genesis(
 		},
 		balances: neumann_runtime::BalancesConfig { balances: endowed_accounts },
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
-		collator_selection: neumann_runtime::CollatorSelectionConfig {
-			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
-			candidacy_bond: collator_bond,
-			..Default::default()
+		parachain_staking: neumann_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, collator_bond))
+				.collect(),
+			delegations: vec![],
+			inflation_config: neumann_inflation_config(),
 		},
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables

@@ -466,6 +466,7 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
+	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -474,7 +475,7 @@ impl parachain_staking::Config for Runtime {
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
 	type MinBlocksPerRound = frame_support::traits::ConstU32<10>;
 	/// Blocks per round
-	type DefaultBlocksPerRound = frame_support::traits::ConstU32<{ 2 * HOURS }>;
+	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
 	type LeaveCandidatesDelay = frame_support::traits::ConstU32<24>;
 	/// Rounds before the candidate bond increase/decrease can be executed
