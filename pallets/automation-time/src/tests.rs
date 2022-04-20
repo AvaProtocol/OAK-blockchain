@@ -606,7 +606,7 @@ fn trigger_tasks_handles_missed_slots() {
 		add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 7200);
+		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -658,17 +658,17 @@ fn trigger_tasks_limits_missed_slots() {
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
 						task_id: missing_task_id5,
-						execution_time: SCHEDULED_TIME - 25200,
+						execution_time: SCHEDULED_TIME - 18000,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
 						task_id: missing_task_id4,
-						execution_time: SCHEDULED_TIME - 25200,
+						execution_time: SCHEDULED_TIME - 14400,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
 						who: ALICE,
 						task_id: missing_task_id3,
-						execution_time: SCHEDULED_TIME - 25200,
+						execution_time: SCHEDULED_TIME - 10800,
 					}),
 				]
 			);

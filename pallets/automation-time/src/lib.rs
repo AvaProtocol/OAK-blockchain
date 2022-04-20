@@ -687,14 +687,9 @@ pub mod pallet {
 			}
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
-			for missed_task in missed_tasks {
-				let new_missed_task: MissedTask<T> = MissedTask::<T> {
-					task_id: missed_task,
-					execution_time: last_missed_slot,
-				};
-				missed_queue.push(new_missed_task);
-			}
+			missed_queue.append(&mut missed_tasks);
 			MissedQueue::<T>::put(missed_queue);
+
 			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, diff)
 		}
@@ -706,16 +701,22 @@ pub mod pallet {
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
-		) -> Vec<T::Hash> {
+		) -> Vec<MissedTask<T>> {
+			let mut tasks = vec![];
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
 			if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 				ScheduledTasks::<T>::remove(new_time_slot);
-				task_ids.into_inner()
-			} else {
-				vec![]
+				for task_id in task_ids {
+					let new_missed_task: MissedTask<T> = MissedTask::<T> {
+						task_id,
+						execution_time: new_time_slot,
+					};
+					tasks.push(new_missed_task);
+				}
 			}
+			return tasks;
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.

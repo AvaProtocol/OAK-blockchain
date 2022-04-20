@@ -200,7 +200,7 @@ benchmarks! {
 		let v in 0 .. 1;
 
 		let weight_left = 50_000_000_000;
-		let mut task_ids = vec![];
+		let mut missed_tasks = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u32 = 10800;
 
@@ -208,25 +208,27 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
+			let missed_task = MissedTask::<T>::create_missed_task(task_id, time.into());
 			<Tasks<T>>::insert(task_id, task);
-			task_ids.push(task_id)
+			missed_tasks.push(missed_task)
 		}
-	}: { AutomationTime::<T>::run_missed_tasks(task_ids, weight_left) }
+	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
 
 	run_missed_tasks_many_missing {
 		let v in 0 .. 1;
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
-		let mut task_ids = vec![];
+		let mut missed_tasks = vec![];
 		let weight_left = 500_000_000_000;
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			task_ids.push(task_id)
+			let missed_task = MissedTask::<T>::create_missed_task(task_id, time.into());
+			missed_tasks.push(missed_task)
 		}
-	}: { AutomationTime::<T>::run_missed_tasks(task_ids, weight_left) }
+	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
 
 	/*
 	* This section is to test run_tasks.
