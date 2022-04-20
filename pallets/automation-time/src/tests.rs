@@ -461,7 +461,7 @@ fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner: AccountId = ALICE;
 		let task_id =
-			add_task_to_task_queue(owner, vec![40], SCHEDULED_TIME, Action::Notify { message: vec![2, 4, 5] });
+			add_task_to_task_queue(owner, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![2, 4, 5] });
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME, SCHEDULED_TIME));
 
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
@@ -581,7 +581,7 @@ fn trigger_tasks_nothing_to_do() {
 fn trigger_tasks_updates_queues() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let missed_task_id =
-			add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, Action::Notify { message: vec![40] });
+			add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -602,7 +602,7 @@ fn trigger_tasks_updates_queues() {
 #[test]
 fn trigger_tasks_handles_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		add_task_to_task_queue(ALICE, vec![40], SCHEDULED_TIME, Action::Notify { message: vec![40] });
+		add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
@@ -624,7 +624,7 @@ fn trigger_tasks_handles_missed_slots() {
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let missing_task_id0 =
-			add_task_to_task_queue(ALICE, vec![40], 0, Action::Notify { message: vec![40] });
+			add_task_to_task_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
 		let missing_task_id1 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
@@ -697,14 +697,14 @@ fn trigger_tasks_completes_all_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			0,
+			vec![0],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			0,
+			vec![0],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -751,14 +751,14 @@ fn trigger_tasks_completes_some_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			0,
+			vec![0],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			0,
+			vec![0],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -780,9 +780,9 @@ fn trigger_tasks_completes_some_tasks() {
 fn trigger_tasks_completes_all_missed_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id1 =
-			add_task_to_missed_queue(ALICE, vec![40], Action::Notify { message: vec![40] });
+			add_task_to_missed_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
 		let task_id2 =
-			add_task_to_missed_queue(ALICE, vec![50], Action::Notify { message: vec![40] });
+			add_task_to_missed_queue(ALICE, vec![50], vec![0], Action::Notify { message: vec![40] });
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::trigger_tasks(130_000);
@@ -802,19 +802,83 @@ fn trigger_tasks_completes_all_missed_tasks() {
 }
 
 #[test]
+fn missed_tasks_updates_executions_left() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 = add_task_to_missed_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
+			Action::Notify { message: vec![40] },
+		);
+		let task_id2 = add_task_to_missed_queue(
+			ALICE,
+			vec![50],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
+			Action::Notify { message: vec![40] },
+		);
+
+		match AutomationTime::get_task(task_id1) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 2);
+			},
+		}
+		match AutomationTime::get_task(task_id2) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 2);
+			},
+		}
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		AutomationTime::trigger_tasks(130_000);
+
+		assert_eq!(
+			events(),
+			[
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1 }),
+				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2 }),
+			]
+		);
+
+		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+		match AutomationTime::get_task(task_id1) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 1);
+			},
+		}
+		match AutomationTime::get_task(task_id2) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 1);
+			},
+		}
+	})
+}
+
+#[test]
 fn trigger_tasks_completes_some_native_transfer_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			SCHEDULED_TIME,
+			vec![SCHEDULED_TIME],
 			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
 		);
 		add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			SCHEDULED_TIME,
+			vec![SCHEDULED_TIME],
 			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
 		);
 
@@ -829,26 +893,91 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 }
 
 #[test]
+fn trigger_tasks_updates_executions_left() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
+		let task_id01 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
+		);
+
+		match AutomationTime::get_task(task_id01) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 2);
+			},
+		}
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		match AutomationTime::get_task(task_id01) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 1);
+			},
+		}
+	})
+}
+
+#[test]
+fn trigger_tasks_removes_completed_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
+		let task_id01 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
+		);
+
+		match AutomationTime::get_task(task_id01) {
+			None => {
+				panic!("A task should exist if it was scheduled")
+			},
+			Some(task) => {
+				assert_eq!(task.executions_left(), 1);
+			},
+		}
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		assert_eq!(AutomationTime::get_task(task_id01), None);
+	})
+}
+
+#[test]
 fn on_init_runs_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			0,
+			vec![0],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			0,
+			vec![0],
 			Action::Notify { message: message_two.clone() },
 		);
 		let task_id3 = add_task_to_task_queue(
 			ALICE, 
 			vec![60], 
-			0, 
+			vec![0], 
 			Action::Notify { message: vec![50] },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -887,7 +1016,7 @@ fn on_init_check_task_queue() {
 
 		for i in 0..5 {
 			let task_id =
-				add_task_to_task_queue(ALICE, vec![i], SCHEDULED_TIME, Action::Notify { message: vec![i] });
+				add_task_to_task_queue(ALICE, vec![i], vec![SCHEDULED_TIME], Action::Notify { message: vec![i] });
 			tasks.push(task_id);
 		}
 		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
@@ -931,18 +1060,18 @@ fn on_init_shutdown() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			SCHEDULED_TIME,
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			SCHEDULED_TIME,
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
 		let task_id3 =
-			add_task_to_task_queue(ALICE, vec![60], SCHEDULED_TIME, Action::Notify { message: vec![50] });
+			add_task_to_task_queue(ALICE, vec![60], vec![SCHEDULED_TIME], Action::Notify { message: vec![50] });
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);
@@ -979,8 +1108,8 @@ fn migration_v1() {
 #[test]
 fn migration_v2() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		add_task_to_task_queue(ALICE, vec![60], SCHEDULED_TIME, Action::Notify { message: vec![50] });
-		add_task_to_missed_queue(ALICE, vec![60], Action::Notify { message: vec![50] });
+		add_task_to_task_queue(ALICE, vec![60], vec![SCHEDULED_TIME], Action::Notify { message: vec![50] });
+		add_task_to_missed_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -1014,7 +1143,7 @@ fn migration_v2() {
 fn schedule_task(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time:Vec<u64>,
+	scheduled_time: Vec<u64>,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
 	Balances::set_balance(RawOrigin::Root.into(), owner, 100_000, 5).unwrap();
@@ -1032,7 +1161,7 @@ fn schedule_task(
 fn add_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: u64,
+	scheduled_time: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_id = create_task(owner, provided_id, scheduled_time, action);
@@ -1045,9 +1174,10 @@ fn add_task_to_task_queue(
 fn add_task_to_missed_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
+	scheduled_time: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, 0, action);
+	let task_id = create_task(owner, provided_id, scheduled_time, action);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(task_id);
 	MissedQueue::<Test>::put(missed_queue);
@@ -1057,7 +1187,7 @@ fn add_task_to_missed_queue(
 fn create_task(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: u64,
+	scheduled_time: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_hash_input =
@@ -1068,14 +1198,14 @@ fn create_task(
 			Task::<Test>::create_event_task(
 				owner,
 				provided_id,
-				vec![scheduled_time].try_into().unwrap(),
+				scheduled_time.try_into().unwrap(),
 				message,
 			),
 		Action::NativeTransfer { sender: _, recipient, amount } =>
 			Task::<Test>::create_native_transfer_task(
 				owner,
 				provided_id,
-				vec![scheduled_time].try_into().unwrap(),
+				scheduled_time.try_into().unwrap(),
 				recipient,
 				amount,
 			),

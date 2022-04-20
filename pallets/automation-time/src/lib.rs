@@ -88,6 +88,7 @@ pub mod pallet {
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
 		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		executions_left: u32,
 		action: Action<T>,
 	}
 
@@ -97,6 +98,7 @@ pub mod pallet {
 			self.owner_id == other.owner_id &&
 			self.provided_id == other.provided_id &&
 			self.action == other.action &&
+			self.executions_left == other.executions_left &&
 			self.execution_times.len() == other.execution_times.len() &&
 			self.execution_times.capacity() == other.execution_times.capacity() &&
 			self.execution_times.to_vec() == other.execution_times.to_vec()
@@ -111,7 +113,8 @@ pub mod pallet {
 			message: Vec<u8>,
 		) -> Task<T> {
 			let action = Action::Notify { message };
-			Task::<T> { owner_id, provided_id, execution_times, action }
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
 		}
 		pub fn create_native_transfer_task(
 			owner_id: AccountOf<T>,
@@ -125,7 +128,12 @@ pub mod pallet {
 				recipient: recipient_id,
 				amount,
 			};
-			Task::<T> { owner_id, provided_id, execution_times, action }
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+		}
+
+		pub fn executions_left(&self) -> u32 {
+			self.executions_left
 		}
 	}
 
@@ -484,8 +492,6 @@ pub mod pallet {
 		}
 
 		/// Cleans the executions times by removing duplicates and putting in ascending order.
-		/// 
-		/// Returns a vec with the cleaned execution times.
 		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
 			execution_times.sort_unstable();
 			execution_times.dedup();
@@ -711,14 +717,15 @@ pub mod pallet {
 									task_id.clone(),
 								),
 						};
-						if Self::is_completed_task(task.execution_times.to_vec()) {
-							Tasks::<T>::remove(task_id);
-						}
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
 				};
+
+				if let Some(task) = Self::get_task(task_id) {
+					Self::decrement_task_and_remove_if_complete(*task_id, task);
+				}
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
@@ -755,9 +762,7 @@ pub mod pallet {
 							who: task.owner_id.clone(),
 							task_id: task_id.clone(),
 						});
-						if Self::is_completed_task(task.execution_times.to_vec()) {
-							Tasks::<T>::remove(task_id);
-						}
+						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 					},
 				};
@@ -796,22 +801,16 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
-		/// Determines if a task has been completed.
-		/// 
-		/// A task has been completed if all execution times exist in the past and/or are in the current time slot.
-		/// This means there a no more execution times to be run.
-		fn is_completed_task(mut execution_times: Vec<UnixTime>) -> bool {
-			if execution_times.len() == 0 { return true };
-
-			let current_time_slot = match Self::get_current_time_slot() {
-				Ok(time_slot) => time_slot,
-				// This will only occur for the first block in the chain.
-				Err(_) => return false,
-			};
-
-			Self::clean_execution_times_vector(&mut execution_times);
-			let is_complete = *execution_times.last().unwrap() <= current_time_slot;
-			return is_complete;
+		/// Decrements task executions left.
+		/// If task is complete then removes task. If task not complete update task map.
+		/// A task has been completed if executions left equals 0.
+		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
+			task.executions_left = task.executions_left - 1;
+			if task.executions_left == 0 {
+				Tasks::<T>::remove(task_id);
+			} else {
+				Tasks::<T>::insert(task_id, task);
+			}
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
@@ -950,7 +949,14 @@ pub mod pallet {
 				.map_err(|_| Error::InsufficientBalance)?;
 
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
-			let task: Task<T> = Task::<T> { owner_id: who.clone(), provided_id, execution_times: execution_times.try_into().unwrap(), action };
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			let task: Task<T> = Task::<T> {
+				owner_id: who.clone(),
+				provided_id,
+				execution_times: execution_times.try_into().unwrap(),
+				executions_left,
+				action,
+			};
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
