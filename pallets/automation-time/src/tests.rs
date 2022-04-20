@@ -1149,7 +1149,7 @@ fn migration_v2() {
 fn schedule_task(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: Vec<u64>,
+	scheduled_times: Vec<u64>,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
 	Balances::set_balance(RawOrigin::Root.into(), owner, 100_000, 5).unwrap();
@@ -1158,7 +1158,7 @@ fn schedule_task(
 	assert_ok!(AutomationTime::schedule_notify_task(
 		Origin::signed(owner),
 		provided_id,
-		scheduled_time,
+		scheduled_times,
 		message,
 	));
 	BlakeTwo256::hash_of(&task_hash_input)
@@ -1167,10 +1167,10 @@ fn schedule_task(
 fn add_task_to_task_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: Vec<u64>,
+	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, scheduled_time, action);
+	let task_id = create_task(owner, provided_id, scheduled_times, action);
 	let mut task_queue = AutomationTime::get_task_queue();
 	task_queue.push(task_id);
 	TaskQueue::<Test>::put(task_queue);
@@ -1180,11 +1180,11 @@ fn add_task_to_task_queue(
 fn add_task_to_missed_queue(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: Vec<u64>,
+	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, scheduled_time.clone(), action);
-	let missed_task = MissedTask::<Test>::create_missed_task(task_id, scheduled_time[0]);
+	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
+	let missed_task = MissedTask::<Test>::create_missed_task(task_id, scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(missed_task);
 	MissedQueue::<Test>::put(missed_queue);
@@ -1194,7 +1194,7 @@ fn add_task_to_missed_queue(
 fn create_task(
 	owner: AccountId,
 	provided_id: Vec<u8>,
-	scheduled_time: Vec<u64>,
+	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_hash_input =
@@ -1205,14 +1205,14 @@ fn create_task(
 			Task::<Test>::create_event_task(
 				owner,
 				provided_id,
-				scheduled_time.try_into().unwrap(),
+				scheduled_times.try_into().unwrap(),
 				message,
 			),
 		Action::NativeTransfer { sender: _, recipient, amount } =>
 			Task::<Test>::create_native_transfer_task(
 				owner,
 				provided_id,
-				scheduled_time.try_into().unwrap(),
+				scheduled_times.try_into().unwrap(),
 				recipient,
 				amount,
 			),

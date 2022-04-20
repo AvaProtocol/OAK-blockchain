@@ -81,7 +81,7 @@ pub mod pallet {
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
-	/// The enum that stores all action specific data.
+	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct MissedTask<T: Config> {
@@ -961,7 +961,6 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			// Sort list of times then remove consecutive duplicates
 			Self::clean_execution_times_vector(&mut execution_times);
 			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
