@@ -11,8 +11,8 @@ use crate::chain_spec::{
 	Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, MinCollatorStk, SudoConfig, TechnicalMembershipConfig, ValveConfig,
+	VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use parachain_staking::{inflation, InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
@@ -61,7 +61,7 @@ pub fn development_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
-			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+			let collator_bond = MinCollatorStk::get();
 
 			testnet_genesis(
 				// initial collators.
@@ -129,7 +129,7 @@ pub fn local_testnet_config() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
-			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+			let collator_bond = MinCollatorStk::get();
 
 			testnet_genesis(
 				// initial collators.
@@ -211,7 +211,7 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 				vest_ending_time,
 			);
 
-			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+			let collator_bond = MinCollatorStk::get();
 
 			testnet_genesis(
 				// initial collators.
@@ -304,7 +304,7 @@ pub fn neumann_latest() -> ChainSpec {
 				EXISTENTIAL_DEPOSIT,
 			);
 
-			let collator_bond = EXISTENTIAL_DEPOSIT * 16;
+			let collator_bond = MinCollatorStk::get();
 
 			testnet_genesis(
 				// initial collators.
