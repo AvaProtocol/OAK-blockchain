@@ -111,4 +111,5 @@ polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "r
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.18" }
 
 # Moonbeam Dependencies
-parachain-staking = { path = "../../moonbeam/pallets/parachain-staking", default-features = false }
+# TODO: change branch to oak-polkadot-v0.19.8 before merging
+parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "nikhil/oak-polkadot-v0.9.18" }
