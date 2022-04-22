@@ -469,7 +469,6 @@ pub mod pallet {
 		/// Complete as many tasks as possible given the maximum weight.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			let mut weight_left: Weight = max_weight;
-			info!("weight left: {}", weight_left);
 
 			// The last_missed_slot might not be caught up within just 1 block.
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
