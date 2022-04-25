@@ -46,7 +46,7 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec, 
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec,
 	storage::{with_transaction, TransactionOutcome::*},
 };
 use frame_system::pallet_prelude::*;
@@ -146,7 +146,7 @@ pub mod pallet {
 			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
 		}
 
-		pub fn executions_left(&self) -> u32 {
+		pub fn get_executions_left(&self) -> u32 {
 			self.executions_left
 		}
 	}
@@ -356,7 +356,7 @@ pub mod pallet {
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -395,7 +395,7 @@ pub mod pallet {
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -429,7 +429,7 @@ pub mod pallet {
 		/// # Errors
 		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(<T as Config>::WeightInfo::cancel_overflow_task())]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -452,7 +452,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_overflow_task())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_overflow_task_full())]
 		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -673,8 +673,7 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff =
-				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
+			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
 					diff = i;
@@ -682,8 +681,7 @@ pub mod pallet {
 				}
 				let mut slot_missed_tasks = Self::shift_missed_tasks(last_missed_slot, i);
 				missed_tasks.append(&mut slot_missed_tasks);
-				allotted_weight =
-					allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
+				allotted_weight = allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
 			}
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
@@ -831,7 +829,7 @@ pub mod pallet {
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
 		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
-			task.executions_left = task.executions_left - 1;
+			task.executions_left = task.executions_left.saturating_sub(1);
 			if task.executions_left <= 0 {
 				Tasks::<T>::remove(task_id);
 			} else {
@@ -853,12 +851,12 @@ pub mod pallet {
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
 				for time in task.execution_times.iter().rev() {
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
-					if *time < current_time_slot { 
+					if *time < current_time_slot {
 						break
 					}
 					// Execution time is equal to last time slot and task queue should be checked for task id.
 					// After checking task queue no other execution times need to be removed.
-					if *time == last_time_slot { 
+					if *time == last_time_slot {
 						let mut task_queue = Self::get_task_queue();
 						for i in 0..task_queue.len() {
 							if task_queue[i] == task_id {
@@ -884,7 +882,7 @@ pub mod pallet {
 								break
 							}
 						}
-					}				
+					}
 				}
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.

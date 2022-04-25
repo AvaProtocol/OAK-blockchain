@@ -134,13 +134,13 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
-	fn schedule_notify_task_full() -> Weight {
+	fn schedule_notify_task_full(_v: u32) -> Weight {
 		0
 	}
 	fn schedule_native_transfer_task_empty() -> Weight {
 		0
 	}
-	fn schedule_native_transfer_task_full() -> Weight {
+	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
 	fn cancel_scheduled_task() -> Weight {
@@ -158,7 +158,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn force_cancel_scheduled_task_full() -> Weight {
 		0
 	}
-	fn force_cancel_overflow_task() -> Weight {
+	fn force_cancel_overflow_task_full() -> Weight {
 		0
 	}
 	fn run_notify_task() -> Weight {
