@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [278] - 2022-04-29
+## [279] - 2022-04-29
 - Change scheduled time slots from minutes to hours. Migration used to clear all tasks in existing maps and queues.
 - Change max tasks in a given slot to 256 per hour.
 - Added recurring tasks feature to schedule up to 24 recurring executions for a single task.
