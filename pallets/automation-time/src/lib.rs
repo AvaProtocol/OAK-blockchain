@@ -452,7 +452,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_overflow_task_full())]
+		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
 		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
 			ensure_root(origin)?;
 
@@ -849,14 +849,14 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
-				for time in task.execution_times.iter().rev() {
+				for execution_time in task.execution_times.iter().rev() {
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
-					if *time < current_time_slot {
+					if *execution_time < current_time_slot {
 						break
 					}
 					// Execution time is equal to last time slot and task queue should be checked for task id.
 					// After checking task queue no other execution times need to be removed.
-					if *time == last_time_slot {
+					if *execution_time == last_time_slot {
 						let mut task_queue = Self::get_task_queue();
 						for i in 0..task_queue.len() {
 							if task_queue[i] == task_id {
@@ -869,14 +869,14 @@ pub mod pallet {
 						break
 					}
 					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*time) {
+					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
 						for i in 0..task_ids.len() {
 							if task_ids[i] == task_id {
 								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*time);
+									<ScheduledTasks<T>>::remove(*execution_time);
 								} else {
 									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*time, task_ids);
+									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
 								}
 								found_task = true;
 								break
@@ -886,15 +886,15 @@ pub mod pallet {
 				}
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
-				for time in task.execution_times.iter().rev() {
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*time) {
+				for execution_time in task.execution_times.iter().rev() {
+					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
 						for i in 0..task_ids.len() {
 							if task_ids[i] == task_id {
 								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*time);
+									<ScheduledTasks<T>>::remove(*execution_time);
 								} else {
 									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*time, task_ids);
+									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
 								}
 								found_task = true;
 								break

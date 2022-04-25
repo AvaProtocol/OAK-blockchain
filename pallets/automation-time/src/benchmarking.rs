@@ -28,7 +28,6 @@ use crate::Pallet as AutomationTime;
 const SEED: u32 = 0;
 // existential deposit multiplier
 const ED_MULTIPLIER: u32 = 10;
-const MAX_TASKS: u32 = 256;
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount =
@@ -56,8 +55,8 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 	let amount: BalanceOf<T> =
 		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
-		for i in 0..count {
-			let provided_id: Vec<u8> = vec![i.try_into().unwrap()];
+	for i in 0..count {
+		let provided_id: Vec<u8> = vec![i.try_into().unwrap()];
 		task_id =
 			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), vec![time]).unwrap();
 		let task = Task::<T>::create_native_transfer_task(
@@ -68,25 +67,6 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 			amount.clone(),
 		);
 		<Tasks<T>>::insert(task_id, task);
-	}
-	task_id
-}
-
-fn set_task_queue<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
-	let mut task_id: T::Hash = T::Hash::default();
-
-	for i in 0..count {
-		let provided_id: Vec<u8> = vec![i.try_into().unwrap()];
-		let task_hash_input =
-			TaskHashInput::<T>::create_hash_input(owner.clone(), provided_id.clone());
-		task_id = T::Hashing::hash_of(&task_hash_input);
-		let task =
-			Task::<T>::create_event_task(owner.clone(), provided_id.clone(), times.clone().try_into().unwrap(), vec![4, 5, 6]);
-		<Tasks<T>>::insert(task_id, task);
-		let mut task_ids: Vec<T::Hash> = vec![task_id];
-		let mut task_queue = AutomationTime::<T>::get_task_queue();
-		task_queue.append(&mut task_ids);
-		<TaskQueue<T>>::put(task_queue);
 	}
 	task_id
 }
@@ -113,8 +93,8 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, MAX_TASKS - 1);
-		let provided_id = (MAX_TASKS).saturated_into::<u8>();
+		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
+		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![provided_id], vec![time], vec![4, 5])
@@ -143,16 +123,9 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), MAX_TASKS - 1);
-		let provided_id = (MAX_TASKS).saturated_into::<u8>();
+		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
+		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![provided_id], times, recipient, transfer_amount)
-
-	cancel_scheduled_task {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 10800;
-
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), vec![time], 1);
-	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -163,14 +136,7 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, 1);
-	}: cancel_task(RawOrigin::Signed(caller), task_id)
-
-	cancel_overflow_task {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 10800;
-
-		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), vec![time], MAX_TASKS);
+		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
 	force_cancel_scheduled_task {
@@ -182,20 +148,14 @@ benchmarks! {
 
 	force_cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 10800;
-
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), vec![time], MAX_TASKS);
-	}: force_cancel_task(RawOrigin::Root, task_id)
-
-	force_cancel_overflow_task_full {
-		let caller: T::AccountId = account("caller", 0, SEED);
 		let mut times: Vec<u64> = vec![];
 
 		for i in 0..T::MaxExecutionTimes::get() {
 			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
-			times.push(hour);		}
+			times.push(hour);
+		}
 
-		let task_id: T::Hash = set_task_queue::<T>(caller.clone(), times, MAX_TASKS);
+		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, task_id)
 
 	run_notify_task {
@@ -329,7 +289,7 @@ benchmarks! {
 		let last_time_slot: u64 = 7200;
 		let current_time = 10800;
 
-		for i in 0..MAX_TASKS {
+		for i in 0..T::MaxTasksPerSlot::get() {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![current_time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
@@ -344,6 +304,6 @@ benchmarks! {
 		let new_time_slot: u64 = 14400;
 		let diff = 1;
 
-		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], MAX_TASKS);
+		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 }

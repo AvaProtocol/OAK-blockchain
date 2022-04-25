@@ -141,22 +141,13 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
-	fn cancel_scheduled_task() -> Weight {
-		0
-	}
 	fn cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn cancel_overflow_task() -> Weight {
 		0
 	}
 	fn force_cancel_scheduled_task() -> Weight {
 		0
 	}
 	fn force_cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn force_cancel_overflow_task_full() -> Weight {
 		0
 	}
 	fn run_notify_task() -> Weight {
