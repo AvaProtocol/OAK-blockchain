@@ -940,7 +940,12 @@ fn missed_tasks_removes_completed_tasks() {
 			Action::Notify { message: message_one.clone() },
 		);
 
+		let mut task_queue = AutomationTime::get_task_queue();
+		task_queue.push(task_id01);
+		TaskQueue::<Test>::put(task_queue);
+
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
+		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		match AutomationTime::get_task(task_id01) {
 			None => {
 				panic!("A task should exist if it was scheduled")
@@ -952,13 +957,14 @@ fn missed_tasks_removes_completed_tasks() {
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
+		AutomationTime::trigger_tasks(130_000);
 
-		AutomationTime::trigger_tasks(120_000);
-
+		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		assert_eq!(
 			events(),
 			[
+				Event::AutomationTime(crate::Event::Notify { message: message_one }),
 				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id01, execution_time: SCHEDULED_TIME }),
 			]
 		);
