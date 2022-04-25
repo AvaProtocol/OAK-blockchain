@@ -97,7 +97,7 @@ benchmarks! {
 		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
-	}: schedule_notify_task(RawOrigin::Signed(caller), vec![provided_id], vec![time], vec![4, 5])
+	}: schedule_notify_task(RawOrigin::Signed(caller), vec![provided_id], times, vec![4, 5])
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
