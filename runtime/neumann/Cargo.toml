@@ -89,8 +89,7 @@ xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 
 # Moonbeam Dependencies
-# TODO: change branch to oak-polkadot-v0.19.8 before merging
-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "nikhil/oak-polkadot-v0.9.18" }
+parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.18" }
 
 [features]
 default = [
