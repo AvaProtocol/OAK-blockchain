@@ -63,7 +63,7 @@ pub use weights::WeightInfo;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
-const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {
