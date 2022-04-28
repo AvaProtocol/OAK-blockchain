@@ -165,10 +165,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 278,
+	spec_version: 279,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 5,
+	transaction_version: 6,
 	state_version: 0,
 };
 
@@ -746,7 +746,8 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 576;
+	pub const MaxTasksPerSlot: u32 = 256;
+	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
@@ -774,6 +775,7 @@ where
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;

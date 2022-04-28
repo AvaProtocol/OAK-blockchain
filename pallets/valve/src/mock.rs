@@ -118,6 +118,7 @@ impl pallet_timestamp::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = 1200_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
@@ -133,31 +134,22 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn schedule_notify_task_empty() -> Weight {
 		0
 	}
-	fn schedule_notify_task_full() -> Weight {
+	fn schedule_notify_task_full(_v: u32) -> Weight {
 		0
 	}
 	fn schedule_native_transfer_task_empty() -> Weight {
 		0
 	}
-	fn schedule_native_transfer_task_full() -> Weight {
-		0
-	}
-	fn cancel_scheduled_task() -> Weight {
+	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
 	fn cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn cancel_overflow_task() -> Weight {
 		0
 	}
 	fn force_cancel_scheduled_task() -> Weight {
 		0
 	}
 	fn force_cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn force_cancel_overflow_task() -> Weight {
 		0
 	}
 	fn run_notify_task() -> Weight {
@@ -203,6 +195,7 @@ where
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
