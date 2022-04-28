@@ -468,35 +468,35 @@ impl parachain_staking::Config for Runtime {
 	/// Blocks per round
 	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = ConstU32<24>;
+	type LeaveCandidatesDelay = ConstU32<2>;
 	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = ConstU32<24>;
+	type CandidateBondLessDelay = ConstU32<2>;
 	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = ConstU32<24>;
+	type LeaveDelegatorsDelay = ConstU32<2>;
 	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = ConstU32<24>;
+	type RevokeDelegationDelay = ConstU32<2>;
 	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = ConstU32<24>;
+	type DelegationBondLessDelay = ConstU32<2>;
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
 	type MinSelectedCandidates = ConstU32<2>;
 	/// Maximum top delegations per candidate
-	type MaxTopDelegationsPerCandidate = ConstU32<300>;
+	type MaxTopDelegationsPerCandidate = ConstU32<2>;
 	/// Maximum bottom delegations per candidate
-	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxBottomDelegationsPerCandidate = ConstU32<2>;
 	/// Maximum delegations per delegator
-	type MaxDelegationsPerDelegator = ConstU32<100>;
+	type MaxDelegationsPerDelegator = ConstU32<3>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	/// Minimum stake required to become a collator
-	type MinCollatorStk = ConstU128<1_000_000_000>;
+	type MinCollatorStk = ConstU128<1_000_000_000_000>;
 	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<1_000_000>;
-	/// Minimum stake required to be reserved to be a delegator
-	type MinDelegation = ConstU128<100>;
-	/// Minimum stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<1_000>;
+	type MinCandidateStk = ConstU128<100_000_000_000>;
+	/// Minimum delegation amount after initial
+	type MinDelegation = ConstU128<50_000_000_000>;
+	/// Minimum initial stake required to be reserved to be a delegator
+	type MinDelegatorStk = ConstU128<30_000_000_000>;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
