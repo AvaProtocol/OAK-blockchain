@@ -457,7 +457,7 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
-	pub const DefaultBlocksPerRound: u32 = 1 * MINUTES;
+	pub const DefaultBlocksPerRound: u32 = 5 * MINUTES;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -480,23 +480,23 @@ impl parachain_staking::Config for Runtime {
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<2>;
+	type MinSelectedCandidates = ConstU32<8>;
 	/// Maximum top delegations per candidate
-	type MaxTopDelegationsPerCandidate = ConstU32<2>;
+	type MaxTopDelegationsPerCandidate = ConstU32<10>;
 	/// Maximum bottom delegations per candidate
-	type MaxBottomDelegationsPerCandidate = ConstU32<2>;
+	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
 	/// Maximum delegations per delegator
-	type MaxDelegationsPerDelegator = ConstU32<3>;
+	type MaxDelegationsPerDelegator = ConstU32<10>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	/// Minimum stake required to become a collator
-	type MinCollatorStk = ConstU128<1_000_000_000_000>;
+	type MinCollatorStk = ConstU128<{ 1_000_000 * DOLLAR }>;
 	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<100_000_000_000>;
+	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial
-	type MinDelegation = ConstU128<50_000_000_000>;
+	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<30_000_000_000>;
+	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 

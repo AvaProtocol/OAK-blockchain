@@ -376,9 +376,9 @@ pub fn neumann_inflation_config() -> InflationInfo<Balance> {
 	InflationInfo {
 		// staking expectations
 		expect: Range {
-			min: 100_000 * 1_000_000_000_000_000_000,
-			ideal: 200_000 * 1_000_000_000_000_000_000,
-			max: 500_000 * 1_000_000_000_000_000_000,
+			min: 4_000_000 * DOLLAR,
+			ideal: 6_000_000 * DOLLAR,
+			max: 8_000_000 * DOLLAR,
 		},
 		annual,
 		round: to_round_inflation(annual),
