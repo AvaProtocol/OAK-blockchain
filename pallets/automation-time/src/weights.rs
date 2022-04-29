@@ -62,7 +62,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_notify_task_empty() -> Weight {
-		(40_000_000 as Weight)
+		(39_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
@@ -71,21 +71,20 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_notify_task_full(v: u32, ) -> Weight {
-		(55_186_000 as Weight)
-			// Standard Error: 36_000
-			.saturating_add((23_066_000 as Weight).saturating_mul(v as Weight))
+		(42_160_000 as Weight)
+			// Standard Error: 78_000
+			.saturating_add((22_915_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
-
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_native_transfer_task_empty() -> Weight {
-		(40_000_000 as Weight)
+		(39_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
@@ -94,9 +93,9 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		(55_241_000 as Weight)
-			// Standard Error: 35_000
-			.saturating_add((23_167_000 as Weight).saturating_mul(v as Weight))
+		(51_637_000 as Weight)
+			// Standard Error: 59_000
+			.saturating_add((21_815_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
@@ -107,7 +106,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasks (r:24 w:24)
 	fn cancel_scheduled_task_full() -> Weight {
-		(553_000_000 as Weight)
+		(542_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(27 as Weight))
 			.saturating_add(T::DbWeight::get().writes(25 as Weight))
 	}
@@ -125,7 +124,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasks (r:24 w:24)
 	fn force_cancel_scheduled_task_full() -> Weight {
-		(550_000_000 as Weight)
+		(524_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(27 as Weight))
 			.saturating_add(T::DbWeight::get().writes(25 as Weight))
 	}
@@ -134,39 +133,39 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	}
 	// Storage: System Account (r:2 w:2)
 	fn run_native_transfer_task() -> Weight {
-		(27_000_000 as Weight)
+		(26_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
 		(0 as Weight)
-			// Standard Error: 52_000
-			.saturating_add((10_906_000 as Weight).saturating_mul(v as Weight))
+			// Standard Error: 0
+			.saturating_add((11_000_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:0)
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
 		(0 as Weight)
-			// Standard Error: 83_000
-			.saturating_add((8_687_000 as Weight).saturating_mul(v as Weight))
+			// Standard Error: 0
+			.saturating_add((9_000_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	fn run_tasks_many_found(v: u32, ) -> Weight {
 		(0 as Weight)
-			// Standard Error: 77_000
-			.saturating_add((30_750_000 as Weight).saturating_mul(v as Weight))
+			// Standard Error: 0
+			.saturating_add((30_000_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:0)
 	fn run_tasks_many_missing(v: u32, ) -> Weight {
 		(0 as Weight)
-			// Standard Error: 43_000
-			.saturating_add((8_937_000 as Weight).saturating_mul(v as Weight))
+			// Standard Error: 31_000
+			.saturating_add((8_969_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
@@ -177,9 +176,9 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime MissedQueue (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn append_to_missed_tasks(v: u32, ) -> Weight {
-		(1_375_000 as Weight)
-			// Standard Error: 114_000
-			.saturating_add((2_000_000 as Weight).saturating_mul(v as Weight))
+		(1_469_000 as Weight)
+			// Standard Error: 105_000
+			.saturating_add((1_812_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
@@ -189,13 +188,13 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime MissedQueue (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn update_scheduled_task_queue() -> Weight {
-		(27_000_000 as Weight)
+		(25_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn shift_missed_tasks() -> Weight {
-		(12_000_000 as Weight)
+		(10_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
