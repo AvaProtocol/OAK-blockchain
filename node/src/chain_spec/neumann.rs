@@ -14,9 +14,7 @@ use neumann_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
 	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
-use parachain_staking::{inflation, InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
-use sp_runtime::Perbill;
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
@@ -360,31 +358,6 @@ pub fn neumann_latest() -> ChainSpec {
 	)
 }
 
-pub fn neumann_inflation_config() -> InflationInfo<Balance> {
-	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
-		inflation::perbill_annual_to_perbill_round(
-			annual,
-			// rounds per year
-			inflation::BLOCKS_PER_YEAR / neumann_runtime::DefaultBlocksPerRound::get(),
-		)
-	}
-	let annual = Range {
-		min: Perbill::from_percent(4),
-		ideal: Perbill::from_percent(5),
-		max: Perbill::from_percent(5),
-	};
-	InflationInfo {
-		// staking expectations
-		expect: Range {
-			min: 4_000_000 * DOLLAR,
-			ideal: 6_000_000 * DOLLAR,
-			max: 8_000_000 * DOLLAR,
-		},
-		annual,
-		round: to_round_inflation(annual),
-	}
-}
-
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,
@@ -403,11 +376,8 @@ fn testnet_genesis(
 		},
 		balances: neumann_runtime::BalancesConfig { balances: endowed_accounts },
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
-		parachain_staking: neumann_runtime::ParachainStakingConfig {
-			candidates: vec![],
-			delegations: vec![],
-			inflation_config: neumann_inflation_config(),
-		},
+		// Defaults to active collators from session pallet unless configured otherwise
+		parachain_staking: Default::default(),
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
