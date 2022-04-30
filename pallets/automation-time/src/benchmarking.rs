@@ -93,7 +93,7 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
+		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
