@@ -1,6 +1,6 @@
 use super::{
-	AccountId, Balance, Balances, Call, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
-	Runtime, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+	AccountId, Balance, Balances, Call, CurrencyId, Currencies, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
+	Runtime, TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 
 use core::marker::PhantomData;
@@ -10,21 +10,26 @@ use frame_support::{
 	weights::{IdentityFee, Weight},
 };
 use frame_system::EnsureRoot;
+use sp_runtime::traits::Convert;
 
 // Polkadot Imports
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
 
 // XCM Imports
-use xcm::latest::prelude::*;
+use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
-	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, CurrencyAdapter,
-	EnsureXcmOrigin, FixedWeightBounds, IsConcrete, LocationInverter, NativeAsset, ParentIsPreset,
+	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom,
+	EnsureXcmOrigin, FixedWeightBounds, LocationInverter, ParentIsPreset,
 	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	UsingComponents,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
+
+// ORML imports
+use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
+use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -45,18 +50,15 @@ pub type LocationToAccountId = (
 	AccountId32Aliases<RelayNetwork, AccountId>,
 );
 
-/// Means for transacting assets on this chain.
-pub type LocalAssetTransactor = CurrencyAdapter<
-	// Use this currency:
-	Balances,
-	// Use this currency when it is a fungible asset matching the given location or name:
-	IsConcrete<RelayLocation>,
-	// Do a simple punn to convert an AccountId32 MultiLocation into a native chain account ID:
-	LocationToAccountId,
-	// Our chain's account ID type (we can't get away without mentioning it explicitly):
+pub type LocalAssetTransactor = MultiCurrencyAdapter<
+	Currencies,
+	UnknownTokens,
+	IsNativeConcrete<CurrencyId, CurrencyIdConvert>,
 	AccountId,
-	// We don't track any teleports.
-	(),
+	LocationToAccountId,
+	CurrencyId,
+	CurrencyIdConvert,
+	DepositToAlternative<TreasuryAccount, Currencies, CurrencyId, AccountId, Balance>,
 >;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
@@ -173,7 +175,7 @@ impl Config for XcmConfig {
 	// How to withdraw and deposit an asset.
 	type AssetTransactor = LocalAssetTransactor;
 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
-	type IsReserve = NativeAsset;
+	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
 	type IsTeleporter = (); // Teleporting is disabled.
 	type LocationInverter = LocationInverter<Ancestry>;
 	type Barrier = Barrier;
@@ -242,4 +244,124 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 	type Event = Event;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type ExecuteOverweightOrigin = EnsureRoot<AccountId>;
+}
+
+parameter_types! {
+	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
+	pub const BaseXcmWeight: Weight = 100_000_000;
+	pub const MaxAssetsForTransfer: usize = 1;
+}
+
+parameter_type_with_key! {
+	pub ParachainMinFee: |_location: MultiLocation| -> u128 {
+		u128::MAX
+	};
+}
+
+impl orml_xtokens::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type CurrencyId = CurrencyId;
+	type CurrencyIdConvert = CurrencyIdConvert;
+	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type SelfLocation = SelfLocation;
+	type MinXcmFee = ParachainMinFee;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type MultiLocationsFilter = Everything;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type BaseXcmWeight = BaseXcmWeight;
+	type LocationInverter = LocationInverter<Ancestry>;
+	type MaxAssetsForTransfer = MaxAssetsForTransfer;
+	type ReserveProvider = AbsoluteReserveProvider;
+}
+
+impl orml_unknown_tokens::Config for Runtime {
+	type Event = Event;
+}
+
+pub mod parachains {
+	pub mod karura {
+		pub const ID: u32 = 2000;
+		pub const KAR_KEY: &[u8] = &[0, 128];
+		pub const AUSD_KEY: &[u8] = &[0, 129];
+		pub const LKSM_KEY: &[u8] = &[0, 131];
+	}
+
+	pub mod mangata {
+		pub const ID: u32 = 2110;
+	}
+}
+
+pub struct CurrencyIdConvert;
+impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
+	fn convert(id: CurrencyId) -> Option<MultiLocation> {
+		match id {
+			CurrencyId::Native => Some(MultiLocation::new(
+				1,
+				X1(Parachain(ParachainInfo::parachain_id().into())),
+			)),
+			CurrencyId::KSM => Some(MultiLocation::parent()),
+			CurrencyId::AUSD => Some(MultiLocation::new(
+				1,
+				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::AUSD_KEY.to_vec())),
+			)),
+			CurrencyId::KAR => Some(MultiLocation::new(
+				1,
+				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::KAR_KEY.to_vec())),
+			)),
+			CurrencyId::LKSM => Some(MultiLocation::new(
+				1,
+				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::LKSM_KEY.to_vec())),
+			)),
+		}
+	}
+}
+
+impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
+	fn convert(location: MultiLocation) -> Option<CurrencyId> {
+		if location == MultiLocation::parent() {
+			return Some(CurrencyId::KSM)
+		}
+
+		match location {
+			MultiLocation { 
+				parents: 1,
+				interior: X2(Parachain(para_id), GeneralKey(key)),
+			} => {
+				match (para_id, &key[..]) {
+					(parachains::karura::ID, parachains::karura::KAR_KEY) => Some(CurrencyId::KAR),
+					(parachains::karura::ID, parachains::karura::AUSD_KEY) => Some(CurrencyId::AUSD),
+					(parachains::karura::ID, parachains::karura::LKSM_KEY) => Some(CurrencyId::LKSM),
+					_ => None
+				}
+			},
+			MultiLocation { 
+				parents: 1,
+				interior: X1(Parachain(para_id)),
+			} => {
+				match para_id {
+					id if id == u32::from(ParachainInfo::parachain_id()) => Some(CurrencyId::Native),
+					_ => None,
+				}
+			}
+			_ => None,
+		}
+	}
+}
+
+impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
+	fn convert(asset: MultiAsset) -> Option<CurrencyId> {
+		if let MultiAsset { id: Concrete(location), .. } = asset {
+			Self::convert(location)
+		} else {
+			None
+		}
+	}
+}
+
+pub struct AccountIdToMultiLocation;
+impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
+	fn convert(account: AccountId) -> MultiLocation {
+		X1(AccountId32 { network: NetworkId::Any, id: account.into() }).into()
+	}
 }
