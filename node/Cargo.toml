@@ -109,3 +109,4 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.18" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.18" }
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.18" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }

@@ -11,7 +11,7 @@ use crate::chain_spec::{
 	validate_vesting, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
+	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
 	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
@@ -21,6 +21,9 @@ const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 const DEFAULT_PARA_ID: u32 = 2000;
+
+/// The default XCM version to set in genesis config.
+const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<neumann_runtime::GenesisConfig, Extensions>;
@@ -418,6 +421,9 @@ fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		parachain_system: Default::default(),
+		polkadot_xcm: PolkadotXcmConfig {
+			safe_xcm_version: Some(SAFE_XCM_VERSION),
+		},
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },

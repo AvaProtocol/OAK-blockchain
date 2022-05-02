@@ -49,7 +49,7 @@ use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec,
 	storage::{with_transaction, TransactionOutcome::*},
 };
-use frame_system::pallet_prelude::*;
+use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
@@ -58,6 +58,11 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::{vec, vec::Vec};
+use xcm::{latest::prelude::*};
+use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_primitives_core::ParaId;
+
+mod xcm_test;
 
 pub use weights::WeightInfo;
 
@@ -79,6 +84,7 @@ pub mod pallet {
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
+		XCMP { para_id: ParaId, call: Vec<u8> }
 	}
 
 	/// The struct that stores data for a missed task.
@@ -149,6 +155,17 @@ pub mod pallet {
 		pub fn get_executions_left(&self) -> u32 {
 			self.executions_left
 		}
+		pub fn create_xcmp_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+			para_id: ParaId,
+			call: Vec<u8>,
+		) -> Task<T> {
+			let action = Action::XCMP { para_id, call };
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+		}
 	}
 
 	#[derive(Debug, Encode, Decode, TypeInfo)]
@@ -204,6 +221,11 @@ pub mod pallet {
 
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
+
+		type Origin: From<<Self as SystemConfig>::Origin>
+			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
+
+		type XcmSender: SendXcm;
 	}
 
 	#[pallet::pallet]
@@ -309,6 +331,13 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_time: UnixTime,
 		},
+		XCMPSent {
+			para_id: ParaId,
+		},
+		XCMPFailed {
+			para_id: ParaId,
+			error: SendError,
+		}
 	}
 
 	#[pallet::hooks]
@@ -416,6 +445,23 @@ pub mod pallet {
 			let action =
 				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(1))]
+		pub fn schedule_xcm_task(
+			origin: OriginFor<T>,
+			para_id: ParaId,
+			provided_id: Vec<u8>,
+			time: UnixTime,
+			call: Vec<u8>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin.clone())?;
+			// Only accept pings from other chains.
+			// let para_id = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
+			let times: Vec<UnixTime> = vec![time];
+
+			Self::validate_and_schedule_task(Action::XCMP { para_id, call }, who, provided_id, times)?;
 			Ok(().into())
 		}
 
@@ -742,6 +788,7 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
+							Action::XCMP { para_id, call } => Self::run_xcmp_task(para_id, call),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -837,8 +884,29 @@ pub mod pallet {
 			}
 		}
 
+
+		pub fn run_xcmp_task(para_id: ParaId, call: Vec<u8>) -> Weight {
+			//let remark = xcm_test::TestChainCallBuilder::remark_with_event(b"why hello there".to_vec());
+
+			match T::XcmSender::send_xcm(
+				(1, Junction::Parachain(para_id.into())),
+				Xcm(vec![Transact {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: 10_000_000_000,
+					call: call.into(),
+				}]),
+			) {
+				Ok(()) => {
+					Self::deposit_event(Event::XCMPSent{ para_id });
+				},
+				Err(error) => {
+					Self::deposit_event(Event::XCMPFailed{ para_id, error });
+				},
+			}
+			3_000
+		}
+
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		///
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
 			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
@@ -1000,6 +1068,7 @@ pub mod pallet {
 			let raw_weight = match action {
 				Action::Notify { message: _ } => 1_000u32,
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
+				Action::XCMP { para_id: _, call: _ } => 0u32,
 			};
 			let raw_weight = raw_weight.saturating_mul(executions);
 			let weight = <BalanceOf<T>>::from(raw_weight);
