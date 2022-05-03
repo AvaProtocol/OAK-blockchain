@@ -38,7 +38,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	let mut task_id: T::Hash = T::Hash::default();
 
 	for i in 0..count {
-		let provided_id: Vec<u8> = vec![i.try_into().unwrap()];
+		let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
 		task_id =
 			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone()).unwrap();
 		let task = Task::<T>::create_event_task(owner.clone(), provided_id, times.clone().try_into().unwrap(), vec![4, 5, 6]);
@@ -56,7 +56,7 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
 	for i in 0..count {
-		let provided_id: Vec<u8> = vec![i.try_into().unwrap()];
+		let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
 		task_id =
 			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), vec![time]).unwrap();
 		let task = Task::<T>::create_native_transfer_task(
@@ -94,10 +94,10 @@ benchmarks! {
 		}
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
-		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
+		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
-	}: schedule_notify_task(RawOrigin::Signed(caller), vec![provided_id], times, vec![4, 5])
+	}: schedule_notify_task(RawOrigin::Signed(caller), provided_id, times, vec![4, 5])
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -124,8 +124,8 @@ benchmarks! {
 		}
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
-		let provided_id = (T::MaxTasksPerSlot::get()).saturated_into::<u8>();
-	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![provided_id], times, recipient, transfer_amount)
+		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
+	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -290,7 +290,7 @@ benchmarks! {
 		let current_time = 10800;
 
 		for i in 0..T::MaxTasksPerSlot::get() {
-			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
+			let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![current_time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
 			<Tasks<T>>::insert(task_id, task);

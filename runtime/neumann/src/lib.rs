@@ -727,7 +727,7 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 256;
+	pub const MaxTasksPerSlot: u32 = 576;
 	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
