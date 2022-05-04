@@ -347,7 +347,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `message`: The message you want the event to have.
 		///
 		/// # Errors
@@ -383,7 +383,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `recipient_id`: Account ID of the recipient.
 		/// * `amount`: Amount of balance to transfer.
 		///
@@ -489,6 +489,11 @@ pub mod pallet {
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+			#[cfg(not(feature = "dev"))]
+			if scheduled_time == 0 {
+				return Ok(())
+			}
+
 			let remainder = scheduled_time % 3600;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
@@ -924,6 +929,30 @@ pub mod pallet {
 
 			if let Some(_) = Self::get_task(task_id) {
 				Err(Error::<T>::DuplicateTask)?
+			}
+
+			// If 'dev' feature flag and execution_times equal [0], allows for putting a task directly on the task queue
+			#[cfg(feature = "dev")]
+			if execution_times == vec![0] {
+				let current_time_slot = Self::get_current_time_slot()?;
+				match Self::get_scheduled_tasks(current_time_slot.try_into().unwrap()) {
+					None => {
+						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+							vec![task_id].try_into().unwrap();
+						<ScheduledTasks<T>>::insert(current_time_slot, task_ids);
+					},
+					Some(mut task_ids) => {
+						if let Err(_) = task_ids.try_push(task_id) {
+							Err(Error::<T>::TimeSlotFull)?
+						}
+						<ScheduledTasks<T>>::insert(current_time_slot, task_ids);
+					},
+				}
+				let task_queue = Self::get_task_queue();
+				let new_task: Vec<T::Hash> = vec![task_id];
+				TaskQueue::<T>::put(new_task);
+
+				return Ok(task_id);
 			}
 
 			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {
