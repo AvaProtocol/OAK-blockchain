@@ -78,7 +78,6 @@ cumulus-pallet-xcmp-queue = { git = 'https://github.com/paritytech/cumulus', bra
 cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
 cumulus-primitives-timestamp = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
 cumulus-primitives-utility = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
-pallet-collator-selection = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
 parachain-info = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
 
 # Polkadot Dependencies
@@ -88,6 +87,9 @@ polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", defa
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
+
+# Moonbeam Dependencies
+parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.18" }
 
 [features]
 default = [
@@ -120,7 +122,6 @@ std = [
 	"pallet-automation-time-rpc-runtime-api/std",
 	"pallet-balances/std",
 	"pallet-bounties/std",
-	"pallet-collator-selection/std",
 	"pallet-collective/std",
 	"pallet-democracy/std",
 	"pallet-membership/std",
@@ -134,6 +135,7 @@ std = [
 	"pallet-transaction-payment/std",
 	"pallet-valve/std",
 	"pallet-vesting/std",
+	"parachain-staking/std",
 	"primitives/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
@@ -161,11 +163,11 @@ runtime-benchmarks = [
 	"pallet-automation-time/runtime-benchmarks",
 	"pallet-balances/runtime-benchmarks",
 	"pallet-bounties/runtime-benchmarks",
-	"pallet-collator-selection/runtime-benchmarks",
 	"pallet-collective/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
 	"pallet-treasury/runtime-benchmarks",
 	"pallet-valve/runtime-benchmarks",
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
+	"parachain-staking/runtime-benchmarks",
 ]
