@@ -376,8 +376,6 @@ fn testnet_genesis(
 		},
 		balances: neumann_runtime::BalancesConfig { balances: endowed_accounts },
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
 				.into_iter()
@@ -390,6 +388,8 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
+		// Defaults to active collators from session pallet unless configured otherwise
+		parachain_staking: Default::default(),
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
