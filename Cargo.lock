@@ -6289,7 +6289,7 @@ dependencies = [
 [[package]]
 name = "parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.18#20f66646363054e0dd11d9f30e3a0049e4800db8"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.18#4b6cb69127f5ff57c1b0d733a454f7520e585206"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11554,7 +11554,7 @@ version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ee73e6e4924fe940354b8d4d98cad5231175d615cd855b758adc658c0aac6a0"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.3",
  "rand 0.8.5",
  "static_assertions",
