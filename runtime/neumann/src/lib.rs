@@ -479,7 +479,7 @@ impl parachain_staking::Config for Runtime {
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<8>;
+	type MinSelectedCandidates = ConstU32<5>;
 	/// Maximum top delegations per candidate
 	type MaxTopDelegationsPerCandidate = ConstU32<10>;
 	/// Maximum bottom delegations per candidate

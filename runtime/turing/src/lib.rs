@@ -627,33 +627,33 @@ impl parachain_staking::Config for Runtime {
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
 	type MinBlocksPerRound = ConstU32<10>;
 	/// Blocks per round
-	type DefaultBlocksPerRound = ConstU32<{ 5 * MINUTES }>;
+	type DefaultBlocksPerRound = ConstU32<{ 2 * HOURS }>;
 	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = ConstU32<2>;
+	type LeaveCandidatesDelay = ConstU32<24>;
 	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = ConstU32<2>;
+	type CandidateBondLessDelay = ConstU32<24>;
 	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = ConstU32<2>;
+	type LeaveDelegatorsDelay = ConstU32<24>;
 	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = ConstU32<2>;
+	type RevokeDelegationDelay = ConstU32<24>;
 	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = ConstU32<2>;
+	type DelegationBondLessDelay = ConstU32<24>;
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<8>;
+	type MinSelectedCandidates = ConstU32<5>;
 	/// Maximum top delegations per candidate
-	type MaxTopDelegationsPerCandidate = ConstU32<10>;
+	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
 	/// Maximum delegations per delegator
-	type MaxDelegationsPerDelegator = ConstU32<10>;
+	type MaxDelegationsPerDelegator = ConstU32<100>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	/// Minimum stake required to become a collator
-	type MinCollatorStk = ConstU128<{ 1_000_000 * DOLLAR }>;
+	type MinCollatorStk = ConstU128<{ 400_000 * DOLLAR }>;
 	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
+	type MinCandidateStk = ConstU128<{ 400_000 * DOLLAR }>;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
