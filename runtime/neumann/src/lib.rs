@@ -63,9 +63,6 @@ pub use sp_runtime::BuildStorage;
 // Polkadot Imports
 use polkadot_runtime_common::{BlockHashCount, RocksDbWeight};
 
-// XCM imports
-use xcm::latest::prelude::*;
-
 // XCM configurations.
 pub mod xcm_config;
 
