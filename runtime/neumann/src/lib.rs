@@ -41,7 +41,7 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND}, ConstantMultiplier,
 		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
@@ -401,8 +401,8 @@ where
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
-	type TransactionByteFee = TransactionByteFee;
 	type WeightToFee = WeightToFee;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
@@ -511,7 +511,9 @@ impl pallet_bounties::Config for Runtime {
 	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
 	type BountyUpdatePeriod = BountyUpdatePeriod;
 	type BountyCuratorDeposit = BountyCuratorDeposit;
-	type BountyValueMinimum = BountyValueMinimum;
+	type CuratorDepositMultiplier = CuratorDepositMultiplier;
+	type CuratorDepositMin = CuratorDepositMin;
+	type CuratorDepositMax = CuratorDepositMax;
 	type DataDepositPerByte = DataDepositPerByte;
 	type MaximumReasonLength = MaximumReasonLength;
 	type WeightInfo = pallet_bounties::weights::SubstrateWeight<Runtime>;
@@ -586,7 +588,9 @@ parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
+	pub CuratorDepositMin: Balance = DOLLAR;
+	pub CuratorDepositMax: Balance = 100 * DOLLAR;
 	pub const BountyValueMinimum: Balance = 5 * UNIT;
 	pub const MaxApprovals: u32 = 100;
 }
