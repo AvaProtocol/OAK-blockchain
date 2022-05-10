@@ -489,7 +489,7 @@ pub mod pallet {
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
-			#[cfg(not(feature = "dev"))]
+			#[cfg(feature = "test-local")]
 			if scheduled_time == 0 {
 				return Ok(())
 			}
@@ -932,10 +932,10 @@ pub mod pallet {
 			}
 
 			// If 'dev' feature flag and execution_times equal [0], allows for putting a task directly on the task queue
-			#[cfg(feature = "dev")]
+			#[cfg(feature = "test-local")]
 			if execution_times == vec![0] {
 				let current_time_slot = Self::get_current_time_slot()?;
-				match Self::get_scheduled_tasks(current_time_slot.try_into().unwrap()) {
+				match Self::get_scheduled_tasks(current_time_slot) {
 					None => {
 						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
 							vec![task_id].try_into().unwrap();
@@ -948,11 +948,11 @@ pub mod pallet {
 						<ScheduledTasks<T>>::insert(current_time_slot, task_ids);
 					},
 				}
-				let task_queue = Self::get_task_queue();
-				let new_task: Vec<T::Hash> = vec![task_id];
-				TaskQueue::<T>::put(new_task);
+				let mut task_queue = Self::get_task_queue();
+				task_queue.push(task_id);
+				TaskQueue::<T>::put(task_queue);
 
-				return Ok(task_id);
+				return Ok(task_id)
 			}
 
 			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {

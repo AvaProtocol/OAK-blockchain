@@ -169,3 +169,5 @@ runtime-benchmarks = [
 	"pallet-vesting/runtime-benchmarks",
 	"pallet-xcm/runtime-benchmarks",
 ]
+
+test-local = ["pallet-automation-time/test-local"]
