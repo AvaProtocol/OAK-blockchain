@@ -931,7 +931,7 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
-			// If 'dev' feature flag and execution_times equal [0], allows for putting a task directly on the task queue
+			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
 				let current_time_slot = Self::get_current_time_slot()?;
