@@ -23,12 +23,12 @@ use xcm_builder::{
 	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
 	FixedRateOfFungible, FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
 // ORML imports
-use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
+use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key, MultiCurrency};
 use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
@@ -187,6 +187,14 @@ pub fn neu_per_second() -> u128 {
 parameter_types! {
 	pub NeuPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
+			1,
+			X1(Parachain(u32::from(ParachainInfo::parachain_id()))),
+		).into(),
+		neu_per_second()
+	);
+
+	pub NeuCanonicalPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
 			0,
 			Here,
 		).into(),
@@ -196,7 +204,25 @@ parameter_types! {
 	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
 }
 
-pub type Trader = (FixedRateOfFungible<NeuPerSecond, ()>, FixedRateOfFungible<RocPerSecond, ()>);
+pub struct ToTreasury;
+impl TakeRevenue for ToTreasury {
+    fn take_revenue(revenue: MultiAsset) {
+        if let MultiAsset {
+            id: AssetId::Concrete(id),
+            fun: Fungibility::Fungible(amount),
+        } = revenue
+        {
+            if let Some(currency_id) = CurrencyIdConvert::convert(id) {
+                // Ensure TreasuryAccount have ed requirement for native asset, but don't need
+				// ed requirement for cross-chain asset because it's one of whitelist accounts.
+				// Ignore the result.
+				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), amount);
+            }
+        }
+    }
+}
+
+pub type Trader = (FixedRateOfFungible<NeuPerSecond, ToTreasury>, FixedRateOfFungible<NeuCanonicalPerSecond, ()>, FixedRateOfFungible<RocPerSecond, ToTreasury>);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
