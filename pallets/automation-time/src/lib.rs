@@ -934,20 +934,6 @@ pub mod pallet {
 			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
-				let current_time_slot = Self::get_current_time_slot()?;
-				match Self::get_scheduled_tasks(current_time_slot) {
-					None => {
-						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-							vec![task_id].try_into().unwrap();
-						<ScheduledTasks<T>>::insert(current_time_slot, task_ids);
-					},
-					Some(mut task_ids) => {
-						if let Err(_) = task_ids.try_push(task_id) {
-							Err(Error::<T>::TimeSlotFull)?
-						}
-						<ScheduledTasks<T>>::insert(current_time_slot, task_ids);
-					},
-				}
 				let mut task_queue = Self::get_task_queue();
 				task_queue.push(task_id);
 				TaskQueue::<T>::put(task_queue);
