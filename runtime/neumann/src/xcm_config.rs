@@ -1,6 +1,7 @@
 use super::{
-	AccountId, Balance, Call, CurrencyId, Currencies, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
-	Runtime, TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+	AccountId, Balance, Call, Currencies, CurrencyId, Event, Origin, ParachainInfo,
+	ParachainSystem, PolkadotXcm, Runtime, TreasuryAccount, UnknownTokens, XcmpQueue,
+	MAXIMUM_BLOCK_WEIGHT,
 };
 
 use core::marker::PhantomData;
@@ -19,16 +20,18 @@ use polkadot_parachain::primitives::Sibling;
 // XCM Imports
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
-	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom,
-	EnsureXcmOrigin, FixedWeightBounds, FixedRateOfFungible, LocationInverter, ParentIsPreset,
-	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
+	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
+	FixedRateOfFungible, FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
+	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
+	SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
 // ORML imports
 use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key};
-use orml_xcm_support::{DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset};
+use orml_xcm_support::{
+	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
+};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -169,7 +172,7 @@ pub type Barrier = DenyThenTry<
 
 /// Based on Kusama values.
 pub fn roc_per_second() -> u128 {
-    let dollar = 10_u128.pow(12); // 1_000_000_000_000
+	let dollar = 10_u128.pow(12); // 1_000_000_000_000
 	let cent = dollar / 100; // 10_000_000_000
 	cent * 16
 }
@@ -177,7 +180,7 @@ pub fn roc_per_second() -> u128 {
 /// Based on Turing values.
 pub fn neu_per_second() -> u128 {
 	// Since ROC is 12 decimals and we are 10.
-    let converted_roc = roc_per_second() / 100;
+	let converted_roc = roc_per_second() / 100;
 	converted_roc * 260
 }
 
@@ -193,11 +196,7 @@ parameter_types! {
 	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
 }
 
-
-pub type Trader = (
-	FixedRateOfFungible<NeuPerSecond, ()>,
-	FixedRateOfFungible<RocPerSecond, ()>,
-);
+pub type Trader = (FixedRateOfFungible<NeuPerSecond, ()>, FixedRateOfFungible<RocPerSecond, ()>);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -314,10 +313,8 @@ pub struct CurrencyIdConvert;
 impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
 		match id {
-			CurrencyId::Native => Some(MultiLocation::new(
-				1,
-				X1(Parachain(ParachainInfo::parachain_id().into())),
-			)),
+			CurrencyId::Native =>
+				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::ROC => Some(MultiLocation::parent()),
 		}
 	}
@@ -330,21 +327,16 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 		}
 
 		match location {
-			MultiLocation { 
-				parents: 1,
-				interior: X1(Parachain(para_id)),
-			} => {
+			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
 				match para_id {
 					// If it's NEU
-					id if id == u32::from(ParachainInfo::parachain_id()) => Some(CurrencyId::Native),
+					id if id == u32::from(ParachainInfo::parachain_id()) =>
+						Some(CurrencyId::Native),
 					_ => None,
 				}
 			},
 			// adapt for re-anchor canonical location: https://github.com/paritytech/polkadot/pull/4470
-			MultiLocation {
-				parents: 0,
-				interior: Here,
-			} => Some(CurrencyId::Native),
+			MultiLocation { parents: 0, interior: Here } => Some(CurrencyId::Native),
 			_ => None,
 		}
 	}
