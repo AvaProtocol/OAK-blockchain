@@ -1,5 +1,5 @@
 use super::{
-	AccountId, Balance, Balances, Call, CurrencyId, Currencies, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
+	AccountId, Balance, Call, CurrencyId, Currencies, Event, Origin, ParachainInfo, ParachainSystem, PolkadotXcm,
 	Runtime, TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 
@@ -7,7 +7,7 @@ use core::marker::PhantomData;
 use frame_support::{
 	log, match_types, parameter_types,
 	traits::{Everything, Nothing},
-	weights::{IdentityFee, Weight},
+	weights::Weight,
 };
 use frame_system::EnsureRoot;
 use sp_runtime::traits::Convert;
@@ -20,10 +20,9 @@ use polkadot_parachain::primitives::Sibling;
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
 	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom,
-	EnsureXcmOrigin, FixedWeightBounds, LocationInverter, ParentIsPreset,
+	EnsureXcmOrigin, FixedWeightBounds, FixedRateOfFungible, LocationInverter, ParentIsPreset,
 	RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
-	UsingComponents,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
@@ -168,6 +167,38 @@ pub type Barrier = DenyThenTry<
 	),
 >;
 
+/// Based on Kusama values.
+pub fn roc_per_second() -> u128 {
+    let dollar = 10_u128.pow(12); // 1_000_000_000_000
+	let cent = dollar / 100; // 10_000_000_000
+	cent * 16
+}
+
+/// Based on Turing values.
+pub fn neu_per_second() -> u128 {
+	// Since ROC is 12 decimals and we are 10.
+    let converted_roc = roc_per_second() / 100;
+	converted_roc * 260
+}
+
+parameter_types! {
+	pub NeuPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			0,
+			Here,
+		).into(),
+		neu_per_second()
+	);
+
+	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
+}
+
+
+pub type Trader = (
+	FixedRateOfFungible<NeuPerSecond, ()>,
+	FixedRateOfFungible<RocPerSecond, ()>,
+);
+
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type Call = Call;
@@ -180,7 +211,7 @@ impl Config for XcmConfig {
 	type LocationInverter = LocationInverter<Ancestry>;
 	type Barrier = Barrier;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
-	type Trader = UsingComponents<IdentityFee<Balance>, RelayLocation, AccountId, Balances, ()>;
+	type Trader = Trader;
 	type ResponseHandler = PolkadotXcm;
 	type AssetTrap = PolkadotXcm;
 	type AssetClaims = PolkadotXcm;
@@ -279,19 +310,6 @@ impl orml_unknown_tokens::Config for Runtime {
 	type Event = Event;
 }
 
-pub mod parachains {
-	pub mod karura {
-		pub const ID: u32 = 2000;
-		pub const KAR_KEY: &[u8] = &[0, 128];
-		pub const AUSD_KEY: &[u8] = &[0, 129];
-		pub const LKSM_KEY: &[u8] = &[0, 131];
-	}
-
-	pub mod mangata {
-		pub const ID: u32 = 2110;
-	}
-}
-
 pub struct CurrencyIdConvert;
 impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
@@ -300,19 +318,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				1,
 				X1(Parachain(ParachainInfo::parachain_id().into())),
 			)),
-			CurrencyId::KSM => Some(MultiLocation::parent()),
-			CurrencyId::AUSD => Some(MultiLocation::new(
-				1,
-				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::AUSD_KEY.to_vec())),
-			)),
-			CurrencyId::KAR => Some(MultiLocation::new(
-				1,
-				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::KAR_KEY.to_vec())),
-			)),
-			CurrencyId::LKSM => Some(MultiLocation::new(
-				1,
-				X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::LKSM_KEY.to_vec())),
-			)),
+			CurrencyId::ROC => Some(MultiLocation::parent()),
 		}
 	}
 }
@@ -320,30 +326,25 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 	fn convert(location: MultiLocation) -> Option<CurrencyId> {
 		if location == MultiLocation::parent() {
-			return Some(CurrencyId::KSM)
+			return Some(CurrencyId::ROC)
 		}
 
 		match location {
 			MultiLocation { 
 				parents: 1,
-				interior: X2(Parachain(para_id), GeneralKey(key)),
-			} => {
-				match (para_id, &key[..]) {
-					(parachains::karura::ID, parachains::karura::KAR_KEY) => Some(CurrencyId::KAR),
-					(parachains::karura::ID, parachains::karura::AUSD_KEY) => Some(CurrencyId::AUSD),
-					(parachains::karura::ID, parachains::karura::LKSM_KEY) => Some(CurrencyId::LKSM),
-					_ => None
-				}
-			},
-			MultiLocation { 
-				parents: 1,
 				interior: X1(Parachain(para_id)),
 			} => {
 				match para_id {
+					// If it's NEU
 					id if id == u32::from(ParachainInfo::parachain_id()) => Some(CurrencyId::Native),
 					_ => None,
 				}
-			}
+			},
+			// adapt for re-anchor canonical location: https://github.com/paritytech/polkadot/pull/4470
+			MultiLocation {
+				parents: 0,
+				interior: Here,
+			} => Some(CurrencyId::Native),
 			_ => None,
 		}
 	}

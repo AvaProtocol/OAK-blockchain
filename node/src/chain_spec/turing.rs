@@ -20,7 +20,7 @@ const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
 static TURING_RELAY_CHAIN: &str = "ksmcc3";
-const DEFAULT_PARA_ID: u32 = 2000;
+const DEFAULT_PARA_ID: u32 = 2001;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -347,6 +347,7 @@ fn testnet_genesis(
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: general_councils, phantom: Default::default() },
 		democracy: Default::default(),
+		tokens: Default::default(),
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
 			members: technical_memberships,
