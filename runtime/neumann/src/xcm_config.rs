@@ -24,7 +24,7 @@ use xcm_builder::{
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeWeightCredit,
 	UsingComponents,
 };
-use xcm_executor::{Config, traits::ShouldExecute, XcmExecutor};
+use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();

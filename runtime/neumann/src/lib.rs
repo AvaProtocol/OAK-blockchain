@@ -41,8 +41,8 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND}, ConstantMultiplier,
-		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
 		WeightToFeePolynomial,
 	},
 	PalletId,
