@@ -171,3 +171,5 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 	"parachain-staking/runtime-benchmarks",
 ]
+
+dev-queue = ["pallet-automation-time/dev-queue"]

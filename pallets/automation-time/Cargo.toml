@@ -49,3 +49,4 @@ std = [
 	"frame-system/std",
 	"frame-benchmarking/std",
 ]
+dev-queue = []

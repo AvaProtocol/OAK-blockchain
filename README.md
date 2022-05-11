@@ -142,6 +142,11 @@ cargo build --release --features neumann-node
 --ws-port 9977 
 ```
 
+To make testing locally easier use the command below.  The `dev-queue` flag will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
+```
+cargo build --release --features neumann-node --features dev-queue
+```
+
 ### Register the parachain
 
 1. Navigate to [Local relay sudo extrinsic](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/sudo)
