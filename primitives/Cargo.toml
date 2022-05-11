@@ -6,7 +6,7 @@ authors = ["OAK Developement Team"]
 license = "GPL-3.0"
 homepage = "https://oak.tech"
 repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 sp-consensus-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
