@@ -46,8 +46,11 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, BoundedVec,
+	pallet_prelude::*,
+	sp_runtime::traits::Hash,
 	storage::{with_transaction, TransactionOutcome::*},
+	traits::StorageVersion,
+	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
 use log::info;
@@ -111,12 +114,12 @@ pub mod pallet {
 	impl<T: Config> PartialEq for Task<T> {
 		fn eq(&self, other: &Self) -> bool {
 			self.owner_id == other.owner_id &&
-			self.provided_id == other.provided_id &&
-			self.action == other.action &&
-			self.executions_left == other.executions_left &&
-			self.execution_times.len() == other.execution_times.len() &&
-			self.execution_times.capacity() == other.execution_times.capacity() &&
-			self.execution_times.to_vec() == other.execution_times.to_vec()
+				self.provided_id == other.provided_id &&
+				self.action == other.action &&
+				self.executions_left == other.executions_left &&
+				self.execution_times.len() == other.execution_times.len() &&
+				self.execution_times.capacity() == other.execution_times.capacity() &&
+				self.execution_times.to_vec() == other.execution_times.to_vec()
 		}
 	}
 
@@ -348,7 +351,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `message`: The message you want the event to have.
 		///
 		/// # Errors
@@ -369,7 +372,12 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
-			Self::validate_and_schedule_task(Action::Notify { message }, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(
+				Action::Notify { message },
+				who,
+				provided_id,
+				execution_times,
+			)?;
 			Ok(().into())
 		}
 
@@ -384,7 +392,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `recipient_id`: Account ID of the recipient.
 		/// * `amount`: Amount of balance to transfer.
 		///
@@ -490,6 +498,11 @@ pub mod pallet {
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+			#[cfg(feature = "dev-queue")]
+			if scheduled_time == 0 {
+				return Ok(())
+			}
+
 			let remainder = scheduled_time % 3600;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
@@ -620,10 +633,8 @@ pub mod pallet {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
 				for missed_task in missed_tasks {
-					let new_missed_task: MissedTask<T> = MissedTask::<T> {
-						task_id: missed_task,
-						execution_time: last_time_slot,
-					};
+					let new_missed_task: MissedTask<T> =
+						MissedTask::<T> { task_id: missed_task, execution_time: last_time_slot };
 					missed_queue.push(new_missed_task);
 				}
 				MissedQueue::<T>::put(missed_queue);
@@ -674,7 +685,8 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
+			let mut diff =
+				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
 					diff = i;
@@ -682,7 +694,8 @@ pub mod pallet {
 				}
 				let mut slot_missed_tasks = Self::shift_missed_tasks(last_missed_slot, i);
 				missed_tasks.append(&mut slot_missed_tasks);
-				allotted_weight = allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
+				allotted_weight =
+					allotted_weight.saturating_sub(<T as Config>::WeightInfo::shift_missed_tasks());
 			}
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
@@ -708,14 +721,12 @@ pub mod pallet {
 			if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 				ScheduledTasks::<T>::remove(new_time_slot);
 				for task_id in task_ids {
-					let new_missed_task: MissedTask<T> = MissedTask::<T> {
-						task_id,
-						execution_time: new_time_slot,
-					};
+					let new_missed_task: MissedTask<T> =
+						MissedTask::<T> { task_id, execution_time: new_time_slot };
 					tasks.push(new_missed_task);
 				}
 			}
-			return tasks;
+			return tasks
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
@@ -778,7 +789,9 @@ pub mod pallet {
 
 				let action_weight = match Self::get_task(missed_task.task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: missed_task.task_id.clone() });
+						Self::deposit_event(Event::TaskNotFound {
+							task_id: missed_task.task_id.clone(),
+						});
 						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 					},
 					Some(task) => {
@@ -927,6 +940,16 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
+			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
+			#[cfg(feature = "dev-queue")]
+			if execution_times == vec![0] {
+				let mut task_queue = Self::get_task_queue();
+				task_queue.push(task_id);
+				TaskQueue::<T>::put(task_queue);
+
+				return Ok(task_id)
+			}
+
 			let outcome = with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
 				for time in execution_times.iter() {
 					match Self::get_scheduled_tasks(*time) {
@@ -973,11 +996,13 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee = Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+			let fee =
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
-			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
+			let task_id =
+				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
 			let task: Task<T> = Task::<T> {
 				owner_id: who.clone(),

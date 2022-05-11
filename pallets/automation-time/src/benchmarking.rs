@@ -38,10 +38,17 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	let mut task_id: T::Hash = T::Hash::default();
 
 	for i in 0..count {
-		let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
+		let provided_id: Vec<u8> =
+			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
 		task_id =
-			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone()).unwrap();
-		let task = Task::<T>::create_event_task(owner.clone(), provided_id, times.clone().try_into().unwrap(), vec![4, 5, 6]);
+			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone())
+				.unwrap();
+		let task = Task::<T>::create_event_task(
+			owner.clone(),
+			provided_id,
+			times.clone().try_into().unwrap(),
+			vec![4, 5, 6],
+		);
 		<Tasks<T>>::insert(task_id, task);
 	}
 	task_id
@@ -56,9 +63,11 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
 	for i in 0..count {
-		let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
+		let provided_id: Vec<u8> =
+			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
 		task_id =
-			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), vec![time]).unwrap();
+			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), vec![time])
+				.unwrap();
 		let task = Task::<T>::create_native_transfer_task(
 			owner.clone(),
 			provided_id,
