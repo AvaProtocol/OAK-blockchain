@@ -16,7 +16,6 @@ use turing_runtime::{
 	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
-static TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
@@ -35,6 +34,7 @@ pub fn template_session_keys(keys: AuraId) -> turing_runtime::SessionKeys {
 
 pub fn turing_development_config() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
+	const TOKEN_SYMBOL: &str = "DTUR";
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
@@ -95,6 +95,7 @@ pub fn turing_development_config() -> ChainSpec {
 
 pub fn turing_staging() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
+	const TOKEN_SYMBOL: &str = "STUR";
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
@@ -201,6 +202,7 @@ pub fn turing_staging() -> ChainSpec {
 
 pub fn turing_live() -> ChainSpec {
 	// Give your base currency a unit name and decimal places
+	const TOKEN_SYMBOL: &str = "TUR";
 	let mut properties = sc_chain_spec::Properties::new();
 	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
 	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
