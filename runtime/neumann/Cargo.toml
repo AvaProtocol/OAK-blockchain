@@ -170,6 +170,4 @@ runtime-benchmarks = [
 	"pallet-xcm/runtime-benchmarks",
 ]
 
-## Note: to use run `cargo build --release --features turing-node --features dev-queue`
-## File must be recompiled without flag `--features dev-queue` to disable feature.
 dev-queue = ["pallet-automation-time/dev-queue"]
