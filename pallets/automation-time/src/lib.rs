@@ -350,7 +350,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `message`: The message you want the event to have.
 		///
 		/// # Errors
@@ -391,7 +391,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `time`: The unix standard time in seconds for when the task should run.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `recipient_id`: Account ID of the recipient.
 		/// * `amount`: Amount of balance to transfer.
 		///
@@ -497,6 +497,11 @@ pub mod pallet {
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+			#[cfg(feature = "dev-queue")]
+			if scheduled_time == 0 {
+				return Ok(())
+			}
+
 			let remainder = scheduled_time % 3600;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
@@ -932,6 +937,16 @@ pub mod pallet {
 
 			if let Some(_) = Self::get_task(task_id) {
 				Err(Error::<T>::DuplicateTask)?
+			}
+
+			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
+			#[cfg(feature = "dev-queue")]
+			if execution_times == vec![0] {
+				let mut task_queue = Self::get_task_queue();
+				task_queue.push(task_id);
+				TaskQueue::<T>::put(task_queue);
+
+				return Ok(task_id)
 			}
 
 			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {
