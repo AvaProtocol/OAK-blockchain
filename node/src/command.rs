@@ -312,50 +312,42 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
 			// Switch on the concrete benchmark sub-command-
-			match cmd {
-				BenchmarkCmd::Pallet(cmd) =>
-					if cfg!(feature = "runtime-benchmarks") {
-						runner.sync_run(|config| cmd.run::<Block, TemplateRuntimeExecutor>(config))
-					} else {
-						Err("Benchmarking wasn't enabled when building the node. \
+			with_runtime_or_err!(chain_spec, {
+				{
+					match cmd {
+						BenchmarkCmd::Pallet(cmd) =>
+							if cfg!(feature = "runtime-benchmarks") {
+								runner.sync_run(|config| {
+									cmd.run::<Block, Executor>(config)
+								})
+							} else {
+								Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
-							.into())
-					},
-				BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
-					let partials = new_partial::<RuntimeApi, TemplateRuntimeExecutor, _>(
-						&config,
-						crate::service::parachain_build_import_queue,
-					)?;
-					cmd.run(partials.client)
-				}),
-				BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
-					let partials = new_partial::<RuntimeApi, TemplateRuntimeExecutor, _>(
-						&config,
-						crate::service::parachain_build_import_queue,
-					)?;
-					let db = partials.backend.expose_db();
-					let storage = partials.backend.expose_storage();
+									.into())
+							},
+						BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
+							let partials = service::new_partial::<RuntimeApi, Executor, _>(
+								&config,
+								crate::service::parachain_build_import_queue,
+							)?;
+							cmd.run(partials.client)
+						}),
+						BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
+							let partials = service::new_partial::<RuntimeApi, Executor, _>(
+								&config,
+								crate::service::parachain_build_import_queue,
+							)?;
+							let db = partials.backend.expose_db();
+							let storage = partials.backend.expose_storage();
 
-					cmd.run(config, partials.client.clone(), db, storage)
-				}),
-				BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
-			}
-		},
-		Some(Subcommand::TryRuntime(cmd)) => {
-			if cfg!(feature = "try-runtime") {
-				let runner = cli.create_runner(cmd)?;
-				// grab the task manager.
-				let registry = &runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-				let task_manager =
-					TaskManager::new(runner.config().tokio_handle.clone(), *registry)
-						.map_err(|e| format!("Error: {:?}", e))?;
-				runner.async_run(|config| {
-					Ok((cmd.run::<Block, TemplateRuntimeExecutor>(config), task_manager))
-				})
-			} else {
-				Err("Try-runtime must be enabled by `--features try-runtime`.".into())
-			}
+							cmd.run(config, partials.client.clone(), db, storage)
+						}),
+						BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
+					}
+				}
+			})
 		},
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
