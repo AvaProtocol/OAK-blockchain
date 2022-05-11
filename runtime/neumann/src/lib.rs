@@ -493,6 +493,10 @@ impl parachain_staking::Config for Runtime {
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
 	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+	/// Handler to notify the runtime when a collator is paid
+	type OnCollatorPayout = ();
+	/// Handler to notify the runtime when a new round begins
+	type OnNewRound = ();
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
