@@ -2,7 +2,7 @@
 name = "pallet-automation-time-rpc"
 description = "RPC API to provide information about tasks"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 authors = ["OAK Developement Team"]
 license = "GPL-3.0"
 homepage = "https://oak.tech"

@@ -54,6 +54,7 @@ use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{
+	DispatchError,
 	traits::{SaturatedConversion, Saturating},
 	Perbill,
 };
@@ -926,7 +927,7 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
-			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {
+			let outcome = with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
 				for time in execution_times.iter() {
 					match Self::get_scheduled_tasks(*time) {
 						None => {
@@ -936,7 +937,7 @@ pub mod pallet {
 						},
 						Some(mut task_ids) => {
 							if let Err(_) = task_ids.try_push(task_id) {
-								return Rollback(Err(Error::<T>::TimeSlotFull))
+								return Rollback(Err(DispatchError::Other("time slot full")))
 							}
 							<ScheduledTasks<T>>::insert(*time, task_ids);
 						},
@@ -944,7 +945,12 @@ pub mod pallet {
 				}
 
 				Commit(Ok(task_id))
-			})
+			});
+
+			match outcome {
+				Ok(task_id) => Ok(task_id),
+				Err(_) => Err(Error::<T>::TimeSlotFull),
+			}
 		}
 
 		/// Validate and schedule task.

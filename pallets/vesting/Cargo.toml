@@ -2,7 +2,7 @@
 name = "pallet-vesting"
 description = "Pallet for minting tokens on a set schedule"
 version = "1.0.0"
-edition = "2018"
+edition = "2021"
 authors = ["OAK Developement Team"]
 license = "GPL-3.0"
 homepage = "https://oak.tech"
@@ -35,12 +35,13 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "p
 
 [features]
 default = ["std"]
-runtime-benchmarks = ["frame-benchmarking"]
+runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 std = [
     "codec/std",
 	"scale-info/std",
     "sp-runtime/std",
     "sp-std/std",
+    "frame-benchmarking/std",
     "frame-support/std",
 	"frame-system/std",
 	"pallet-timestamp/std",
