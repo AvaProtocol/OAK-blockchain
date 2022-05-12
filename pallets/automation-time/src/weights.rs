@@ -7,7 +7,7 @@
 
 // Executed Command:
 // ./target/release/neumann-collator
-// benchmark
+// benchmark pallet
 // --chain
 // dev
 // --execution
@@ -22,7 +22,6 @@
 // 64
 // --steps
 // 100
-// --raw
 // --output
 // ./pallets/automation-time/src/weights.rs
 
