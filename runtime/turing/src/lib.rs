@@ -205,8 +205,8 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 2_000 * CENT + (bytes as Balance) * 100 * MILLICENT
 }
 
-/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
+/// The existential deposit. Set to 1/100 of the Connected Relay Chain.
+pub const EXISTENTIAL_DEPOSIT: Balance = CENT;
 
 /// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
 const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
