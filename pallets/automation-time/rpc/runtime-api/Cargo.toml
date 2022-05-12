@@ -2,7 +2,7 @@
 name = "pallet-automation-time-rpc-runtime-api"
 description = "Runtime RPC API to provide information about tasks"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 authors = ["OAK Developement Team"]
 license = "GPL-3.0"
 homepage = "https://oak.tech"
@@ -14,8 +14,8 @@ targets = ["x86_64-unknown-linux-gnu"]
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
 
-sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.19" }
 
 [features]
 default = ["std"]

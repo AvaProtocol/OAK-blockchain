@@ -58,7 +58,7 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
-	Perbill,
+	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
 
@@ -949,25 +949,32 @@ pub mod pallet {
 				return Ok(task_id)
 			}
 
-			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, Error<T>>> {
-				for time in execution_times.iter() {
-					match Self::get_scheduled_tasks(*time) {
-						None => {
-							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-								vec![task_id].try_into().unwrap();
-							<ScheduledTasks<T>>::insert(*time, task_ids);
-						},
-						Some(mut task_ids) => {
-							if let Err(_) = task_ids.try_push(task_id) {
-								return Rollback(Err(Error::<T>::TimeSlotFull))
-							}
-							<ScheduledTasks<T>>::insert(*time, task_ids);
-						},
+			let outcome = with_transaction(
+				|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
+					for time in execution_times.iter() {
+						match Self::get_scheduled_tasks(*time) {
+							None => {
+								let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+									vec![task_id].try_into().unwrap();
+								<ScheduledTasks<T>>::insert(*time, task_ids);
+							},
+							Some(mut task_ids) => {
+								if let Err(_) = task_ids.try_push(task_id) {
+									return Rollback(Err(DispatchError::Other("time slot full")))
+								}
+								<ScheduledTasks<T>>::insert(*time, task_ids);
+							},
+						}
 					}
-				}
 
-				Commit(Ok(task_id))
-			})
+					Commit(Ok(task_id))
+				},
+			);
+
+			match outcome {
+				Ok(task_id) => Ok(task_id),
+				Err(_) => Err(Error::<T>::TimeSlotFull),
+			}
 		}
 
 		/// Validate and schedule task.
