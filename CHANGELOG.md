@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - Moving Turing xcm configs to their own file.
+- Allow foreign tokens to get stored on-chain
+- Enable cross chain token transfers
+- Lower existential deposit from .1 to .01
+- Adding Karura tokens
 
 ## [279] - 2022-04-29
 - Change scheduled time slots from minutes to hours. Migration used to clear all tasks in existing maps and queues.
