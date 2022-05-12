@@ -401,6 +401,8 @@ impl orml_tokens::Config for Runtime {
 	type ExistentialDeposits = ExistentialDeposits;
 	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
 	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 }
 
@@ -409,7 +411,6 @@ parameter_types! {
 }
 
 impl orml_currencies::Config for Runtime {
-	type Event = Event;
 	type MultiCurrency = Tokens;
 	type NativeCurrency =
 		orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
@@ -907,7 +908,7 @@ construct_runtime!(
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
-		Currencies: orml_currencies::{Pallet, Call, Event<T>} = 12,
+		Currencies: orml_currencies::{Pallet, Call} = 12,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 13,
 
 		// Collator support. The order of these 4 are important and shall not change.
