@@ -8,7 +8,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	Extensions,
+	DummyChainSpec, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
@@ -20,7 +20,6 @@ const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
-static TURING_RELAY_CHAIN: &str = "ksmcc3";
 const DEFAULT_PARA_ID: u32 = 2000;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
@@ -199,112 +198,8 @@ pub fn turing_staging() -> ChainSpec {
 	)
 }
 
-pub fn turing_live() -> ChainSpec {
-	// Give your base currency a unit name and decimal places
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
-	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
-	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	let live_para_id = 2114;
-
-	ChainSpec::from_genesis(
-		// Name
-		"Turing Network",
-		// ID
-		"turing",
-		ChainType::Live,
-		move || {
-			let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
-			let initial_allocation: Vec<(AccountId, Balance)> =
-				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
-			validate_allocation(
-				initial_allocation.clone(),
-				ALLOC_TOKENS_TOTAL,
-				EXISTENTIAL_DEPOSIT,
-			);
-
-			let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
-			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
-				serde_json::from_slice(vesting_json).unwrap();
-
-			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651431600;
-			let vest_ending_time: u64 = 1743534000;
-			validate_vesting(
-				initial_vesting.clone(),
-				vested_tokens,
-				EXISTENTIAL_DEPOSIT,
-				vest_starting_time,
-				vest_ending_time,
-			);
-
-			testnet_genesis(
-				// initial collators.
-				vec![
-					(
-						// SS58 prefix 51: 68eS5bmdz2nY45KxBfBFePVH88xupaPvjzExMxcnGuRBLcSK
-						// SS58 prefix substrate: 5CdDSsMpHjCkdqX49iyaozNrnLEZ4xUkk2mX4N6cVbxxpYhy
-						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
-							.into(),
-						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
-							.unchecked_into(),
-					),
-					(
-						// SS58 prefix 51: 6BKgyjBS7exBgGKCVMGbYYcdTLHnXdJFHXD86Vr3vX4vpzPz
-						// SS58 prefix substrate: 5HWVKNhY1PcSWcpSX5QgXJ7iYxJkAubDxxBB4p2v4wBRXQkE
-						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
-							.into(),
-						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
-							.unchecked_into(),
-					),
-				],
-				// 5CGLdvHNAMRZM3T52crEcP46YTsmq2GVke5wc6w3Z1epBDVy
-				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
-				initial_allocation,
-				live_para_id.into(),
-				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
-				initial_vesting,
-				vec![
-					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
-					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
-					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
-					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
-					// 67D6ecyNhnAzZqgRbxr3MdGnxB9Bw8VadMhjpLAYB3wf5Pq6
-					hex!["2edf0fd8948ea642f135b314b1358c77ec6d0a4af83220b6ea18136e5ce36277"].into(),
-					// 6AMsXyV1CYc3LMTk155JTDGEzbgVPvsX9aXp7VXz9heC3iuP
-					hex!["ba44d2c00d9528c2d1fc51cef8ce8b9c3939928ecda8f404cdc46e3a2c090627"].into(),
-				],
-				vec![
-					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
-					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
-					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
-					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
-					// 6A6VuGbeUwm3J2HqLduH7VFZTvrYQs8GuqzdhopLGN2JKMAe
-					hex!["ae8b51cd0aa290645e593a4f54673ae62bab95791a137b943723bb6070533830"].into(),
-					// 699YyPF2uA83zsFnQU4GCAvZXzucvyS5rx8LS9UrL9kEv8PP
-					hex!["84a328f5f568d82ecd91861df7eae1065c1a2f1bcfec0950d4124e9363205b4a"].into(),
-					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
-					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
-				],
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
-		// Protocol ID
-		Some("turing"),
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
-		Extensions {
-			relay_chain: TURING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: live_para_id,
-		},
-	)
+pub fn turing_live() -> Result<DummyChainSpec, String> {
+	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/turing.json")[..])
 }
 
 fn testnet_genesis(
