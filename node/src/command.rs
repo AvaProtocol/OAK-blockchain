@@ -33,7 +33,9 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		#[cfg(feature = "turing-node")]
 		"turing-staging" => Box::new(chain_spec::turing::turing_staging()),
 		#[cfg(feature = "turing-node")]
-		"turing-live" => Box::new(chain_spec::turing::turing_live()),
+		"turing" => Box::new(chain_spec::DummyChainSpec::from_json_bytes(
+			&include_bytes!("../../resources/turing-live-chain-spec.json")[..])?
+		),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
