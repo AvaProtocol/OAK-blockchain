@@ -2,7 +2,11 @@
   "name": "Rococo Local Testnet",
   "id": "rococo_local_testnet",
   "chainType": "Local",
-  "bootNodes": [],
+  "bootNodes": [
+    "/dns4/node-6917856111340892160-0.p2p.onfinality.io/tcp/20172/ws/p2p/12D3KooW9vpr8VXqCNBWsQ9et3g1zjMcK2P1SxD3M1qkBkc4QM6f",
+    "/dns4/node-6917855471561183232-0.p2p.onfinality.io/tcp/22179/p2p/12D3KooWP2dphgmszZhaLQscEbRvFbsisPcuzbwCCBhoGtH8UE9q",
+    "/dns4/node-6917855812316377088-0.p2p.onfinality.io/tcp/25186/p2p/12D3KooWLoFt284R1cPxUS2iz17bpQiDzWwEbiMfxs8vrVfYSdjy"
+  ],
   "telemetryEndpoints": null,
   "protocolId": "dot",
   "properties": null,
