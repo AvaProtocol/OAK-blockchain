@@ -27,13 +27,13 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		#[cfg(feature = "neumann-node")]
 		"neumann-staging" => Box::new(chain_spec::neumann::neumann_staging_testnet_config()),
 		#[cfg(feature = "neumann-node")]
-		"neumann-latest" => Box::new(chain_spec::neumann::neumann_latest()),
+		"neumann" => Box::new(chain_spec::neumann::neumann_latest()?),
 		#[cfg(feature = "turing-node")]
 		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
 		#[cfg(feature = "turing-node")]
 		"turing-staging" => Box::new(chain_spec::turing::turing_staging()),
 		#[cfg(feature = "turing-node")]
-		"turing-live" => Box::new(chain_spec::turing::turing_live()),
+		"turing" => Box::new(chain_spec::turing::turing_live()?),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
@@ -141,7 +141,13 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
+		match id {
+			#[cfg(feature = "neumann-node")]
+			"neumann-relay" => Ok(Box::new(polkadot_service::RococoChainSpec::from_json_bytes(
+				&include_bytes!("../../node/res/neumann-rococo-testnet.json")[..],
+			)?)),
+			_ => polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
+		}
 	}
 
 	fn native_runtime_version(
