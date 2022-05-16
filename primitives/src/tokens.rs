@@ -26,11 +26,11 @@ pub trait TokenInfo {
 		let decimals = self.get_decimals();
 		10_u128.pow(decimals)
 	}
-	
+
 	fn cent(&self) -> Balance {
 		self.dollar() / 100
 	}
-	
+
 	fn millicent(&self) -> Balance {
 		self.cent() / 1_000
 	}

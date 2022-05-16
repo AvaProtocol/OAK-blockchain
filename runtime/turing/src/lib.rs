@@ -74,8 +74,8 @@ use orml_traits::parameter_type_with_key;
 
 // Common imports
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
-	tokens::TokenInfo,
+	tokens::TokenInfo, AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header,
+	Index, Signature,
 };
 
 // Custom pallet imports
@@ -471,7 +471,7 @@ where
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
-	type WeightToFee =  ConstantMultiplier<Balance, WeightToFeeScalar>;
+	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;

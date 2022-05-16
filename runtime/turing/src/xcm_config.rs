@@ -1,7 +1,7 @@
 use super::{
 	AccountId, Balance, Call, Currencies, CurrencyId, Event, Origin, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, TemporaryForeignTreasuryAccount, TreasuryAccount, UnknownTokens, XcmpQueue,
-	MAXIMUM_BLOCK_WEIGHT,
+	ParachainSystem, PolkadotXcm, Runtime, TemporaryForeignTreasuryAccount, TreasuryAccount,
+	UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
 };
 
 use core::marker::PhantomData;
@@ -234,36 +234,36 @@ parameter_types! {
 
 pub struct ToNativeTreasury;
 impl TakeRevenue for ToNativeTreasury {
-    fn take_revenue(revenue: MultiAsset) {
-        if let MultiAsset {
-            id: AssetId::Concrete(id),
-            fun: Fungibility::Fungible(amount),
-        } = revenue
-        {
-            if let Some(currency_id) = CurrencyIdConvert::convert(id) {
+	fn take_revenue(revenue: MultiAsset) {
+		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
+			revenue
+		{
+			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
 				// 80% burned, 20% to the treasury
 				let to_treasury = Percent::from_percent(20).mul_floor(amount);
 				// Due to the way XCM works the amount has already been taken off the total allocation balance.
 				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
 				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
-            }
-        }
-    }
+			}
+		}
+	}
 }
 
 pub struct ToForeignTreasury;
 impl TakeRevenue for ToForeignTreasury {
-    fn take_revenue(revenue: MultiAsset) {
-        if let MultiAsset {
-            id: AssetId::Concrete(id),
-            fun: Fungibility::Fungible(amount),
-        } = revenue
-        {
-            if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-				let _ = Currencies::deposit(currency_id, &TemporaryForeignTreasuryAccount::get(), amount);
-            }
-        }
-    }
+	fn take_revenue(revenue: MultiAsset) {
+		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
+			revenue
+		{
+			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
+				let _ = Currencies::deposit(
+					currency_id,
+					&TemporaryForeignTreasuryAccount::get(),
+					amount,
+				);
+			}
+		}
+	}
 }
 
 pub type Trader = (
