@@ -384,11 +384,6 @@ pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
 		*a == TreasuryAccount::get() || *a == TemporaryForeignTreasuryAccount::get()
-		// match *a {
-		// 	TreasuryAccount::get() => true,
-		// 	TemporaryForeignTreasuryAccount => true,
-		// 	_ => false
-		// }
 	}
 }
 
