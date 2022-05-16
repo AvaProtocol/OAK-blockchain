@@ -37,7 +37,7 @@ pub trait TokenInfo {
 }
 
 /// Allows you to translate between different tokens.
-/// This is necissary as tokens use different amounts of "decimals".
+/// This is necessary as tokens use different amounts of "decimals".
 pub fn convert_to_token<C: TokenInfo>(source: C, target: C, amount: Balance) -> Balance {
 	let current_decimals = source.get_decimals();
 	let target_decimals = target.get_decimals();
