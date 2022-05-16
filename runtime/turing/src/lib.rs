@@ -76,6 +76,7 @@ use orml_traits::parameter_type_with_key;
 // Common imports
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	tokens::TokenInfo,
 };
 
 // Custom pallet imports
@@ -358,8 +359,14 @@ parameter_types! {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-		EXISTENTIAL_DEPOSIT
+	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+		match currency_id {
+			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
+			CurrencyId::KUSD => CurrencyId::KUSD.cent(),
+			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
+			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
+		}
 	};
 }
 
@@ -385,6 +392,17 @@ pub enum CurrencyId {
 	LKSM,
 }
 
+impl TokenInfo for CurrencyId {
+	fn get_decimals(&self) -> u32 {
+		match self {
+			CurrencyId::Native => 10,
+			CurrencyId::KSM => 12,
+			CurrencyId::KUSD => 12,
+			CurrencyId::KAR => 12,
+			CurrencyId::LKSM => 12,
+		}
+	}
+}
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {

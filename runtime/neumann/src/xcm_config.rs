@@ -33,6 +33,9 @@ use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
 
+// Common imports
+use primitives::tokens::{convert_to_token, TokenInfo};
+
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Any;
@@ -172,16 +175,13 @@ pub type Barrier = DenyThenTry<
 
 /// Based on Kusama values.
 pub fn roc_per_second() -> u128 {
-	let dollar = 10_u128.pow(12); // 1_000_000_000_000
-	let cent = dollar / 100; // 10_000_000_000
-	cent * 16
+	CurrencyId::ROC.cent() * 16
 }
 
 /// Based on Turing values.
 pub fn neu_per_second() -> u128 {
-	// Since ROC is 12 decimals and we are 10.
-	let converted_roc = roc_per_second() / 100;
-	converted_roc * 260
+	let neu_equivalent = convert_to_token(CurrencyId::ROC, CurrencyId::Native, roc_per_second());
+	neu_equivalent * 260
 }
 
 parameter_types! {

@@ -76,6 +76,7 @@ use orml_traits::parameter_type_with_key;
 // Common imports
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	tokens::TokenInfo,
 };
 
 // Custom pallet imports
@@ -358,8 +359,11 @@ parameter_types! {
 }
 
 parameter_type_with_key! {
-	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
-		EXISTENTIAL_DEPOSIT
+	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+		match currency_id {
+			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::ROC => 10 * CurrencyId::ROC.millicent(),
+		}
 	};
 }
 
@@ -380,6 +384,15 @@ parameter_type_with_key! {
 pub enum CurrencyId {
 	Native,
 	ROC,
+}
+
+impl TokenInfo for CurrencyId {
+	fn get_decimals(&self) -> u32 {
+		match self {
+			CurrencyId::Native => 10,
+			CurrencyId::ROC => 12,
+		}
+	}
 }
 
 pub struct DustRemovalWhitelist;

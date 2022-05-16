@@ -33,6 +33,9 @@ use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
 
+// Common imports
+use primitives::tokens::{convert_to_token, TokenInfo};
+
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Any;
@@ -172,17 +175,14 @@ pub type Barrier = DenyThenTry<
 
 /// Based on the precedent set by other projects. This will need to be changed.
 pub fn ksm_per_second() -> u128 {
-	let dollar = 10_u128.pow(12); // 1_000_000_000_000
-	let cent = dollar / 100; // 10_000_000_000
-	cent * 16
+	CurrencyId::KSM.cent() * 16
 }
 
 /// Assuming ~ $0.50 TUR price.
 pub fn tur_per_second() -> u128 {
-	// Since KSM is 12 decimals and we are 10.
-	let converted_ksm = ksm_per_second() / 100;
+	let tur_equivalent = convert_to_token(CurrencyId::KSM, CurrencyId::Native, ksm_per_second());
 	// Assuming KSM ~ $130.00.
-	converted_ksm * 260
+	tur_equivalent * 260
 }
 
 parameter_types! {
