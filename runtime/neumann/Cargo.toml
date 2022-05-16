@@ -91,6 +91,14 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", default-feature
 # Moonbeam Dependencies
 parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.19" }
 
+# ORML Dependencies
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+orml-xtokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "c673da3374dfe1d251cd196041470b9eb191c15b" }
+
 [features]
 default = [
 	"std",
@@ -151,6 +159,12 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"orml-currencies/std",
+	"orml-tokens/std",
+	"orml-traits/std",
+	"orml-xcm-support/std",
+	"orml-xtokens/std",
+	"orml-unknown-tokens/std",
 ]
 
 runtime-benchmarks = [

@@ -240,6 +240,7 @@ fn testnet_genesis(
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: general_councils, phantom: Default::default() },
 		democracy: Default::default(),
+		tokens: Default::default(),
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
 			members: technical_memberships,

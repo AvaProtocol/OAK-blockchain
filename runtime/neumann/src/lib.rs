@@ -22,14 +22,18 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
+	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Percent,
+	ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
 };
 
 use sp_std::{cmp::Ordering, prelude::*};
@@ -66,9 +70,13 @@ use polkadot_runtime_common::BlockHashCount;
 // XCM configurations.
 pub mod xcm_config;
 
+// ORML imports
+use orml_traits::parameter_type_with_key;
+
 // Common imports
 use primitives::{
-	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	tokens::TokenInfo,
 };
 
 // Custom pallet imports
@@ -198,8 +206,8 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 2_000 * CENT + (bytes as Balance) * 100 * MILLICENT
 }
 
-/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
+/// The existential deposit. Set to 1/100 of the Connected Relay Chain.
+pub const EXISTENTIAL_DEPOSIT: Balance = CENT;
 
 /// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
 const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
@@ -344,6 +352,80 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+}
+
+parameter_types! {
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+		match currency_id {
+			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::ROC => 10 * CurrencyId::ROC.millicent(),
+		}
+	};
+}
+
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum CurrencyId {
+	Native,
+	ROC,
+}
+
+impl TokenInfo for CurrencyId {
+	fn get_decimals(&self) -> u32 {
+		match self {
+			CurrencyId::Native => 10,
+			CurrencyId::ROC => 12,
+		}
+	}
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryAccount::get()
+	}
+}
+
+impl orml_tokens::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+parameter_types! {
+	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+}
+
+impl orml_currencies::Config for Runtime {
+	type MultiCurrency = Tokens;
+	type NativeCurrency =
+		orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
 }
 
 parameter_types! {
@@ -834,7 +916,9 @@ construct_runtime!(
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 11,
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
+		Currencies: orml_currencies::{Pallet, Call} = 12,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 13,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -851,6 +935,8 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
+		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,
+		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 45,
 
 		// Support pallets.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 50,
