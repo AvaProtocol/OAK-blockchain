@@ -65,6 +65,7 @@ use cumulus_primitives_core::ParaId;
 mod xcm_test;
 
 pub use weights::WeightInfo;
+pub use weights::AutomationWeight;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
@@ -396,8 +397,9 @@ pub mod pallet {
 			if message.len() == 0 {
 				Err(Error::<T>::EmptyMessage)?
 			}
-
+			info!("Scheduling a Notify Task");
 			Self::validate_and_schedule_task(Action::Notify { message }, who, provided_id, execution_times)?;
+			info!("Finished Scheduling a Notify Task");
 			Ok(().into())
 		}
 
@@ -989,8 +991,10 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 		) -> Result<T::Hash, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
+			info!("task ID generated: {:?}", task_id);
 
 			if let Some(_) = Self::get_task(task_id) {
+				info!("duplicate task error");
 				Err(Error::<T>::DuplicateTask)?
 			}
 
@@ -998,19 +1002,22 @@ pub mod pallet {
 				for time in execution_times.iter() {
 					match Self::get_scheduled_tasks(*time) {
 						None => {
+							info!("existing time slot not found, inserting now");
 							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
 								vec![task_id].try_into().unwrap();
 							<ScheduledTasks<T>>::insert(*time, task_ids);
 						},
 						Some(mut task_ids) => {
 							if let Err(_) = task_ids.try_push(task_id) {
+								info!("slot full");
 								return Rollback(Err(Error::<T>::TimeSlotFull))
 							}
+							info!("existing time slot found, inserting now");
 							<ScheduledTasks<T>>::insert(*time, task_ids);
 						},
 					}
 				}
-
+				info!("finish scheduled task insert");
 				Commit(Ok(task_id))
 			})
 		}
@@ -1029,17 +1036,22 @@ pub mod pallet {
 
 			Self::clean_execution_times_vector(&mut execution_times);
 			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
+				info!("execution times error");
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
 			for time in execution_times.iter() {
 				Self::is_valid_time(*time)?;
 			}
+			info!("isValidTimes");
 
 			let fee = Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
+			info!("made sure we can pay");
+
 			let task_id = Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
+			info!("finished scheduling task");
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
 			let task: Task<T> = Task::<T> {
 				owner_id: who.clone(),
@@ -1049,12 +1061,15 @@ pub mod pallet {
 				action,
 			};
 			<Tasks<T>>::insert(task_id, task);
+			info!("inserted into task map");
 
 			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
 
+			info!("fees withdrawn");
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			info!("fire task scheduled event");
 			Ok(())
 		}
 
