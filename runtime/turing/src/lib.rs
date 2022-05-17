@@ -565,6 +565,8 @@ impl parachain_staking::Config for Runtime {
 	type OnCollatorPayout = ();
 	/// Handler to notify the runtime when a new round begins
 	type OnNewRound = ();
+	/// Whether a given collator has completed required registration to be selected as block author
+	type CollatorRegistration = Session;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
