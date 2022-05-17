@@ -19,8 +19,9 @@ use turing_runtime::{
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
-static STAGING_RELAY_CHAIN: &str = "rococo-testnet";
+static STAGING_RELAY_CHAIN: &str = "rococo";
 const DEFAULT_PARA_ID: u32 = 2000;
+const REGISTERED_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -101,83 +102,52 @@ pub fn turing_staging() -> ChainSpec {
 
 	ChainSpec::from_genesis(
 		// Name
-		"Turing Network",
+		"Turing Staging",
 		// ID
 		"turing",
 		ChainType::Live,
 		move || {
-			let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
+			let allocation_json = &include_bytes!("../../../distribution/turing_staging_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
 			validate_allocation(
 				initial_allocation.clone(),
 				ALLOC_TOKENS_TOTAL,
 				EXISTENTIAL_DEPOSIT,
 			);
 
-			let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
-			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
-				serde_json::from_slice(vesting_json).unwrap();
-
-			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651431600;
-			let vest_ending_time: u64 = 1743534000;
-			validate_vesting(
-				initial_vesting.clone(),
-				vested_tokens,
-				EXISTENTIAL_DEPOSIT,
-				vest_starting_time,
-				vest_ending_time,
-			);
-
 			testnet_genesis(
 				// initial collators.
 				vec![
 					(
-						// SS58 prefix 51: 68eS5bmdz2nY45KxBfBFePVH88xupaPvjzExMxcnGuRBLcSK
-						// SS58 prefix substrate: 5CdDSsMpHjCkdqX49iyaozNrnLEZ4xUkk2mX4N6cVbxxpYhy
-						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
+						// SS58 prefix substrate: 5EvKT4iWQ5gDnRhkS3d254RVCfaQJSyXHj5mA4kQTsCjWchW
+						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
 							.into(),
-						hex!["6e6dd706f9c325ea3d316392135766c0b16feb4fd6fa3171ae2da5f00f022a0a"]
+						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
 							.unchecked_into(),
 					),
 					(
-						// SS58 prefix 51: 6BKgyjBS7exBgGKCVMGbYYcdTLHnXdJFHXD86Vr3vX4vpzPz
-						// SS58 prefix substrate: 5HWVKNhY1PcSWcpSX5QgXJ7iYxJkAubDxxBB4p2v4wBRXQkE
-						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
+						// SS58 prefix substrate: 5F4Dx9TD16awU7FeGD3Me5VDrEsL5MDPEcbNBvUgLQFawxyW
+						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
 							.into(),
-						hex!["e4d7080396ff3c0d501d18d33afee4e3140a6a878e6277968bf3771fe6cd4956"]
+						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
 							.unchecked_into(),
 					),
 				],
-				// 5CGLdvHNAMRZM3T52crEcP46YTsmq2GVke5wc6w3Z1epBDVy
-				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
+				// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+				hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
 				initial_allocation,
-				DEFAULT_PARA_ID.into(),
-				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
-				initial_vesting,
+				REGISTERED_PARA_ID.into(),
+				vec![],
+				vec![],
 				vec![
-					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
-					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
-					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
-					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
-					// 67D6ecyNhnAzZqgRbxr3MdGnxB9Bw8VadMhjpLAYB3wf5Pq6
-					hex!["2edf0fd8948ea642f135b314b1358c77ec6d0a4af83220b6ea18136e5ce36277"].into(),
-					// 6AMsXyV1CYc3LMTk155JTDGEzbgVPvsX9aXp7VXz9heC3iuP
-					hex!["ba44d2c00d9528c2d1fc51cef8ce8b9c3939928ecda8f404cdc46e3a2c090627"].into(),
+					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
 				],
 				vec![
-					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
-					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
-					// 67kgfmY6zpw1PRYpj3D5RtkzVZnVvn49XHGyR4v9MEsRRyet
-					hex!["46f630b3f79c588100dc0f69845633a830e01ea09eed4f1d01314a9bf33b9c16"].into(),
-					// 6A6VuGbeUwm3J2HqLduH7VFZTvrYQs8GuqzdhopLGN2JKMAe
-					hex!["ae8b51cd0aa290645e593a4f54673ae62bab95791a137b943723bb6070533830"].into(),
-					// 699YyPF2uA83zsFnQU4GCAvZXzucvyS5rx8LS9UrL9kEv8PP
-					hex!["84a328f5f568d82ecd91861df7eae1065c1a2f1bcfec0950d4124e9363205b4a"].into(),
-					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
-					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
+					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
 				],
 			)
 		},
@@ -193,7 +163,7 @@ pub fn turing_staging() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: STAGING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: DEFAULT_PARA_ID,
+			para_id: REGISTERED_PARA_ID,
 		},
 	)
 }
