@@ -23,6 +23,8 @@ use sp_runtime::{
 	MultiAddress, MultiSignature,
 };
 
+pub mod tokens;
+
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
 /// Alias to 512-bit hash when used in the context of a transaction signature on the chain.
@@ -34,6 +36,9 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 
 /// Balance of an account.
 pub type Balance = u128;
+
+/// The signed version of `Balance`
+pub type Amount = i128;
 
 /// Index of a transaction in the chain.
 pub type Index = u32;
