@@ -7,7 +7,7 @@
 
 // Executed Command:
 // ./target/release/oak-collator
-// benchmark
+// benchmark pallet
 // --chain
 // dev
 // --execution
@@ -22,7 +22,6 @@
 // 64
 // --steps
 // 20
-// --raw
 // --output
 // ./pallets/valve/src/raw-weights.rs
 

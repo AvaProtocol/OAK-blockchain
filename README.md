@@ -29,9 +29,9 @@ Based on the above, OAK has some features.
 Live Networks
 ============
 
-- `oak-testnet`: standalone testnet (built off of substrate)
 - `neumann`: testnet parachain (January 2022)
-- `turing`: kusama parachain (coming soon)
+- `turing-staging`: rococo parachain (coming soon)
+- `turing`: kusama parachain (April 2022)
 - `oak`: polkadot parachain (coming soon)
 
 Install OAK Blockchain 
@@ -140,6 +140,11 @@ cargo build --release --features neumann-node
 --chain resources/rococo-local.json \
 --port 30335 \
 --ws-port 9977 
+```
+
+To make testing locally easier use the command below.  The `dev-queue` flag will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
+```
+cargo build --release --features neumann-node --features dev-queue
 ```
 
 ### Register the parachain

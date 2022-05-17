@@ -16,8 +16,10 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, Action, Error, LastTimeSlot, MissedQueue, Shutdown, Task, TaskHashInput, TaskQueue,
-	Tasks, migrations::{v1, v2}, MissedTask,
+	migrations::{v1, v2},
+	mock::*,
+	Action, Error, LastTimeSlot, MissedQueue, MissedTask, Shutdown, Task, TaskHashInput, TaskQueue,
+	Tasks,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
@@ -45,7 +47,7 @@ fn schedule_invalid_time() {
 
 #[test]
 fn schedule_past_time() {
-	new_test_ext(START_BLOCK_TIME + 1_000*10800).execute_with(|| {
+	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
@@ -259,7 +261,12 @@ fn schedule_max_execution_times_errors() {
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
 				vec![50],
-				vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200, SCHEDULED_TIME + 10800],
+				vec![
+					SCHEDULED_TIME,
+					SCHEDULED_TIME + 3600,
+					SCHEDULED_TIME + 7200,
+					SCHEDULED_TIME + 10800
+				],
 				vec![2, 4]
 			),
 			Error::<Test>::TooManyExecutionsTimes,
@@ -274,8 +281,14 @@ fn schedule_execution_times_removes_dupes() {
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![50],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME, SCHEDULED_TIME + 10800],
-			vec![2, 4]
+			vec![
+				SCHEDULED_TIME,
+				SCHEDULED_TIME,
+				SCHEDULED_TIME,
+				SCHEDULED_TIME,
+				SCHEDULED_TIME + 10800,
+			],
+			vec![2, 4],
 		);
 		match AutomationTime::get_task(task_id1) {
 			None => {
@@ -418,12 +431,7 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		}
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::TaskCancelled {
-					who: owner,
-					task_id: task_id1
-				})
-			]
+			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id: task_id1 })]
 		);
 	})
 }
@@ -431,12 +439,8 @@ fn cancel_works_for_multiple_executions_scheduled() {
 #[test]
 fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = schedule_task(
-			ALICE,
-			vec![50],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
-			vec![50],
-		);
+		let task_id1 =
+			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
@@ -470,12 +474,7 @@ fn cancel_works_for_an_executed_task() {
 		}
 
 		AutomationTime::trigger_tasks(200_000);
-		assert_eq!(
-			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: vec![50] }),
-			]
-		);
+		assert_eq!(events(), [Event::AutomationTime(crate::Event::Notify { message: vec![50] }),]);
 		match AutomationTime::get_task(task_id1) {
 			None => {
 				panic!("A task should exist if it was scheduled")
@@ -504,12 +503,7 @@ fn cancel_works_for_an_executed_task() {
 		assert_eq!(AutomationTime::get_task(task_id1), None);
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::TaskCancelled {
-					who: ALICE,
-					task_id: task_id1
-				})
-			]
+			[Event::AutomationTime(crate::Event::TaskCancelled { who: ALICE, task_id: task_id1 })]
 		);
 	})
 }
@@ -518,8 +512,12 @@ fn cancel_works_for_an_executed_task() {
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner: AccountId = ALICE;
-		let task_id =
-			add_task_to_task_queue(owner, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![2, 4, 5] });
+		let task_id = add_task_to_task_queue(
+			owner,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![2, 4, 5] },
+		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME, SCHEDULED_TIME));
 
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
@@ -638,9 +636,14 @@ fn trigger_tasks_nothing_to_do() {
 #[test]
 fn trigger_tasks_updates_queues() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let missed_task_id =
-			add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME - 3600], Action::Notify { message: vec![40] });
-		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
+		let missed_task_id = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME - 3600],
+			Action::Notify { message: vec![40] },
+		);
+		let missed_task =
+			MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -661,10 +664,16 @@ fn trigger_tasks_updates_queues() {
 #[test]
 fn trigger_tasks_handles_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		add_task_to_task_queue(ALICE, vec![40], vec![SCHEDULED_TIME], Action::Notify { message: vec![40] });
+		add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![40] },
+		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missed_task = MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
+		let missed_task =
+			MissedTask::<Test>::create_missed_task(missed_task_id, SCHEDULED_TIME - 3600);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -687,11 +696,16 @@ fn trigger_tasks_limits_missed_slots() {
 			add_task_to_task_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
-		let missing_task_id1 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missing_task_id2 = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME - 7200], vec![50]);
-		let missing_task_id3 = schedule_task(ALICE, vec![70], vec![SCHEDULED_TIME - 10800], vec![50]);
-		let missing_task_id4 = schedule_task(ALICE, vec![80], vec![SCHEDULED_TIME - 14400], vec![50]);
-		let missing_task_id5 = schedule_task(ALICE, vec![90], vec![SCHEDULED_TIME - 18000], vec![50]);
+		let missing_task_id1 =
+			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+		let missing_task_id2 =
+			schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME - 7200], vec![50]);
+		let missing_task_id3 =
+			schedule_task(ALICE, vec![70], vec![SCHEDULED_TIME - 10800], vec![50]);
+		let missing_task_id4 =
+			schedule_task(ALICE, vec![80], vec![SCHEDULED_TIME - 14400], vec![50]);
+		let missing_task_id5 =
+			schedule_task(ALICE, vec![90], vec![SCHEDULED_TIME - 18000], vec![50]);
 		schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
@@ -843,10 +857,18 @@ fn trigger_tasks_completes_some_tasks() {
 #[test]
 fn trigger_tasks_completes_all_missed_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 =
-			add_task_to_missed_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
-		let task_id2 =
-			add_task_to_missed_queue(ALICE, vec![50], vec![0], Action::Notify { message: vec![40] });
+		let task_id1 = add_task_to_missed_queue(
+			ALICE,
+			vec![40],
+			vec![0],
+			Action::Notify { message: vec![40] },
+		);
+		let task_id2 = add_task_to_missed_queue(
+			ALICE,
+			vec![50],
+			vec![0],
+			Action::Notify { message: vec![40] },
+		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::trigger_tasks(130_000);
@@ -854,8 +876,16 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1, execution_time: 0 }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2, execution_time: 0 }),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: task_id1,
+					execution_time: 0
+				}),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: task_id2,
+					execution_time: 0
+				}),
 			]
 		);
 
@@ -904,8 +934,16 @@ fn missed_tasks_updates_executions_left() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id1, execution_time: SCHEDULED_TIME }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id2, execution_time: SCHEDULED_TIME }),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: task_id1,
+					execution_time: SCHEDULED_TIME
+				}),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: task_id2,
+					execution_time: SCHEDULED_TIME
+				}),
 			]
 		);
 
@@ -965,7 +1003,11 @@ fn missed_tasks_removes_completed_tasks() {
 			events(),
 			[
 				Event::AutomationTime(crate::Event::Notify { message: message_one }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id01, execution_time: SCHEDULED_TIME }),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: task_id01,
+					execution_time: SCHEDULED_TIME
+				}),
 			]
 		);
 		assert_eq!(AutomationTime::get_task(task_id01), None);
@@ -1026,9 +1068,7 @@ fn trigger_tasks_updates_executions_left() {
 
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
-			]
+			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
 		);
 		match AutomationTime::get_task(task_id01) {
 			None => {
@@ -1068,9 +1108,7 @@ fn trigger_tasks_removes_completed_tasks() {
 
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
-			]
+			[Event::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
 		);
 		assert_eq!(AutomationTime::get_task(task_id01), None);
 	})
@@ -1093,12 +1131,8 @@ fn on_init_runs_tasks() {
 			vec![0],
 			Action::Notify { message: message_two.clone() },
 		);
-		let task_id3 = add_task_to_task_queue(
-			ALICE,
-			vec![60],
-			vec![0],
-			Action::Notify { message: vec![50] },
-		);
+		let task_id3 =
+			add_task_to_task_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);
@@ -1119,7 +1153,11 @@ fn on_init_runs_tasks() {
 		AutomationTime::on_initialize(2);
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: task_id3, execution_time: LAST_BLOCK_TIME })],
+			[Event::AutomationTime(crate::Event::TaskMissed {
+				who: ALICE,
+				task_id: task_id3,
+				execution_time: LAST_BLOCK_TIME
+			})],
 		);
 		assert_eq!(AutomationTime::get_task(task_id3), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
@@ -1134,8 +1172,12 @@ fn on_init_check_task_queue() {
 		let mut tasks = vec![];
 
 		for i in 0..5 {
-			let task_id =
-				add_task_to_task_queue(ALICE, vec![i], vec![SCHEDULED_TIME], Action::Notify { message: vec![i] });
+			let task_id = add_task_to_task_queue(
+				ALICE,
+				vec![i],
+				vec![SCHEDULED_TIME],
+				Action::Notify { message: vec![i] },
+			);
 			tasks.push(task_id);
 		}
 		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
@@ -1161,8 +1203,16 @@ fn on_init_check_task_queue() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[3], execution_time: LAST_BLOCK_TIME }),
-				Event::AutomationTime(crate::Event::TaskMissed { who: ALICE, task_id: tasks[4], execution_time: LAST_BLOCK_TIME }),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: tasks[3],
+					execution_time: LAST_BLOCK_TIME
+				}),
+				Event::AutomationTime(crate::Event::TaskMissed {
+					who: ALICE,
+					task_id: tasks[4],
+					execution_time: LAST_BLOCK_TIME
+				}),
 			],
 		);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
@@ -1189,8 +1239,12 @@ fn on_init_shutdown() {
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
-		let task_id3 =
-			add_task_to_task_queue(ALICE, vec![60], vec![SCHEDULED_TIME], Action::Notify { message: vec![50] });
+		let task_id3 = add_task_to_task_queue(
+			ALICE,
+			vec![60],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![50] },
+		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);
@@ -1227,7 +1281,12 @@ fn migration_v1() {
 #[test]
 fn migration_v2() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		add_task_to_task_queue(ALICE, vec![60], vec![SCHEDULED_TIME], Action::Notify { message: vec![50] });
+		add_task_to_task_queue(
+			ALICE,
+			vec![60],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![50] },
+		);
 		add_task_to_missed_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1314,13 +1373,12 @@ fn create_task(
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task = match action {
-		Action::Notify { message } =>
-			Task::<Test>::create_event_task(
-				owner,
-				provided_id,
-				scheduled_times.try_into().unwrap(),
-				message,
-			),
+		Action::Notify { message } => Task::<Test>::create_event_task(
+			owner,
+			provided_id,
+			scheduled_times.try_into().unwrap(),
+			message,
+		),
 		Action::NativeTransfer { sender: _, recipient, amount } =>
 			Task::<Test>::create_native_transfer_task(
 				owner,

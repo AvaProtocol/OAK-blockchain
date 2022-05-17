@@ -22,14 +22,17 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use smallvec::smallvec;
+use codec::{Decode, Encode, MaxEncodedLen};
+use scale_info::TypeInfo;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdLookup, BlakeTwo256, Block as BlockT},
+	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Percent,
+	ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
 };
 
 use sp_std::{cmp::Ordering, prelude::*};
@@ -39,11 +42,10 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
+	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, WEIGHT_PER_SECOND},
-		DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		ConstantMultiplier, DispatchClass, Weight,
 	},
 	PalletId,
 };
@@ -61,17 +63,18 @@ pub use pallet_sudo::Call as SudoCall;
 pub use sp_runtime::BuildStorage;
 
 // Polkadot Imports
-use polkadot_runtime_common::{BlockHashCount, RocksDbWeight};
-
-// XCM imports
-use xcm::latest::prelude::*;
+use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
 
+// ORML imports
+use orml_traits::parameter_type_with_key;
+
 // Common imports
 use primitives::{
-	AccountId, Address, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	tokens::TokenInfo, AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header,
+	Index, Signature,
 };
 
 // Custom pallet imports
@@ -112,31 +115,6 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 
-/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// node's balance type.
-///
-/// This should typically create a mapping between the following ranges:
-///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
-///   - `[Balance::min, Balance::max]`
-///
-/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-///   - Setting it to `0` will essentially disable the weight fee.
-///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
-	type Balance = Balance;
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		let weight_to_fee_scalar: Balance = 6;
-
-		smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::zero(),
-			coeff_integer: weight_to_fee_scalar,
-		}]
-	}
-}
-
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
 /// of data like extrinsics, allowing for them to continue syncing the network through upgrades
@@ -168,7 +146,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 280,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 6,
+	transaction_version: 7,
 	state_version: 0,
 };
 
@@ -201,8 +179,8 @@ pub const fn deposit(items: u32, bytes: u32) -> Balance {
 	items as Balance * 2_000 * CENT + (bytes as Balance) * 100 * MILLICENT
 }
 
-/// The existential deposit. Set to 1/10 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = DOLLAR / 10;
+/// The existential deposit. Set to 1/100 of the Connected Relay Chain.
+pub const EXISTENTIAL_DEPOSIT: Balance = CENT;
 
 /// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
 const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
@@ -303,7 +281,7 @@ impl frame_system::Config for Runtime {
 	type SS58Prefix = SS58Prefix;
 	/// The action to take on a Runtime Upgrade
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
-	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type MaxConsumers = ConstU32<16>;
 }
 
 parameter_types! {
@@ -326,7 +304,7 @@ impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
 	type UncleGenerations = UncleGenerations;
 	type FilterUncle = ();
-	type EventHandler = (CollatorSelection,);
+	type EventHandler = ParachainStaking;
 }
 
 parameter_types! {
@@ -350,6 +328,80 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
+		match currency_id {
+			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::ROC => 10 * CurrencyId::ROC.millicent(),
+		}
+	};
+}
+
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum CurrencyId {
+	Native,
+	ROC,
+}
+
+impl TokenInfo for CurrencyId {
+	fn get_decimals(&self) -> u32 {
+		match self {
+			CurrencyId::Native => 10,
+			CurrencyId::ROC => 12,
+		}
+	}
+}
+
+pub struct DustRemovalWhitelist;
+impl Contains<AccountId> for DustRemovalWhitelist {
+	fn contains(a: &AccountId) -> bool {
+		*a == TreasuryAccount::get()
+	}
+}
+
+impl orml_tokens::Config for Runtime {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = Amount;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
+	type MaxLocks = MaxLocks;
+	type MaxReserves = MaxReserves;
+	type ReserveIdentifier = [u8; 8];
+	type DustRemovalWhitelist = DustRemovalWhitelist;
+}
+
+parameter_types! {
+	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+}
+
+impl orml_currencies::Config for Runtime {
+	type MultiCurrency = Tokens;
+	type NativeCurrency =
+		orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
+}
+
+parameter_types! {
 	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
 	/// than this will decrease the weight and more will increase.
 	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(1);
@@ -361,6 +413,7 @@ parameter_types! {
 	/// See `multiplier_can_grow_from_zero`.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub const TransactionByteFee: Balance = 0;
+	pub const WeightToFeeScalar: Balance = 6;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -401,8 +454,8 @@ where
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
-	type TransactionByteFee = TransactionByteFee;
-	type WeightToFee = WeightToFee;
+	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
+	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 }
@@ -436,11 +489,10 @@ parameter_types! {
 impl pallet_session::Config for Runtime {
 	type Event = Event;
 	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	// we don't have stash and controller, thus we don't need the convert as well.
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ShouldEndSession = pallet_session::PeriodicSessions<Period, Offset>;
-	type NextSessionRotation = pallet_session::PeriodicSessions<Period, Offset>;
-	type SessionManager = CollatorSelection;
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = ParachainStaking;
+	type NextSessionRotation = ParachainStaking;
+	type SessionManager = ParachainStaking;
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
@@ -454,31 +506,54 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	pub const PotId: PalletId = PalletId(*b"PotStake");
-	pub const MaxCandidates: u32 = 5;
-	pub const MinCandidates: u32 = 1;
-	pub const SessionLength: BlockNumber = 6 * HOURS;
-	pub const MaxInvulnerables: u32 = 100;
-	pub const ExecutiveBody: BodyId = BodyId::Executive;
+	/// Default fixed percent a collator takes off the top of due rewards
+	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
+	/// Default percent of inflation set aside for parachain bond every round
+	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
 }
-
-// We allow root only to execute privileged collator selection operations.
-pub type CollatorSelectionUpdateOrigin = EnsureRoot<AccountId>;
-
-impl pallet_collator_selection::Config for Runtime {
+impl parachain_staking::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type UpdateOrigin = CollatorSelectionUpdateOrigin;
-	type PotId = PotId;
-	type MaxCandidates = MaxCandidates;
-	type MinCandidates = MinCandidates;
-	type MaxInvulnerables = MaxInvulnerables;
-	// should be a multiple of session or things will get inconsistent
-	type KickThreshold = Period;
-	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
-	type ValidatorRegistration = Session;
-	type WeightInfo = ();
+	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
+	/// Minimum round length is 2 minutes (10 * 12 second block times)
+	type MinBlocksPerRound = ConstU32<10>;
+	/// Blocks per round
+	type DefaultBlocksPerRound = ConstU32<{ 5 * MINUTES }>;
+	/// Rounds before the collator leaving the candidates request can be executed
+	type LeaveCandidatesDelay = ConstU32<2>;
+	/// Rounds before the candidate bond increase/decrease can be executed
+	type CandidateBondLessDelay = ConstU32<2>;
+	/// Rounds before the delegator exit can be executed
+	type LeaveDelegatorsDelay = ConstU32<2>;
+	/// Rounds before the delegator revocation can be executed
+	type RevokeDelegationDelay = ConstU32<2>;
+	/// Rounds before the delegator bond increase/decrease can be executed
+	type DelegationBondLessDelay = ConstU32<2>;
+	/// Rounds before the reward is paid
+	type RewardPaymentDelay = ConstU32<2>;
+	/// Minimum collators selected per round, default at genesis and minimum forever after
+	type MinSelectedCandidates = ConstU32<5>;
+	/// Maximum top delegations per candidate
+	type MaxTopDelegationsPerCandidate = ConstU32<10>;
+	/// Maximum bottom delegations per candidate
+	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	/// Maximum delegations per delegator
+	type MaxDelegationsPerDelegator = ConstU32<10>;
+	type DefaultCollatorCommission = DefaultCollatorCommission;
+	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
+	/// Minimum stake required to become a collator
+	type MinCollatorStk = ConstU128<{ 1_000_000 * DOLLAR }>;
+	/// Minimum stake required to be reserved to be a candidate
+	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
+	/// Minimum delegation amount after initial
+	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
+	/// Minimum initial stake required to be reserved to be a delegator
+	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+	/// Handler to notify the runtime when a collator is paid
+	type OnCollatorPayout = ();
+	/// Handler to notify the runtime when a new round begins
+	type OnNewRound = ();
+	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -492,8 +567,10 @@ impl pallet_bounties::Config for Runtime {
 	type BountyDepositBase = BountyDepositBase;
 	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
 	type BountyUpdatePeriod = BountyUpdatePeriod;
-	type BountyCuratorDeposit = BountyCuratorDeposit;
 	type BountyValueMinimum = BountyValueMinimum;
+	type CuratorDepositMultiplier = CuratorDepositMultiplier;
+	type CuratorDepositMin = CuratorDepositMin;
+	type CuratorDepositMax = CuratorDepositMax;
 	type DataDepositPerByte = DataDepositPerByte;
 	type MaximumReasonLength = MaximumReasonLength;
 	type WeightInfo = pallet_bounties::weights::SubstrateWeight<Runtime>;
@@ -568,7 +645,9 @@ parameter_types! {
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
 	pub const MaximumReasonLength: u32 = 16384;
-	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
+	pub CuratorDepositMin: Balance = DOLLAR;
+	pub CuratorDepositMax: Balance = 100 * DOLLAR;
 	pub const BountyValueMinimum: Balance = 5 * UNIT;
 	pub const MaxApprovals: u32 = 100;
 }
@@ -727,7 +806,7 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 256;
+	pub const MaxTasksPerSlot: u32 = 576;
 	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 7 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
@@ -777,7 +856,7 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
-			Call::CollatorSelection(_) => false,
+			Call::ParachainStaking(_) => false,
 			Call::Treasury(_) => false,
 			_ => true,
 		}
@@ -813,12 +892,14 @@ construct_runtime!(
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 11,
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
+		Currencies: orml_currencies::{Pallet, Call} = 12,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 13,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
-		CollatorSelection: pallet_collator_selection::{Pallet, Call, Storage, Event<T>, Config<T>} = 21,
-		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
+		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 21,
+		ParachainStaking: parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
 
@@ -830,6 +911,8 @@ construct_runtime!(
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
+		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,
+		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 45,
 
 		// Support pallets.
 		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 50,
@@ -973,12 +1056,14 @@ impl_runtime_apis! {
 			use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
+			use parachain_staking::Pallet as ParachainStaking;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
+			list_benchmark!(list, extra, parachain_staking, ParachainStaking::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -994,6 +1079,7 @@ impl_runtime_apis! {
 			use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
+			use parachain_staking::Pallet as ParachainStaking;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1014,6 +1100,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
+			add_benchmark!(params, batches, parachain_staking, ParachainStaking::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

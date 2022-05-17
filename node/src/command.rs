@@ -6,6 +6,7 @@ use crate::{
 use codec::Encode;
 use cumulus_client_service::genesis::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
+use frame_benchmarking_cli::BenchmarkCmd;
 use log::info;
 use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
@@ -26,13 +27,13 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		#[cfg(feature = "neumann-node")]
 		"neumann-staging" => Box::new(chain_spec::neumann::neumann_staging_testnet_config()),
 		#[cfg(feature = "neumann-node")]
-		"neumann-latest" => Box::new(chain_spec::neumann::neumann_latest()),
+		"neumann" => Box::new(chain_spec::neumann::neumann_latest()?),
 		#[cfg(feature = "turing-node")]
 		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
 		#[cfg(feature = "turing-node")]
 		"turing-staging" => Box::new(chain_spec::turing::turing_staging()),
 		#[cfg(feature = "turing-node")]
-		"turing-live" => Box::new(chain_spec::turing::turing_live()),
+		"turing" => Box::new(chain_spec::turing::turing_live()?),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
@@ -140,7 +141,13 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
-		polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
+		match id {
+			#[cfg(feature = "neumann-node")]
+			"neumann-relay" => Ok(Box::new(polkadot_service::RococoChainSpec::from_json_bytes(
+				&include_bytes!("../../node/res/neumann-rococo-testnet.json")[..],
+			)?)),
+			_ => polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
+		}
 	}
 
 	fn native_runtime_version(
@@ -258,7 +265,7 @@ pub fn run() -> Result<()> {
 		},
 		Some(Subcommand::Revert(cmd)) => {
 			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, components.backend))
+				Ok(cmd.run(components.client, components.backend, None))
 			})
 		},
 		Some(Subcommand::ExportGenesisState(params)) => {
@@ -309,21 +316,45 @@ pub fn run() -> Result<()> {
 
 			Ok(())
 		},
-		Some(Subcommand::Benchmark(cmd)) =>
-			if cfg!(feature = "runtime-benchmarks") {
-				let runner = cli.create_runner(cmd)?;
-				let chain_spec = &runner.config().chain_spec;
-				with_runtime_or_err!(chain_spec, {
-					{
-						runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+		Some(Subcommand::Benchmark(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
+			// Switch on the concrete benchmark sub-command-
+			with_runtime_or_err!(chain_spec, {
+				{
+					match cmd {
+						BenchmarkCmd::Pallet(cmd) =>
+							if cfg!(feature = "runtime-benchmarks") {
+								runner.sync_run(|config| {
+									cmd.run::<Block, Executor>(config)
+								})
+							} else {
+								Err("Benchmarking wasn't enabled when building the node. \
+					You can enable it with `--features runtime-benchmarks`."
+									.into())
+							},
+						BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
+							let partials = service::new_partial::<RuntimeApi, Executor, _>(
+								&config,
+								crate::service::parachain_build_import_queue,
+							)?;
+							cmd.run(partials.client)
+						}),
+						BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
+							let partials = service::new_partial::<RuntimeApi, Executor, _>(
+								&config,
+								crate::service::parachain_build_import_queue,
+							)?;
+							let db = partials.backend.expose_db();
+							let storage = partials.backend.expose_storage();
+
+							cmd.run(config, partials.client.clone(), db, storage)
+						}),
+						BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
 					}
-				})
-			} else {
-				Err("Benchmarking wasn't enabled when building the node. \
-				You can enable it with `--features runtime-benchmarks`."
-					.into())
-			},
-		// Fix as this run the node
+				}
+			})
+		},
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -341,7 +372,7 @@ pub fn run() -> Result<()> {
 
 				let id = ParaId::from(para_id);
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v0::AccountId>::into_account(&id);
+					AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account(&id);
 				let tokio_handle = config.tokio_handle.clone();
 				let polkadot_config =
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
