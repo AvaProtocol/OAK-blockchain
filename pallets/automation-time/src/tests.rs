@@ -22,10 +22,8 @@ use crate::{
 	Tasks,
 };
 use core::convert::TryInto;
-use cumulus_primitives_core::ParaId;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, error::BadOrigin};
 use frame_system::RawOrigin;
-use polkadot_parachain::primitives::AccountIdConversion;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,

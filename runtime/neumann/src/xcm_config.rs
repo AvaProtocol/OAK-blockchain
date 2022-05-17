@@ -243,13 +243,6 @@ pub type Trader = (
 	FixedRateOfFungible<RocPerSecond, ToForeignTreasury>,
 );
 
-pub type Barrier = (
-	TakeWeightCredit,
-	AllowTopLevelPaidExecutionFrom<Everything>,
-	AllowUnpaidExecutionFrom<Everything>,
-	// ^^^ Parent and its exec plurality get free execution
-);
-
 pub struct XcmConfig;
 impl Config for XcmConfig {
 	type Call = Call;
