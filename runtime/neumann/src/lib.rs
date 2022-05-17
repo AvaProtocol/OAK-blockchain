@@ -143,10 +143,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 280,
+	spec_version: 281,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	state_version: 0,
 };
 
@@ -553,6 +553,8 @@ impl parachain_staking::Config for Runtime {
 	type OnCollatorPayout = ();
 	/// Handler to notify the runtime when a new round begins
 	type OnNewRound = ();
+	/// Whether a given collator has completed required registration to be selected as block author
+	type CollatorRegistration = Session;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
