@@ -23,10 +23,10 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use hex_literal::hex;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -46,8 +46,7 @@ use frame_support::{
 	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
-		ConstantMultiplier, DispatchClass, Weight, WeightToFeeCoefficient, WeightToFeeCoefficients,
-		WeightToFeePolynomial,
+		ConstantMultiplier, DispatchClass, Weight,
 	},
 	PalletId,
 };
@@ -75,8 +74,8 @@ use orml_traits::parameter_type_with_key;
 
 // Common imports
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
-	tokens::TokenInfo,
+	tokens::TokenInfo, AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header,
+	Index, Signature,
 };
 
 // Custom pallet imports
@@ -116,31 +115,6 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 >;
-
-/// Handles converting a weight scalar to a fee value, based on the scale and granularity of the
-/// node's balance type.
-///
-/// This should typically create a mapping between the following ranges:
-///   - `[0, MAXIMUM_BLOCK_WEIGHT]`
-///   - `[Balance::min, Balance::max]`
-///
-/// Yet, it can be used for any other sort of change to weight-fee. Some examples being:
-///   - Setting it to `0` will essentially disable the weight fee.
-///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
-pub struct WeightToFee;
-impl WeightToFeePolynomial for WeightToFee {
-	type Balance = Balance;
-	fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-		let weight_to_fee_scalar: Balance = 6;
-
-		smallvec![WeightToFeeCoefficient {
-			degree: 1,
-			negative: false,
-			coeff_frac: Perbill::zero(),
-			coeff_integer: weight_to_fee_scalar,
-		}]
-	}
-}
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -356,6 +330,9 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
+	// we will send the tokens to a special account to be dealt with.
+	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
 }
 
 parameter_type_with_key! {
@@ -406,7 +383,7 @@ impl TokenInfo for CurrencyId {
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
-		*a == TreasuryAccount::get()
+		*a == TreasuryAccount::get() || *a == TemporaryForeignTreasuryAccount::get()
 	}
 }
 
@@ -448,6 +425,7 @@ parameter_types! {
 	/// See `multiplier_can_grow_from_zero`.
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub const TransactionByteFee: Balance = 0;
+	pub const WeightToFeeScalar: Balance = 6;
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
@@ -488,7 +466,7 @@ where
 impl pallet_transaction_payment::Config for Runtime {
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
-	type WeightToFee = WeightToFee;
+	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;

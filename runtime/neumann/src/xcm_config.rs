@@ -11,7 +11,7 @@ use frame_support::{
 	weights::Weight,
 };
 use frame_system::EnsureRoot;
-use sp_runtime::traits::Convert;
+use sp_runtime::{traits::Convert, Percent};
 
 // Polkadot Imports
 use pallet_xcm::XcmPassthrough;
@@ -204,25 +204,44 @@ parameter_types! {
 	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
 }
 
-pub struct ToTreasury;
-impl TakeRevenue for ToTreasury {
-    fn take_revenue(revenue: MultiAsset) {
-        if let MultiAsset {
-            id: AssetId::Concrete(id),
-            fun: Fungibility::Fungible(amount),
-        } = revenue
-        {
-            if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-                // Ensure TreasuryAccount have ed requirement for native asset, but don't need
+pub struct ToNativeTreasury;
+impl TakeRevenue for ToNativeTreasury {
+	fn take_revenue(revenue: MultiAsset) {
+		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
+			revenue
+		{
+			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
+				// 80% burned, 20% to the treasury
+				let to_treasury = Percent::from_percent(20).mul_floor(amount);
+				// Due to the way XCM works the amount has already been taken off the total allocation balance.
+				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
+				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
+			}
+		}
+	}
+}
+
+pub struct ToForeignTreasury;
+impl TakeRevenue for ToForeignTreasury {
+	fn take_revenue(revenue: MultiAsset) {
+		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
+			revenue
+		{
+			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
+				// Ensure TreasuryAccount have ed requirement for native asset, but don't need
 				// ed requirement for cross-chain asset because it's one of whitelist accounts.
 				// Ignore the result.
 				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), amount);
-            }
-        }
-    }
+			}
+		}
+	}
 }
 
-pub type Trader = (FixedRateOfFungible<NeuPerSecond, ToTreasury>, FixedRateOfFungible<NeuCanonicalPerSecond, ()>, FixedRateOfFungible<RocPerSecond, ToTreasury>);
+pub type Trader = (
+	FixedRateOfFungible<NeuPerSecond, ToNativeTreasury>,
+	FixedRateOfFungible<NeuCanonicalPerSecond, ToNativeTreasury>,
+	FixedRateOfFungible<RocPerSecond, ToForeignTreasury>,
+);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
