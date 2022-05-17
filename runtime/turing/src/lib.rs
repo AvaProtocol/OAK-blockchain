@@ -750,6 +750,7 @@ parameter_types! {
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
 	pub const ExecutionWeightFee: Balance = 12;
+	pub const XCMPWeightAtMost: Weight = 10_000_000_000;
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
@@ -782,6 +783,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+	type XCMPWeightAtMost = XCMPWeightAtMost;
+	type XcmSender = xcm_config::XcmRouter;
 }
 
 pub struct ClosedCallFilter;
@@ -841,7 +845,7 @@ construct_runtime!(
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 

@@ -39,11 +39,13 @@ pub trait WeightInfo {
 	fn schedule_notify_task_full(v: u32, ) -> Weight;
 	fn schedule_native_transfer_task_empty() -> Weight;
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight;
+	fn schedule_xcmp_task_full(v: u32, ) -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
 	fn run_notify_task() -> Weight;
 	fn run_native_transfer_task() -> Weight;
+	fn run_xcmp_task() -> Weight;
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight;
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight;
 	fn run_tasks_many_found(v: u32, ) -> Weight;
@@ -101,6 +103,19 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: System Account (r:2 w:2)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	fn schedule_xcmp_task_full(v: u32, ) -> Weight {
+		(30_331_000 as Weight)
+			// Standard Error: 99_000
+			.saturating_add((49_354_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
@@ -136,6 +151,11 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 		(27_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: ParachainSystem RelevantMessagingState (r:1 w:0)
+	fn run_xcmp_task() -> Weight {
+		(9_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {

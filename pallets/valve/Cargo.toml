@@ -28,7 +28,14 @@ sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.18" }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.18" }
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.18" }
 
+pallet-xcm = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.18', default-features = false }
+xcm-builder = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.18', default-features = false }
+xcm-executor = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.18', default-features = false }
+
+cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
+cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.18', default-features = false }
 
 [features]
 default = ["std"]

@@ -20,12 +20,13 @@ use crate::{
 	Call, Error, Event,
 };
 use frame_support::{assert_noop, assert_ok, dispatch::Dispatchable};
+use sp_runtime::AccountId32;
 
 #[test]
 fn can_remark_while_valve_open() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(1)));
+		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 
@@ -33,7 +34,10 @@ fn can_remark_while_valve_open() {
 fn cannot_remark_while_valve_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+		assert_noop!(
+			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			frame_system::Error::<Test>::CallFiltered
+		);
 	})
 }
 
@@ -66,7 +70,10 @@ fn can_close_pallet_gatee() {
 		);
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+		assert_noop!(
+			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			frame_system::Error::<Test>::CallFiltered
+		);
 		assert_eq!(1, Valve::count_of_closed_gates());
 	})
 }
@@ -95,7 +102,7 @@ fn can_start_with_pallet_gate_closed() {
 		.execute_with(|| {
 			let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 			assert_noop!(
-				call.dispatch(Origin::signed(1)),
+				call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
 				frame_system::Error::<Test>::CallFiltered
 			);
 			assert_eq!(1, Valve::count_of_closed_gates());
@@ -133,7 +140,10 @@ fn can_open_pallet_gate() {
 		assert_eq!(1, Valve::count_of_closed_gates());
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_noop!(call.dispatch(Origin::signed(1)), frame_system::Error::<Test>::CallFiltered);
+		assert_noop!(
+			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			frame_system::Error::<Test>::CallFiltered
+		);
 
 		let call: OuterCall = Call::open_pallet_gate { pallet_name: b"System".to_vec() }.into();
 		assert_ok!(call.dispatch(Origin::root()));
@@ -141,7 +151,7 @@ fn can_open_pallet_gate() {
 		assert_eq!(0, Valve::count_of_closed_gates());
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(1)));
+		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 
@@ -180,7 +190,7 @@ fn opens_all_pallet_gates() {
 		assert_eq!(events(), vec![Event::PalletGatesClosed { count: 0 }]);
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(1)));
+		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 

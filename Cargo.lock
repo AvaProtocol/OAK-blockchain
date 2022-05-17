@@ -5247,6 +5247,7 @@ dependencies = [
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "turing-runtime",
+ "xcm",
 ]
 
 [[package]]
@@ -5385,19 +5386,26 @@ dependencies = [
 name = "pallet-automation-time"
 version = "1.0.0"
 dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-xcm",
  "parity-scale-codec",
+ "polkadot-parachain",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -6192,18 +6200,24 @@ dependencies = [
 name = "pallet-valve"
 version = "0.2.0"
 dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-automation-time",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-xcm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
