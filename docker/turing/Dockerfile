@@ -7,7 +7,7 @@ COPY . /build
 RUN cargo build --locked --release --features turing-node
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-dev --raw > turing-dev-chain-spec.json
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-staging --raw > turing-staging-chain-spec.json
-RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing-live --raw > turing-live-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=turing --raw > turing-live-chain-spec.json
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04
