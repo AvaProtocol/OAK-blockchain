@@ -11,9 +11,10 @@ use crate::chain_spec::{
 	DummyChainSpec, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, Perbill, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
+	DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
+use parachain_staking::{InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -292,7 +293,8 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
-				.into_iter()
+				.iter()
+				.cloned()
 				.map(|(acc, aura)| {
 					(
 						acc.clone(),                 // account id
@@ -302,8 +304,15 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
+		parachain_staking: neumann_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
+				.collect(),
+			delegations: vec![],
+			inflation_config: inflation_config(),
+		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
@@ -321,6 +330,27 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
+	}
+}
+
+pub fn inflation_config() -> InflationInfo<Balance> {
+	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
+		use parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
+		perbill_annual_to_perbill_round(
+			annual,
+			BLOCKS_PER_YEAR / neumann_runtime::DefaultBlocksPerRound::get(),
+		)
+	}
+	let annual = Range {
+		min: Perbill::from_percent(5),
+		ideal: Perbill::from_percent(5),
+		max: Perbill::from_percent(5),
+	};
+	InflationInfo {
+		// We have no staking expectations since inflation range is a singular value
+		expect: Range { min: 0, ideal: 0, max: 0 },
+		annual,
+		round: to_round_inflation(annual),
 	}
 }
 
