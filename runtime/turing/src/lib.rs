@@ -343,6 +343,8 @@ parameter_type_with_key! {
 			CurrencyId::KUSD => CurrencyId::KUSD.cent(),
 			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
 			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
+			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
+			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
 		}
 	};
 }
@@ -367,6 +369,8 @@ pub enum CurrencyId {
 	KUSD,
 	KAR,
 	LKSM,
+	HKO,
+	SKSM,
 }
 
 impl TokenInfo for CurrencyId {
@@ -377,6 +381,8 @@ impl TokenInfo for CurrencyId {
 			CurrencyId::KUSD => 12,
 			CurrencyId::KAR => 12,
 			CurrencyId::LKSM => 12,
+			CurrencyId::HKO => 12,
+			CurrencyId::SKSM => 12,
 		}
 	}
 }
