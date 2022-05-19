@@ -152,7 +152,7 @@ mod tests {
 	#[test]
 	fn validate_turing_allocation() {
 		use crate::chain_spec::validate_allocation;
-		use crate::turing_runtime::EXISTENTIAL_DEPOSIT;
+		use turing_runtime::EXISTENTIAL_DEPOSIT;
 		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
@@ -163,7 +163,7 @@ mod tests {
 	#[test]
 	fn validate_turing_vesting() {
 		use crate::chain_spec::validate_vesting;
-		use crate::turing_runtime::EXISTENTIAL_DEPOSIT;
+		use turing_runtime::EXISTENTIAL_DEPOSIT;
 		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
 		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 			serde_json::from_slice(vesting_json).unwrap();
