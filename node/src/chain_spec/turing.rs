@@ -147,24 +147,23 @@ fn testnet_genesis(
 }
 
 #[cfg(test)]
-use crate::chain_spec::{validate_allocation, validate_vesting};
-#[cfg(test)]
-use turing_runtime::EXISTENTIAL_DEPOSIT;
-
-#[cfg(test)]
 mod tests {
 	use super::*;
 	#[test]
 	fn validate_turing_allocation() {
+		use crate::chain_spec::validate_allocation;
+		use crate::turing_runtime::EXISTENTIAL_DEPOSIT;
 		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 		const EXPECTED_ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
-		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, turing_runtime::EXISTENTIAL_DEPOSIT);
+		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
 	}
 
 	#[test]
 	fn validate_turing_vesting() {
+		use crate::chain_spec::validate_vesting;
+		use crate::turing_runtime::EXISTENTIAL_DEPOSIT;
 		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
 		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 			serde_json::from_slice(vesting_json).unwrap();
