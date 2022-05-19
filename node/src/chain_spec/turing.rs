@@ -1,27 +1,20 @@
-use hex_literal::hex;
-
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
-use sc_telemetry::TelemetryEndpoints;
-use sp_core::{crypto::UncheckedInto, sr25519};
+use sp_core::sr25519;
 
-use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, DummyChainSpec, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
-static STAGING_RELAY_CHAIN: &str = "rococo";
 const DEFAULT_PARA_ID: u32 = 2000;
-const REGISTERED_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -154,6 +147,11 @@ fn testnet_genesis(
 }
 
 #[cfg(test)]
+use crate::chain_spec::{validate_allocation, validate_vesting};
+#[cfg(test)]
+use turing_runtime::EXISTENTIAL_DEPOSIT;
+
+#[cfg(test)]
 mod tests {
 	use super::*;
 	#[test]
@@ -162,7 +160,7 @@ mod tests {
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
 		const EXPECTED_ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 58_000_000;
-		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, EXISTENTIAL_DEPOSIT);
+		validate_allocation(initial_allocation, EXPECTED_ALLOC_TOKENS_TOTAL, turing_runtime::EXISTENTIAL_DEPOSIT);
 	}
 
 	#[test]
