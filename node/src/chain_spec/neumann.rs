@@ -7,14 +7,13 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation,
+	validate_vesting, DummyChainSpec, Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, Perbill, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
+	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
-use parachain_staking::{InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -311,7 +310,7 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(),
+			inflation_config: inflation_config(neumann_runtime::DefaultBlocksPerRound::get()),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
@@ -330,27 +329,6 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-	}
-}
-
-pub fn inflation_config() -> InflationInfo<Balance> {
-	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
-		use parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
-		perbill_annual_to_perbill_round(
-			annual,
-			BLOCKS_PER_YEAR / neumann_runtime::DefaultBlocksPerRound::get(),
-		)
-	}
-	let annual = Range {
-		min: Perbill::from_percent(5),
-		ideal: Perbill::from_percent(5),
-		max: Perbill::from_percent(5),
-	};
-	InflationInfo {
-		// We have no staking expectations since inflation range is a singular value
-		expect: Range { min: 0, ideal: 0, max: 0 },
-		annual,
-		round: to_round_inflation(annual),
 	}
 }
 
