@@ -10,10 +10,11 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
 	DummyChainSpec, Extensions,
 };
+use parachain_staking::{InflationInfo, Range};
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, Perbill, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
+	DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -107,7 +108,8 @@ pub fn turing_staging() -> ChainSpec {
 		"turing",
 		ChainType::Live,
 		move || {
-			let allocation_json = &include_bytes!("../../../distribution/turing_staging_alloc.json")[..];
+			let allocation_json =
+				&include_bytes!("../../../distribution/turing_staging_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
@@ -192,7 +194,8 @@ fn testnet_genesis(
 		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: para_id },
 		session: turing_runtime::SessionConfig {
 			keys: invulnerables
-				.into_iter()
+				.iter()
+				.cloned()
 				.map(|(acc, aura)| {
 					(
 						acc.clone(),                 // account id
@@ -202,8 +205,15 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
+		parachain_staking: turing_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, turing_runtime::MinCollatorStk::get()))
+				.collect(),
+			delegations: vec![],
+			inflation_config: inflation_config(),
+		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
@@ -221,6 +231,27 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
+	}
+}
+
+pub fn inflation_config() -> InflationInfo<Balance> {
+	fn to_round_inflation(annual: Range<Perbill>) -> Range<Perbill> {
+		use parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
+		perbill_annual_to_perbill_round(
+			annual,
+			BLOCKS_PER_YEAR / turing_runtime::DefaultBlocksPerRound::get(),
+		)
+	}
+	let annual = Range {
+		min: Perbill::from_percent(5),
+		ideal: Perbill::from_percent(5),
+		max: Perbill::from_percent(5),
+	};
+	InflationInfo {
+		// We have no staking expectations since inflation range is a singular value
+		expect: Range { min: 0, ideal: 0, max: 0 },
+		annual,
+		round: to_round_inflation(annual),
 	}
 }
 
