@@ -1,0 +1,50 @@
+name: Deploy rust docs
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push events but only for the master branch
+  push:
+    branches: [ 'master' ]
+
+env:
+  AWS_REGION: us-east-1                                        # set this to your preferred AWS region, e.g. us-west-1
+  BUCKET_NAME: docs.oak.tech
+
+permissions:
+  id-token: write # required to use OIDC authentication
+  contents: read # required to checkout the code from the repo
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build:
+    name: Deploy rust docs
+    # The type of runner that the job will run on
+    runs-on: ubuntu-20.04
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Set-Up
+        run: sudo apt install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+
+      - name: Install Rustup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          source ~/.cargo/env
+
+      - name: Build doc
+        run: |
+          cargo doc
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-duration-seconds: 3600 # the ttl of the session, in seconds.
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy files to S3
+        run: |
+          aws s3 sync --delete target/doc s3://${{ env.BUCKET_NAME }}/rust
