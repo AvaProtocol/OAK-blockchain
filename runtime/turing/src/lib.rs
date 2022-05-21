@@ -340,7 +340,7 @@ parameter_type_with_key! {
 		match currency_id {
 			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
 			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
-			CurrencyId::KUSD => CurrencyId::KUSD.cent(),
+			CurrencyId::AUSD => CurrencyId::AUSD.cent(),
 			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
 			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
 		}
@@ -364,7 +364,7 @@ parameter_type_with_key! {
 pub enum CurrencyId {
 	Native,
 	KSM,
-	KUSD,
+	AUSD,
 	KAR,
 	LKSM,
 }
@@ -374,7 +374,7 @@ impl TokenInfo for CurrencyId {
 		match self {
 			CurrencyId::Native => 10,
 			CurrencyId::KSM => 12,
-			CurrencyId::KUSD => 12,
+			CurrencyId::AUSD => 12,
 			CurrencyId::KAR => 12,
 			CurrencyId::LKSM => 12,
 		}
