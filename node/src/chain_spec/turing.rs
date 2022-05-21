@@ -20,7 +20,6 @@ const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo";
-const DEFAULT_PARA_ID: u32 = 2000;
 const REGISTERED_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
@@ -74,7 +73,7 @@ pub fn turing_development_config() -> ChainSpec {
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
-				DEFAULT_PARA_ID.into(),
+				REGISTERED_PARA_ID.into(),
 				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
 				vec![],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
@@ -88,7 +87,7 @@ pub fn turing_development_config() -> ChainSpec {
 		None,
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: DEFAULT_PARA_ID,
+			para_id: REGISTERED_PARA_ID,
 		},
 	)
 }
