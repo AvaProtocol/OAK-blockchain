@@ -168,7 +168,6 @@ pub type Barrier = DenyThenTry<
 	(
 		TakeWeightCredit,
 		AllowTopLevelPaidExecutionFrom<Everything>,
-		// AllowUnpaidExecutionFrom<Everything>,
 		AllowUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
 		// ^^^ Parent and its exec plurality get free execution
 	),
