@@ -31,7 +31,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		#[cfg(feature = "turing-node")]
 		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
 		#[cfg(feature = "turing-node")]
-		"turing-staging" => Box::new(chain_spec::turing::turing_staging()),
+		"turing-staging" => Box::new(chain_spec::turing::turing_staging()?),
 		#[cfg(feature = "turing-node")]
 		"turing" => Box::new(chain_spec::turing::turing_live()?),
 		path => {

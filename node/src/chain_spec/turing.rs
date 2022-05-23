@@ -1,27 +1,20 @@
-use hex_literal::hex;
-
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
-use sc_telemetry::TelemetryEndpoints;
-use sp_core::{crypto::UncheckedInto, sr25519};
+use sp_core::sr25519;
 
-use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, DummyChainSpec, Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
-static STAGING_RELAY_CHAIN: &str = "rococo";
 const DEFAULT_PARA_ID: u32 = 2000;
-const REGISTERED_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;
@@ -93,79 +86,8 @@ pub fn turing_development_config() -> ChainSpec {
 	)
 }
 
-pub fn turing_staging() -> ChainSpec {
-	// Give your base currency a unit name and decimal places
-	let mut properties = sc_chain_spec::Properties::new();
-	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
-	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
-	properties.insert("ss58Format".into(), SS_58_FORMAT.into());
-
-	ChainSpec::from_genesis(
-		// Name
-		"Turing Staging",
-		// ID
-		"turing",
-		ChainType::Live,
-		move || {
-			let allocation_json = &include_bytes!("../../../distribution/turing_staging_alloc.json")[..];
-			let initial_allocation: Vec<(AccountId, Balance)> =
-				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
-			validate_allocation(
-				initial_allocation.clone(),
-				ALLOC_TOKENS_TOTAL,
-				EXISTENTIAL_DEPOSIT,
-			);
-
-			testnet_genesis(
-				// initial collators.
-				vec![
-					(
-						// SS58 prefix substrate: 5EvKT4iWQ5gDnRhkS3d254RVCfaQJSyXHj5mA4kQTsCjWchW
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
-							.into(),
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
-							.unchecked_into(),
-					),
-					(
-						// SS58 prefix substrate: 5F4Dx9TD16awU7FeGD3Me5VDrEsL5MDPEcbNBvUgLQFawxyW
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
-							.into(),
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
-							.unchecked_into(),
-					),
-				],
-				// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
-				hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
-				initial_allocation,
-				REGISTERED_PARA_ID.into(),
-				vec![],
-				vec![],
-				vec![
-					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
-					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
-				],
-				vec![
-					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
-					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
-				],
-			)
-		},
-		// Bootnodes
-		Vec::new(),
-		// Telemetry
-		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
-		// Protocol ID
-		Some("turing"),
-		None,
-		// Properties
-		Some(properties),
-		// Extensions
-		Extensions {
-			relay_chain: STAGING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: REGISTERED_PARA_ID,
-		},
-	)
+pub fn turing_staging() -> Result<DummyChainSpec, String> {
+	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/turing-staging.json")[..])
 }
 
 pub fn turing_live() -> Result<DummyChainSpec, String> {
@@ -229,6 +151,8 @@ mod tests {
 	use super::*;
 	#[test]
 	fn validate_turing_allocation() {
+		use crate::chain_spec::validate_allocation;
+		use turing_runtime::EXISTENTIAL_DEPOSIT;
 		let allocation_json = &include_bytes!("../../../distribution/turing_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
 			serde_json::from_slice(allocation_json).unwrap();
@@ -238,6 +162,8 @@ mod tests {
 
 	#[test]
 	fn validate_turing_vesting() {
+		use crate::chain_spec::validate_vesting;
+		use turing_runtime::EXISTENTIAL_DEPOSIT;
 		let vesting_json = &include_bytes!("../../../distribution/turing_vesting.json")[..];
 		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 			serde_json::from_slice(vesting_json).unwrap();
