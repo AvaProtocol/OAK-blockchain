@@ -3,7 +3,12 @@ use serde::{Deserialize, Serialize};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainSpec;
 use sp_core::{Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify, Zero};
+use sp_runtime::{
+	traits::{IdentifyAccount, Verify, Zero},
+	Perbill,
+};
+
+use parachain_staking::{InflationInfo, Range};
 
 use primitives::{AccountId, AuraId, Balance, Signature};
 
@@ -147,6 +152,26 @@ pub fn validate_vesting(
 	);
 
 	assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
+}
+
+pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
+	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
+		use parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
+		perbill_annual_to_perbill_round(annual, BLOCKS_PER_YEAR / blocks_per_round)
+	}
+
+	let annual = Range {
+		min: Perbill::from_percent(5),
+		ideal: Perbill::from_percent(5),
+		max: Perbill::from_percent(5),
+	};
+
+	InflationInfo {
+		// We have no staking expectations since inflation range is a singular value
+		expect: Range { min: 0, ideal: 0, max: 0 },
+		annual,
+		round: to_round_inflation(annual, blocks_per_round),
+	}
 }
 
 /// Validate that the vested fits the following criteria:

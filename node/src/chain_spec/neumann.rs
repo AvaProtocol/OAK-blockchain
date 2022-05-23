@@ -7,8 +7,8 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation,
+	validate_vesting, DummyChainSpec, Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
@@ -292,7 +292,8 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
-				.into_iter()
+				.iter()
+				.cloned()
 				.map(|(acc, aura)| {
 					(
 						acc.clone(),                 // account id
@@ -302,8 +303,15 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
+		parachain_staking: neumann_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
+				.collect(),
+			delegations: vec![],
+			inflation_config: inflation_config(neumann_runtime::DefaultBlocksPerRound::get()),
+		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),

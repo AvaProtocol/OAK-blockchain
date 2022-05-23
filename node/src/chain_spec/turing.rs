@@ -3,7 +3,8 @@ use sc_service::ChainType;
 use sp_core::sr25519;
 
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
+	Extensions,
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
@@ -114,7 +115,8 @@ fn testnet_genesis(
 		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: para_id },
 		session: turing_runtime::SessionConfig {
 			keys: invulnerables
-				.into_iter()
+				.iter()
+				.cloned()
 				.map(|(acc, aura)| {
 					(
 						acc.clone(),                 // account id
@@ -124,8 +126,15 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
+		parachain_staking: turing_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, turing_runtime::MinCollatorStk::get()))
+				.collect(),
+			delegations: vec![],
+			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get()),
+		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
