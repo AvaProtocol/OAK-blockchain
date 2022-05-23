@@ -244,7 +244,7 @@ fn schedule_xcmp_works() {
 			.unwrap();
 		let call: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_xcmp_task(
-			cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
+			Origin::signed(AccountId32::new([ALICE; 32])),
 			vec![50],
 			vec![SCHEDULED_TIME],
 			PARA_ID.try_into().unwrap(),
@@ -275,28 +275,11 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
-fn schedule_xcmp_errors_wrong_para_id() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let para_id2: u32 = 2001;
-		assert_noop!(
-			AutomationTime::schedule_xcmp_task(
-				cumulus_pallet_xcm::Origin::SiblingParachain(para_id2.try_into().unwrap()).into(),
-				vec![50],
-				vec![SCHEDULED_TIME],
-				PARA_ID.try_into().unwrap(),
-				vec![3,4,5],
-			),
-			Error::<Test>::InvalidParaId,
-		);
-	})
-}
-
-#[test]
 fn schedule_xcmp_errors_not_signed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
-				cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
+				Origin::none(),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),

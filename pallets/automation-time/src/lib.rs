@@ -45,7 +45,7 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_pallet_xcm::{Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
@@ -298,8 +298,6 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
-		/// Parachain id must be that of the caller.
-		InvalidParaId,
 	}
 
 	#[pallet::event]
@@ -480,7 +478,6 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
-		/// * `InvalidParaId`: Parachain id must be that of the caller.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -492,13 +489,8 @@ pub mod pallet {
 			para_id: ParaId,
 			call: Vec<u8>,
 		) -> DispatchResult {
-			// ensure para_id is that of sender
-			let sender_para_id = ensure_sibling_para(<T as Config>::Origin::from(origin.clone()))?;
-			if sender_para_id != para_id {
-				Err(Error::<T>::InvalidParaId)?;
-			}
-
 			let who = ensure_signed(origin)?;
+			
 			let action = Action::XCMP { para_id, call };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
