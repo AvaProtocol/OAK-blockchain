@@ -15,7 +15,6 @@ use turing_runtime::{
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
-static STAGING_RELAY_CHAIN: &str = "rococo";
 const REGISTERED_PARA_ID: u32 = 2114;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
