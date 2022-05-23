@@ -230,6 +230,24 @@ parameter_types! {
 		// LKSM:KSM = 10:1
 		ksm_per_second() * 10
 	);
+
+	pub HkoPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X2(Parachain(parachains::heiko::ID), GeneralKey(parachains::heiko::HKO_KEY.to_vec())),
+		).into(),
+		// HKO:KSM = 30:1
+		ksm_per_second() * 30
+	);
+
+	pub SksmPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X2(Parachain(parachains::heiko::ID), GeneralKey(parachains::heiko::SKSM_KEY.to_vec())),
+		).into(),
+		// sKSM:KSM = 1:1
+		ksm_per_second()
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -273,6 +291,8 @@ pub type Trader = (
 	FixedRateOfFungible<KarPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<AusdPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<LksmPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<HkoPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<SksmPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
@@ -397,6 +417,12 @@ pub mod parachains {
 	pub mod mangata {
 		pub const ID: u32 = 2110;
 	}
+
+	pub mod heiko {
+		pub const ID: u32 = 2085;
+		pub const HKO_KEY: &[u8] = b"HKO";
+		pub const SKSM_KEY: &[u8] = b"sKSM";
+	}
 }
 
 pub struct CurrencyIdConvert;
@@ -427,6 +453,20 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 					GeneralKey(parachains::karura::LKSM_KEY.to_vec()),
 				),
 			)),
+			CurrencyId::HKO => Some(MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachains::heiko::ID),
+					GeneralKey(parachains::heiko::HKO_KEY.to_vec()),
+				),
+			)),
+			CurrencyId::SKSM => Some(MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachains::heiko::ID),
+					GeneralKey(parachains::heiko::SKSM_KEY.to_vec()),
+				),
+			)),
 		}
 	}
 }
@@ -445,6 +485,10 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 						Some(CurrencyId::AUSD),
 					(parachains::karura::ID, parachains::karura::LKSM_KEY) =>
 						Some(CurrencyId::LKSM),
+					(parachains::heiko::ID, parachains::heiko::HKO_KEY) =>
+						Some(CurrencyId::HKO),
+					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) =>
+						Some(CurrencyId::SKSM),
 					_ => None,
 				},
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
