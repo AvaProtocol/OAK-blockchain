@@ -143,7 +143,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 281,
+	spec_version: 282,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 8,
@@ -325,6 +325,52 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+}
+
+parameter_types! {
+	pub const OneCent: Balance = 1 * CENT;
+}
+
+// EnsureOneOf with some sort of go
+type ForceOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+type RegistrarOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+
+impl pallet_identity::Config for Runtime {
+	/// The overarching event type.
+	type Event = Event;
+	/// The currency trait.
+	type Currency = Balances;
+	/// The amount held on deposit for a registered identity
+	type BasicDeposit = OneCent;
+	/// The amount held on deposit per additional field for a registered identity.
+	type FieldDeposit = OneCent;
+	/// The amount held on deposit for a registered subaccount. This should account for the fact
+	/// that one storage item's value will increase by the size of an account ID, and there will
+	/// be another trie item whose value is the size of an account ID plus 32 bytes.
+	type SubAccountDeposit = OneCent;
+	/// The maximum number of sub-accounts allowed per identified account.
+	type MaxSubAccounts = ConstU32<50>;
+	/// Maximum number of additional fields that may be stored in an ID. Needed to bound the I/O
+	/// required to access an identity, but can be pretty high.
+	type MaxAdditionalFields = ConstU32<50>;
+	/// Maxmimum number of registrars allowed in the system. Needed to bound the complexity
+	/// of, e.g., updating judgements.
+	type MaxRegistrars = ConstU32<10>;
+	/// What to do with slashed funds.
+	type Slashed = Treasury;
+	/// The origin which may forcibly set or remove a name. Root can always do this.
+	type ForceOrigin = ForceOrigin;
+	/// The origin which may add or remove registrars. Root can always do this.
+	type RegistrarOrigin = RegistrarOrigin;
+
+	/// Weight information for extrinsics in this pallet.
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -907,6 +953,7 @@ construct_runtime!(
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
