@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 - Update to substrate 0.9.20
+- Added Parallel Heiko tokens
+- Changed KUSD to AUSD
 
 ## [1.3.0] - 2022-05-17
 - Moving Turing xcm configs to their own file.
