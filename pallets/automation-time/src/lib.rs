@@ -58,7 +58,7 @@ use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
-	DispatchError, Perbill, 
+	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
 
@@ -1031,7 +1031,8 @@ pub mod pallet {
 		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => <T as Config>::WeightInfo::run_native_transfer_task(),
+				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
+					<T as Config>::WeightInfo::run_native_transfer_task(),
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());
