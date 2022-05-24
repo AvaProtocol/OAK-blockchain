@@ -27,7 +27,7 @@ use crate::Pallet as AutomationTime;
 
 const SEED: u32 = 0;
 // existential deposit multiplier
-const ED_MULTIPLIER: u32 = 10;
+const ED_MULTIPLIER: u32 = 1_000;
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount =
