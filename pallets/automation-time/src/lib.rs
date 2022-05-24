@@ -45,7 +45,7 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{Origin as CumulusOrigin};
+use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
@@ -490,7 +490,7 @@ pub mod pallet {
 			weight_at_most: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			
+
 			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
@@ -909,7 +909,12 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
-		pub fn run_xcmp_task(para_id: ParaId, call: Vec<u8>, weight_at_most: Weight, task_id: T::Hash) -> Weight {
+		pub fn run_xcmp_task(
+			para_id: ParaId,
+			call: Vec<u8>,
+			weight_at_most: Weight,
+			task_id: T::Hash,
+		) -> Weight {
 			let destination = (1, Junction::Parachain(para_id.into()));
 			let message = Xcm(vec![Transact {
 				origin_type: OriginKind::SovereignAccount,

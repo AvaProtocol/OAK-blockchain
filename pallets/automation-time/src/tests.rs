@@ -22,7 +22,7 @@ use crate::{
 	Tasks,
 };
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize, error::BadOrigin};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
 use frame_system::RawOrigin;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
@@ -285,7 +285,7 @@ fn schedule_xcmp_errors_not_signed() {
 				vec![50],
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),
-				vec![3,4,5],
+				vec![3, 4, 5],
 				100_000,
 			),
 			BadOrigin,
@@ -1155,7 +1155,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				para_id: PARA_ID.try_into().unwrap(),
-				call: vec![3,4,5],
+				call: vec![3, 4, 5],
 				weight_at_most: 100_000,
 			},
 		);
@@ -1172,18 +1172,16 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 				Xcm(vec![Transact {
 					origin_type: OriginKind::SovereignAccount,
 					require_weight_at_most: 100_000,
-					call: vec![3,4,5].into(),
+					call: vec![3, 4, 5].into(),
 				}]),
 			)]
 		);
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::SuccessfullySentXCMP {
-					para_id: PARA_ID.try_into().unwrap(),
-					task_id: task_id1
-				}),
-			]
+			[Event::AutomationTime(crate::Event::SuccessfullySentXCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				task_id: task_id1
+			}),]
 		);
 	})
 }
@@ -1197,7 +1195,7 @@ fn trigger_tasks_xcmp_sends_error_event() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				para_id: PARA_ID.try_into().unwrap(),
-				call: vec![9,9,9],	// mock send_xcm will throw an error if call equals vec![9,9,9]
+				call: vec![9, 9, 9], // mock send_xcm will throw an error if call equals vec![9,9,9]
 				weight_at_most: 100_000,
 			},
 		);
@@ -1207,19 +1205,14 @@ fn trigger_tasks_xcmp_sends_error_event() {
 
 		AutomationTime::trigger_tasks(120_000);
 
-		assert_eq!(
-			sent_xcm(),
-			[],
-		);
+		assert_eq!(sent_xcm(), [],);
 		assert_eq!(
 			events(),
-			[
-				Event::AutomationTime(crate::Event::FailedToSendXCMP {
-					para_id: PARA_ID.try_into().unwrap(),
-					task_id: task_id1,
-					error: SendError::Transport(""),
-				}),
-			]
+			[Event::AutomationTime(crate::Event::FailedToSendXCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				task_id: task_id1,
+				error: SendError::Transport(""),
+			}),]
 		);
 	})
 }
@@ -1575,15 +1568,14 @@ fn create_task(
 				recipient,
 				amount,
 			),
-		Action::XCMP { para_id, call, weight_at_most } =>
-			Task::<Test>::create_xcmp_task(
-				AccountId32::new([owner; 32]),
-				provided_id,
-				scheduled_times.try_into().unwrap(),
-				para_id,
-				call,
-				weight_at_most,
-			),
+		Action::XCMP { para_id, call, weight_at_most } => Task::<Test>::create_xcmp_task(
+			AccountId32::new([owner; 32]),
+			provided_id,
+			scheduled_times.try_into().unwrap(),
+			para_id,
+			call,
+			weight_at_most,
+		),
 	};
 	Tasks::<Test>::insert(task_id, task);
 	task_id

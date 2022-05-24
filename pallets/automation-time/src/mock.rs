@@ -37,7 +37,9 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 
 use xcm_builder::{
-	AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, SignedToAccountId32, SovereignSignedViaLocation, RelayChainAsNative, SiblingParachainAsNative, SignedAccountId32AsNative, ParentIsPreset, SiblingParachainConvertsVia, AccountId32Aliases,
+	AccountId32Aliases, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 };
 use xcm_executor::{
 	traits::{InvertLocation, TransactAsset, WeightTrader},
@@ -152,7 +154,7 @@ impl SendXcm for TestSendXcm {
 		let err_message = Xcm(vec![Transact {
 			origin_type: OriginKind::SovereignAccount,
 			require_weight_at_most: 100_000,
-			call: vec![9,9,9].into(),
+			call: vec![9, 9, 9].into(),
 		}]);
 		if msg == err_message {
 			Err(SendError::Transport("Destination location full"))
