@@ -125,11 +125,15 @@ pub mod pallet {
 			let mut num_vests: u32 = 0;
 			if let Ok(current_time) = Self::get_current_time_slot() {
 				if let Some(scheduled) = Self::get_scheduled_vest(current_time) {
+					let mut vested_funds: BalanceOf<T> = Zero::zero();
 					num_vests = scheduled.len().saturated_into::<u32>();
 					for (account, amount) in scheduled {
+						vested_funds = vested_funds.saturating_add(amount);
 						<T as Config>::Currency::deposit_creating(&account, amount);
 						Self::deposit_event(Event::Vested { account, amount })
 					}
+					let unvested_funds = TotalUnvestedIssuance::<T>::get();
+					TotalUnvestedIssuance::<T>::set(unvested_funds.saturating_sub(vested_funds));
 				}
 				VestingSchedule::<T>::remove(current_time);
 			}
