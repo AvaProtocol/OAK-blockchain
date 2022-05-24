@@ -248,7 +248,8 @@ fn schedule_xcmp_works() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			PARA_ID.try_into().unwrap(),
-			call.clone()
+			call.clone(),
+			100_000,
 		));
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			None => {
@@ -265,6 +266,7 @@ fn schedule_xcmp_works() {
 						vec![SCHEDULED_TIME].try_into().unwrap(),
 						PARA_ID.try_into().unwrap(),
 						call.clone(),
+						100_000,
 					);
 
 					assert_eq!(task, expected_task);
@@ -284,6 +286,7 @@ fn schedule_xcmp_errors_not_signed() {
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),
 				vec![3,4,5],
+				100_000,
 			),
 			BadOrigin,
 		);
@@ -1153,6 +1156,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			Action::XCMP {
 				para_id: PARA_ID.try_into().unwrap(),
 				call: vec![3,4,5],
+				weight_at_most: 100_000,
 			},
 		);
 
@@ -1167,7 +1171,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 				(1, Junction::Parachain(PARA_ID.into())).into(),
 				Xcm(vec![Transact {
 					origin_type: OriginKind::SovereignAccount,
-					require_weight_at_most: 10_000_000_000,
+					require_weight_at_most: 100_000,
 					call: vec![3,4,5].into(),
 				}]),
 			)]
@@ -1194,6 +1198,7 @@ fn trigger_tasks_xcmp_sends_error_event() {
 			Action::XCMP {
 				para_id: PARA_ID.try_into().unwrap(),
 				call: vec![9,9,9],	// mock send_xcm will throw an error if call equals vec![9,9,9]
+				weight_at_most: 100_000,
 			},
 		);
 
@@ -1570,13 +1575,15 @@ fn create_task(
 				recipient,
 				amount,
 			),
-		Action::XCMP { para_id, call } => Task::<Test>::create_xcmp_task(
-			AccountId32::new([owner; 32]),
-			provided_id,
-			scheduled_times.try_into().unwrap(),
-			para_id,
-			call,
-		),
+		Action::XCMP { para_id, call, weight_at_most } =>
+			Task::<Test>::create_xcmp_task(
+				AccountId32::new([owner; 32]),
+				provided_id,
+				scheduled_times.try_into().unwrap(),
+				para_id,
+				call,
+				weight_at_most,
+			),
 	};
 	Tasks::<Test>::insert(task_id, task);
 	task_id

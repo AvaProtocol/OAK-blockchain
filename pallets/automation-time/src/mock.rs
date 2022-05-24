@@ -144,14 +144,14 @@ pub type XcmOriginToCallOrigin = (
 	XcmPassthrough<Origin>,
 );
 
-/// Sender that returns error if call [9,9,9] and stops routing
+/// Sender that returns error if call equals [9,9,9]
 pub struct TestSendXcm;
 impl SendXcm for TestSendXcm {
 	fn send_xcm(dest: impl Into<MultiLocation>, msg: Xcm<()>) -> SendResult {
 		let dest = dest.into();
 		let err_message = Xcm(vec![Transact {
 			origin_type: OriginKind::SovereignAccount,
-			require_weight_at_most: 10_000_000_000,
+			require_weight_at_most: 100_000,
 			call: vec![9,9,9].into(),
 		}]);
 		if msg == err_message {
@@ -184,7 +184,6 @@ parameter_types! {
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const XCMPWeightAtMost: Weight = 10_000_000_000;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -273,7 +272,6 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
-	type XCMPWeightAtMost = XCMPWeightAtMost;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
 }

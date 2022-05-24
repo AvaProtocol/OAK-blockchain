@@ -85,7 +85,7 @@ pub mod pallet {
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
-		XCMP { para_id: ParaId, call: Vec<u8> },
+		XCMP { para_id: ParaId, call: Vec<u8>, weight_at_most: Weight },
 	}
 
 	/// The struct that stores data for a missed task.
@@ -158,8 +158,9 @@ pub mod pallet {
 			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			para_id: ParaId,
 			call: Vec<u8>,
+			weight_at_most: Weight,
 		) -> Task<T> {
-			let action = Action::XCMP { para_id, call };
+			let action = Action::XCMP { para_id, call, weight_at_most };
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
 			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
 		}
@@ -219,9 +220,6 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
-
-		#[pallet::constant]
-		type XCMPWeightAtMost: Get<Weight>;
 
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
@@ -481,17 +479,19 @@ pub mod pallet {
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(
+			100_000_000.saturating_add(execution_times.len().try_into().unwrap())))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
 			para_id: ParaId,
 			call: Vec<u8>,
+			weight_at_most: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			
-			let action = Action::XCMP { para_id, call };
+			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
@@ -822,8 +822,8 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
-							Action::XCMP { para_id, call } =>
-								Self::run_xcmp_task(para_id, call, task_id.clone()),
+							Action::XCMP { para_id, call, weight_at_most } =>
+								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -909,11 +909,11 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
-		pub fn run_xcmp_task(para_id: ParaId, call: Vec<u8>, task_id: T::Hash) -> Weight {
+		pub fn run_xcmp_task(para_id: ParaId, call: Vec<u8>, weight_at_most: Weight, task_id: T::Hash) -> Weight {
 			let destination = (1, Junction::Parachain(para_id.into()));
 			let message = Xcm(vec![Transact {
 				origin_type: OriginKind::SovereignAccount,
-				require_weight_at_most: T::XCMPWeightAtMost::get(),
+				require_weight_at_most: weight_at_most,
 				call: call.into(),
 			}]);
 			match T::XcmSender::send_xcm(destination, message) {
@@ -1121,7 +1121,7 @@ pub mod pallet {
 			let raw_weight = match action {
 				Action::Notify { message: _ } => 1_000u32,
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
-				Action::XCMP { para_id: _, call: _ } => 1_000u32,
+				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => 1_000u32,
 			};
 			let raw_weight = raw_weight.saturating_mul(executions);
 			let weight = <BalanceOf<T>>::from(raw_weight);

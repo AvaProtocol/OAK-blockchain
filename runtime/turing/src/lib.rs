@@ -828,7 +828,6 @@ parameter_types! {
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const XCMPWeightAtMost: Weight = 10_000_000_000;
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
@@ -862,7 +861,6 @@ impl pallet_automation_time::Config for Runtime {
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
-	type XCMPWeightAtMost = XCMPWeightAtMost;
 	type XcmSender = xcm_config::XcmRouter;
 }
 

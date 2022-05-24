@@ -144,7 +144,6 @@ parameter_types! {
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const XCMPWeightAtMost: Weight = 10_000_000_000;
 }
 
 pub struct MockAutomationTimeWeight<T>(PhantomData<T>);
@@ -234,7 +233,6 @@ impl pallet_automation_time::Config for Test {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
-	type XCMPWeightAtMost = XCMPWeightAtMost;
 	type Origin = Origin;
 	type XcmSender = DoNothingRouter;
 }

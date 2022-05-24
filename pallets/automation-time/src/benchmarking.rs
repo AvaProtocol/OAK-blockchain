@@ -101,6 +101,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			times.clone().try_into().unwrap(),
 			para_id.clone().try_into().unwrap(),
 			vec![4, 5, 6],
+			100_000,
 		);
 		<Tasks<T>>::insert(task_id, task);
 	}
@@ -180,7 +181,7 @@ benchmarks! {
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let para_id: u32 = 2001;
 		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.try_into().unwrap(), vec![7,8,9])
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.try_into().unwrap(), vec![7,8,9], 100_000)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -235,7 +236,7 @@ benchmarks! {
 		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, task_id) }
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
 
 	/*
 	* This section is to test run_missed_tasks.
