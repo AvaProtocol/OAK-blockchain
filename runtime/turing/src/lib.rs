@@ -329,6 +329,39 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+	pub const OneCent: Balance = 1 * CENT;
+}
+
+type ForceOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+type RegistrarOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type BasicDeposit = OneCent;
+	type FieldDeposit = OneCent;
+
+	type SubAccountDeposit = OneCent;
+	type MaxSubAccounts = ConstU32<50>;
+
+	type MaxAdditionalFields = ConstU32<50>;
+	type MaxRegistrars = ConstU32<10>;
+
+	type Slashed = Treasury;
+
+	type ForceOrigin = ForceOrigin;
+	type RegistrarOrigin = RegistrarOrigin;
+
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
@@ -926,6 +959,7 @@ construct_runtime!(
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
