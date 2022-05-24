@@ -7,12 +7,12 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation,
-	validate_vesting, DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
+	Extensions,
 };
 use neumann_runtime::{
 	CouncilConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -181,27 +181,9 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 990_000_000;
-			validate_allocation(
-				initial_allocation.clone(),
-				ALLOC_TOKENS_TOTAL,
-				EXISTENTIAL_DEPOSIT,
-			);
-
 			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
-
-			let vested_tokens = DOLLAR * 10_000_000;
-			let vest_starting_time: u64 = 1647212400;
-			let vest_ending_time: u64 = 1647277200;
-			validate_vesting(
-				initial_vesting.clone(),
-				vested_tokens,
-				EXISTENTIAL_DEPOSIT,
-				vest_starting_time,
-				vest_ending_time,
-			);
 
 			testnet_genesis(
 				// initial collators.
@@ -335,6 +317,9 @@ fn testnet_genesis(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
+	use neumann_runtime::EXISTENTIAL_DEPOSIT;
+
 	#[test]
 	fn validate_neumann_allocation() {
 		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
@@ -365,7 +350,6 @@ mod tests {
 
 	#[test]
 	fn validate_total_neumann_tokens() {
-		use crate::chain_spec::validate_total_tokens;
 		let allocation_json =
 			&include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =
