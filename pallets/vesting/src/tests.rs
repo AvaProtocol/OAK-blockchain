@@ -23,7 +23,10 @@ const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
 
 #[test]
 fn genesis_default() {
-	ExtBuilder::default().build().execute_with(|| {})
+	ExtBuilder::default().build().execute_with(|| {
+		let unvested_total = Vesting::total_unvested_issuance();
+		assert_eq!(unvested_total, 0);
+	})
 }
 
 #[test]
@@ -57,9 +60,11 @@ fn genesis() {
 	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
 		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
+		let unvested_total = Vesting::total_unvested_issuance();
 
 		assert_eq!(first_vest.unwrap().len(), 2);
 		assert_eq!(second_vest.unwrap().len(), 2);
+		assert_eq!(unvested_total, 600);
 	})
 }
 

@@ -37,7 +37,7 @@ pub use weights::WeightInfo;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use sp_runtime::traits::SaturatedConversion;
+	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
 	use sp_std::vec::Vec;
 
 	use frame_support::{pallet_prelude::*, traits::Currency};
@@ -90,6 +90,10 @@ pub mod pallet {
 	#[pallet::getter(fn get_scheduled_vest)]
 	pub type VestingSchedule<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>, OptionQuery>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn total_unvested_issuance)]
+	pub type TotalUnvestedIssuance<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -148,6 +152,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			let mut unvested_issuance: BalanceOf<T> = Zero::zero();
 			for (time, schedule) in self.vesting_schedule.iter() {
 				assert!(time % 3600 == 0, "Invalid time");
 				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
@@ -157,8 +162,10 @@ pub mod pallet {
 						"Cannot vest less than the existential deposit"
 					);
 					scheduled_vests.push((account.clone(), amount.clone()));
+					unvested_issuance = unvested_issuance.saturating_add(*amount);
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);
+				TotalUnvestedIssuance::<T>::set(unvested_issuance);
 			}
 		}
 	}
