@@ -307,6 +307,7 @@ pub type Trader = (
 	FixedRateOfFungible<LksmPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<HkoPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<SksmPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<PhaPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
