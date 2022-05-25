@@ -1,0 +1,102 @@
+# Please set AWS_ROLE_TO_ASSUME, SLACK_WEBHOOK_URL in Setting > Secrets > Actions.
+
+name: Deploy rust docs
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push events but only for the master branch
+  push:
+    branches: [ 'master' ]
+
+env:
+  AWS_REGION: us-east-1                                        # set this to your preferred AWS region, e.g. us-west-1
+  BUCKET_NAME: docs.oak.tech
+
+permissions:
+  id-token: write # required to use OIDC authentication
+  contents: read # required to checkout the code from the repo
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  check-changes:
+    name: Check change files
+    # The type of runner that the job will run on
+    runs-on: ubuntu-20.04
+
+    outputs:
+      any_changed: ${{ steps.changed-files-specific.outputs.any_changed }}
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files-specific
+        uses: tj-actions/changed-files@v20.2
+        with:
+          files: |
+            pallets/**/lib.rs
+
+      - name: List all changed files
+        if: steps.changed-files-specific.outputs.any_changed == 'true'
+        run: |
+          for file in ${{ steps.changed-files-specific.outputs.all_changed_files }}; do
+            echo "$file was changed"
+          done
+
+  build-docs:
+    name: Deploy docs
+    needs: [check-changes]
+    if: needs.check-changes.outputs.any_changed == 'true'
+
+    # The type of runner that the job will run on
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v3
+
+      - name: Set-Up
+        run: |
+          sudo apt-get install -y cmake pkg-config libssl-dev git build-essential clang libclang-dev curl
+
+      - name: Install Rustup
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          source ~/.cargo/env
+
+      - name: Build docs
+        run: |
+          sh ./.maintain/build-docs/build-docs.sh
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          role-duration-seconds: 3600 # the ttl of the session, in seconds.
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy files to S3
+        run: |
+          aws s3 sync --delete target/doc s3://${{ env.BUCKET_NAME }}/rust
+
+  report-failure:
+    name: Report failure status
+    needs: [check-changes, build-docs]
+    if: failure()
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Check workflow status
+        id: check-workflow-status
+        uses: martialonline/workflow-status@v2
+
+      - name: Report to slack
+        uses: ravsamhq/notify-slack-action@v1
+        with:
+          status: ${{ steps.check-workflow-status.outputs.status }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
