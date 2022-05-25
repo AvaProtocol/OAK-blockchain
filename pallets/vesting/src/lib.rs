@@ -31,6 +31,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
@@ -103,20 +104,7 @@ pub mod pallet {
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			let mut reads = 0;
-			let unvested_funds = VestingSchedule::<T>::iter()
-				.map(|(_, vests)| {
-					reads = reads.saturating_add(1);
-					vests
-				})
-				.flatten()
-				.fold(Zero::zero(), |acc: BalanceOf<T>, (_, amount)| acc.saturating_add(amount));
-
-			TotalUnvestedIssuance::<T>::set(unvested_funds);
-
-			T::DbWeight::get()
-				.reads(reads as Weight)
-				.saturating_add(T::DbWeight::get().writes(1 as Weight))
+			migrations::set_total_unvested_issuance::<T>()
 		}
 	}
 
