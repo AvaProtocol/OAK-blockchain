@@ -24,8 +24,7 @@ const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
 #[test]
 fn genesis_default() {
 	ExtBuilder::default().build().execute_with(|| {
-		let unvested_total = Vesting::total_unvested_issuance();
-		assert_eq!(unvested_total, 0);
+		assert_eq!(Vesting::total_unvested_issuance(), 0);
 	})
 }
 
@@ -60,11 +59,10 @@ fn genesis() {
 	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
 		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
-		let unvested_total = Vesting::total_unvested_issuance();
 
 		assert_eq!(first_vest.unwrap().len(), 2);
 		assert_eq!(second_vest.unwrap().len(), 2);
-		assert_eq!(unvested_total, 600);
+		assert_eq!(Vesting::total_unvested_issuance(), 600);
 	})
 }
 
@@ -91,8 +89,7 @@ fn on_initialize_no_time_set() {
 		assert_eq!(first_vest.unwrap().len(), 2);
 		assert_eq!(second_vest.unwrap().len(), 2);
 
-		let unvested_total = Vesting::total_unvested_issuance();
-		assert_eq!(unvested_total, 600);
+		assert_eq!(Vesting::total_unvested_issuance(), 600);
 	})
 }
 
@@ -115,8 +112,7 @@ fn on_initialize() {
 		assert_eq!(events(), vest_events);
 		assert_eq!(Balances::free_balance(ALICE), 100);
 		assert_eq!(Balances::free_balance(BOB), 100);
-		let unvested_total = Vesting::total_unvested_issuance();
-		assert_eq!(unvested_total, 400);
+		assert_eq!(Vesting::total_unvested_issuance(), 400);
 
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		let vest_events = vest_to_events(second_vest.unwrap());
@@ -129,8 +125,7 @@ fn on_initialize() {
 		assert_eq!(events(), vest_events);
 		assert_eq!(Balances::free_balance(ALICE), 300);
 		assert_eq!(Balances::free_balance(BOB), 300);
-		let unvested_total = Vesting::total_unvested_issuance();
-		assert_eq!(unvested_total, 0);
+		assert_eq!(Vesting::total_unvested_issuance(), 0);
 
 		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
 		let weight_used = Vesting::on_initialize(2);
