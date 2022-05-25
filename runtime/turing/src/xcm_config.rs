@@ -20,8 +20,9 @@ use polkadot_parachain::primitives::Sibling;
 // XCM Imports
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
-	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
+	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedRateOfFungible,
+	FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
 	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
@@ -168,8 +169,12 @@ pub type Barrier = DenyThenTry<
 	(
 		TakeWeightCredit,
 		AllowTopLevelPaidExecutionFrom<Everything>,
+		// Expected responses are OK.
+		AllowKnownQueryResponses<PolkadotXcm>,
+		// Subscriptions for version tracking are OK.
+		AllowSubscriptionsFrom<Everything>,
+		// Parent and its exec plurality get free execution
 		AllowUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-		// ^^^ Parent and its exec plurality get free execution
 	),
 >;
 
@@ -485,10 +490,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 						Some(CurrencyId::AUSD),
 					(parachains::karura::ID, parachains::karura::LKSM_KEY) =>
 						Some(CurrencyId::LKSM),
-					(parachains::heiko::ID, parachains::heiko::HKO_KEY) =>
-						Some(CurrencyId::HKO),
-					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) =>
-						Some(CurrencyId::SKSM),
+					(parachains::heiko::ID, parachains::heiko::HKO_KEY) => Some(CurrencyId::HKO),
+					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) => Some(CurrencyId::SKSM),
 					_ => None,
 				},
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
