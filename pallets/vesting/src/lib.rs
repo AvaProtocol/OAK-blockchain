@@ -101,6 +101,23 @@ pub mod pallet {
 			let vest_count = Self::vest();
 			<T as Config>::WeightInfo::vest(vest_count)
 		}
+
+		fn on_runtime_upgrade() -> Weight {
+			let mut reads = 0;
+			let unvested_funds = VestingSchedule::<T>::iter()
+				.map(|(_, vests)| {
+					reads = reads.saturating_add(1);
+					vests
+				})
+				.flatten()
+				.fold(Zero::zero(), |acc: BalanceOf<T>, (_, amount)| acc.saturating_add(amount));
+
+			TotalUnvestedIssuance::<T>::set(unvested_funds);
+
+			T::DbWeight::get()
+				.reads(reads as Weight)
+				.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -132,7 +149,7 @@ pub mod pallet {
 						<T as Config>::Currency::deposit_creating(&account, amount);
 						Self::deposit_event(Event::Vested { account, amount })
 					}
-					let unvested_funds = TotalUnvestedIssuance::<T>::get();
+					let unvested_funds = Self::total_unvested_issuance();
 					TotalUnvestedIssuance::<T>::set(unvested_funds.saturating_sub(vested_funds));
 				}
 				VestingSchedule::<T>::remove(current_time);
