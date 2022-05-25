@@ -20,11 +20,11 @@ phases:
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=dev > neumann-dev/genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=local > neumann-local/genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-staging >  neumann-staging/genesis-state
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann-latest > neumann-latest/genesis-state
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-state --chain=neumann > neumann-latest/genesis-state
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=dev > neumann-dev/genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=local > neumann-local/genesis-wasm
       - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-staging >  neumann-staging/genesis-wasm
-      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann-latest > neumann-latest/genesis-wasm
+      - docker run oaknetwork/neumann:$IMAGE_TAG export-genesis-wasm --chain=neumann > neumann-latest/genesis-wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/neumann:$IMAGE_TAG
   post_build:
