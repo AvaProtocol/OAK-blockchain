@@ -19,7 +19,7 @@ use crate::{
 	migrations::{v1, v2},
 	mock::*,
 	Action, Error, LastTimeSlot, MissedQueue, MissedTask, Shutdown, Task, TaskHashInput, TaskQueue,
-	Tasks,
+	Tasks, WeightInfo,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
@@ -238,9 +238,8 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), AccountId32::new([ALICE; 32]), 100_000, 5)
-			.unwrap();
 		let call: Vec<u8> = vec![2, 4, 5];
+		get_funds(AccountId32::new([ALICE; 32]));
 		assert_ok!(AutomationTime::schedule_xcmp_task(
 			Origin::signed(AccountId32::new([ALICE; 32])),
 			vec![50],

@@ -479,8 +479,7 @@ pub mod pallet {
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(
-			100_000_000.saturating_add(execution_times.len().try_into().unwrap())))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -929,7 +928,8 @@ pub mod pallet {
 					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
 				},
 			}
-			<T as Config>::WeightInfo::run_xcmp_task()
+			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+			T::DbWeight::get().writes(1).saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
 		/// Decrements task executions left.
@@ -1127,7 +1127,9 @@ pub mod pallet {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
-				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => <T as Config>::WeightInfo::run_xcmp_task(),
+				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+				Action::XCMP { para_id: _, call: _, weight_at_most: _ } =>
+					T::DbWeight::get().writes(1).saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());
