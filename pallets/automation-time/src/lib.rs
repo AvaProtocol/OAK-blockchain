@@ -1029,13 +1029,15 @@ pub mod pallet {
 		}
 
 		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
-			let raw_weight = match action {
-				Action::Notify { message: _ } => 1_000u32,
-				Action::NativeTransfer { sender: _, recipient: _, amount: _ } => 2_000u32,
+			let action_weight = match action {
+				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
+				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
+					<T as Config>::WeightInfo::run_native_transfer_task(),
 			};
-			let raw_weight = raw_weight.saturating_mul(executions);
-			let weight = <BalanceOf<T>>::from(raw_weight);
-			T::ExecutionWeightFee::get().saturating_mul(weight)
+
+			let total_weight = action_weight.saturating_mul(executions.into());
+			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
+			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
 		}
 	}
 }

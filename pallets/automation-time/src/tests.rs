@@ -133,7 +133,7 @@ fn schedule_not_enough_for_fees() {
 #[test]
 fn schedule_notify_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
@@ -199,7 +199,7 @@ fn schedule_native_transfer_cannot_transfer_to_self() {
 #[test]
 fn schedule_native_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		assert_ok!(AutomationTime::schedule_native_transfer_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -234,7 +234,7 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -256,7 +256,7 @@ fn schedule_duplicates_errors() {
 #[test]
 fn schedule_max_execution_times_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
 				Origin::signed(ALICE),
@@ -277,7 +277,7 @@ fn schedule_max_execution_times_errors() {
 #[test]
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![50],
@@ -311,7 +311,7 @@ fn schedule_execution_times_removes_dupes() {
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		assert_ok!(AutomationTime::schedule_notify_task(
 			Origin::signed(ALICE),
 			vec![50],
@@ -340,7 +340,7 @@ fn schedule_time_slot_full() {
 #[test]
 fn schedule_time_slot_full_rolls_back() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 100_000, 5).unwrap();
+		get_funds(ALICE);
 		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
@@ -1017,18 +1017,21 @@ fn missed_tasks_removes_completed_tasks() {
 #[test]
 fn trigger_tasks_completes_some_native_transfer_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, 1000, 5).unwrap();
+		get_funds(ALICE);
+		let current_funds = Balances::free_balance(ALICE);
+		let transfer_amount = 1;
+
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: transfer_amount },
 		);
 		add_task_to_task_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: 1 },
+			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: transfer_amount },
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1036,8 +1039,8 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 
 		AutomationTime::trigger_tasks(120_000);
 
-		assert_eq!(Balances::free_balance(ALICE), 998);
-		assert_eq!(Balances::free_balance(BOB), 2);
+		assert_eq!(Balances::free_balance(ALICE), current_funds - (transfer_amount * 2));
+		assert_eq!(Balances::free_balance(BOB), transfer_amount * 2);
 	})
 }
 
@@ -1324,7 +1327,7 @@ fn schedule_task(
 	scheduled_times: Vec<u64>,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
-	Balances::set_balance(RawOrigin::Root.into(), owner, 100_000, 5).unwrap();
+	get_funds(owner.clone());
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
@@ -1398,4 +1401,11 @@ fn events() -> Vec<Event> {
 	System::reset_events();
 
 	evt
+}
+
+fn get_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
