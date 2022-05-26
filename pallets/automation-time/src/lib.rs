@@ -45,21 +45,22 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::Origin as CumulusOrigin;
-use cumulus_primitives_core::ParaId;
+use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_primitives_core::{ParaId, relay_chain::AccountId};
 use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
-	storage::{with_transaction, TransactionOutcome::*},
 	traits::StorageVersion,
+	transactional,
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
 use pallet_timestamp::{self as timestamp};
+use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, SaturatedConversion, Saturating},
 	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -296,6 +297,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		/// ParaId provided does not match origin paraId.
+		ParaIdMismatch,
 	}
 
 	#[pallet::event]
@@ -345,6 +348,10 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_time: UnixTime,
 		},
+
+		XCMPTest {
+			account_id: AccountId,
+		},
 	}
 
 	#[pallet::hooks]
@@ -393,6 +400,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -437,6 +445,7 @@ pub mod pallet {
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -473,13 +482,16 @@ pub mod pallet {
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
 		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `weight_at_most`: Required weight at most the privded call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -488,8 +500,12 @@ pub mod pallet {
 			call: Vec<u8>,
 			weight_at_most: Weight,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
+			if para_id != origin_para_id {
+				Err(<Error<T>>::ParaIdMismatch)?
+			}
 
+			let who = Sibling::from(para_id).into_account();
 			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
@@ -1043,32 +1059,23 @@ pub mod pallet {
 				return Ok(task_id)
 			}
 
-			let outcome = with_transaction(
-				|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
-					for time in execution_times.iter() {
-						match Self::get_scheduled_tasks(*time) {
-							None => {
-								let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-									vec![task_id].try_into().unwrap();
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
-							Some(mut task_ids) => {
-								if let Err(_) = task_ids.try_push(task_id) {
-									return Rollback(Err(DispatchError::Other("time slot full")))
-								}
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
+			for time in execution_times.iter() {
+				match Self::get_scheduled_tasks(*time) {
+					None => {
+						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+							vec![task_id].try_into().unwrap();
+						<ScheduledTasks<T>>::insert(*time, task_ids);
+					},
+					Some(mut task_ids) => {
+						if let Err(_) = task_ids.try_push(task_id) {
+							return Err(Error::<T>::TimeSlotFull)?
 						}
-					}
-
-					Commit(Ok(task_id))
-				},
-			);
-
-			match outcome {
-				Ok(task_id) => Ok(task_id),
-				Err(_) => Err(Error::<T>::TimeSlotFull),
+						<ScheduledTasks<T>>::insert(*time, task_ids);
+					},
+				}
 			}
+
+			Ok(task_id)
 		}
 
 		/// Validate and schedule task.

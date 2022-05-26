@@ -24,8 +24,9 @@ use crate::{
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
 use frame_system::RawOrigin;
+use polkadot_parachain::primitives::Sibling;
 use sp_runtime::{
-	traits::{BlakeTwo256, Hash},
+	traits::{BlakeTwo256, Hash, AccountIdConversion},
 	AccountId32,
 };
 use xcm::latest::prelude::*;
@@ -239,9 +240,9 @@ fn schedule_native_transfer_works() {
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let call: Vec<u8> = vec![2, 4, 5];
-		get_funds(AccountId32::new([ALICE; 32]));
+		get_funds(Sibling::from(PARA_ID).into_account());
 		assert_ok!(AutomationTime::schedule_xcmp_task(
-			Origin::signed(AccountId32::new([ALICE; 32])),
+			cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
 			vec![50],
 			vec![SCHEDULED_TIME],
 			PARA_ID.try_into().unwrap(),
@@ -258,7 +259,7 @@ fn schedule_xcmp_works() {
 				},
 				Some(task) => {
 					let expected_task = Task::<Test>::create_xcmp_task(
-						AccountId32::new([ALICE; 32]),
+						Sibling::from(PARA_ID).into_account(),
 						vec![50],
 						vec![SCHEDULED_TIME].try_into().unwrap(),
 						PARA_ID.try_into().unwrap(),
@@ -274,11 +275,29 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
-fn schedule_xcmp_errors_not_signed() {
+fn schedule_xcmp_errors_para_id_mismatch() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id_2: u32 = 2001;
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task(
+				cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
+				vec![50],
+				vec![SCHEDULED_TIME],
+				para_id_2.try_into().unwrap(),
+				vec![3, 4, 5],
+				100_000,
+			),
+			Error::<Test>::ParaIdMismatch,
+		);
+	})
+}
+
+#[test]
+fn schedule_xcmp_errors_bad_origin() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
-				Origin::none(),
+				cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),
