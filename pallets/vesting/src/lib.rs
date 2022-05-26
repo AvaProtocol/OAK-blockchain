@@ -35,6 +35,8 @@ mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
+use parachain_staking::AdditionalIssuance;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -174,8 +176,14 @@ pub mod pallet {
 					unvested_issuance = unvested_issuance.saturating_add(*amount);
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);
-				TotalUnvestedIssuance::<T>::set(unvested_issuance);
 			}
+			TotalUnvestedIssuance::<T>::set(unvested_issuance);
+		}
+	}
+
+	impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
+		fn additional_issuance() -> BalanceOf<T> {
+			Self::total_unvested_issuance()
 		}
 	}
 }
