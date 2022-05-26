@@ -17,6 +17,7 @@
 
 use crate::{mock::*, Event};
 use frame_support::traits::OnInitialize;
+use parachain_staking::AdditionalIssuance;
 
 const FIRST_VEST_TIME: u64 = 1646028000;
 const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
@@ -130,6 +131,13 @@ fn on_initialize() {
 		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
 		let weight_used = Vesting::on_initialize(2);
 		assert_eq!(weight_used, 1_000);
+	})
+}
+
+#[test]
+fn additional_issuance() {
+	ExtBuilder::default().schedule(get_schedule()).build().execute_with(|| {
+		assert_eq!(Vesting::additional_issuance(), 600);
 	})
 }
 
