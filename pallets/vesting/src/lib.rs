@@ -95,8 +95,8 @@ pub mod pallet {
 		StorageMap<_, Twox64Concat, UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>, OptionQuery>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn total_unvested_issuance)]
-	pub type TotalUnvestedIssuance<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+	#[pallet::getter(fn total_unvested_allocation)]
+	pub type TotalUnvestedAllocation<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
@@ -106,7 +106,7 @@ pub mod pallet {
 		}
 
 		fn on_runtime_upgrade() -> Weight {
-			migrations::set_total_unvested_issuance::<T>()
+			migrations::set_total_unvested_allocation::<T>()
 		}
 	}
 
@@ -139,8 +139,8 @@ pub mod pallet {
 						<T as Config>::Currency::deposit_creating(&account, amount);
 						Self::deposit_event(Event::Vested { account, amount })
 					}
-					let unvested_funds = Self::total_unvested_issuance();
-					TotalUnvestedIssuance::<T>::set(unvested_funds.saturating_sub(vested_funds));
+					let unvested_funds = Self::total_unvested_allocation();
+					TotalUnvestedAllocation::<T>::set(unvested_funds.saturating_sub(vested_funds));
 				}
 				VestingSchedule::<T>::remove(current_time);
 			}
@@ -163,7 +163,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			let mut unvested_issuance: BalanceOf<T> = Zero::zero();
+			let mut unvested_allocation: BalanceOf<T> = Zero::zero();
 			for (time, schedule) in self.vesting_schedule.iter() {
 				assert!(time % 3600 == 0, "Invalid time");
 				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
@@ -173,17 +173,17 @@ pub mod pallet {
 						"Cannot vest less than the existential deposit"
 					);
 					scheduled_vests.push((account.clone(), amount.clone()));
-					unvested_issuance = unvested_issuance.saturating_add(*amount);
+					unvested_allocation = unvested_allocation.saturating_add(*amount);
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);
 			}
-			TotalUnvestedIssuance::<T>::set(unvested_issuance);
+			TotalUnvestedAllocation::<T>::set(unvested_allocation);
 		}
 	}
 
 	impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
 		fn additional_issuance() -> BalanceOf<T> {
-			Self::total_unvested_issuance()
+			Self::total_unvested_allocation()
 		}
 	}
 }

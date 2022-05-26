@@ -44,7 +44,7 @@ impl<T: frame_system::Config> WeightInfo for VestingWeight<T> {
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: Vesting VestingSchedule (r:1 w:1)
 	// Storage: System Account (r:1 w:1)
-	// Storage: Vesting TotalUnvestedIssuance (r:1 w:1)
+	// Storage: Vesting TotalUnvestedAllocation (r:1 w:1)
 	fn vest(v: u32, ) -> Weight {
 		(18_229_000 as Weight)
 			// Standard Error: 80_000
