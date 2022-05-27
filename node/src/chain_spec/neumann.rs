@@ -121,12 +121,12 @@ pub fn local_testnet_config() -> ChainSpec {
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
 			let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
-			let now_to_the_minute = now - (now % 3600);
+			let now_to_the_hour = now - (now % 3600);
 			let month_in_seconds = 2_628_000;
 			let vest_amount = 1_000_000_000_000;
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![
 				(
-					now_to_the_minute + month_in_seconds,
+					now_to_the_hour + month_in_seconds,
 					vec![
 						(accounts[0].clone(), vest_amount),
 						(accounts[1].clone(), vest_amount),
@@ -134,7 +134,7 @@ pub fn local_testnet_config() -> ChainSpec {
 					],
 				),
 				(
-					now_to_the_minute + 2 * month_in_seconds,
+					now_to_the_hour + 2 * month_in_seconds,
 					vec![
 						(accounts[0].clone(), vest_amount),
 						(accounts[1].clone(), vest_amount),
