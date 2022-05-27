@@ -35,9 +35,9 @@ jobs:
       run: cargo build --release --all
     - name: Test
       run: |
-        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache-dist
+        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
         cargo build --release --all
     - name: Test
       run: |
-        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache-dist
+        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
         cargo test --release --all
