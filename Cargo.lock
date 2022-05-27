@@ -6410,7 +6410,7 @@ dependencies = [
 [[package]]
 name = "parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/OAK-Foundation/moonbeam?branch=nikhil/unvested-issuance#1416cb1ec8d6ae0a8d1697fa532ddae5a5ec361c"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.20#e7e38b435903073a5d9a33401d7f1c95dae0f553"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

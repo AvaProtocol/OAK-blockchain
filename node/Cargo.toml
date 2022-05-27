@@ -111,4 +111,4 @@ polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "r
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.20" }
 
 # Moonbeam Dependencies
-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "nikhil/unvested-issuance" }
+parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.20" }
