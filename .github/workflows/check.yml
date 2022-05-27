@@ -29,10 +29,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-    - name: sccache
-      run: |
-        curl --location --output sccache.tar.gz https://github.com/mozilla/sccache/releases/download/v0.3.0/sccache-dist-v0.3.0-x86_64-unknown-linux-musl.tar.gz
-        tar -xzvf sccache.tar.gz
     - name: Setup Rust
       run: rustup show
     - name: Build
