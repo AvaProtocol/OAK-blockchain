@@ -25,7 +25,7 @@ jobs:
       run: cargo fmt -- --check
   build:
     name: "Build release"
-    runs-on: ubuntu-latest # TODO: self-hosted larger box
+    runs-on: self-hosted
     steps:
     - name: Checkout
       uses: actions/checkout@v2
