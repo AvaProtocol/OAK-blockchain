@@ -8,7 +8,7 @@ RUN cargo build --locked --release --features neumann-node
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=dev --raw > neumann-dev-chain-spec.json
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=local --raw > neumann-local-chain-spec.json
 RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=neumann-staging --raw > neumann-staging-chain-spec.json
-RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=neumann-latest --raw > neumann-latest-chain-spec.json
+RUN /build/target/release/oak-collator build-spec --disable-default-bootnode --chain=neumann --raw > neumann-latest-chain-spec.json
 
 # This is the 2nd stage: a very small image where we copy the OAK binary."
 FROM docker.io/library/ubuntu:20.04

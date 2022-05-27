@@ -27,7 +27,7 @@ use crate::Pallet as AutomationTime;
 
 const SEED: u32 = 0;
 // existential deposit multiplier
-const ED_MULTIPLIER: u32 = 10;
+const ED_MULTIPLIER: u32 = 1_000;
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount =
@@ -74,6 +74,34 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 			vec![time].try_into().unwrap(),
 			recipient.clone(),
 			amount.clone(),
+		);
+		<Tasks<T>>::insert(task_id, task);
+	}
+	task_id
+}
+
+fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
+	let transfer_amount =
+		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+	T::NativeTokenExchange::deposit_creating(&owner, transfer_amount.clone());
+	let para_id: u32 = 2001;
+	let time_moment: u32 = times[0].saturated_into();
+	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	let mut task_id: T::Hash = T::Hash::default();
+
+	for i in 0..count {
+		let provided_id: Vec<u8> =
+			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
+		task_id =
+			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone())
+				.unwrap();
+		let task = Task::<T>::create_xcmp_task(
+			owner.clone(),
+			provided_id,
+			times.clone().try_into().unwrap(),
+			para_id.clone().try_into().unwrap(),
+			vec![4, 5, 6],
+			100_000,
 		);
 		<Tasks<T>>::insert(task_id, task);
 	}
@@ -136,6 +164,25 @@ benchmarks! {
 		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
+	schedule_xcmp_task_full {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let time: u64 = 7200;
+
+		let mut times: Vec<u64> = vec![];
+		for i in 0..v {
+			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
+			times.push(hour);
+		}
+
+		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
+		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
+		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		let para_id: u32 = 2001;
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.try_into().unwrap(), vec![7,8,9], 100_000)
+
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let mut times: Vec<u64> = vec![];
@@ -182,6 +229,14 @@ benchmarks! {
 
 		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
 	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
+
+	run_xcmp_task {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let time: u64 = 10800;
+		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
+		let para_id: u32 = 2001;
+		let call = vec![4,5,6];
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
 
 	/*
 	* This section is to test run_missed_tasks.

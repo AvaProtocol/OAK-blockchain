@@ -5,11 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- Fixed execution fees for automation time
+- Update to substrate 0.9.20
+- Added Parallel Heiko tokens
+- Changed KUSD to AUSD
+
+## [1.3.0] - 2022-05-17
 - Moving Turing xcm configs to their own file.
 - Allow foreign tokens to get stored on-chain
 - Enable cross chain token transfers
 - Lower existential deposit from .1 to .01
 - Adding Karura tokens
+- Ensure CollatorRegistration before joining candidate pool
+- Update to substrate 0.9.19
 
 ## [279] - 2022-04-29
 - Change scheduled time slots from minutes to hours. Migration used to clear all tasks in existing maps and queues.

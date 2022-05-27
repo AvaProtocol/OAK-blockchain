@@ -143,10 +143,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 280,
+	spec_version: 281,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	state_version: 0,
 };
 
@@ -513,6 +513,10 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
+	/// Blocks per round
+	pub const DefaultBlocksPerRound: u32 = 5 * MINUTES;
+	/// Minimum stake required to become a collator
+	pub const MinCollatorStk: u128 = 1_000_000 * DOLLAR;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -520,8 +524,7 @@ impl parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
 	type MinBlocksPerRound = ConstU32<10>;
-	/// Blocks per round
-	type DefaultBlocksPerRound = ConstU32<{ 5 * MINUTES }>;
+	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
 	type LeaveCandidatesDelay = ConstU32<2>;
 	/// Rounds before the candidate bond increase/decrease can be executed
@@ -544,8 +547,7 @@ impl parachain_staking::Config for Runtime {
 	type MaxDelegationsPerDelegator = ConstU32<10>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
-	/// Minimum stake required to become a collator
-	type MinCollatorStk = ConstU128<{ 1_000_000 * DOLLAR }>;
+	type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial
@@ -556,6 +558,8 @@ impl parachain_staking::Config for Runtime {
 	type OnCollatorPayout = ();
 	/// Handler to notify the runtime when a new round begins
 	type OnNewRound = ();
+	/// Whether a given collator has completed required registration to be selected as block author
+	type CollatorRegistration = Session;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 

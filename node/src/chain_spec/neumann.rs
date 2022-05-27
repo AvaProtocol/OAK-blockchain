@@ -7,12 +7,12 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, validate_allocation, validate_vesting,
-	DummyChainSpec, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
+	Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig, DOLLAR,
-	EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
+	DOLLAR, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -184,27 +184,9 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 990_000_000;
-			validate_allocation(
-				initial_allocation.clone(),
-				ALLOC_TOKENS_TOTAL,
-				EXISTENTIAL_DEPOSIT,
-			);
-
 			let vesting_json = &include_bytes!("../../../distribution/neumann_vesting.json")[..];
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
-
-			let vested_tokens = DOLLAR * 10_000_000;
-			let vest_starting_time: u64 = 1647212400;
-			let vest_ending_time: u64 = 1647277200;
-			validate_vesting(
-				initial_vesting.clone(),
-				vested_tokens,
-				EXISTENTIAL_DEPOSIT,
-				vest_starting_time,
-				vest_ending_time,
-			);
 
 			testnet_genesis(
 				// initial collators.
@@ -295,7 +277,8 @@ fn testnet_genesis(
 		parachain_info: neumann_runtime::ParachainInfoConfig { parachain_id: para_id },
 		session: neumann_runtime::SessionConfig {
 			keys: invulnerables
-				.into_iter()
+				.iter()
+				.cloned()
 				.map(|(acc, aura)| {
 					(
 						acc.clone(),                 // account id
@@ -305,8 +288,15 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		// Defaults to active collators from session pallet unless configured otherwise
-		parachain_staking: Default::default(),
+		parachain_staking: neumann_runtime::ParachainStakingConfig {
+			candidates: invulnerables
+				.iter()
+				.cloned()
+				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
+				.collect(),
+			delegations: vec![],
+			inflation_config: inflation_config(neumann_runtime::DefaultBlocksPerRound::get()),
+		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
@@ -320,9 +310,7 @@ fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		parachain_system: Default::default(),
-		polkadot_xcm: PolkadotXcmConfig {
-			safe_xcm_version: Some(SAFE_XCM_VERSION),
-		},
+		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
@@ -333,6 +321,9 @@ fn testnet_genesis(
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
+	use neumann_runtime::EXISTENTIAL_DEPOSIT;
+
 	#[test]
 	fn validate_neumann_allocation() {
 		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
@@ -363,7 +354,6 @@ mod tests {
 
 	#[test]
 	fn validate_total_neumann_tokens() {
-		use crate::chain_spec::validate_total_tokens;
 		let allocation_json =
 			&include_bytes!("../../../distribution/neumann_vest_test_alloc.json")[..];
 		let initial_allocation: Vec<(AccountId, Balance)> =

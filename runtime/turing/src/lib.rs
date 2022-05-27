@@ -146,10 +146,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 280,
+	spec_version: 281,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 7,
+	transaction_version: 8,
 	state_version: 0,
 };
 
@@ -342,9 +342,11 @@ parameter_type_with_key! {
 		match currency_id {
 			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
 			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
-			CurrencyId::KUSD => CurrencyId::KUSD.cent(),
+			CurrencyId::AUSD => CurrencyId::AUSD.cent(),
 			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
 			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
+			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
+			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
 		}
 	};
 }
@@ -366,9 +368,11 @@ parameter_type_with_key! {
 pub enum CurrencyId {
 	Native,
 	KSM,
-	KUSD,
+	AUSD,
 	KAR,
 	LKSM,
+	HKO,
+	SKSM,
 }
 
 impl TokenInfo for CurrencyId {
@@ -376,9 +380,11 @@ impl TokenInfo for CurrencyId {
 		match self {
 			CurrencyId::Native => 10,
 			CurrencyId::KSM => 12,
-			CurrencyId::KUSD => 12,
+			CurrencyId::AUSD => 12,
 			CurrencyId::KAR => 12,
 			CurrencyId::LKSM => 12,
+			CurrencyId::HKO => 12,
+			CurrencyId::SKSM => 12,
 		}
 	}
 }
@@ -524,6 +530,10 @@ parameter_types! {
 	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
+	/// Blocks per round
+	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
+	/// Minimum stake required to become a collator
+	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -531,8 +541,7 @@ impl parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
 	type MinBlocksPerRound = ConstU32<10>;
-	/// Blocks per round
-	type DefaultBlocksPerRound = ConstU32<{ 2 * HOURS }>;
+	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
 	type LeaveCandidatesDelay = ConstU32<24>;
 	/// Rounds before the candidate bond increase/decrease can be executed
@@ -555,8 +564,7 @@ impl parachain_staking::Config for Runtime {
 	type MaxDelegationsPerDelegator = ConstU32<100>;
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
-	/// Minimum stake required to become a collator
-	type MinCollatorStk = ConstU128<{ 400_000 * DOLLAR }>;
+	type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 400_000 * DOLLAR }>;
 	/// Minimum delegation amount after initial
@@ -567,6 +575,8 @@ impl parachain_staking::Config for Runtime {
 	type OnCollatorPayout = ();
 	/// Handler to notify the runtime when a new round begins
 	type OnNewRound = ();
+	/// Whether a given collator has completed required registration to be selected as block author
+	type CollatorRegistration = Session;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
@@ -860,6 +870,8 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+	type XcmSender = xcm_config::XcmRouter;
 }
 
 pub struct ClosedCallFilter;
@@ -921,7 +933,7 @@ construct_runtime!(
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,

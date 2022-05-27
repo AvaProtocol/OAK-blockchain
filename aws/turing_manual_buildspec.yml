@@ -19,10 +19,10 @@ phases:
       - mkdir turing-dev turing-staging turing-live
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-dev > turing-dev/genesis-state
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-staging > turing-staging/genesis-state
-      - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-live > turing-live/genesis-state
+      - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing > turing-live/genesis-state
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-dev > turing-dev/genesis-wasm
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-staging > turing-staging/genesis-wasm
-      - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-live > turing-live/genesis-wasm
+      - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing > turing-live/genesis-wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/turing:$IMAGE_TAG
   post_build:
