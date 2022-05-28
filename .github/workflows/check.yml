@@ -35,11 +35,9 @@ jobs:
       run: |
         export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
         export SCCACHE_DIR=/home/ubuntu/.cache/sccache
-        env
         cargo build --release --all
     - name: Test
       run: |
         export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
         export SCCACHE_DIR=/home/ubuntu/.cache/sccache
-        env
         cargo build --release --all
