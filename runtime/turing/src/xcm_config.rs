@@ -20,8 +20,9 @@ use polkadot_parachain::primitives::Sibling;
 // XCM Imports
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
-	AccountId32Aliases, AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
-	FixedRateOfFungible, FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
+	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
+	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedRateOfFungible,
+	FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
 	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
 	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
@@ -168,8 +169,12 @@ pub type Barrier = DenyThenTry<
 	(
 		TakeWeightCredit,
 		AllowTopLevelPaidExecutionFrom<Everything>,
+		// Expected responses are OK.
+		AllowKnownQueryResponses<PolkadotXcm>,
+		// Subscriptions for version tracking are OK.
+		AllowSubscriptionsFrom<Everything>,
+		// Parent and its exec plurality get free execution
 		AllowUnpaidExecutionFrom<ParentOrParentsExecutivePlurality>,
-		// ^^^ Parent and its exec plurality get free execution
 	),
 >;
 
@@ -248,6 +253,15 @@ parameter_types! {
 		// sKSM:KSM = 1:1
 		ksm_per_second()
 	);
+
+	pub PhaPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X1(Parachain(parachains::khala::ID)),
+		).into(),
+		// PHA:KSM = 400:1
+		ksm_per_second() * 400
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -293,6 +307,7 @@ pub type Trader = (
 	FixedRateOfFungible<LksmPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<HkoPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<SksmPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<PhaPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
@@ -407,6 +422,13 @@ impl orml_unknown_tokens::Config for Runtime {
 }
 
 pub mod parachains {
+
+	pub mod heiko {
+		pub const ID: u32 = 2085;
+		pub const HKO_KEY: &[u8] = b"HKO";
+		pub const SKSM_KEY: &[u8] = b"sKSM";
+	}
+
 	pub mod karura {
 		pub const ID: u32 = 2000;
 		pub const KAR_KEY: &[u8] = &[0, 128];
@@ -418,10 +440,8 @@ pub mod parachains {
 		pub const ID: u32 = 2110;
 	}
 
-	pub mod heiko {
-		pub const ID: u32 = 2085;
-		pub const HKO_KEY: &[u8] = b"HKO";
-		pub const SKSM_KEY: &[u8] = b"sKSM";
+	pub mod khala {
+		pub const ID: u32 = 2004;
 	}
 }
 
@@ -467,6 +487,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 					GeneralKey(parachains::heiko::SKSM_KEY.to_vec()),
 				),
 			)),
+			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID))))
 		}
 	}
 }
@@ -485,10 +506,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 						Some(CurrencyId::AUSD),
 					(parachains::karura::ID, parachains::karura::LKSM_KEY) =>
 						Some(CurrencyId::LKSM),
-					(parachains::heiko::ID, parachains::heiko::HKO_KEY) =>
-						Some(CurrencyId::HKO),
-					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) =>
-						Some(CurrencyId::SKSM),
+					(parachains::heiko::ID, parachains::heiko::HKO_KEY) => Some(CurrencyId::HKO),
+					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) => Some(CurrencyId::SKSM),
 					_ => None,
 				},
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
@@ -496,6 +515,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					// If it's TUR
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
+					id if id == parachains::khala::ID => 
+						Some(CurrencyId::PHA),
 					_ => None,
 				}
 			},

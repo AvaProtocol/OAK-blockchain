@@ -4,7 +4,7 @@ use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainSpec;
 use sp_core::{Pair, Public};
 use sp_runtime::{
-	traits::{IdentifyAccount, Verify, Zero},
+	traits::{IdentifyAccount, Verify},
 	Perbill,
 };
 
@@ -81,79 +81,6 @@ where
 	AccountPublic::from(get_public_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Validate that the allocated fits the following criteria:
-/// - no duplicate accounts
-/// - total allocated is equal to total_tokens
-pub fn validate_allocation(
-	allocated_accounts: Vec<(AccountId, Balance)>,
-	total_tokens: u128,
-	existential_deposit: Balance,
-) {
-	let mut total_allocated: Balance = Zero::zero();
-	let unique_allocated_accounts = allocated_accounts
-		.iter()
-		.map(|(account_id, amount)| {
-			assert!(*amount >= existential_deposit, "allocated amount must gte ED");
-			total_allocated = total_allocated
-				.checked_add(*amount)
-				.expect("shouldn't overflow when building genesis");
-
-			account_id
-		})
-		.cloned()
-		.collect::<std::collections::BTreeSet<_>>();
-	assert!(
-		unique_allocated_accounts.len() == allocated_accounts.len(),
-		"duplicate allocated accounts in genesis."
-	);
-	assert_eq!(total_allocated, total_tokens, "total allocated does not equal the desired amount");
-}
-
-/// Validate that the vested fits the following criteria:
-/// - no duplicate timestamps
-/// - no duplicate accountIds per timestamp
-/// - total amount vested is correct
-/// - times are within a given range
-pub fn validate_vesting(
-	vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
-	total_tokens: u128,
-	existential_deposit: Balance,
-	vest_starting: u64,
-	vest_ending: u64,
-) {
-	let mut total_vested: Balance = Zero::zero();
-	let unique_vested_slots = vesting_timeslots
-		.iter()
-		.map(|(timestamp, schedules)| {
-			assert!(timestamp <= &vest_ending, "greater than largest expected timestamp.");
-			assert!(timestamp >= &vest_starting, "smaller than smallest expected timestamp.");
-			let unique_vesting_accounts = schedules
-				.iter()
-				.map(|(account_id, amount)| {
-					assert!(*amount >= existential_deposit, "allocated amount must gte ED");
-					total_vested = total_vested
-						.checked_add(*amount)
-						.expect("shouldn't overflow when building genesis");
-					account_id
-				})
-				.cloned()
-				.collect::<std::collections::BTreeSet<_>>();
-			assert!(
-				unique_vesting_accounts.len() == schedules.len(),
-				"duplicate accounts per timeslot."
-			);
-			timestamp
-		})
-		.cloned()
-		.collect::<std::collections::BTreeSet<_>>();
-	assert!(
-		unique_vested_slots.len() == vesting_timeslots.len(),
-		"duplicate vesting timeslots in genesis."
-	);
-
-	assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
-}
-
 pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
 		use parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
@@ -174,30 +101,111 @@ pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	}
 }
 
-/// Validate that the vested fits the following criteria:
-/// - allocated and vesting tokens add up to equal total number of expected tokens
 #[cfg(test)]
-pub fn validate_total_tokens(
-	allocated_accounts: Vec<(AccountId, Balance)>,
-	vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
-	total_expected_tokens: u128,
-) {
-	let mut total_tokens: Balance = Zero::zero();
-	vesting_timeslots.iter().for_each(|(_, schedules)| {
-		schedules.iter().for_each(|(_, amount)| {
+mod test {
+	use super::*;
+	use sp_runtime::traits::Zero;
+
+	/// Validate that the allocated fits the following criteria:
+	/// - no duplicate accounts
+	/// - total allocated is equal to total_tokens
+	pub fn validate_allocation(
+		allocated_accounts: Vec<(AccountId, Balance)>,
+		total_tokens: u128,
+		existential_deposit: Balance,
+	) {
+		let mut total_allocated: Balance = Zero::zero();
+		let unique_allocated_accounts = allocated_accounts
+			.iter()
+			.map(|(account_id, amount)| {
+				assert!(*amount >= existential_deposit, "allocated amount must gte ED");
+				total_allocated = total_allocated
+					.checked_add(*amount)
+					.expect("shouldn't overflow when building genesis");
+
+				account_id
+			})
+			.cloned()
+			.collect::<std::collections::BTreeSet<_>>();
+		assert!(
+			unique_allocated_accounts.len() == allocated_accounts.len(),
+			"duplicate allocated accounts in genesis."
+		);
+		assert_eq!(
+			total_allocated, total_tokens,
+			"total allocated does not equal the desired amount"
+		);
+	}
+
+	/// Validate that the vested fits the following criteria:
+	/// - allocated and vesting tokens add up to equal total number of expected tokens
+	pub fn validate_total_tokens(
+		allocated_accounts: Vec<(AccountId, Balance)>,
+		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+		total_expected_tokens: u128,
+	) {
+		let mut total_tokens: Balance = Zero::zero();
+		vesting_timeslots.iter().for_each(|(_, schedules)| {
+			schedules.iter().for_each(|(_, amount)| {
+				total_tokens = total_tokens
+					.checked_add(*amount)
+					.expect("shouldn't overflow when building genesis");
+			});
+		});
+		allocated_accounts.iter().for_each(|(_, amount)| {
 			total_tokens = total_tokens
 				.checked_add(*amount)
 				.expect("shouldn't overflow when building genesis");
 		});
-	});
-	allocated_accounts.iter().for_each(|(_, amount)| {
-		total_tokens = total_tokens
-			.checked_add(*amount)
-			.expect("shouldn't overflow when building genesis");
-	});
 
-	assert_eq!(
-		total_tokens, total_expected_tokens,
-		"total vested does not equal the desired amount"
-	);
+		assert_eq!(
+			total_tokens, total_expected_tokens,
+			"total vested does not equal the desired amount"
+		);
+	}
+
+	/// Validate that the vested fits the following criteria:
+	/// - no duplicate timestamps
+	/// - no duplicate accountIds per timestamp
+	/// - total amount vested is correct
+	/// - times are within a given range
+	pub fn validate_vesting(
+		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+		total_tokens: u128,
+		existential_deposit: Balance,
+		vest_starting: u64,
+		vest_ending: u64,
+	) {
+		let mut total_vested: Balance = Zero::zero();
+		let unique_vested_slots = vesting_timeslots
+			.iter()
+			.map(|(timestamp, schedules)| {
+				assert!(timestamp <= &vest_ending, "greater than largest expected timestamp.");
+				assert!(timestamp >= &vest_starting, "smaller than smallest expected timestamp.");
+				let unique_vesting_accounts = schedules
+					.iter()
+					.map(|(account_id, amount)| {
+						assert!(*amount >= existential_deposit, "allocated amount must gte ED");
+						total_vested = total_vested
+							.checked_add(*amount)
+							.expect("shouldn't overflow when building genesis");
+						account_id
+					})
+					.cloned()
+					.collect::<std::collections::BTreeSet<_>>();
+				assert!(
+					unique_vesting_accounts.len() == schedules.len(),
+					"duplicate accounts per timeslot."
+				);
+				timestamp
+			})
+			.cloned()
+			.collect::<std::collections::BTreeSet<_>>();
+		assert!(
+			unique_vested_slots.len() == vesting_timeslots.len(),
+			"duplicate vesting timeslots in genesis."
+		);
+
+		assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
+	}
 }
