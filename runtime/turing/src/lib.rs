@@ -329,7 +329,9 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const OneCent: Balance = 1 * CENT;
+	pub const BasicDeposit:  Balance = 3 * DOLLAR; // 258 bytes on-chain
+	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
+	pub const SubAccountDeposit:  Balance = 1 * DOLLAR; // 53 bytes on-chain
 }
 
 type ForceOrigin = EnsureOneOf<
@@ -344,17 +346,16 @@ type RegistrarOrigin = EnsureOneOf<
 impl pallet_identity::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
-	type BasicDeposit = OneCent;
-	type FieldDeposit = OneCent;
 
-	type SubAccountDeposit = OneCent;
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+
 	type MaxSubAccounts = ConstU32<50>;
-
-	type MaxAdditionalFields = ConstU32<50>;
+	type MaxAdditionalFields = ConstU32<0>;
 	type MaxRegistrars = ConstU32<10>;
 
 	type Slashed = Treasury;
-
 	type ForceOrigin = ForceOrigin;
 	type RegistrarOrigin = RegistrarOrigin;
 
@@ -383,7 +384,7 @@ parameter_type_with_key! {
 	};
 }
 
-// Can only append. 
+// Can only append.
 // DO NOT CHANGE THE ORDER.
 #[derive(
 	Encode,

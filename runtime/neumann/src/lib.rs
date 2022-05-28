@@ -328,10 +328,11 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const OneCent: Balance = 1 * CENT;
+	pub const BasicDeposit:  Balance = 3 * DOLLAR; // 258 bytes on-chain
+	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
+	pub const SubAccountDeposit:  Balance = 1 * DOLLAR; // 53 bytes on-chain
 }
 
-// EnsureOneOf with some sort of go
 type ForceOrigin = EnsureOneOf<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
@@ -342,34 +343,21 @@ type RegistrarOrigin = EnsureOneOf<
 >;
 
 impl pallet_identity::Config for Runtime {
-	/// The overarching event type.
 	type Event = Event;
-	/// The currency trait.
 	type Currency = Balances;
-	/// The amount held on deposit for a registered identity
-	type BasicDeposit = OneCent;
-	/// The amount held on deposit per additional field for a registered identity.
-	type FieldDeposit = OneCent;
-	/// The amount held on deposit for a registered subaccount. This should account for the fact
-	/// that one storage item's value will increase by the size of an account ID, and there will
-	/// be another trie item whose value is the size of an account ID plus 32 bytes.
-	type SubAccountDeposit = OneCent;
-	/// The maximum number of sub-accounts allowed per identified account.
+
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+
 	type MaxSubAccounts = ConstU32<50>;
-	/// Maximum number of additional fields that may be stored in an ID. Needed to bound the I/O
-	/// required to access an identity, but can be pretty high.
-	type MaxAdditionalFields = ConstU32<50>;
-	/// Maxmimum number of registrars allowed in the system. Needed to bound the complexity
-	/// of, e.g., updating judgements.
+	type MaxAdditionalFields = ConstU32<0>;
 	type MaxRegistrars = ConstU32<10>;
-	/// What to do with slashed funds.
+
 	type Slashed = Treasury;
-	/// The origin which may forcibly set or remove a name. Root can always do this.
 	type ForceOrigin = ForceOrigin;
-	/// The origin which may add or remove registrars. Root can always do this.
 	type RegistrarOrigin = RegistrarOrigin;
 
-	/// Weight information for extrinsics in this pallet.
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
