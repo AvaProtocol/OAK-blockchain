@@ -537,6 +537,8 @@ parameter_types! {
 	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	/// Minimum stake required to be reserved to be a candidate
+	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -568,8 +570,7 @@ impl parachain_staking::Config for Runtime {
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	type MinCollatorStk = MinCollatorStk;
-	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<{ 400_000 * DOLLAR }>;
+	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
