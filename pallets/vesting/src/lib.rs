@@ -31,13 +31,16 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
+
+use parachain_staking::AdditionalIssuance;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use sp_runtime::traits::SaturatedConversion;
+	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
 	use sp_std::vec::Vec;
 
 	use frame_support::{pallet_prelude::*, traits::Currency};
@@ -91,11 +94,19 @@ pub mod pallet {
 	pub type VestingSchedule<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>, OptionQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn total_unvested_allocation)]
+	pub type TotalUnvestedAllocation<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			let vest_count = Self::vest();
 			<T as Config>::WeightInfo::vest(vest_count)
+		}
+
+		fn on_runtime_upgrade() -> Weight {
+			migrations::set_total_unvested_allocation::<T>()
 		}
 	}
 
@@ -121,11 +132,15 @@ pub mod pallet {
 			let mut num_vests: u32 = 0;
 			if let Ok(current_time) = Self::get_current_time_slot() {
 				if let Some(scheduled) = Self::get_scheduled_vest(current_time) {
+					let mut vested_funds: BalanceOf<T> = Zero::zero();
 					num_vests = scheduled.len().saturated_into::<u32>();
 					for (account, amount) in scheduled {
+						vested_funds = vested_funds.saturating_add(amount);
 						<T as Config>::Currency::deposit_creating(&account, amount);
 						Self::deposit_event(Event::Vested { account, amount })
 					}
+					let unvested_funds = Self::total_unvested_allocation();
+					TotalUnvestedAllocation::<T>::set(unvested_funds.saturating_sub(vested_funds));
 				}
 				VestingSchedule::<T>::remove(current_time);
 			}
@@ -148,6 +163,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
+			let mut unvested_allocation: BalanceOf<T> = Zero::zero();
 			for (time, schedule) in self.vesting_schedule.iter() {
 				assert!(time % 3600 == 0, "Invalid time");
 				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
@@ -157,9 +173,17 @@ pub mod pallet {
 						"Cannot vest less than the existential deposit"
 					);
 					scheduled_vests.push((account.clone(), amount.clone()));
+					unvested_allocation = unvested_allocation.saturating_add(*amount);
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);
 			}
+			TotalUnvestedAllocation::<T>::set(unvested_allocation);
+		}
+	}
+
+	impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
+		fn additional_issuance() -> BalanceOf<T> {
+			Self::total_unvested_allocation()
 		}
 	}
 }

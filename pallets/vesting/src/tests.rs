@@ -17,13 +17,16 @@
 
 use crate::{mock::*, Event};
 use frame_support::traits::OnInitialize;
+use parachain_staking::AdditionalIssuance;
 
 const FIRST_VEST_TIME: u64 = 1646028000;
 const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
 
 #[test]
 fn genesis_default() {
-	ExtBuilder::default().build().execute_with(|| {})
+	ExtBuilder::default().build().execute_with(|| {
+		assert_eq!(Vesting::total_unvested_allocation(), 0);
+	})
 }
 
 #[test]
@@ -60,6 +63,7 @@ fn genesis() {
 
 		assert_eq!(first_vest.unwrap().len(), 2);
 		assert_eq!(second_vest.unwrap().len(), 2);
+		assert_eq!(Vesting::total_unvested_allocation(), 600);
 	})
 }
 
@@ -85,6 +89,8 @@ fn on_initialize_no_time_set() {
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		assert_eq!(first_vest.unwrap().len(), 2);
 		assert_eq!(second_vest.unwrap().len(), 2);
+
+		assert_eq!(Vesting::total_unvested_allocation(), 600);
 	})
 }
 
@@ -107,6 +113,7 @@ fn on_initialize() {
 		assert_eq!(events(), vest_events);
 		assert_eq!(Balances::free_balance(ALICE), 100);
 		assert_eq!(Balances::free_balance(BOB), 100);
+		assert_eq!(Vesting::total_unvested_allocation(), 400);
 
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		let vest_events = vest_to_events(second_vest.unwrap());
@@ -119,10 +126,31 @@ fn on_initialize() {
 		assert_eq!(events(), vest_events);
 		assert_eq!(Balances::free_balance(ALICE), 300);
 		assert_eq!(Balances::free_balance(BOB), 300);
+		assert_eq!(Vesting::total_unvested_allocation(), 0);
 
 		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
 		let weight_used = Vesting::on_initialize(2);
 		assert_eq!(weight_used, 1_000);
+	})
+}
+
+#[test]
+fn additional_issuance() {
+	ExtBuilder::default().schedule(get_schedule()).build().execute_with(|| {
+		assert_eq!(Vesting::additional_issuance(), 600);
+	})
+}
+
+#[test]
+fn migrations_set_total_unvested_allocation() {
+	let scheduled_vests = get_schedule();
+
+	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
+		crate::TotalUnvestedAllocation::<Test>::take();
+		assert_eq!(Vesting::total_unvested_allocation(), 0);
+
+		crate::migrations::set_total_unvested_allocation::<Test>();
+		assert_eq!(Vesting::total_unvested_allocation(), 600);
 	})
 }
 

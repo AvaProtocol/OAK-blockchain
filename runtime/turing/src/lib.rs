@@ -580,6 +580,8 @@ impl parachain_staking::Config for Runtime {
 	type OnNewRound = ();
 	/// Whether a given collator has completed required registration to be selected as block author
 	type CollatorRegistration = Session;
+	/// Any additional issuance that should be used for inflation calcs
+	type AdditionalIssuance = Vesting;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
