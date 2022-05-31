@@ -442,8 +442,8 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				tips.merge_into(&mut fees);
 			}
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
@@ -829,8 +829,8 @@ where
 {
 	fn on_unbalanceds<B>(mut fees: impl Iterator<Item = NegativeImbalance<R>>) {
 		if let Some(fees) = fees.next() {
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
