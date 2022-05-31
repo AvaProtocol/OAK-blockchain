@@ -164,25 +164,6 @@ benchmarks! {
 		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
-	schedule_xcmp_task_full {
-		let v in 1 .. T::MaxExecutionTimes::get();
-
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 7200;
-
-		let mut times: Vec<u64> = vec![];
-		for i in 0..v {
-			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
-			times.push(hour);
-		}
-
-		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
-		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
-		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		let para_id: u32 = 2001;
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.try_into().unwrap(), vec![7,8,9], 100_000)
-
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let mut times: Vec<u64> = vec![];

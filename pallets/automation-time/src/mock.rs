@@ -52,8 +52,8 @@ type Block = system::mocking::MockBlock<Test>;
 pub type Balance = u128;
 pub type AccountId = AccountId32;
 
-pub const ALICE: u8 = 1u8;
-pub const BOB: u8 = 2u8;
+pub const ALICE: [u8; 32] = [1u8; 32];
+pub const BOB: [u8; 32] = [2u8; 32];
 pub const PARA_ID: u32 = 2000;
 
 construct_runtime!(
@@ -200,9 +200,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		0
 	}
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
-		0
-	}
-	fn schedule_xcmp_task_full(_v: u32) -> Weight {
 		0
 	}
 	fn cancel_scheduled_task_full() -> Weight {

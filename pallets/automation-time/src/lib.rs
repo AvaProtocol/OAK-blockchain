@@ -490,7 +490,9 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
+		/// 
+		/// TODO: Create benchmark for schedule_xcmp_task
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
