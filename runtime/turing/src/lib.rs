@@ -329,9 +329,9 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
-	pub const BasicDeposit:  Balance = 3 * DOLLAR; // 258 bytes on-chain
+	pub const BasicDeposit:  Balance = 10 * DOLLAR; // 258 bytes on-chain
 	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
-	pub const SubAccountDeposit:  Balance = 1 * DOLLAR; // 53 bytes on-chain
+	pub const SubAccountDeposit:  Balance = 2 * DOLLAR; // 53 bytes on-chain
 }
 
 type ForceOrigin = EnsureOneOf<
