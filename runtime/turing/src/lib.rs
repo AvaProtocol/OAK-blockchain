@@ -499,8 +499,8 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				tips.merge_into(&mut fees);
 			}
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
@@ -571,6 +571,8 @@ parameter_types! {
 	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	/// Minimum stake required to be reserved to be a candidate
+	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -602,8 +604,7 @@ impl parachain_staking::Config for Runtime {
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	type MinCollatorStk = MinCollatorStk;
-	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<{ 400_000 * DOLLAR }>;
+	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
@@ -614,6 +615,8 @@ impl parachain_staking::Config for Runtime {
 	type OnNewRound = ();
 	/// Whether a given collator has completed required registration to be selected as block author
 	type CollatorRegistration = Session;
+	/// Any additional issuance that should be used for inflation calcs
+	type AdditionalIssuance = Vesting;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
@@ -885,8 +888,8 @@ where
 {
 	fn on_unbalanceds<B>(mut fees: impl Iterator<Item = NegativeImbalance<R>>) {
 		if let Some(fees) = fees.next() {
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
