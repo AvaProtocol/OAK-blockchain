@@ -23,9 +23,6 @@ phases:
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-dev > turing-dev/genesis-wasm
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing-staging > turing-staging/genesis-wasm
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing > turing-live/genesis-wasm
-      - echo Pushing the Docker image...
-      - docker push oaknetwork/turing:$IMAGE_TAG
-      - docker push oaknetwork/turing:latest
       - echo Grabbing files
       - mkdir -p turing-latest/chain_specs
       - mkdir -p turing-staging-latest/chain_specs
