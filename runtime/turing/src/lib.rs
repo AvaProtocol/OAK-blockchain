@@ -911,7 +911,7 @@ construct_runtime!(
 		NodeBlock = opaque::Block,
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
-		// System support stuff.
+		// System
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
 		ParachainSystem: cumulus_pallet_parachain_system::{
 			Pallet, Call, Config, Storage, Inherent, Event<T>, ValidateUnsigned,
@@ -919,7 +919,7 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
 		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 3,
 
-		// Monetary stuff.
+		// Tokens
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
 		Currencies: orml_currencies::{Pallet, Call} = 12,
@@ -934,8 +934,10 @@ construct_runtime!(
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
+		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 31,
+		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 32,
 
-		// XCM helpers.
+		// XCM
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
@@ -943,20 +945,22 @@ construct_runtime!(
 		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,
 		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 45,
 
-		// Support pallets.
-		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 50,
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 51,
-		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 52,
-		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 53,
-		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
-		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 55,
-		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 56,
-		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 57,
-		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 58,
+		// Treasury
+		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 50,
+		Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 51,
 
-		//custom pallets
-		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
-		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
+		// Goverance
+		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 60,
+		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 61,
+		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 62,
+		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 63,
+
+		//Custom
+		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 70,
+		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 71,
+
+		// Temporary
+		Sudo: pallet_sudo::{Pallet, Call, Storage, Event<T>, Config<T>} = 200,
 	}
 );
 
