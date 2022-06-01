@@ -25,6 +25,22 @@ phases:
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-wasm --chain=turing > turing-live/genesis-wasm
       - echo Pushing the Docker image...
       - docker push oaknetwork/turing:$IMAGE_TAG
+      - docker push oaknetwork/turing:latest
+      - echo Grabbing files
+      - mkdir -p turing-latest/chain_specs
+      - mkdir -p turing-staging-latest/chain_specs
+      - id=$(docker create oaknetwork/turing:$IMAGE_TAG)
+      - docker cp $id:/oak/oak-colator turing-latest/
+      - docker cp $id:/oak/resources/turing-live-chain-spec.json turing-latest/chain_specs/chain_spec.json
+      - docker cp $id:/oak/oak-colator turing-staging-latest/
+      - docker cp $id:/oak/resources/turing-staging-chain-spec.json turing-staging-latest/chain_specs/chain_spec.json
+      - docker rm -v $id
+      - curl -o turing-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/kusama.json
+      - zip -r turing-latest.zip turing-latest/
+      - cp turing-latest.zip turing-$IMAGE_TAG.zip
+      - curl -o turing-staging-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/rococo.json
+      - zip -r turing-staging-latest.zip turing-staging-latest/
+      - cp turing-staging-latest.zip turing-staging-$IMAGE_TAG.zip
   post_build:
     commands:
       - echo Build completed on `date`
@@ -34,3 +50,16 @@ artifacts:
     - turing-staging/*
     - turing-live/*
   name: turing-genesis-$IMAGE_TAG
+  secondary-artifacts:
+    turing:
+      type: S3
+      location: oak-chain-artifacts/turing
+      files:
+        - turing-latest.zip
+        - turing-$IMAGE_TAG.zip
+    turing-staging:
+      type: S3
+      location: oak-chain-artifacts/turing-staging
+      files:
+      - turing-staging-latest.zip
+      - turing-staging-$IMAGE_TAG.zip
