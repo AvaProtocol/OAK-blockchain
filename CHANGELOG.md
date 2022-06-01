@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Parallel Heiko tokens
 - Changed KUSD to AUSD
 - Updating fee burn rate to 20%
+- Provide on-chain identity registration
 
 ## [1.3.0] - 2022-05-17
 - Moving Turing xcm configs to their own file.
