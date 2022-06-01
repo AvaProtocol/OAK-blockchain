@@ -328,6 +328,40 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+	pub const BasicDeposit:  Balance = 3 * DOLLAR; // 258 bytes on-chain
+	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
+	pub const SubAccountDeposit:  Balance = 1 * DOLLAR; // 53 bytes on-chain
+}
+
+type ForceOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+type RegistrarOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+
+	type MaxSubAccounts = ConstU32<50>;
+	type MaxAdditionalFields = ConstU32<0>;
+	type MaxRegistrars = ConstU32<10>;
+
+	type Slashed = Treasury;
+	type ForceOrigin = ForceOrigin;
+	type RegistrarOrigin = RegistrarOrigin;
+
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
 }
 
@@ -909,6 +943,7 @@ construct_runtime!(
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
