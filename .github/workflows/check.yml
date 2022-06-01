@@ -54,4 +54,4 @@ jobs:
 
       - name: Test coverage
         run: |
-          sh ./maintain/test-coverage/test-coverage.sh
+          sh ./.maintain/test-coverage/test-coverage.sh
