@@ -14,7 +14,7 @@ phases:
       - echo Logging in to Docker hub...
       - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
       - echo Building the Docker image...
-      - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$IMAGE_TAG .
+      - docker pull oaknetwork/turing:latest
       - echo Building artifacts...
       - mkdir turing-dev turing-staging turing-live
       - docker run oaknetwork/turing:$IMAGE_TAG export-genesis-state --chain=turing-dev > turing-dev/genesis-state
@@ -26,10 +26,10 @@ phases:
       - echo Grabbing files
       - mkdir -p turing-latest/chain_specs
       - mkdir -p turing-staging-latest/chain_specs
-      - id=$(docker create oaknetwork/turing:$IMAGE_TAG)
-      - docker cp $id:/oak/oak-colator turing-latest/
+      - id=$(docker create oaknetwork/turing:latest)
+      - docker cp $id:/oak/oak-collator turing-latest/
       - docker cp $id:/oak/resources/turing-live-chain-spec.json turing-latest/chain_specs/chain_spec.json
-      - docker cp $id:/oak/oak-colator turing-staging-latest/
+      - docker cp $id:/oak/oak-collator turing-staging-latest/
       - docker cp $id:/oak/resources/turing-staging-chain-spec.json turing-staging-latest/chain_specs/chain_spec.json
       - docker rm -v $id
       - curl -o turing-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/kusama.json
