@@ -69,7 +69,7 @@ pub fn turing_development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				REGISTERED_PARA_ID.into(),
-				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
+				vec![],
 				vec![],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
