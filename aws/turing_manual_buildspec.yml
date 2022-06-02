@@ -33,3 +33,9 @@ phases:
 artifacts:
   files:
     - '*.zip'
+  secondary-artifacts:
+    artifact1:
+      base-directory: $CODEBUILD_SRC_DIR
+      files:
+        - 'turing-latest/**'
+      name: tuing-$IMAGE_TAGE
