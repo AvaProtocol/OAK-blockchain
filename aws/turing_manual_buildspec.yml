@@ -28,6 +28,8 @@ phases:
       - cd turing-latest/ && zip -r turing-$IMAGE_TAG.zip . && mv turing-$IMAGE_TAG.zip .. && cd ..
       - cd turing-staging-latest/ && zip -r turing-staging-$IMAGE_TAG.zip . && mv turing-staging-$IMAGE_TAG.zip .. && cd ..
       - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+      - echo $HOME
+      - source $HOME/.cargo/env
       - rustup show
       - cargo install --git https://github.com/chevdor/srtool-cli
       - srtool build --package turing-runtime
