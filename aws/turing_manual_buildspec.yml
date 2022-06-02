@@ -15,6 +15,7 @@ phases:
       - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
       - echo Building the Docker image...
       - docker pull oaknetwork/turing:latest
+      - docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$IMAGE_TAG .
       - echo Building artifacts...
       - mkdir -p turing-latest/chain_specs turing-staging-latest/chain_specs
       - id=$(docker create oaknetwork/turing:latest)
@@ -36,6 +37,7 @@ phases:
     commands:
       - echo Build completed on `date`
 artifacts:
+  discard-paths: yes
   files:
     - '*.zip'
     - turing-latest/oak-collator
