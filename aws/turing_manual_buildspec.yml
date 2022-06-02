@@ -27,15 +27,15 @@ phases:
       - curl -o turing-staging-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/rococo.json
       - cd turing-latest/ && zip -r turing-$IMAGE_TAG.zip . && mv turing-$IMAGE_TAG.zip .. && cd ..
       - cd turing-staging-latest/ && zip -r turing-staging-$IMAGE_TAG.zip . && mv turing-staging-$IMAGE_TAG.zip .. && cd ..
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+      - rustup show
+      - cargo install --git https://github.com/chevdor/srtool-cli
+      - srtool build --package turing-runtime
   post_build:
     commands:
       - echo Build completed on `date`
 artifacts:
   files:
     - '*.zip'
-  secondary-artifacts:
-    artifact1:
-      base-directory: $CODEBUILD_SRC_DIR
-      files:
-        - 'turing-latest/**'
-      name: tuing-$IMAGE_TAGE
+    - turing-latest/oak-collator
+    - runtime/turing/target/srtool/release/wbuild/turing-runtime/turing_runtime.compact.wasm
