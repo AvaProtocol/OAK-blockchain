@@ -32,4 +32,4 @@ phases:
       - echo Build completed on `date`
 artifacts:
   files:
-    - *.zip
+    - '*.zip'
