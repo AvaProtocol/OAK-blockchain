@@ -16,16 +16,7 @@ phases:
       - echo Building the Docker image...
       - docker pull oaknetwork/turing:latest
       - echo Building artifacts...
-      - mkdir turing-dev turing-staging turing-live
-      - docker run oaknetwork/turing:latest export-genesis-state --chain=turing-dev > turing-dev/genesis-state
-      - docker run oaknetwork/turing:latest export-genesis-state --chain=turing-staging > turing-staging/genesis-state
-      - docker run oaknetwork/turing:latest export-genesis-state --chain=turing > turing-live/genesis-state
-      - docker run oaknetwork/turing:latest export-genesis-wasm --chain=turing-dev > turing-dev/genesis-wasm
-      - docker run oaknetwork/turing:latest export-genesis-wasm --chain=turing-staging > turing-staging/genesis-wasm
-      - docker run oaknetwork/turing:latest export-genesis-wasm --chain=turing > turing-live/genesis-wasm
-      - echo Grabbing files
-      - mkdir -p turing-latest/chain_specs
-      - mkdir -p turing-staging-latest/chain_specs
+      - mkdir -p turing-latest/chain_specs turing-staging-latest/chain_specs
       - id=$(docker create oaknetwork/turing:latest)
       - docker cp $id:/oak/oak-collator turing-latest/
       - docker cp $id:/oak/resources/turing-live-chain-spec.json turing-latest/chain_specs/chain_spec.json
@@ -33,30 +24,12 @@ phases:
       - docker cp $id:/oak/resources/turing-staging-chain-spec.json turing-staging-latest/chain_specs/chain_spec.json
       - docker rm -v $id
       - curl -o turing-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/kusama.json
-      - zip -r turing-latest.zip turing-latest/
-      - cp turing-latest.zip turing-$IMAGE_TAG.zip
       - curl -o turing-staging-latest/chain_specs/relay_chain_spec.json https://raw.githubusercontent.com/paritytech/polkadot/master/node/service/chain-specs/rococo.json
-      - zip -r turing-staging-latest.zip turing-staging-latest/
-      - cp turing-staging-latest.zip turing-staging-$IMAGE_TAG.zip
+      - cd turing-latest/ && zip -r turing-$IMAGE_TAG.zip . && mv turing-$IMAGE_TAG.zip .. && cd ..
+      - cd turing-staging-latest/ && zip -r turing-staging-$IMAGE_TAG.zip . && mv turing-staging-$IMAGE_TAG.zip .. && cd ..
   post_build:
     commands:
       - echo Build completed on `date`
 artifacts:
   files:
-    - turing-dev/*
-    - turing-staging/*
-    - turing-live/*
-  name: turing-genesis-$IMAGE_TAG
-  secondary-artifacts:
-    turing:
-      type: S3
-      location: oak-chain-artifacts/turing
-      files:
-        - turing-latest.zip
-        - turing-$IMAGE_TAG.zip
-    turing-staging:
-      type: S3
-      location: oak-chain-artifacts/turing-staging
-      files:
-      - turing-staging-latest.zip
-      - turing-staging-$IMAGE_TAG.zip
+    - *.zip
