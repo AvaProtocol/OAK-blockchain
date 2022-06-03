@@ -31,7 +31,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
@@ -103,10 +102,6 @@ pub mod pallet {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			let vest_count = Self::vest();
 			<T as Config>::WeightInfo::vest(vest_count)
-		}
-
-		fn on_runtime_upgrade() -> Weight {
-			migrations::set_total_unvested_allocation::<T>()
 		}
 	}
 

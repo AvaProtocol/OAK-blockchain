@@ -141,19 +141,6 @@ fn additional_issuance() {
 	})
 }
 
-#[test]
-fn migrations_set_total_unvested_allocation() {
-	let scheduled_vests = get_schedule();
-
-	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
-		crate::TotalUnvestedAllocation::<Test>::take();
-		assert_eq!(Vesting::total_unvested_allocation(), 0);
-
-		crate::migrations::set_total_unvested_allocation::<Test>();
-		assert_eq!(Vesting::total_unvested_allocation(), 600);
-	})
-}
-
 fn get_schedule() -> Vec<(u64, Vec<(AccountId, Balance)>)> {
 	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
 	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
