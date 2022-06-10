@@ -4985,6 +4985,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-collective",
  "pallet-democracy",
+ "pallet-identity",
  "pallet-membership",
  "pallet-preimage",
  "pallet-scheduler",
@@ -5131,7 +5132,7 @@ dependencies = [
 
 [[package]]
 name = "oak-node"
-version = "1.3.0"
+version = "1.4.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -6332,8 +6333,10 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
  "pallet-timestamp",
+ "parachain-staking",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
@@ -6408,7 +6411,7 @@ dependencies = [
 [[package]]
 name = "parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.20#38eee700a6eb2b882d0d7ffba86d75d249748c8b"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.20#e7e38b435903073a5d9a33401d7f1c95dae0f553"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -11783,6 +11786,7 @@ dependencies = [
  "pallet-bounties",
  "pallet-collective",
  "pallet-democracy",
+ "pallet-identity",
  "pallet-membership",
  "pallet-preimage",
  "pallet-scheduler",

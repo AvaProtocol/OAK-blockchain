@@ -144,10 +144,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 281,
+	spec_version: 282,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 8,
+	transaction_version: 9,
 	state_version: 0,
 };
 
@@ -329,6 +329,40 @@ impl pallet_balances::Config for Runtime {
 }
 
 parameter_types! {
+	pub const BasicDeposit:  Balance = 10 * DOLLAR; // 258 bytes on-chain
+	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
+	pub const SubAccountDeposit:  Balance = 2 * DOLLAR; // 53 bytes on-chain
+}
+
+type ForceOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+type RegistrarOrigin = EnsureOneOf<
+	EnsureRoot<AccountId>,
+	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
+>;
+
+impl pallet_identity::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+
+	type BasicDeposit = BasicDeposit;
+	type FieldDeposit = FieldDeposit;
+	type SubAccountDeposit = SubAccountDeposit;
+
+	type MaxSubAccounts = ConstU32<50>;
+	type MaxAdditionalFields = ConstU32<0>;
+	type MaxRegistrars = ConstU32<10>;
+
+	type Slashed = Treasury;
+	type ForceOrigin = ForceOrigin;
+	type RegistrarOrigin = RegistrarOrigin;
+
+	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
@@ -345,10 +379,13 @@ parameter_type_with_key! {
 			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
 			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
 			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
+			CurrencyId::PHA => CurrencyId::PHA.cent(),
 		}
 	};
 }
 
+// Can only append.
+// DO NOT CHANGE THE ORDER.
 #[derive(
 	Encode,
 	Decode,
@@ -371,6 +408,7 @@ pub enum CurrencyId {
 	LKSM,
 	HKO,
 	SKSM,
+	PHA,
 }
 
 impl TokenInfo for CurrencyId {
@@ -383,6 +421,7 @@ impl TokenInfo for CurrencyId {
 			CurrencyId::LKSM => 12,
 			CurrencyId::HKO => 12,
 			CurrencyId::SKSM => 12,
+			CurrencyId::PHA => 12,
 		}
 	}
 }
@@ -460,8 +499,8 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				tips.merge_into(&mut fees);
 			}
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
@@ -532,6 +571,8 @@ parameter_types! {
 	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	/// Minimum stake required to be reserved to be a candidate
+	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
 impl parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -563,8 +604,7 @@ impl parachain_staking::Config for Runtime {
 	type DefaultCollatorCommission = DefaultCollatorCommission;
 	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	type MinCollatorStk = MinCollatorStk;
-	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<{ 400_000 * DOLLAR }>;
+	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
@@ -575,6 +615,8 @@ impl parachain_staking::Config for Runtime {
 	type OnNewRound = ();
 	/// Whether a given collator has completed required registration to be selected as block author
 	type CollatorRegistration = Session;
+	/// Any additional issuance that should be used for inflation calcs
+	type AdditionalIssuance = Vesting;
 	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
@@ -846,8 +888,8 @@ where
 {
 	fn on_unbalanceds<B>(mut fees: impl Iterator<Item = NegativeImbalance<R>>) {
 		if let Some(fees) = fees.next() {
-			// 80% burned, 20% to the treasury
-			let (_, to_treasury) = fees.ration(80, 20);
+			// 20% burned, 80% to the treasury
+			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
 			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
@@ -926,6 +968,7 @@ construct_runtime!(
 
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
+		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
