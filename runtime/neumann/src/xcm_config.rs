@@ -216,8 +216,8 @@ impl TakeRevenue for ToNativeTreasury {
 			revenue
 		{
 			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-				// 80% burned, 20% to the treasury
-				let to_treasury = Percent::from_percent(20).mul_floor(amount);
+				// 20% burned, 80% to the treasury
+				let to_treasury = Percent::from_percent(80).mul_floor(amount);
 				// Due to the way XCM works the amount has already been taken off the total allocation balance.
 				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
 				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);

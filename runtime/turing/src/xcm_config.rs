@@ -253,6 +253,15 @@ parameter_types! {
 		// sKSM:KSM = 1:1
 		ksm_per_second()
 	);
+
+	pub PhaPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X1(Parachain(parachains::khala::ID)),
+		).into(),
+		// PHA:KSM = 400:1
+		ksm_per_second() * 400
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -262,8 +271,8 @@ impl TakeRevenue for ToNativeTreasury {
 			revenue
 		{
 			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-				// 80% burned, 20% to the treasury
-				let to_treasury = Percent::from_percent(20).mul_floor(amount);
+				// 20% burned, 80% to the treasury
+				let to_treasury = Percent::from_percent(80).mul_floor(amount);
 				// Due to the way XCM works the amount has already been taken off the total allocation balance.
 				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
 				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
@@ -298,6 +307,7 @@ pub type Trader = (
 	FixedRateOfFungible<LksmPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<HkoPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<SksmPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<PhaPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
@@ -412,6 +422,13 @@ impl orml_unknown_tokens::Config for Runtime {
 }
 
 pub mod parachains {
+
+	pub mod heiko {
+		pub const ID: u32 = 2085;
+		pub const HKO_KEY: &[u8] = b"HKO";
+		pub const SKSM_KEY: &[u8] = b"sKSM";
+	}
+
 	pub mod karura {
 		pub const ID: u32 = 2000;
 		pub const KAR_KEY: &[u8] = &[0, 128];
@@ -423,10 +440,8 @@ pub mod parachains {
 		pub const ID: u32 = 2110;
 	}
 
-	pub mod heiko {
-		pub const ID: u32 = 2085;
-		pub const HKO_KEY: &[u8] = b"HKO";
-		pub const SKSM_KEY: &[u8] = b"sKSM";
+	pub mod khala {
+		pub const ID: u32 = 2004;
 	}
 }
 
@@ -472,6 +487,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 					GeneralKey(parachains::heiko::SKSM_KEY.to_vec()),
 				),
 			)),
+			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID))))
 		}
 	}
 }
@@ -499,6 +515,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					// If it's TUR
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
+					id if id == parachains::khala::ID => 
+						Some(CurrencyId::PHA),
 					_ => None,
 				}
 			},

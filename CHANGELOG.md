@@ -5,10 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.4.0] - 2022-06-01
 - Fixed execution fees for automation time
 - Update to substrate 0.9.20
 - Added Parallel Heiko tokens
 - Changed KUSD to AUSD
+- Updating fee burn rate to 20%
+- Provide on-chain identity registration
 
 ## [1.3.0] - 2022-05-17
 - Moving Turing xcm configs to their own file.
