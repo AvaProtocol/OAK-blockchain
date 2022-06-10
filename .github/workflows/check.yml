@@ -33,11 +33,7 @@ jobs:
       run: rustup show
     - name: Build
       run: |
-        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
-        export SCCACHE_DIR=/home/ubuntu/.cache/sccache
         cargo build --release --all
     - name: Test
       run: |
-        export RUSTC_WRAPPER=/home/ubuntu/sccache/sccache
-        export SCCACHE_DIR=/home/ubuntu/.cache/sccache
-        cargo build --release --all
+        cargo test --release --all
