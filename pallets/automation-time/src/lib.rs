@@ -297,8 +297,8 @@ pub mod pallet {
 		TaskNotFound {
 			task_id: T::Hash,
 		},
-		/// Succcessfully transferred funds
-		SuccesfullyTransferredFunds {
+		/// Successfully transferred funds
+		SuccessfullyTransferredFunds {
 			task_id: T::Hash,
 		},
 		/// Transfer Failed
@@ -831,7 +831,7 @@ pub mod pallet {
 			task_id: T::Hash,
 		) -> Weight {
 			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
-				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
+				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
 
