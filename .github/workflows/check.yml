@@ -33,7 +33,7 @@ jobs:
       run: rustup show
     - name: Build
       run: |
-        cargo build --release --all
+        cargo build --release --all --features all-nodes
     - name: Test
       run: |
-        cargo test --release --all
+        cargo test --release --all --features all-nodes
