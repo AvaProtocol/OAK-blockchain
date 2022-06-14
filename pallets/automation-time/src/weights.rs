@@ -159,11 +159,6 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 		(9_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
-	// Storage: ParachainSystem RelevantMessagingState (r:1 w:0)
-	fn run_xcmp_task() -> Weight {
-		(9_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
 		(0 as Weight)
