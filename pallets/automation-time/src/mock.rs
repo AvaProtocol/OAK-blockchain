@@ -152,9 +152,9 @@ impl SendXcm for TestSendXcm {
 	fn send_xcm(dest: impl Into<MultiLocation>, msg: Xcm<()>) -> SendResult {
 		let dest = dest.into();
 		let err_message = Xcm(vec![Transact {
-			origin_type: OriginKind::SovereignAccount,
+			origin_type: OriginKind::Native,
 			require_weight_at_most: 100_000,
-			call: vec![9, 9, 9].into(),
+			call: vec![9, 1, 1].into(),
 		}]);
 		if msg == err_message {
 			Err(SendError::Transport("Destination location full"))

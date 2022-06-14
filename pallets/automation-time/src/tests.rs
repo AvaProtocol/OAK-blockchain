@@ -1175,7 +1175,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			vec![(
 				(1, Junction::Parachain(PARA_ID.into())).into(),
 				Xcm(vec![Transact {
-					origin_type: OriginKind::SovereignAccount,
+					origin_type: OriginKind::Native,
 					require_weight_at_most: 100_000,
 					call: vec![3, 4, 5].into(),
 				}]),
@@ -1200,7 +1200,7 @@ fn trigger_tasks_xcmp_sends_error_event() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				para_id: PARA_ID.try_into().unwrap(),
-				call: vec![9, 9, 9], // mock send_xcm will throw an error if call equals vec![9,9,9]
+				call: vec![9, 1, 1], // mocked send_xcm will throw an error if call equals vec![9,1,1]
 				weight_at_most: 100_000,
 			},
 		);

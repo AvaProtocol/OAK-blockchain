@@ -934,7 +934,7 @@ pub mod pallet {
 		) -> Weight {
 			let destination = (1, Junction::Parachain(para_id.into()));
 			let message = Xcm(vec![Transact {
-				origin_type: OriginKind::SovereignAccount,
+				origin_type: OriginKind::Native,
 				require_weight_at_most: weight_at_most,
 				call: call.into(),
 			}]);
