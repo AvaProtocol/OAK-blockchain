@@ -347,10 +347,13 @@ parameter_type_with_key! {
 			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
 			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
 			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
+			CurrencyId::PHA => CurrencyId::PHA.cent(),
 		}
 	};
 }
 
+// Can only append. 
+// DO NOT CHANGE THE ORDER.
 #[derive(
 	Encode,
 	Decode,
@@ -373,6 +376,7 @@ pub enum CurrencyId {
 	LKSM,
 	HKO,
 	SKSM,
+	PHA,
 }
 
 impl TokenInfo for CurrencyId {
@@ -385,6 +389,7 @@ impl TokenInfo for CurrencyId {
 			CurrencyId::LKSM => 12,
 			CurrencyId::HKO => 12,
 			CurrencyId::SKSM => 12,
+			CurrencyId::PHA => 12,
 		}
 	}
 }

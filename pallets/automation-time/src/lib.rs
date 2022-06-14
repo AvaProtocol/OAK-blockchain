@@ -64,9 +64,7 @@ use sp_runtime::{
 	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
-use xcm::{latest::prelude::*};
-
-mod xcm_test;
+use xcm::latest::prelude::*;
 
 pub use weights::WeightInfo;
 pub use weights::AutomationWeight;
@@ -351,13 +349,9 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_time: UnixTime,
 		},
-		XCMPSent {
-			para_id: ParaId,
+		XCMPTest {
+			account_id: AccountId,
 		},
-		XCMPFailed {
-			para_id: ParaId,
-			error: SendError,
-		}
 	}
 
 	#[pallet::hooks]
@@ -496,7 +490,9 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
+		/// 
+		/// TODO: Create benchmark for schedule_xcmp_task
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
@@ -938,7 +934,7 @@ pub mod pallet {
 		) -> Weight {
 			let destination = (1, Junction::Parachain(para_id.into()));
 			let message = Xcm(vec![Transact {
-				origin_type: OriginKind::SovereignAccount,
+				origin_type: OriginKind::Native,
 				require_weight_at_most: weight_at_most,
 				call: call.into(),
 			}]);

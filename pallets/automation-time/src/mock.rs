@@ -52,8 +52,8 @@ type Block = system::mocking::MockBlock<Test>;
 pub type Balance = u128;
 pub type AccountId = AccountId32;
 
-pub const ALICE: u8 = 1u8;
-pub const BOB: u8 = 2u8;
+pub const ALICE: [u8; 32] = [1u8; 32];
+pub const BOB: [u8; 32] = [2u8; 32];
 pub const PARA_ID: u32 = 2000;
 
 construct_runtime!(
@@ -152,9 +152,9 @@ impl SendXcm for TestSendXcm {
 	fn send_xcm(dest: impl Into<MultiLocation>, msg: Xcm<()>) -> SendResult {
 		let dest = dest.into();
 		let err_message = Xcm(vec![Transact {
-			origin_type: OriginKind::SovereignAccount,
+			origin_type: OriginKind::Native,
 			require_weight_at_most: 100_000,
-			call: vec![9, 9, 9].into(),
+			call: vec![9, 1, 1].into(),
 		}]);
 		if msg == err_message {
 			Err(SendError::Transport("Destination location full"))

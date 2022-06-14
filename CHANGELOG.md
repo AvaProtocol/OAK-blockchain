@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update to substrate 0.9.20
 - Added Parallel Heiko tokens
 - Changed KUSD to AUSD
+- Turing staging chain spec added
+- Schedule automated XCMP task
 
 ## [1.3.0] - 2022-05-17
 - Moving Turing xcm configs to their own file.
