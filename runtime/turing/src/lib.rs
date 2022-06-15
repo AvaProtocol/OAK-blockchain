@@ -380,6 +380,7 @@ parameter_type_with_key! {
 			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
 			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
 			CurrencyId::PHA => CurrencyId::PHA.cent(),
+			CurrencyId::BNC => 10 * CurrencyId::BNC.millicent(),
 		}
 	};
 }
@@ -409,6 +410,7 @@ pub enum CurrencyId {
 	HKO,
 	SKSM,
 	PHA,
+	BNC,
 }
 
 impl TokenInfo for CurrencyId {
@@ -422,6 +424,7 @@ impl TokenInfo for CurrencyId {
 			CurrencyId::HKO => 12,
 			CurrencyId::SKSM => 12,
 			CurrencyId::PHA => 12,
+			CurrencyId::BNC => 12,
 		}
 	}
 }

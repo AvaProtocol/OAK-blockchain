@@ -262,6 +262,15 @@ parameter_types! {
 		// PHA:KSM = 400:1
 		ksm_per_second() * 400
 	);
+
+	pub BncPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X2(Parachain(parachains::bifrost::ID), GeneralKey(parachains::bifrost::BNC_KEY.to_vec())),
+		).into(),
+		// BNC:KSM = 80:1
+		ksm_per_second() * 80
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -423,6 +432,11 @@ impl orml_unknown_tokens::Config for Runtime {
 
 pub mod parachains {
 
+	pub mod bifrost {
+		pub const ID: u32 = 2001;
+		pub const BNC_KEY: &[u8] = &[0, 1];
+	}
+
 	pub mod heiko {
 		pub const ID: u32 = 2085;
 		pub const HKO_KEY: &[u8] = b"HKO";
@@ -488,6 +502,13 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				),
 			)),
 			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID)))),
+			CurrencyId::BNC => Some(MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachains::bifrost::ID),
+					GeneralKey(parachains::bifrost::BNC_KEY.to_vec()),
+				),
+			)),
 		}
 	}
 }
@@ -508,6 +529,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 						Some(CurrencyId::LKSM),
 					(parachains::heiko::ID, parachains::heiko::HKO_KEY) => Some(CurrencyId::HKO),
 					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) => Some(CurrencyId::SKSM),
+					(parachains::bifrost::ID, parachains::bifrost::BNC_KEY) => Some(CurrencyId::BNC),
 					_ => None,
 				},
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
