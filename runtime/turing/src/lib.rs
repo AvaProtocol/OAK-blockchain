@@ -17,8 +17,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
-#![cfg(feature = "turing-node")]
-
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -341,6 +339,7 @@ parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
 		match currency_id {
 			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::UNIT => 10 * CurrencyId::UNIT.millicent(),
 			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
 			CurrencyId::AUSD => CurrencyId::AUSD.cent(),
 			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
@@ -370,6 +369,7 @@ parameter_type_with_key! {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
 	Native,
+	UNIT,
 	KSM,
 	AUSD,
 	KAR,
@@ -383,6 +383,7 @@ impl TokenInfo for CurrencyId {
 	fn get_decimals(&self) -> u32 {
 		match self {
 			CurrencyId::Native => 10,
+			CurrencyId::UNIT => 12,
 			CurrencyId::KSM => 12,
 			CurrencyId::AUSD => 12,
 			CurrencyId::KAR => 12,

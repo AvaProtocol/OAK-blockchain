@@ -1,7 +1,6 @@
 use super::{
 	AccountId, Balance, Call, Currencies, CurrencyId, Event, Origin, ParachainInfo,
 	ParachainSystem, PolkadotXcm, Runtime, TreasuryAccount, UnknownTokens, XcmpQueue,
-	MAXIMUM_BLOCK_WEIGHT,
 };
 
 use core::marker::PhantomData;
@@ -100,12 +99,6 @@ match_types! {
 		MultiLocation { parents: 1, interior: X1(Plurality { id: BodyId::Executive, .. }) }
 	};
 }
-
-// pub type Barrier = (
-// 	TakeWeightCredit,
-// 	AllowTopLevelPaidExecutionFrom<Everything>,
-// 	AllowUnpaidExecutionFrom<Everything>,
-// );
 
 //TODO: move DenyThenTry to polkadot's xcm module.
 /// Deny executing the xcm message if it matches any of the Deny filter regardless of anything else.
