@@ -365,7 +365,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 pub mod parachains {
 	pub mod testchain {
-		pub const ID: u32 = 2001;
+		pub const ID: u32 = 1999;
 	}
 }
 
@@ -377,7 +377,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::ROC => Some(MultiLocation::parent()),
 			CurrencyId::UNIT =>
-				Some(MultiLocation::new(1, X1(Parachain(2001)))),
+				Some(MultiLocation::new(1, X1(Parachain(1999)))),
 		}
 	}
 }

@@ -432,7 +432,7 @@ impl orml_unknown_tokens::Config for Runtime {
 
 pub mod parachains {
 	pub mod testchain {
-		pub const ID: u32 = 2001;
+		pub const ID: u32 = 1999;
 	}
 
 	pub mod heiko {
@@ -464,7 +464,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 			CurrencyId::Native =>
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::UNIT =>
-				Some(MultiLocation::new(1, X1(Parachain(2001)))),
+				Some(MultiLocation::new(1, X1(Parachain(1999)))),
 			CurrencyId::KSM => Some(MultiLocation::parent()),
 			CurrencyId::AUSD => Some(MultiLocation::new(
 				1,
