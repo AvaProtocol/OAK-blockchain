@@ -529,7 +529,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 						Some(CurrencyId::LKSM),
 					(parachains::heiko::ID, parachains::heiko::HKO_KEY) => Some(CurrencyId::HKO),
 					(parachains::heiko::ID, parachains::heiko::SKSM_KEY) => Some(CurrencyId::SKSM),
-					(parachains::bifrost::ID, parachains::bifrost::BNC_KEY) => Some(CurrencyId::BNC),
+					(parachains::bifrost::ID, parachains::bifrost::BNC_KEY) =>
+						Some(CurrencyId::BNC),
 					_ => None,
 				},
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
