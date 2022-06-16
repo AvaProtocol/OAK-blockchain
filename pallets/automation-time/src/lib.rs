@@ -440,6 +440,22 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::weight(0)]
+		pub fn schedule_auto_compound_delegated_stake(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			execution_times: Vec<UnixTime>,
+			collator_id: T::AccountId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+			let action = Action::AutoCompoundDelegatedStake {
+				delegator: who.clone(),
+				collator: collator_id,
+			};
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Ok(().into())
+		}
+
 		/// Cancel a task.
 		///
 		/// Tasks can only can be cancelled by their owners.
