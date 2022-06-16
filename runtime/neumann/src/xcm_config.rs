@@ -1,6 +1,7 @@
 use super::{
 	AccountId, Balance, Call, Currencies, CurrencyId, Event, Origin, ParachainInfo,
 	ParachainSystem, PolkadotXcm, Runtime, TreasuryAccount, UnknownTokens, XcmpQueue,
+	MAXIMUM_BLOCK_WEIGHT,
 };
 
 use core::marker::PhantomData;
