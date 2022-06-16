@@ -30,6 +30,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 ## Substrate Pallet Dependencies
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
 
+# TODO: Change local dep before merge!
+parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking", default-features = false }
+
 [dev-dependencies]
 serde = { version = "1.0.136" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
@@ -45,6 +48,7 @@ std = [
     "sp-runtime/std",
     "sp-std/std",
 	"pallet-timestamp/std",
+	"parachain-staking/std",
 	"frame-support/std",
 	"frame-system/std",
 	"frame-benchmarking/std",

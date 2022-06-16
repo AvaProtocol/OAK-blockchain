@@ -168,7 +168,9 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_timestamp::Config {
+	pub trait Config:
+		frame_system::Config + pallet_timestamp::Config + parachain_staking::Config
+	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Weight information for the extrinsics in this module.
@@ -207,6 +209,8 @@ pub mod pallet {
 
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
+
+		type DelegatorActions: parachain_staking::DelegatorActions<Self>;
 	}
 
 	#[pallet::pallet]
@@ -990,7 +994,8 @@ pub mod pallet {
 			}
 
 			Self::clean_execution_times_vector(&mut execution_times);
-			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
+			let max_allowed_executions: usize = T::MaxExecutionTimes::get().try_into().unwrap();
+			if execution_times.len() > max_allowed_executions {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
 			for time in execution_times.iter() {
