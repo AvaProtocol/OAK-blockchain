@@ -464,7 +464,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 			CurrencyId::Native =>
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::UNIT =>
-				Some(MultiLocation::new(1, X1(Parachain(1999)))),
+				Some(MultiLocation::new(1, X1(Parachain(parachains::testchain::ID)))),
 			CurrencyId::KSM => Some(MultiLocation::parent()),
 			CurrencyId::AUSD => Some(MultiLocation::new(
 				1,

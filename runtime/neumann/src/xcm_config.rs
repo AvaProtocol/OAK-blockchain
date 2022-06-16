@@ -377,7 +377,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::ROC => Some(MultiLocation::parent()),
 			CurrencyId::UNIT =>
-				Some(MultiLocation::new(1, X1(Parachain(1999)))),
+				Some(MultiLocation::new(1, X1(Parachain(parachains::testchain::ID)))),
 		}
 	}
 }
