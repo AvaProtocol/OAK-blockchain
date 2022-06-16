@@ -162,9 +162,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
-	fn schedule_xcmp_task_full(_v: u32) -> Weight {
-		0
-	}
 	fn cancel_scheduled_task_full() -> Weight {
 		0
 	}

@@ -67,7 +67,6 @@ use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 pub use weights::WeightInfo;
-pub use weights::AutomationWeight;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
@@ -1045,10 +1044,8 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 		) -> Result<T::Hash, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
-			info!("task ID generated: {:?}", task_id);
 
 			if let Some(_) = Self::get_task(task_id) {
-				info!("duplicate task error");
 				Err(Error::<T>::DuplicateTask)?
 			}
 
@@ -1095,13 +1092,11 @@ pub mod pallet {
 
 			Self::clean_execution_times_vector(&mut execution_times);
 			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
-				info!("execution times error");
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
 			for time in execution_times.iter() {
 				Self::is_valid_time(*time)?;
 			}
-			info!("isValidTimes");
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
@@ -1119,15 +1114,12 @@ pub mod pallet {
 				action,
 			};
 			<Tasks<T>>::insert(task_id, task);
-			info!("inserted into task map");
 
 			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
 
-			info!("fees withdrawn");
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
-			info!("fire task scheduled event");
 			Ok(())
 		}
 

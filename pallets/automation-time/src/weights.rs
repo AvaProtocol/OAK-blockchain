@@ -38,7 +38,6 @@ pub trait WeightInfo {
 	fn schedule_notify_task_full(v: u32, ) -> Weight;
 	fn schedule_native_transfer_task_empty() -> Weight;
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight;
-	fn schedule_xcmp_task_full(v: u32, ) -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
@@ -104,19 +103,6 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Storage: System Account (r:2 w:2)
-	// Storage: AutomationTime Tasks (r:1 w:1)
-	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
-	fn schedule_xcmp_task_full(v: u32, ) -> Weight {
-		(30_331_000 as Weight)
-			// Standard Error: 99_000
-			.saturating_add((49_354_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
