@@ -55,6 +55,7 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use log::info;
 use pallet_timestamp::{self as timestamp};
+use parachain_staking::DelegatorActions;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
@@ -82,6 +83,7 @@ pub mod pallet {
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
+		AutoCompoundDelegatedStake { delegator: AccountOf<T>, collator: AccountOf<T> },
 	}
 
 	/// The struct that stores data for a missed task.
@@ -307,6 +309,13 @@ pub mod pallet {
 		},
 		/// Transfer Failed
 		TransferFailed {
+			task_id: T::Hash,
+			error: DispatchError,
+		},
+		SuccesfullyAutoCompoundedDelegatorStake {
+			task_id: T::Hash,
+		},
+		AutoCompoundDelegatorStakeFailed {
 			task_id: T::Hash,
 			error: DispatchError,
 		},
@@ -757,6 +766,12 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
+							Action::AutoCompoundDelegatedStake { delegator, collator } =>
+								Self::run_auto_compound_delegated_stake(
+									delegator,
+									collator,
+									task_id.clone(),
+								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -840,6 +855,27 @@ pub mod pallet {
 			};
 
 			<T as Config>::WeightInfo::run_native_transfer_task()
+		}
+
+		pub fn run_auto_compound_delegated_stake(
+			delegator: T::AccountId,
+			collator: T::AccountId,
+			task_id: T::Hash,
+		) -> Weight {
+			match T::DelegatorActions::delegator_bond_more(
+				&delegator,
+				&collator,
+				(0 as u128).saturated_into(),
+			) {
+				Ok(()) =>
+					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake { task_id }),
+				Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					task_id,
+					error: e,
+				}),
+			};
+
+			0
 		}
 
 		/// Decrements task executions left.
@@ -1038,6 +1074,7 @@ pub mod pallet {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
+				Action::AutoCompoundDelegatedStake { delegator: _, collator: _ } => 0,
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());
