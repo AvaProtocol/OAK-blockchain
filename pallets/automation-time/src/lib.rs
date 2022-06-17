@@ -881,7 +881,7 @@ pub mod pallet {
 			match T::DelegatorActions::delegator_bond_more(
 				&delegator,
 				&collator,
-				(0 as u128).saturated_into(),
+				(100000 as u128).saturated_into(),
 			) {
 				Ok(()) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake { task_id }),

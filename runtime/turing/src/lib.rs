@@ -908,6 +908,7 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;
