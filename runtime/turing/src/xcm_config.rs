@@ -262,6 +262,15 @@ parameter_types! {
 		// PHA:KSM = 400:1
 		ksm_per_second() * 400
 	);
+
+	pub CsmPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X1(Parachain(parachains::crust::ID)),
+		).into(),
+		// CSM:KSM = 400:1
+		ksm_per_second() * 400	
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -308,6 +317,7 @@ pub type Trader = (
 	FixedRateOfFungible<HkoPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<SksmPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<PhaPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<CsmPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
@@ -423,6 +433,10 @@ impl orml_unknown_tokens::Config for Runtime {
 
 pub mod parachains {
 
+	pub mod crust {
+		pub const ID: 2012;
+	}
+
 	pub mod heiko {
 		pub const ID: u32 = 2085;
 		pub const HKO_KEY: &[u8] = b"HKO";
@@ -488,6 +502,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				),
 			)),
 			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID)))),
+			CurrencyId::CSM => Some(MultiLocation::new(1, X1(Parachain(parachains::crust::ID)))),
 		}
 	}
 }
@@ -516,6 +531,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
 					id if id == parachains::khala::ID => Some(CurrencyId::PHA),
+					id if id == parachains::crust::ID => Some(CurrencyId::CSM),
 					_ => None,
 				}
 			},
