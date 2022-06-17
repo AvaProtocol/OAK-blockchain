@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+tag=$1
+previous_tag=$(git tag | sort -r | head -n 2 | tail -n 1)
+
+echo "## What's Changed"
+echo
+
+changes=$(
+  git log $previous_tag...$tag --oneline | awk '{$1 = ""; print "*" $0}'
+)
+
+echo "$changes"
+echo
+
+github="https://github.com/OAK-Foundation/OAK-blockchain/compare"
+echo "**Full Changelog**: $github/$previous_tag...$tag"
+echo
+
+echo "## Turing srtool output"
+echo
+
+runtime=$(cat turing-srtool-digest.json)
+rust=$(echo $runtime | jq --raw-output .rustc)
+version=$(
+  echo $runtime| jq --raw-output .runtimes.compressed.subwasm.core_version
+)
+size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
+proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
+ipfs=$(echo $runtime | jq --raw-output .runtimes.compressed.ipfs)
+blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
+
+cat <<-EOF
+\`\`\`
+Rust        : $rust
+Version     : $version
+Size        : $size
+Proposal    : $proposal
+IPFS        : $ipfs
+BLAKE2_256  : $blake2_256
+\`\`\`
+EOF
