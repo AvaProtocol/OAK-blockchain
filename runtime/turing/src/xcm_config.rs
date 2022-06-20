@@ -434,7 +434,7 @@ impl orml_unknown_tokens::Config for Runtime {
 pub mod parachains {
 
 	pub mod crust {
-		pub const ID: 2012;
+		pub const ID: u32 = 2012;
 	}
 
 	pub mod heiko {
