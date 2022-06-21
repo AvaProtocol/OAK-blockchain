@@ -81,10 +81,10 @@ jobs:
           name: oak-collator
       - name: Build
         run: |
-          docker build -f ./docker/turing/Dockerfile -t oaknetwork/oak-testchain:${{ github.event.inputs.tag }} .
-          docker tag oaknetwork/oak-testchain:${{ github.event.inputs.tag }} oaknetwork/oak-testchain:latest
-          docker push oaknetwork/oak-testchain:${{ github.event.inputs.tag }}
-          docker push oaknetwork/oak-testchain:latest
+          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:${{ github.event.inputs.tag }} .
+          docker tag oaknetwork/turing:${{ github.event.inputs.tag }} oaknetwork/turing:latest
+          docker push oaknetwork/turing:${{ github.event.inputs.tag }}
+          docker push oaknetwork/turing:latest
   release:
     name: Release
     runs-on: ubuntu-latest
