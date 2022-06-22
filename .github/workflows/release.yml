@@ -1,11 +1,7 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag for release
-        required: true
+  pull_request:
 
 jobs:
   build-binary:
@@ -15,7 +11,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: v1.4.0.1
       - name: Setup Rust
         run: rustup show
       - name: Build
@@ -43,7 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: v1.4.0.1
       - name: Build
         id: srtool_build
         uses: chevdor/srtool-actions@v0.4.0
@@ -74,16 +70,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: v1.4.0.1
       - name: Download binary
         uses: actions/download-artifact@v2
         with:
           name: oak-collator
       - name: Build
         run: |
-          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:${{ github.event.inputs.tag }} .
-          docker tag oaknetwork/turing:${{ github.event.inputs.tag }} oaknetwork/turing:latest
-          docker push oaknetwork/turing:${{ github.event.inputs.tag }}
+          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:v1.4.0.1 .
+          docker tag oaknetwork/turing:v1.4.0.1 oaknetwork/turing:latest
+          docker push oaknetwork/turing:v1.4.0.1
           docker push oaknetwork/turing:latest
   release:
     name: Release
@@ -95,7 +91,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.inputs.tag }}
+          ref: v1.4.0.1
           fetch-depth: 0
       - name: Download binary
         uses: actions/download-artifact@v2
@@ -111,15 +107,15 @@ jobs:
           name: turing-runtime
       - name: Generate notes
         run: |
-          ./.maintain/generate-release-notes ${{ github.event.inputs.tag }} > notes.md
+          ./.maintain/generate-release-notes v1.4.0.1 > notes.md
       - name: Create release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          release_name: ${{ github.event.inputs.tag }}
+          tag_name: v1.4.0.1
+          release_name: v1.4.0.1
           body_path: notes.md
           draft: true
       - name: Upload binary
