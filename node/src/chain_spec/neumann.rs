@@ -77,8 +77,16 @@ pub fn development_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				vec![],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				],
 			)
 		},
 		Vec::new(),
@@ -160,8 +168,16 @@ pub fn local_testnet_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				initial_vesting,
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				],
 			)
 		},
 		// Bootnodes
