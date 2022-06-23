@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+
+CONFIG_FILE=/etc/default/oak-collator
+
+if [ "$1" = "configure" ]; then
+  getent group oak > /dev/null 2&>1 || \
+    addgroup --system oak
+
+  getent passwd oak > /dev/null 2&>1 || \
+    adduser --system --home /home/oak --ingroup oak --disabled-password oak
+
+  if [ ! -e $CONFIG_FILE ]; then
+    cp /usr/share/oak-collator/oak-collator $CONFIG_FILE
+  fi
+fi
