@@ -144,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 282,
+	spec_version: 283,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 9,
