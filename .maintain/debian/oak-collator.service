@@ -1,0 +1,17 @@
+[Unit]
+Description="OAK Collator"
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+EnvironmentFile=-/etc/default/oak-collator
+ExecStart=/usr/bin/oak-collator $OAK_CLI_ARGS
+Type=simple
+Restart=on-failure
+RestartSec=10
+KillSignal=SIGHUP
+User=oak
+Group=oak
+
+[Install]
+WantedBy=multi-user.target

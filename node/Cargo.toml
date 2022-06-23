@@ -112,3 +112,15 @@ polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch
 
 # Moonbeam Dependencies
 parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.20" }
+
+[package.metadata.deb]
+name = "oak-collator"
+maintainer-scripts = "../.maintain/debian/deb-maintainer-scripts"
+assets = [
+	["target/release/oak-collator", "/usr/bin/", "755"],
+	["../.maintain/debian/oak-collator.service", "/lib/systemd/system/", "644"],
+	["../.maintain/debian/defaults", "/usr/share/oak-collator/oak-collator", "644"]
+]
+conf-files = [
+	"/etc/default/oak-collator"
+]
