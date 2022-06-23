@@ -1,6 +1,6 @@
 [package]
 name = "oak-node"
-version = "1.4.1"
+version = "1.4.0"
 authors = ["OAK Developement Team"]
 description = "Automation-first Blockchain"
 license = "GPL-3.0"
