@@ -49,7 +49,7 @@ use frame_support::{
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{with_transaction, TransactionOutcome::*},
-	traits::StorageVersion,
+	traits::{Currency, StorageVersion},
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
@@ -74,7 +74,8 @@ pub mod pallet {
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -174,6 +175,8 @@ pub mod pallet {
 		frame_system::Config + pallet_timestamp::Config + parachain_staking::Config
 	{
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type Currency: Currency<Self::AccountId>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
