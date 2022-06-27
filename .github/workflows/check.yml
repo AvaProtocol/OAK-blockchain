@@ -32,7 +32,9 @@ jobs:
     runs-on: self-hosted
     steps:
     - name: Debug
-      run: env
+      run: |
+        env
+        whoami
     - name: Checkout
       uses: actions/checkout@v2
     - name: Setup Rust
