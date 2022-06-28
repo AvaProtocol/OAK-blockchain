@@ -58,7 +58,7 @@ use pallet_timestamp::{self as timestamp};
 use parachain_staking::DelegatorActions;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{SaturatedConversion, Saturating},
+	traits::{CheckedSub, SaturatedConversion, Saturating},
 	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -82,9 +82,19 @@ pub mod pallet {
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action<T: Config> {
-		Notify { message: Vec<u8> },
-		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
-		AutoCompoundDelegatedStake { delegator: AccountOf<T>, collator: AccountOf<T> },
+		Notify {
+			message: Vec<u8>,
+		},
+		NativeTransfer {
+			sender: AccountOf<T>,
+			recipient: AccountOf<T>,
+			amount: BalanceOf<T>,
+		},
+		AutoCompoundDelegatedStake {
+			delegator: AccountOf<T>,
+			collator: AccountOf<T>,
+			account_minimum: BalanceOf<T>,
+		},
 	}
 
 	/// The struct that stores data for a missed task.
@@ -317,6 +327,7 @@ pub mod pallet {
 		},
 		SuccesfullyAutoCompoundedDelegatorStake {
 			task_id: T::Hash,
+			amount: BalanceOf<T>,
 		},
 		AutoCompoundDelegatorStakeFailed {
 			task_id: T::Hash,
@@ -449,11 +460,13 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
 			collator_id: T::AccountId,
+			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,
+				account_minimum,
 			};
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
@@ -785,12 +798,16 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
-							Action::AutoCompoundDelegatedStake { delegator, collator } =>
-								Self::run_auto_compound_delegated_stake(
-									delegator,
-									collator,
-									task_id.clone(),
-								),
+							Action::AutoCompoundDelegatedStake {
+								delegator,
+								collator,
+								account_minimum,
+							} => Self::run_auto_compound_delegated_stake(
+								delegator,
+								collator,
+								account_minimum,
+								task_id.clone(),
+							),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -879,20 +896,31 @@ pub mod pallet {
 		pub fn run_auto_compound_delegated_stake(
 			delegator: T::AccountId,
 			collator: T::AccountId,
+			account_minimum: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match T::DelegatorActions::delegator_bond_more(
-				&delegator,
-				&collator,
-				(100000 as u128).saturated_into(),
-			) {
-				Ok(()) =>
-					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake { task_id }),
-				Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error: e,
-				}),
-			};
+			let free_balance = <T as Config>::Currency::free_balance(&delegator);
+			free_balance
+				.checked_sub(&account_minimum)
+				.ok_or("Did not meet minimum account balance")
+				.map(|delegation| {
+					let amount: u128 = delegation.saturated_into();
+					match T::DelegatorActions::delegator_bond_more(
+						&delegator,
+						&collator,
+						amount.saturated_into(),
+					) {
+						Ok(()) =>
+							Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
+								task_id,
+								amount: delegation,
+							}),
+						Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+							task_id,
+							error: e,
+						}),
+					}
+				});
 
 			0
 		}
@@ -1093,7 +1121,7 @@ pub mod pallet {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
-				Action::AutoCompoundDelegatedStake { delegator: _, collator: _ } => 0,
+				Action::AutoCompoundDelegatedStake { .. } => 0,
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());
