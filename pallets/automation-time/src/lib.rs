@@ -899,30 +899,39 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
+			match Self::compound_delegator_stake(delegator, collator, account_minimum) {
+				Ok(delegation) =>
+					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
+						task_id,
+						amount: delegation,
+					}),
+				Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					task_id,
+					error: e,
+				}),
+			}
+
+			0
+		}
+
+		fn compound_delegator_stake(
+			delegator: T::AccountId,
+			collator: T::AccountId,
+			account_minimum: BalanceOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let free_balance = <T as Config>::Currency::free_balance(&delegator);
 			free_balance
 				.checked_sub(&account_minimum)
-				.ok_or("Did not meet minimum account balance")
-				.map(|delegation| {
+				.ok_or(DispatchError::Other("Account Minimum Not Met"))
+				.and_then(|delegation| {
 					let amount: u128 = delegation.saturated_into();
-					match T::DelegatorActions::delegator_bond_more(
+					T::DelegatorActions::delegator_bond_more(
 						&delegator,
 						&collator,
 						amount.saturated_into(),
-					) {
-						Ok(()) =>
-							Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
-								task_id,
-								amount: delegation,
-							}),
-						Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-							task_id,
-							error: e,
-						}),
-					}
-				});
-
-			0
+					)
+					.and(Ok(delegation))
+				})
 		}
 
 		/// Decrements task executions left.
