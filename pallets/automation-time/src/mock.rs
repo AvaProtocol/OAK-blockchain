@@ -115,6 +115,15 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+pub struct MockDelegatorActions<T>(PhantomData<T>);
+impl<T: Config> parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
+	for MockDelegatorActions<T>
+{
+	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: BalanceOf<T>) -> DispatchResult {
+		Ok(())
+	}
+}
+
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
@@ -202,6 +211,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
+	type DelegatorActions = MockDelegatorActions<Test>;
 }
 
 // Build genesis storage according to the mock runtime.

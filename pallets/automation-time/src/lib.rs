@@ -161,6 +161,22 @@ pub mod pallet {
 			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
 		}
 
+		pub fn create_auto_compound_delegated_stake_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+			collator_id: AccountOf<T>,
+			account_minimum: BalanceOf<T>,
+		) -> Task<T> {
+			let action = Action::AutoCompoundDelegatedStake {
+				delegator: owner_id.clone(),
+				collator: collator_id,
+				account_minimum,
+			};
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+		}
+
 		pub fn get_executions_left(&self) -> u32 {
 			self.executions_left
 		}
