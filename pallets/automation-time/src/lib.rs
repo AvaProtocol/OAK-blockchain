@@ -293,6 +293,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		/// Account balance too low.
+		AccountMinimumBalanceNotMet,
 	}
 
 	#[pallet::event]
@@ -331,6 +333,7 @@ pub mod pallet {
 		},
 		AutoCompoundDelegatorStakeFailed {
 			task_id: T::Hash,
+			error_message: Vec<u8>,
 			error: DispatchError,
 		},
 		/// The task could not be run at the scheduled time.
@@ -907,6 +910,7 @@ pub mod pallet {
 					}),
 				Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 					task_id,
+					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
 					error: e,
 				}),
 			}
@@ -922,7 +926,7 @@ pub mod pallet {
 			let free_balance = <T as Config>::Currency::free_balance(&delegator);
 			free_balance
 				.checked_sub(&account_minimum)
-				.ok_or(DispatchError::Other("Account Minimum Not Met"))
+				.ok_or(Error::<T>::AccountMinimumBalanceNotMet.into())
 				.and_then(|delegation| {
 					let amount: u128 = delegation.saturated_into();
 					T::DelegatorActions::delegator_bond_more(
