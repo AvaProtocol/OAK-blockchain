@@ -93,6 +93,7 @@ pub mod pallet {
 			delegator: AccountOf<T>,
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
+			frequency: UnixTime,
 		},
 	}
 
@@ -229,7 +230,7 @@ pub mod pallet {
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
 
-		type DelegatorActions: parachain_staking::DelegatorActions<Self::AccountId, BalanceOf<Self>>;
+		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
@@ -465,7 +466,8 @@ pub mod pallet {
 		pub fn schedule_auto_compound_delegated_stake(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
+			execution_time: UnixTime,
+			frequency: UnixTime,
 			collator_id: T::AccountId,
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
@@ -474,8 +476,9 @@ pub mod pallet {
 				delegator: who.clone(),
 				collator: collator_id,
 				account_minimum,
+				frequency,
 			};
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
 			Ok(().into())
 		}
 
@@ -809,10 +812,12 @@ pub mod pallet {
 								delegator,
 								collator,
 								account_minimum,
+								frequency,
 							} => Self::run_auto_compound_delegated_stake(
 								delegator,
 								collator,
 								account_minimum,
+								frequency,
 								task_id.clone(),
 							),
 						};
@@ -904,6 +909,7 @@ pub mod pallet {
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
+			frequency: UnixTime,
 			task_id: T::Hash,
 		) -> Weight {
 			match Self::compound_delegator_stake(delegator, collator, account_minimum) {
@@ -919,6 +925,7 @@ pub mod pallet {
 				}),
 			}
 
+			// TODO: Real weight
 			0
 		}
 
@@ -1132,6 +1139,7 @@ pub mod pallet {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
+				// TODO: Figure out real weight
 				Action::AutoCompoundDelegatedStake { .. } => 0,
 			};
 
