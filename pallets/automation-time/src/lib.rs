@@ -56,8 +56,8 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, SaturatedConversion, Saturating},
-	DispatchError, Perbill,
+	traits::{AccountIdConversion, CheckedMul, SaturatedConversion, Saturating},
+	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
@@ -1080,7 +1080,7 @@ pub mod pallet {
 			who: T::AccountId,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
-		) -> Result<(), Error<T>> {
+		) -> Result<(), DispatchError> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
@@ -1094,9 +1094,9 @@ pub mod pallet {
 			}
 
 			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::InsufficientBalance)?;
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
@@ -1112,7 +1112,7 @@ pub mod pallet {
 
 			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
-				.map_err(|_| Error::LiquidityRestrictions)?;
+				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
@@ -1124,7 +1124,7 @@ pub mod pallet {
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
-		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
+		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> Result<BalanceOf<T>, DispatchError> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
@@ -1135,9 +1135,9 @@ pub mod pallet {
 					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			};
 
-			let total_weight = action_weight.saturating_mul(executions.into());
+			let total_weight = action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			Ok(T::ExecutionWeightFee::get().checked_mul(&weight_as_balance).ok_or(ArithmeticError::Overflow)?)
 		}
 	}
 }
