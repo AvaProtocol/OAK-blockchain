@@ -72,7 +72,7 @@ pub fn turing_development_config() -> ChainSpec {
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				REGISTERED_PARA_ID.into(),
-				vec![b"AutomationTime".to_vec(), b"Balances".to_vec(), b"Democracy".to_vec()],
+				vec![],
 				vec![],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
@@ -108,6 +108,10 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 ) -> turing_runtime::GenesisConfig {
+	let candidate_stake = std::cmp::max(
+		turing_runtime::MinCollatorStk::get(),
+		turing_runtime::MinCandidateStk::get(),
+	);
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
 			code: turing_runtime::WASM_BINARY
@@ -133,7 +137,7 @@ fn testnet_genesis(
 			candidates: invulnerables
 				.iter()
 				.cloned()
-				.map(|(acc, _)| (acc, turing_runtime::MinCollatorStk::get()))
+				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
 			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get()),
