@@ -135,6 +135,16 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Task<T> {
+		pub fn create_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+			action: Action<T>,
+		) -> Task<T> {
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+		}
+
 		pub fn create_event_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
@@ -142,9 +152,9 @@ pub mod pallet {
 			message: Vec<u8>,
 		) -> Task<T> {
 			let action = Action::Notify { message };
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+			Self::create_task(owner_id, provided_id, execution_times, action)
 		}
+
 		pub fn create_native_transfer_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
@@ -157,24 +167,7 @@ pub mod pallet {
 				recipient: recipient_id,
 				amount,
 			};
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
-		}
-
-		pub fn create_auto_compound_delegated_stake_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			collator_id: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::AutoCompoundDelegatedStake {
-				delegator: owner_id.clone(),
-				collator: collator_id,
-				account_minimum,
-			};
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+			Self::create_task(owner_id, provided_id, execution_times, action)
 		}
 
 		pub fn get_executions_left(&self) -> u32 {

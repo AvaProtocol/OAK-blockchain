@@ -1375,30 +1375,8 @@ fn create_task(
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task = match action {
-		Action::Notify { message } => Task::<Test>::create_event_task(
-			owner,
-			provided_id,
-			scheduled_times.try_into().unwrap(),
-			message,
-		),
-		Action::NativeTransfer { sender: _, recipient, amount } =>
-			Task::<Test>::create_native_transfer_task(
-				owner,
-				provided_id,
-				scheduled_times.try_into().unwrap(),
-				recipient,
-				amount,
-			),
-		Action::AutoCompoundDelegatedStake { delegator: _, collator, account_minimum } =>
-			Task::<Test>::create_auto_compound_delegated_stake_task(
-				owner,
-				provided_id,
-				scheduled_times.try_into().unwrap(),
-				collator,
-				account_minimum,
-			),
-	};
+	let task =
+		Task::<Test>::create_task(owner, provided_id, scheduled_times.try_into().unwrap(), action);
 	Tasks::<Test>::insert(task_id, task);
 	task_id
 }
