@@ -921,18 +921,12 @@ pub mod pallet {
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			let free_balance = <T as Config>::Currency::free_balance(&delegator);
-			free_balance
+			<T as Config>::Currency::free_balance(&delegator)
 				.checked_sub(&account_minimum)
 				.ok_or(Error::<T>::AccountMinimumBalanceNotMet.into())
 				.and_then(|delegation| {
-					let amount: u128 = delegation.saturated_into();
-					T::DelegatorActions::delegator_bond_more(
-						&delegator,
-						&collator,
-						amount.saturated_into(),
-					)
-					.and(Ok(delegation))
+					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
+						.and(Ok(delegation))
 				})
 		}
 
