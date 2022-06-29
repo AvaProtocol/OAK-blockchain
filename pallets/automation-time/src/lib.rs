@@ -918,7 +918,7 @@ pub mod pallet {
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchError> {
-			<T as Config>::Currency::free_balance(&delegator)
+			T::NativeTokenExchange::free_balance(&delegator)
 				.checked_sub(&account_minimum)
 				.ok_or(Error::<T>::AccountMinimumBalanceNotMet.into())
 				.and_then(|delegation| {
