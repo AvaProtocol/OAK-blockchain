@@ -181,9 +181,7 @@ pub mod pallet {
 	}
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_timestamp::Config + parachain_staking::Config
-	{
+	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		type Currency: Currency<Self::AccountId>;
@@ -225,7 +223,7 @@ pub mod pallet {
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
 
-		type DelegatorActions: parachain_staking::DelegatorActions<Self>;
+		type DelegatorActions: parachain_staking::DelegatorActions<Self::AccountId, BalanceOf<Self>>;
 	}
 
 	#[pallet::pallet]
