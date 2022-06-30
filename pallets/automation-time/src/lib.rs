@@ -76,6 +76,7 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
 	type UnixTime = u64;
+	type Seconds = u64;
 
 	/// The enum that stores all action specific data.
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -93,7 +94,7 @@ pub mod pallet {
 			delegator: AccountOf<T>,
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
-			frequency: UnixTime,
+			frequency: Seconds,
 		},
 	}
 
@@ -818,6 +819,8 @@ pub mod pallet {
 								collator,
 								account_minimum,
 								frequency,
+								task.execution_times.clone(),
+								task.provided_id.clone(),
 								task_id.clone(),
 							),
 						};
@@ -909,10 +912,16 @@ pub mod pallet {
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
-			frequency: UnixTime,
+			frequency: Seconds,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+			provided_id: Vec<u8>,
 			task_id: T::Hash,
 		) -> Weight {
-			match Self::compound_delegator_stake(delegator, collator, account_minimum) {
+			match Self::compound_delegator_stake(
+				delegator.clone(),
+				collator.clone(),
+				account_minimum,
+			) {
 				Ok(delegation) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
 						task_id,
@@ -924,6 +933,31 @@ pub mod pallet {
 					error: e,
 				}),
 			}
+
+			let action = Action::AutoCompoundDelegatedStake {
+				delegator: delegator.clone(),
+				collator,
+				account_minimum,
+				frequency,
+			};
+			// TODO: handle error on checked_add
+			Self::validate_and_schedule_task(
+				action,
+				delegator,
+				provided_id,
+				execution_times
+					.iter()
+					.map(|when| when.checked_add(frequency).unwrap())
+					.collect(),
+			)
+			.map_err(|e| {
+				let err: DispatchError = e.into();
+				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					task_id,
+					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
+					error: err,
+				})
+			});
 
 			// TODO: Real weight
 			0
