@@ -589,8 +589,11 @@ pub mod pallet {
 			if scheduled_time <= current_time_slot {
 				Err(<Error<T>>::PastTime)?;
 			}
-			
-			let max_schedule_time = current_time_slot.checked_add(T::MaxScheduleSeconds::get()).ok_or(ArithmeticError::Overflow)?;
+
+			let max_schedule_time = current_time_slot
+				.checked_add(T::MaxScheduleSeconds::get())
+				.ok_or(ArithmeticError::Overflow)?;
+
 			if scheduled_time > max_schedule_time {
 				Err(Error::<T>::TimeTooFarOut)?;
 			}
@@ -1125,7 +1128,10 @@ pub mod pallet {
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
-		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> Result<BalanceOf<T>, DispatchError> {
+		fn calculate_execution_fee(
+			action: &Action<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
@@ -1136,9 +1142,13 @@ pub mod pallet {
 					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			};
 
-			let total_weight = action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
+			let total_weight =
+				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
-			Ok(T::ExecutionWeightFee::get().checked_mul(&weight_as_balance).ok_or(ArithmeticError::Overflow)?)
+
+			Ok(T::ExecutionWeightFee::get()
+				.checked_mul(&weight_as_balance)
+				.ok_or(ArithmeticError::Overflow)?)
 		}
 	}
 }
