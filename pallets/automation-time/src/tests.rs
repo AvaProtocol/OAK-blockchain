@@ -26,7 +26,7 @@ use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitiali
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::{
-	traits::{BlakeTwo256, Hash, AccountIdConversion},
+	traits::{AccountIdConversion, BlakeTwo256, Hash},
 	AccountId32,
 };
 use xcm::latest::prelude::*;
@@ -459,14 +459,8 @@ fn cancel_works_for_scheduled() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id1,
-		));
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id2,
-		));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id2,));
 
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
@@ -499,10 +493,7 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id1,
-		));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1,));
 
 		assert_eq!(AutomationTime::get_task(task_id1), None);
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
@@ -583,10 +574,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 		}
 
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id1
-		));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1));
 
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 3600), None);
@@ -616,10 +604,7 @@ fn cancel_works_for_tasks_in_queue() {
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
 		assert_eq!(1, AutomationTime::get_task_queue().len());
 
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id,
-		));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id,));
 
 		assert_eq!(
 			events(),
@@ -674,10 +659,7 @@ fn cancel_task_not_found() {
 		let task_id = BlakeTwo256::hash_of(&task);
 		<Tasks<Test>>::insert(task_id, task);
 
-		assert_ok!(AutomationTime::cancel_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			task_id,
-		));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id,));
 		assert_eq!(
 			events(),
 			[
@@ -1132,13 +1114,21 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: AccountId32::new(ALICE), recipient: AccountId32::new(BOB), amount: transfer_amount },
+			Action::NativeTransfer {
+				sender: AccountId32::new(ALICE),
+				recipient: AccountId32::new(BOB),
+				amount: transfer_amount,
+			},
 		);
 		add_task_to_task_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: AccountId32::new(ALICE), recipient: AccountId32::new(BOB), amount: transfer_amount },
+			Action::NativeTransfer {
+				sender: AccountId32::new(ALICE),
+				recipient: AccountId32::new(BOB),
+				amount: transfer_amount,
+			},
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1146,7 +1136,10 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 
 		AutomationTime::trigger_tasks(120_000);
 
-		assert_eq!(Balances::free_balance(AccountId32::new(ALICE)), current_funds - (transfer_amount * 2));
+		assert_eq!(
+			Balances::free_balance(AccountId32::new(ALICE)),
+			current_funds - (transfer_amount * 2)
+		);
 		assert_eq!(Balances::free_balance(AccountId32::new(BOB)), transfer_amount * 2);
 	})
 }
@@ -1550,10 +1543,8 @@ fn create_task(
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_hash_input = TaskHashInput::<Test>::create_hash_input(
-		AccountId32::new(owner),
-		provided_id.clone(),
-	);
+	let task_hash_input =
+		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task = match action {
 		Action::Notify { message } => Task::<Test>::create_event_task(
