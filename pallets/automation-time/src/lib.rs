@@ -558,14 +558,14 @@ pub mod pallet {
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole hour.
-		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
+		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
 			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
-			let diff_to_hour = now % 3600;
-			Ok(now.saturating_sub(diff_to_hour))
+			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
+			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
+			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
 		}
 
 		/// Checks to see if the scheduled time is valid.
@@ -574,7 +574,7 @@ pub mod pallet {
 		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
 			#[cfg(feature = "dev-queue")]
 			if scheduled_time == 0 {
 				return Ok(())
@@ -1114,7 +1114,7 @@ pub mod pallet {
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
 			Ok(())
 		}
 
