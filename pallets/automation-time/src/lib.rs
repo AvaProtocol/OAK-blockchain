@@ -45,22 +45,22 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
+use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_primitives_core::{relay_chain::AccountId, ParaId};
 use frame_support::{
-	pallet_prelude::*,
-	sp_runtime::traits::Hash,
-	storage::{with_transaction, TransactionOutcome::*},
-	traits::StorageVersion,
-	BoundedVec,
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
 };
-use frame_system::pallet_prelude::*;
+use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
 use pallet_timestamp::{self as timestamp};
+use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, SaturatedConversion, Saturating},
 	DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
+use xcm::latest::prelude::*;
 
 pub use weights::WeightInfo;
 
@@ -82,6 +82,7 @@ pub mod pallet {
 	pub enum Action<T: Config> {
 		Notify { message: Vec<u8> },
 		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
+		XCMP { para_id: ParaId, call: Vec<u8>, weight_at_most: Weight },
 	}
 
 	/// The struct that stores data for a missed task.
@@ -148,6 +149,18 @@ pub mod pallet {
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
 			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
 		}
+		pub fn create_xcmp_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+			para_id: ParaId,
+			call: Vec<u8>,
+			weight_at_most: Weight,
+		) -> Task<T> {
+			let action = Action::XCMP { para_id, call, weight_at_most };
+			let executions_left: u32 = execution_times.len().try_into().unwrap();
+			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+		}
 
 		pub fn get_executions_left(&self) -> u32 {
 			self.executions_left
@@ -207,6 +220,12 @@ pub mod pallet {
 
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
+
+		/// Utility for sending XCM messages
+		type XcmSender: SendXcm;
+
+		type Origin: From<<Self as SystemConfig>::Origin>
+			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
 	}
 
 	#[pallet::pallet]
@@ -274,6 +293,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		/// ParaId provided does not match origin paraId.
+		ParaIdMismatch,
 	}
 
 	#[pallet::event]
@@ -297,9 +318,20 @@ pub mod pallet {
 		TaskNotFound {
 			task_id: T::Hash,
 		},
-		/// Succcessfully transferred funds
-		SuccesfullyTransferredFunds {
+		/// Successfully transferred funds
+		SuccessfullyTransferredFunds {
 			task_id: T::Hash,
+		},
+		/// Successfully sent XCMP
+		SuccessfullySentXCMP {
+			task_id: T::Hash,
+			para_id: ParaId,
+		},
+		/// Failed to send XCMP
+		FailedToSendXCMP {
+			task_id: T::Hash,
+			para_id: ParaId,
+			error: SendError,
 		},
 		/// Transfer Failed
 		TransferFailed {
@@ -311,6 +343,10 @@ pub mod pallet {
 			who: T::AccountId,
 			task_id: T::Hash,
 			execution_time: UnixTime,
+		},
+
+		XCMPTest {
+			account_id: AccountId,
 		},
 	}
 
@@ -346,7 +382,7 @@ pub mod pallet {
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
 		/// * The message's length > 0
-		/// * The time is valid
+		/// * The times are valid
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
@@ -360,6 +396,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -385,7 +422,7 @@ pub mod pallet {
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
-		/// * The time is valid
+		/// * The times are valid
 		/// * Larger transfer amount than the acceptable minimum
 		/// * Transfer to account other than to self
 		///
@@ -404,6 +441,7 @@ pub mod pallet {
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -423,6 +461,50 @@ pub mod pallet {
 			}
 			let action =
 				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Ok(().into())
+		}
+
+		/// Schedule a task through XCMP to fire an XCMP event with a provided call.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The provided_id's length > 0
+		/// * The para_id is that of the sender
+		/// * The times are valid
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
+		/// * `para_id`: Parachain id the XCMP call will be sent to.
+		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `weight_at_most`: Required weight at most the privded call will take.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Time must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
+		///
+		/// TODO: Create benchmark for schedule_xcmp_task
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
+		#[transactional]
+		pub fn schedule_xcmp_task(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			execution_times: Vec<UnixTime>,
+			para_id: ParaId,
+			call: Vec<u8>,
+			weight_at_most: Weight,
+		) -> DispatchResult {
+			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
+			if para_id != origin_para_id {
+				Err(<Error<T>>::ParaIdMismatch)?
+			}
+
+			let who = Sibling::from(para_id).into_account();
+			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
@@ -753,6 +835,8 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
+							Action::XCMP { para_id, call, weight_at_most } =>
+								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -831,11 +915,37 @@ pub mod pallet {
 			task_id: T::Hash,
 		) -> Weight {
 			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
-				Ok(_number) => Self::deposit_event(Event::SuccesfullyTransferredFunds { task_id }),
+				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
 
 			<T as Config>::WeightInfo::run_native_transfer_task()
+		}
+
+		pub fn run_xcmp_task(
+			para_id: ParaId,
+			call: Vec<u8>,
+			weight_at_most: Weight,
+			task_id: T::Hash,
+		) -> Weight {
+			let destination = (1, Junction::Parachain(para_id.into()));
+			let message = Xcm(vec![Transact {
+				origin_type: OriginKind::Native,
+				require_weight_at_most: weight_at_most,
+				call: call.into(),
+			}]);
+			match T::XcmSender::send_xcm(destination, message) {
+				Ok(()) => {
+					Self::deposit_event(Event::SuccessfullySentXCMP { task_id, para_id });
+				},
+				Err(e) => {
+					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
+				},
+			}
+			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+			T::DbWeight::get()
+				.writes(1)
+				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
 		/// Decrements task executions left.
@@ -949,32 +1059,23 @@ pub mod pallet {
 				return Ok(task_id)
 			}
 
-			let outcome = with_transaction(
-				|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
-					for time in execution_times.iter() {
-						match Self::get_scheduled_tasks(*time) {
-							None => {
-								let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-									vec![task_id].try_into().unwrap();
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
-							Some(mut task_ids) => {
-								if let Err(_) = task_ids.try_push(task_id) {
-									return Rollback(Err(DispatchError::Other("time slot full")))
-								}
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
+			for time in execution_times.iter() {
+				match Self::get_scheduled_tasks(*time) {
+					None => {
+						let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+							vec![task_id].try_into().unwrap();
+						<ScheduledTasks<T>>::insert(*time, task_ids);
+					},
+					Some(mut task_ids) => {
+						if let Err(_) = task_ids.try_push(task_id) {
+							return Err(Error::<T>::TimeSlotFull)?
 						}
-					}
-
-					Commit(Ok(task_id))
-				},
-			);
-
-			match outcome {
-				Ok(task_id) => Ok(task_id),
-				Err(_) => Err(Error::<T>::TimeSlotFull),
+						<ScheduledTasks<T>>::insert(*time, task_ids);
+					},
+				}
 			}
+
+			Ok(task_id)
 		}
 
 		/// Validate and schedule task.
@@ -1033,6 +1134,10 @@ pub mod pallet {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
+				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
+					.writes(1)
+					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());

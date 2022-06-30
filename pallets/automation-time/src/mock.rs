@@ -15,6 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::cell::RefCell;
+
 use super::*;
 use crate as pallet_automation_time;
 use frame_support::{
@@ -24,22 +26,35 @@ use frame_support::{
 };
 use frame_system as system;
 use pallet_balances::NegativeImbalance;
+use pallet_xcm::XcmPassthrough;
+use polkadot_parachain::primitives::Sibling;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
+	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
+
+use xcm_builder::{
+	AccountId32Aliases, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+};
+use xcm_executor::{
+	traits::{InvertLocation, TransactAsset, WeightTrader},
+	Assets, XcmExecutor,
+};
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
 
-pub type AccountId = u64;
 pub type Balance = u128;
+pub type AccountId = AccountId32;
 
-pub const ALICE: AccountId = 1;
-pub const BOB: AccountId = 2;
+pub const ALICE: [u8; 32] = [1u8; 32];
+pub const BOB: [u8; 32] = [2u8; 32];
+pub const PARA_ID: u32 = 2000;
 
 construct_runtime!(
 	pub enum Test where
@@ -51,6 +66,8 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
+		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 51,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
 	}
 );
 
@@ -58,6 +75,9 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 51;
 }
+
+pub type LocalOriginToLocation = SignedToAccountId32<Origin, AccountId, RelayNetwork>;
+pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
 impl system::Config for Test {
 	type BaseCallFilter = Everything;
@@ -70,7 +90,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -102,6 +122,47 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+}
+
+thread_local! {
+	pub static SENT_XCM: RefCell<Vec<(MultiLocation,Xcm<()>)>>  = RefCell::new(Vec::new());
+}
+
+pub(crate) fn sent_xcm() -> Vec<(MultiLocation, Xcm<()>)> {
+	SENT_XCM.with(|q| (*q.borrow()).clone())
+}
+
+pub type LocationToAccountId = (
+	ParentIsPreset<AccountId>,
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+	AccountId32Aliases<RelayNetwork, AccountId>,
+);
+
+pub type XcmOriginToCallOrigin = (
+	SovereignSignedViaLocation<LocationToAccountId, Origin>,
+	RelayChainAsNative<RelayChainOrigin, Origin>,
+	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, Origin>,
+	SignedAccountId32AsNative<RelayNetwork, Origin>,
+	XcmPassthrough<Origin>,
+);
+
+/// Sender that returns error if call equals [9,9,9]
+pub struct TestSendXcm;
+impl SendXcm for TestSendXcm {
+	fn send_xcm(dest: impl Into<MultiLocation>, msg: Xcm<()>) -> SendResult {
+		let dest = dest.into();
+		let err_message = Xcm(vec![Transact {
+			origin_type: OriginKind::Native,
+			require_weight_at_most: 100_000,
+			call: vec![9, 1, 1].into(),
+		}]);
+		if msg == err_message {
+			Err(SendError::Transport("Destination location full"))
+		} else {
+			SENT_XCM.with(|q| q.borrow_mut().push((dest, msg)));
+			Ok(())
+		}
+	}
 }
 
 parameter_types! {
@@ -156,6 +217,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_native_transfer_task() -> Weight {
 		20_000
 	}
+	fn run_xcmp_task() -> Weight {
+		20_000
+	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
@@ -190,6 +254,11 @@ where
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
+	pub const RelayLocation: MultiLocation = MultiLocation::parent();
+	pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
+}
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -202,6 +271,89 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
+	type Origin = Origin;
+	type XcmSender = TestSendXcm;
+}
+
+// XCMP Mocks
+parameter_types! {
+	pub const UnitWeightCost: Weight = 10;
+	pub const MaxInstructions: u32 = 100;
+}
+pub struct InvertNothing;
+impl InvertLocation for InvertNothing {
+	fn invert_location(_: &MultiLocation) -> sp_std::result::Result<MultiLocation, ()> {
+		Ok(Here.into())
+	}
+
+	fn ancestry() -> MultiLocation {
+		todo!()
+	}
+}
+
+pub struct DummyWeightTrader;
+impl WeightTrader for DummyWeightTrader {
+	fn new() -> Self {
+		DummyWeightTrader
+	}
+
+	fn buy_weight(&mut self, _weight: Weight, _payment: Assets) -> Result<Assets, XcmError> {
+		Ok(Assets::default())
+	}
+}
+pub struct DummyAssetTransactor;
+impl TransactAsset for DummyAssetTransactor {
+	fn deposit_asset(_what: &MultiAsset, _who: &MultiLocation) -> XcmResult {
+		Ok(())
+	}
+
+	fn withdraw_asset(_what: &MultiAsset, _who: &MultiLocation) -> Result<Assets, XcmError> {
+		let asset: MultiAsset = (Parent, 100_000).into();
+		Ok(asset.into())
+	}
+}
+pub struct XcmConfig;
+impl xcm_executor::Config for XcmConfig {
+	type Call = Call;
+	type XcmSender = TestSendXcm;
+	type AssetTransactor = DummyAssetTransactor;
+	type OriginConverter = XcmOriginToCallOrigin;
+	type IsReserve = ();
+	type IsTeleporter = ();
+	type LocationInverter = InvertNothing;
+	type Barrier = Barrier;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type Trader = DummyWeightTrader;
+	type ResponseHandler = ();
+	type AssetTrap = XcmPallet;
+	type AssetClaims = XcmPallet;
+	type SubscriptionService = XcmPallet;
+}
+
+parameter_types! {
+	pub static AdvertisedXcmVersion: xcm::prelude::XcmVersion = 2;
+}
+
+impl pallet_xcm::Config for Test {
+	type Event = Event;
+	type SendXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmRouter = (TestSendXcm, TestSendXcm);
+	type LocationInverter = InvertNothing;
+	type ExecuteXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmExecuteFilter = Everything;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmTeleportFilter = Everything;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type XcmReserveTransferFilter = Everything;
+	type Origin = Origin;
+	type Call = Call;
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
+	type AdvertisedXcmVersion = AdvertisedXcmVersion;
+}
+
+impl cumulus_pallet_xcm::Config for Test {
+	type Event = Event;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
 // Build genesis storage according to the mock runtime.

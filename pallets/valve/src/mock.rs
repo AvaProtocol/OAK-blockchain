@@ -19,7 +19,7 @@ use super::*;
 use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild, OnUnbalanced},
+	traits::{Contains, Everything, GenesisBuild, OnUnbalanced},
 	weights::Weight,
 };
 use pallet_balances::NegativeImbalance;
@@ -27,13 +27,23 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
+	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
+use xcm::latest::prelude::*;
+use xcm_builder::{
+	AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, SignedToAccountId32,
+};
+use xcm_executor::{
+	traits::{InvertLocation, TransactAsset, WeightTrader},
+	Assets, XcmExecutor,
+};
 
-pub type AccountId = u64;
+pub type AccountId = AccountId32;
 pub type BlockNumber = u64;
 pub type Balance = u128;
+pub type LocalOriginToLocation = SignedToAccountId32<Origin, AccountId, RelayNetwork>;
+pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -49,6 +59,8 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
+		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 51,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
 		Valve: pallet_valve::{Pallet, Call, Storage, Event<T>, Config},
 	}
 );
@@ -105,6 +117,13 @@ impl pallet_balances::Config for Test {
 	type ReserveIdentifier = [u8; 8];
 }
 
+pub struct DoNothingRouter;
+impl SendXcm for DoNothingRouter {
+	fn send_xcm(_dest: impl Into<MultiLocation>, _msg: Xcm<()>) -> SendResult {
+		Ok(())
+	}
+}
+
 parameter_types! {
 	pub const MinimumPeriod: u64 = 1000;
 }
@@ -158,6 +177,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn run_native_transfer_task() -> Weight {
 		0
 	}
+	fn run_xcmp_task() -> Weight {
+		0
+	}
 	fn run_missed_tasks_many_found(_v: u32) -> Weight {
 		0
 	}
@@ -192,6 +214,9 @@ where
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
+}
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -205,6 +230,8 @@ impl pallet_automation_time::Config for Test {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
+	type Origin = Origin;
+	type XcmSender = DoNothingRouter;
 }
 
 /// During maintenance mode we will not allow any calls.
@@ -301,4 +328,85 @@ pub(crate) fn events() -> Vec<pallet_valve::Event<Test>> {
 
 	System::reset_events();
 	evt
+}
+
+// XCMP Mocks
+parameter_types! {
+	pub const UnitWeightCost: Weight = 10;
+	pub const MaxInstructions: u32 = 100;
+}
+pub struct InvertNothing;
+impl InvertLocation for InvertNothing {
+	fn invert_location(_: &MultiLocation) -> sp_std::result::Result<MultiLocation, ()> {
+		Ok(Here.into())
+	}
+
+	fn ancestry() -> MultiLocation {
+		todo!()
+	}
+}
+
+pub struct DummyWeightTrader;
+impl WeightTrader for DummyWeightTrader {
+	fn new() -> Self {
+		DummyWeightTrader
+	}
+
+	fn buy_weight(&mut self, _weight: Weight, _payment: Assets) -> Result<Assets, XcmError> {
+		Ok(Assets::default())
+	}
+}
+pub struct DummyAssetTransactor;
+impl TransactAsset for DummyAssetTransactor {
+	fn deposit_asset(_what: &MultiAsset, _who: &MultiLocation) -> XcmResult {
+		Ok(())
+	}
+
+	fn withdraw_asset(_what: &MultiAsset, _who: &MultiLocation) -> Result<Assets, XcmError> {
+		let asset: MultiAsset = (Parent, 100_000).into();
+		Ok(asset.into())
+	}
+}
+pub struct XcmConfig;
+impl xcm_executor::Config for XcmConfig {
+	type Call = Call;
+	type XcmSender = DoNothingRouter;
+	type AssetTransactor = DummyAssetTransactor;
+	type OriginConverter = pallet_xcm::XcmPassthrough<Origin>;
+	type IsReserve = ();
+	type IsTeleporter = ();
+	type LocationInverter = InvertNothing;
+	type Barrier = Barrier;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type Trader = DummyWeightTrader;
+	type ResponseHandler = ();
+	type AssetTrap = XcmPallet;
+	type AssetClaims = XcmPallet;
+	type SubscriptionService = XcmPallet;
+}
+
+parameter_types! {
+	pub static AdvertisedXcmVersion: xcm::prelude::XcmVersion = 2;
+}
+
+impl pallet_xcm::Config for Test {
+	type Event = Event;
+	type SendXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmRouter = DoNothingRouter;
+	type LocationInverter = InvertNothing;
+	type ExecuteXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmExecuteFilter = Everything;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmTeleportFilter = Everything;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type XcmReserveTransferFilter = Everything;
+	type Origin = Origin;
+	type Call = Call;
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
+	type AdvertisedXcmVersion = AdvertisedXcmVersion;
+}
+
+impl cumulus_pallet_xcm::Config for Test {
+	type Event = Event;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
 }

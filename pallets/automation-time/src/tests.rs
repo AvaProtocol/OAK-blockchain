@@ -22,9 +22,14 @@ use crate::{
 	Tasks, WeightInfo,
 };
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
 use frame_system::RawOrigin;
-use sp_runtime::traits::{BlakeTwo256, Hash};
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::{
+	traits::{AccountIdConversion, BlakeTwo256, Hash},
+	AccountId32,
+};
+use xcm::latest::prelude::*;
 
 const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
@@ -35,7 +40,7 @@ fn schedule_invalid_time() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME + 1],
 				vec![12]
@@ -50,7 +55,7 @@ fn schedule_past_time() {
 	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				vec![12]
@@ -60,7 +65,7 @@ fn schedule_past_time() {
 
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME - 3600],
 				vec![12]
@@ -75,7 +80,7 @@ fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME + 1 * 24 * 60 * 60],
 				vec![12]
@@ -90,7 +95,7 @@ fn schedule_no_message() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				vec![]
@@ -105,7 +110,7 @@ fn schedule_no_provided_id() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![],
 				vec![SCHEDULED_TIME],
 				vec![12]
@@ -120,7 +125,7 @@ fn schedule_not_enough_for_fees() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![60],
 				vec![SCHEDULED_TIME],
 				vec![12]
@@ -133,10 +138,10 @@ fn schedule_not_enough_for_fees() {
 #[test]
 fn schedule_notify_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		let message: Vec<u8> = vec![2, 4, 5];
 		assert_ok!(AutomationTime::schedule_notify_task(
-			Origin::signed(ALICE),
+			Origin::signed(AccountId32::new(ALICE)),
 			vec![50],
 			vec![SCHEDULED_TIME],
 			message.clone()
@@ -151,7 +156,7 @@ fn schedule_notify_works() {
 				},
 				Some(task) => {
 					let expected_task = Task::<Test>::create_event_task(
-						ALICE.clone(),
+						AccountId32::new(ALICE),
 						vec![50],
 						vec![SCHEDULED_TIME].try_into().unwrap(),
 						message,
@@ -169,10 +174,10 @@ fn schedule_native_transfer_invalid_amount() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_native_transfer_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME],
-				BOB,
+				AccountId32::new(BOB),
 				0,
 			),
 			Error::<Test>::InvalidAmount,
@@ -185,10 +190,10 @@ fn schedule_native_transfer_cannot_transfer_to_self() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_native_transfer_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME],
-				ALICE,
+				AccountId32::new(ALICE),
 				1,
 			),
 			Error::<Test>::TransferToSelf,
@@ -199,12 +204,12 @@ fn schedule_native_transfer_cannot_transfer_to_self() {
 #[test]
 fn schedule_native_transfer_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		assert_ok!(AutomationTime::schedule_native_transfer_task(
-			Origin::signed(ALICE),
+			Origin::signed(AccountId32::new(ALICE)),
 			vec![50],
 			vec![SCHEDULED_TIME],
-			BOB,
+			AccountId32::new(BOB),
 			1,
 		));
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
@@ -217,10 +222,10 @@ fn schedule_native_transfer_works() {
 				},
 				Some(task) => {
 					let expected_task = Task::<Test>::create_native_transfer_task(
-						ALICE.clone(),
+						AccountId32::new(ALICE),
 						vec![50],
 						vec![SCHEDULED_TIME].try_into().unwrap(),
-						BOB,
+						AccountId32::new(BOB),
 						1,
 					);
 
@@ -232,18 +237,91 @@ fn schedule_native_transfer_works() {
 }
 
 #[test]
+fn schedule_xcmp_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let call: Vec<u8> = vec![2, 4, 5];
+		get_funds(Sibling::from(PARA_ID).into_account());
+		assert_ok!(AutomationTime::schedule_xcmp_task(
+			cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
+			vec![50],
+			vec![SCHEDULED_TIME],
+			PARA_ID.try_into().unwrap(),
+			call.clone(),
+			100_000,
+		));
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			None => {
+				panic!("A task should be scheduled")
+			},
+			Some(task_ids) => match AutomationTime::get_task(task_ids[0]) {
+				None => {
+					panic!("A task should exist if it was scheduled")
+				},
+				Some(task) => {
+					let expected_task = Task::<Test>::create_xcmp_task(
+						Sibling::from(PARA_ID).into_account(),
+						vec![50],
+						vec![SCHEDULED_TIME].try_into().unwrap(),
+						PARA_ID.try_into().unwrap(),
+						call.clone(),
+						100_000,
+					);
+
+					assert_eq!(task, expected_task);
+				},
+			},
+		}
+	})
+}
+
+#[test]
+fn schedule_xcmp_errors_para_id_mismatch() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id_2: u32 = 2001;
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task(
+				cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
+				vec![50],
+				vec![SCHEDULED_TIME],
+				para_id_2.try_into().unwrap(),
+				vec![3, 4, 5],
+				100_000,
+			),
+			Error::<Test>::ParaIdMismatch,
+		);
+	})
+}
+
+#[test]
+fn schedule_xcmp_errors_bad_origin() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task(
+				Origin::signed(AccountId32::new(ALICE)),
+				vec![50],
+				vec![SCHEDULED_TIME],
+				PARA_ID.try_into().unwrap(),
+				vec![3, 4, 5],
+				100_000,
+			),
+			BadOrigin,
+		);
+	})
+}
+
+#[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		assert_ok!(AutomationTime::schedule_notify_task(
-			Origin::signed(ALICE),
+			Origin::signed(AccountId32::new(ALICE)),
 			vec![50],
 			vec![SCHEDULED_TIME],
 			vec![2, 4, 5]
-		));
+		),);
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				vec![2, 4]
@@ -256,10 +334,10 @@ fn schedule_duplicates_errors() {
 #[test]
 fn schedule_max_execution_times_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![50],
 				vec![
 					SCHEDULED_TIME,
@@ -277,7 +355,7 @@ fn schedule_max_execution_times_errors() {
 #[test]
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![50],
@@ -296,7 +374,7 @@ fn schedule_execution_times_removes_dupes() {
 			},
 			Some(task) => {
 				let expected_task = Task::<Test>::create_event_task(
-					ALICE.clone(),
+					AccountId32::new(ALICE),
 					vec![50],
 					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800].try_into().unwrap(),
 					vec![2, 4],
@@ -311,15 +389,15 @@ fn schedule_execution_times_removes_dupes() {
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		assert_ok!(AutomationTime::schedule_notify_task(
-			Origin::signed(ALICE),
+			Origin::signed(AccountId32::new(ALICE)),
 			vec![50],
 			vec![SCHEDULED_TIME],
 			vec![2, 4]
 		));
 		assert_ok!(AutomationTime::schedule_notify_task(
-			Origin::signed(ALICE),
+			Origin::signed(AccountId32::new(ALICE)),
 			vec![60],
 			vec![SCHEDULED_TIME],
 			vec![2, 4, 5]
@@ -327,7 +405,7 @@ fn schedule_time_slot_full() {
 
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![70],
 				vec![SCHEDULED_TIME],
 				vec![2]
@@ -340,13 +418,13 @@ fn schedule_time_slot_full() {
 #[test]
 fn schedule_time_slot_full_rolls_back() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
+		get_funds(AccountId32::new(ALICE));
 		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
 		assert_noop!(
 			AutomationTime::schedule_notify_task(
-				Origin::signed(ALICE),
+				Origin::signed(AccountId32::new(ALICE)),
 				vec![70],
 				vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
 				vec![2]
@@ -376,14 +454,13 @@ fn schedule_time_slot_full_rolls_back() {
 #[test]
 fn cancel_works_for_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner: AccountId = ALICE;
-		let task_id1 = schedule_task(owner, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
-		let task_id2 = schedule_task(owner, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
+		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id2,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id2,));
 
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
@@ -392,11 +469,11 @@ fn cancel_works_for_scheduled() {
 			events(),
 			[
 				Event::AutomationTime(crate::Event::TaskCancelled {
-					who: owner,
+					who: AccountId32::new(ALICE),
 					task_id: task_id1
 				}),
 				Event::AutomationTime(crate::Event::TaskCancelled {
-					who: owner,
+					who: AccountId32::new(ALICE),
 					task_id: task_id2
 				}),
 			]
@@ -407,9 +484,8 @@ fn cancel_works_for_scheduled() {
 #[test]
 fn cancel_works_for_multiple_executions_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner: AccountId = ALICE;
 		let task_id1 = schedule_task(
-			owner,
+			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
 			vec![2, 4, 5],
@@ -417,7 +493,7 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1,));
 
 		assert_eq!(AutomationTime::get_task(task_id1), None);
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
@@ -431,7 +507,10 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		}
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id: task_id1 })]
+			[Event::AutomationTime(crate::Event::TaskCancelled {
+				who: AccountId32::new(ALICE),
+				task_id: task_id1
+			})]
 		);
 	})
 }
@@ -495,7 +574,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 		}
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(ALICE), task_id1));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id1));
 
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 3600), None);
@@ -503,7 +582,10 @@ fn cancel_works_for_an_executed_task() {
 		assert_eq!(AutomationTime::get_task(task_id1), None);
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskCancelled { who: ALICE, task_id: task_id1 })]
+			[Event::AutomationTime(crate::Event::TaskCancelled {
+				who: AccountId32::new(ALICE),
+				task_id: task_id1
+			})]
 		);
 	})
 }
@@ -511,9 +593,8 @@ fn cancel_works_for_an_executed_task() {
 #[test]
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner: AccountId = ALICE;
 		let task_id = add_task_to_task_queue(
-			owner,
+			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![2, 4, 5] },
@@ -523,11 +604,14 @@ fn cancel_works_for_tasks_in_queue() {
 		assert_eq!(task_id, AutomationTime::get_task_queue()[0]);
 		assert_eq!(1, AutomationTime::get_task_queue().len());
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id,));
 
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id }),]
+			[Event::AutomationTime(crate::Event::TaskCancelled {
+				who: AccountId32::new(ALICE),
+				task_id
+			}),]
 		);
 		assert_eq!(0, AutomationTime::get_task_queue().len());
 	})
@@ -539,7 +623,7 @@ fn cancel_must_be_owner() {
 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 
 		assert_noop!(
-			AutomationTime::cancel_task(Origin::signed(BOB), task_id),
+			AutomationTime::cancel_task(Origin::signed(AccountId32::new(BOB)), task_id),
 			Error::<Test>::NotTaskOwner,
 		);
 	})
@@ -549,7 +633,7 @@ fn cancel_must_be_owner() {
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task = Task::<Test>::create_event_task(
-			ALICE,
+			AccountId32::new(ALICE),
 			vec![40],
 			vec![SCHEDULED_TIME].try_into().unwrap(),
 			vec![2, 4, 5],
@@ -557,7 +641,7 @@ fn cancel_task_must_exist() {
 		let task_id = BlakeTwo256::hash_of(&task);
 
 		assert_noop!(
-			AutomationTime::cancel_task(Origin::signed(ALICE), task_id),
+			AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id),
 			Error::<Test>::TaskDoesNotExist,
 		);
 	})
@@ -566,9 +650,8 @@ fn cancel_task_must_exist() {
 #[test]
 fn cancel_task_not_found() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner: AccountId = ALICE;
 		let task = Task::<Test>::create_event_task(
-			owner,
+			AccountId32::new(ALICE),
 			vec![40],
 			vec![SCHEDULED_TIME].try_into().unwrap(),
 			vec![2, 4, 5],
@@ -576,12 +659,15 @@ fn cancel_task_not_found() {
 		let task_id = BlakeTwo256::hash_of(&task);
 		<Tasks<Test>>::insert(task_id, task);
 
-		assert_ok!(AutomationTime::cancel_task(Origin::signed(owner), task_id,));
+		assert_ok!(AutomationTime::cancel_task(Origin::signed(AccountId32::new(ALICE)), task_id,));
 		assert_eq!(
 			events(),
 			[
 				Event::AutomationTime(crate::Event::TaskNotFound { task_id }),
-				Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
+				Event::AutomationTime(crate::Event::TaskCancelled {
+					who: AccountId32::new(ALICE),
+					task_id
+				})
 			]
 		);
 	})
@@ -590,15 +676,17 @@ fn cancel_task_not_found() {
 #[test]
 fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner: AccountId = ALICE;
-		let task_id = schedule_task(owner, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
 		assert_ok!(AutomationTime::force_cancel_task(RawOrigin::Root.into(), task_id));
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id }),]
+			[Event::AutomationTime(crate::Event::TaskCancelled {
+				who: AccountId32::new(ALICE),
+				task_id
+			}),]
 		);
 	})
 }
@@ -723,22 +811,22 @@ fn trigger_tasks_limits_missed_slots() {
 				[
 					Event::AutomationTime(crate::Event::Notify { message: vec![50] }),
 					Event::AutomationTime(crate::Event::TaskMissed {
-						who: ALICE,
+						who: AccountId32::new(ALICE),
 						task_id: missing_task_id0,
 						execution_time: SCHEDULED_TIME - 25200,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
-						who: ALICE,
+						who: AccountId32::new(ALICE),
 						task_id: missing_task_id5,
 						execution_time: SCHEDULED_TIME - 18000,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
-						who: ALICE,
+						who: AccountId32::new(ALICE),
 						task_id: missing_task_id4,
 						execution_time: SCHEDULED_TIME - 14400,
 					}),
 					Event::AutomationTime(crate::Event::TaskMissed {
-						who: ALICE,
+						who: AccountId32::new(ALICE),
 						task_id: missing_task_id3,
 						execution_time: SCHEDULED_TIME - 10800,
 					}),
@@ -805,7 +893,8 @@ fn trigger_tasks_completes_all_tasks() {
 #[test]
 fn trigger_tasks_handles_nonexisting_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_hash_input = TaskHashInput::<Test>::create_hash_input(ALICE, vec![20]);
+		let task_hash_input =
+			TaskHashInput::<Test>::create_hash_input(AccountId32::new(ALICE), vec![20]);
 		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
 		let mut task_queue = AutomationTime::get_task_queue();
 		task_queue.push(bad_task_id);
@@ -877,12 +966,12 @@ fn trigger_tasks_completes_all_missed_tasks() {
 			events(),
 			[
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: task_id1,
 					execution_time: 0
 				}),
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: task_id2,
 					execution_time: 0
 				}),
@@ -935,12 +1024,12 @@ fn missed_tasks_updates_executions_left() {
 			events(),
 			[
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: task_id1,
 					execution_time: SCHEDULED_TIME
 				}),
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: task_id2,
 					execution_time: SCHEDULED_TIME
 				}),
@@ -1004,7 +1093,7 @@ fn missed_tasks_removes_completed_tasks() {
 			[
 				Event::AutomationTime(crate::Event::Notify { message: message_one }),
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: task_id01,
 					execution_time: SCHEDULED_TIME
 				}),
@@ -1017,21 +1106,29 @@ fn missed_tasks_removes_completed_tasks() {
 #[test]
 fn trigger_tasks_completes_some_native_transfer_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(ALICE);
-		let current_funds = Balances::free_balance(ALICE);
+		get_funds(AccountId32::new(ALICE));
+		let current_funds = Balances::free_balance(AccountId32::new(ALICE));
 		let transfer_amount = 1;
 
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: transfer_amount },
+			Action::NativeTransfer {
+				sender: AccountId32::new(ALICE),
+				recipient: AccountId32::new(BOB),
+				amount: transfer_amount,
+			},
 		);
 		add_task_to_task_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::NativeTransfer { sender: ALICE, recipient: BOB, amount: transfer_amount },
+			Action::NativeTransfer {
+				sender: AccountId32::new(ALICE),
+				recipient: AccountId32::new(BOB),
+				amount: transfer_amount,
+			},
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1039,8 +1136,82 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 
 		AutomationTime::trigger_tasks(120_000);
 
-		assert_eq!(Balances::free_balance(ALICE), current_funds - (transfer_amount * 2));
-		assert_eq!(Balances::free_balance(BOB), transfer_amount * 2);
+		assert_eq!(
+			Balances::free_balance(AccountId32::new(ALICE)),
+			current_funds - (transfer_amount * 2)
+		);
+		assert_eq!(Balances::free_balance(AccountId32::new(BOB)), transfer_amount * 2);
+	})
+}
+
+#[test]
+fn trigger_tasks_completes_some_xcmp_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::XCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				call: vec![3, 4, 5],
+				weight_at_most: 100_000,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		assert_eq!(
+			sent_xcm(),
+			vec![(
+				(1, Junction::Parachain(PARA_ID.into())).into(),
+				Xcm(vec![Transact {
+					origin_type: OriginKind::Native,
+					require_weight_at_most: 100_000,
+					call: vec![3, 4, 5].into(),
+				}]),
+			)]
+		);
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::SuccessfullySentXCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				task_id: task_id1
+			}),]
+		);
+	})
+}
+
+#[test]
+fn trigger_tasks_xcmp_sends_error_event() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::XCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				call: vec![9, 1, 1], // mocked send_xcm will throw an error if call equals vec![9,1,1]
+				weight_at_most: 100_000,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		assert_eq!(sent_xcm(), [],);
+		assert_eq!(
+			events(),
+			[Event::AutomationTime(crate::Event::FailedToSendXCMP {
+				para_id: PARA_ID.try_into().unwrap(),
+				task_id: task_id1,
+				error: SendError::Transport(""),
+			}),]
+		);
 	})
 }
 
@@ -1157,7 +1328,7 @@ fn on_init_runs_tasks() {
 		assert_eq!(
 			events(),
 			[Event::AutomationTime(crate::Event::TaskMissed {
-				who: ALICE,
+				who: AccountId32::new(ALICE),
 				task_id: task_id3,
 				execution_time: LAST_BLOCK_TIME
 			})],
@@ -1207,12 +1378,12 @@ fn on_init_check_task_queue() {
 			events(),
 			[
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: tasks[3],
 					execution_time: LAST_BLOCK_TIME
 				}),
 				Event::AutomationTime(crate::Event::TaskMissed {
-					who: ALICE,
+					who: AccountId32::new(ALICE),
 					task_id: tasks[4],
 					execution_time: LAST_BLOCK_TIME
 				}),
@@ -1322,16 +1493,16 @@ fn migration_v2() {
 }
 
 fn schedule_task(
-	owner: AccountId,
+	owner: [u8; 32],
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
-	get_funds(owner.clone());
+	get_funds(AccountId32::new(owner));
 	let task_hash_input =
-		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
+		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
-		Origin::signed(owner),
+		Origin::signed(AccountId32::new(owner)),
 		provided_id,
 		scheduled_times,
 		message,
@@ -1340,7 +1511,7 @@ fn schedule_task(
 }
 
 fn add_task_to_task_queue(
-	owner: AccountId,
+	owner: [u8; 32],
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
@@ -1353,7 +1524,7 @@ fn add_task_to_task_queue(
 }
 
 fn add_task_to_missed_queue(
-	owner: AccountId,
+	owner: [u8; 32],
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
@@ -1367,29 +1538,37 @@ fn add_task_to_missed_queue(
 }
 
 fn create_task(
-	owner: AccountId,
+	owner: [u8; 32],
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_hash_input =
-		TaskHashInput::<Test>::create_hash_input(owner.clone(), provided_id.clone());
+		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task = match action {
 		Action::Notify { message } => Task::<Test>::create_event_task(
-			owner,
+			AccountId32::new(owner),
 			provided_id,
 			scheduled_times.try_into().unwrap(),
 			message,
 		),
 		Action::NativeTransfer { sender: _, recipient, amount } =>
 			Task::<Test>::create_native_transfer_task(
-				owner,
+				AccountId32::new(owner),
 				provided_id,
 				scheduled_times.try_into().unwrap(),
 				recipient,
 				amount,
 			),
+		Action::XCMP { para_id, call, weight_at_most } => Task::<Test>::create_xcmp_task(
+			AccountId32::new(owner),
+			provided_id,
+			scheduled_times.try_into().unwrap(),
+			para_id,
+			call,
+			weight_at_most,
+		),
 	};
 	Tasks::<Test>::insert(task_id, task);
 	task_id

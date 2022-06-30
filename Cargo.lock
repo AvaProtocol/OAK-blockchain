@@ -204,9 +204,9 @@ dependencies = [
 
 [[package]]
 name = "async-io"
-version = "1.6.0"
+version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a811e6a479f2439f0c04038796b5cfb3d2ad56c230e0f2d3f7b04d68cfee607b"
+checksum = "e5e18f61464ae81cde0a23e713ae8fd299580c54d697a35820cfd0625b8b0e07"
 dependencies = [
  "concurrent-queue",
  "futures-lite",
@@ -3731,9 +3731,9 @@ dependencies = [
 
 [[package]]
 name = "keccak"
-version = "0.1.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67c21572b4949434e4fc1e1978b99c5f77064153c59d998bf13ecd96fb5ecba7"
+checksum = "f9b7d56ba4a8344d6be9729995e6b06f928af29998cdf79fe390cbf6b1fee838"
 
 [[package]]
 name = "kernel32-sys"
@@ -4306,7 +4306,7 @@ dependencies = [
  "libp2p-core",
  "libp2p-swarm",
  "log",
- "lru 0.7.5",
+ "lru 0.7.6",
  "rand 0.7.3",
  "smallvec",
  "unsigned-varint 0.7.1",
@@ -4549,9 +4549,9 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.7.5"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32613e41de4c47ab04970c348ca7ae7382cf116625755af070b008a15516a889"
+checksum = "8015d95cb7b2ddd3c0d32ca38283ceb1eea09b4713ee380bceb942d85a244228"
 dependencies = [
  "hashbrown 0.11.2",
 ]
@@ -5199,6 +5199,7 @@ dependencies = [
  "substrate-frame-rpc-system",
  "substrate-prometheus-endpoint",
  "turing-runtime",
+ "xcm",
 ]
 
 [[package]]
@@ -5392,9 +5393,9 @@ dependencies = [
 
 [[package]]
 name = "os_str_bytes"
-version = "6.0.1"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "029d8d0b2f198229de29dca79676f2738ff952edf3fde542eb8bf94d8c21b435"
+checksum = "21326818e99cfe6ce1e524c2a805c189a99b5ae555a35d19f9a284b427d86afa"
 
 [[package]]
 name = "owning_ref"
@@ -5456,19 +5457,26 @@ dependencies = [
 name = "pallet-automation-time"
 version = "1.0.0"
 dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-xcm",
  "parity-scale-codec",
+ "polkadot-parachain",
  "scale-info",
  "serde",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -6312,18 +6320,24 @@ dependencies = [
 name = "pallet-valve"
 version = "0.2.0"
 dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-automation-time",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-xcm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -6819,7 +6833,7 @@ dependencies = [
  "derive_more",
  "fatality",
  "futures 0.3.21",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "polkadot-erasure-coding",
  "polkadot-node-network-protocol",
@@ -6841,7 +6855,7 @@ source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.20#5681
 dependencies = [
  "fatality",
  "futures 0.3.21",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "polkadot-erasure-coding",
  "polkadot-node-network-protocol",
@@ -6961,7 +6975,7 @@ dependencies = [
  "derive_more",
  "fatality",
  "futures 0.3.21",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "polkadot-erasure-coding",
  "polkadot-node-network-protocol",
@@ -7057,7 +7071,7 @@ dependencies = [
  "futures 0.3.21",
  "futures-timer",
  "kvdb",
- "lru 0.7.5",
+ "lru 0.7.6",
  "merlin",
  "parity-scale-codec",
  "polkadot-node-jaeger",
@@ -7187,7 +7201,7 @@ dependencies = [
  "fatality",
  "futures 0.3.21",
  "kvdb",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "polkadot-node-primitives",
  "polkadot-node-subsystem",
@@ -7413,7 +7427,7 @@ dependencies = [
  "futures 0.3.21",
  "itertools",
  "kvdb",
- "lru 0.7.5",
+ "lru 0.7.6",
  "metered-channel",
  "parity-db",
  "parity-scale-codec",
@@ -7442,7 +7456,7 @@ source = "git+https://github.com/paritytech/polkadot?branch=release-v0.9.20#5681
 dependencies = [
  "futures 0.3.21",
  "futures-timer",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-util-mem",
  "parking_lot 0.12.0",
  "polkadot-node-metrics",
@@ -7793,7 +7807,7 @@ dependencies = [
  "kusama-runtime",
  "kvdb",
  "kvdb-rocksdb",
- "lru 0.7.5",
+ "lru 0.7.6",
  "pallet-babe",
  "pallet-im-online",
  "pallet-staking",
@@ -9211,7 +9225,7 @@ version = "0.10.0-dev"
 source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.20#563f4820d8f36d256ada7ea3fef46b2e94c4cd5a"
 dependencies = [
  "lazy_static",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "parking_lot 0.12.0",
  "sc-executor-common",
@@ -9400,7 +9414,7 @@ dependencies = [
  "linked-hash-map",
  "linked_hash_set",
  "log",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "parking_lot 0.12.0",
  "pin-project 1.0.10",
@@ -9438,7 +9452,7 @@ dependencies = [
  "futures-timer",
  "libp2p",
  "log",
- "lru 0.7.5",
+ "lru 0.7.6",
  "sc-network",
  "sp-runtime",
  "substrate-prometheus-endpoint",
@@ -10365,7 +10379,7 @@ source = "git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.20#56
 dependencies = [
  "futures 0.3.21",
  "log",
- "lru 0.7.5",
+ "lru 0.7.6",
  "parity-scale-codec",
  "parking_lot 0.12.0",
  "sp-api",
@@ -10982,9 +10996,9 @@ dependencies = [
 
 [[package]]
 name = "ss58-registry"
-version = "1.18.0"
+version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ceb8b72a924ccfe7882d0e26144c114503760a4d1248bb5cd06c8ab2d55404cc"
+checksum = "5e1e7c268f5610088463d23188fc9e764cda491784360e5e4ea3a8ce1e0e2ac9"
 dependencies = [
  "Inflector",
  "num-format",
