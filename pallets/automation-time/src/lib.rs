@@ -1143,12 +1143,14 @@ pub mod pallet {
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
 				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
 					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+					.checked_add(<T as Config>::WeightInfo::run_xcmp_task())
+					.ok_or(ArithmeticError::Overflow)?,
 			};
 
 			let total_weight =
 				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
+			let weight_as_balance =
+				<BalanceOf<T>>::checked_from(total_weight).ok_or(ArithmeticError::Overflow)?;
 
 			Ok(T::ExecutionWeightFee::get()
 				.checked_mul(&weight_as_balance)
