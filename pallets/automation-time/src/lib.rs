@@ -56,7 +56,7 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedMul, SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, CheckedConversion, CheckedMul, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -559,10 +559,14 @@ pub mod pallet {
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole hour.
 		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
-			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
+			let now = <timestamp::Pallet<T>>::get()
+				.checked_into::<UnixTime>()
+				.ok_or(ArithmeticError::Overflow)?;
+
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
+
 			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
 			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
 			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
