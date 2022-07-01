@@ -37,6 +37,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod tests_caculation;
+
 mod benchmarking;
 pub mod migrations;
 pub mod weights;
