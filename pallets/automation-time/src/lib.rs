@@ -463,12 +463,13 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		// TODO: fix the weight
 		#[pallet::weight(0)]
 		pub fn schedule_auto_compound_delegated_stake(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			execution_time: UnixTime,
-			frequency: UnixTime,
+			frequency: Seconds,
 			collator_id: T::AccountId,
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
