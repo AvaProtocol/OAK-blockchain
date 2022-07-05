@@ -21,10 +21,12 @@ use codec::Codec;
 use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
-	pub trait AutomationTimeApi<AccountId, Hash> where
+	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
 		AccountId: Codec,
 		Hash: Codec,
+		Balance: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
+		fn get_time_automation_fees(action: u8, executions: u32) -> Balance;
 	}
 }

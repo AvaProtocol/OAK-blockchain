@@ -5154,6 +5154,7 @@ dependencies = [
  "jsonrpc-core",
  "log",
  "neumann-runtime",
+ "pallet-automation-time",
  "pallet-automation-time-rpc",
  "pallet-transaction-payment-rpc",
  "parachain-staking",
@@ -5485,11 +5486,13 @@ dependencies = [
  "jsonrpc-core",
  "jsonrpc-core-client",
  "jsonrpc-derive",
+ "log",
  "pallet-automation-time-rpc-runtime-api",
  "parity-scale-codec",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
+ "sp-rpc",
  "sp-runtime",
 ]
 

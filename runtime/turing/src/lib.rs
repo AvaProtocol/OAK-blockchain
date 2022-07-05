@@ -1063,9 +1063,41 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
+		}
+		fn get_time_automation_fees(
+			action: u8,
+			executions: u32,
+		) -> Balance {
+			match action {
+				0 => {
+					let action_enum = pallet_automation_time::Action::Notify {
+						message: "get_fees".into()
+					};
+					AutomationTime::calculate_execution_fee(&action_enum, executions)
+				},
+				1 => {
+					let action_enum = pallet_automation_time::Action::NativeTransfer {
+						sender: sp_runtime::AccountId32::new([1u8; 32]),
+						recipient: sp_runtime::AccountId32::new([2u8; 32]),
+						amount: 1_000_000,
+					};
+					AutomationTime::calculate_execution_fee(&action_enum, executions)
+				},
+				2 => {
+					let action_enum = pallet_automation_time::Action::XCMP {
+						para_id: cumulus_primitives_core::ParaId::from(2114),
+						call: vec![0, 1],
+						weight_at_most: 1_000_000_000,
+					};
+					AutomationTime::calculate_execution_fee(&action_enum, executions)
+				},
+				_ => {
+					0
+				}
+			}
 		}
 	}
 

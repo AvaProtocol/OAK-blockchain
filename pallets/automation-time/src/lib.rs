@@ -1141,7 +1141,7 @@ pub mod pallet {
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
-		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
+		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>

@@ -15,18 +15,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use codec::Codec;
+use codec::{Codec};
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
+use log::info;
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
-use std::sync::Arc;
+use std::{sync::Arc, fmt::Debug};
+use sp_rpc::number::NumberOrHex;
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc]
-pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
+pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 	/// Generates the task_id given the account_id and provided_id.
 	#[rpc(name = "automationTime_generateTaskId")]
 	fn generate_task_id(
@@ -35,6 +37,14 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		provided_id: String,
 		at: Option<BlockHash>,
 	) -> Result<Hash>;
+
+	#[rpc(name = "automationTime_getTimeAutomationFees")]
+	fn get_time_automation_fees(
+		&self,
+		action: u8,
+		executions: u32,
+		at: Option<BlockHash>,
+	) -> Result<NumberOrHex>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -64,12 +74,13 @@ impl From<Error> for i64 {
 	}
 }
 
-impl<C, Block, AccountId, Hash> AutomationTimeApi<<Block as BlockT>::Hash, AccountId, Hash>
+impl<C, Block, AccountId, Hash, Balance> AutomationTimeApi<<Block as BlockT>::Hash, AccountId, Hash, Balance>
 	for AutomationTime<C, Block>
 where
 	Block: BlockT,
+	Balance: Codec + Copy + TryInto<NumberOrHex> + Debug,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash>,
+	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	AccountId: Codec,
 	Hash: Codec,
 {
@@ -91,5 +102,31 @@ where
 			message: "Unable to generate task_id".into(),
 			data: Some(format!("{:?}", e).into()),
 		})
+	}
+
+	fn get_time_automation_fees(
+		&self,
+		action: u8,
+		executions: u32,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> Result<NumberOrHex, > {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(at.unwrap_or_else(||
+			// If the block hash is not supplied assume the best block.
+			self.client.info().best_hash));
+		let runtime_api_result = api.get_time_automation_fees(&at, action, executions).map_err(|e| RpcError {
+			code: ErrorCode::ServerError(Error::RuntimeError.into()),
+			message: "Unable to get time automation fees".into(),
+			data: Some(format!("{:?}", e).into()),
+		})?;
+
+		let try_into_rpc_balance = |value: Balance| {
+			value.try_into().map_err(|_| RpcError {
+				code: ErrorCode::InvalidParams,
+				message: format!("RPC value doesn't fit in NumberOrHex representation"),
+				data: None,
+			})
+		};
+		Ok(try_into_rpc_balance(runtime_api_result)?)
 	}
 }

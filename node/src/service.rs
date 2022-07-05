@@ -210,7 +210,7 @@ where
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
 		+ pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
 		+ substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
-		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash>,
+		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	sc_client_api::StateBackendFor<FullBackend, Block>: sp_api::StateBackend<BlakeTwo256>,
 	Executor: sc_executor::NativeExecutionDispatch + 'static,
 	RB: Fn(
@@ -392,7 +392,7 @@ where
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
 		+ pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
 		+ substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
-		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash>,
+		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	RuntimeApi::RuntimeApi: sp_consensus_aura::AuraApi<Block, AuraId>,
 	Executor: sc_executor::NativeExecutionDispatch + 'static,
 {
@@ -443,7 +443,7 @@ where
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
 		+ pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
 		+ substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
-		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash>,
+		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	RuntimeApi::RuntimeApi: sp_consensus_aura::AuraApi<Block, AuraId>,
 	Executor: sc_executor::NativeExecutionDispatch + 'static,
 {

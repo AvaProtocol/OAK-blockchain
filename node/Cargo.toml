@@ -46,6 +46,7 @@ jsonrpc-core = "18.0.0"
 neumann-runtime = { path = "../runtime/neumann", optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
+pallet-automation-time ={ path = "../pallets/automation-time"}
 primitives = {path = "../primitives"}
 
 # Substrate Dependencies
