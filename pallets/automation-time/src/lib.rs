@@ -299,6 +299,7 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		TaskDNE,
 		/// Account balance too low.
 		AccountMinimumBalanceNotMet,
 	}
@@ -474,6 +475,9 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			if frequency % 3600 != 0 {
+				Err(Error::<T>::InvalidTime)?
+			}
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,
@@ -821,7 +825,6 @@ pub mod pallet {
 								account_minimum,
 								frequency,
 								task.execution_times.clone(),
-								task.provided_id.clone(),
 								task_id.clone(),
 							),
 						};
@@ -915,7 +918,6 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
 			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			provided_id: Vec<u8>,
 			task_id: T::Hash,
 		) -> Weight {
 			match Self::compound_delegator_stake(
@@ -935,30 +937,24 @@ pub mod pallet {
 				}),
 			}
 
-			let action = Action::AutoCompoundDelegatedStake {
-				delegator: delegator.clone(),
-				collator,
-				account_minimum,
-				frequency,
-			};
 			// TODO: handle error on checked_add
-			Self::validate_and_schedule_task(
-				action,
-				delegator,
-				provided_id,
+			match Self::reschedule_existing_task(
+				task_id,
 				execution_times
 					.iter()
 					.map(|when| when.checked_add(frequency).unwrap())
 					.collect(),
-			)
-			.map_err(|e| {
-				let err: DispatchError = e.into();
-				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-					error: err,
-				})
-			});
+			) {
+				Ok(_) => {},
+				Err(e) => {
+					let err: DispatchError = e.into();
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						task_id,
+						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
+						error: err,
+					})
+				},
+			}
 
 			// TODO: Real weight
 			0
@@ -1066,8 +1062,6 @@ pub mod pallet {
 		}
 
 		/// Schedule task and return it's task_id.
-		/// With transaction will protect against a partial success where N of M execution times might be full,
-		/// rolling back any successful insertions into the schedule task table.
 		pub fn schedule_task(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
@@ -1079,6 +1073,16 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
+			Self::insert_scheduled_tasks(task_id, execution_times)
+		}
+
+		/// Insert task id into scheduled tasks
+		/// With transaction will protect against a partial success where N of M execution times might be full,
+		/// rolling back any successful insertions into the schedule task table.
+		fn insert_scheduled_tasks(
+			task_id: T::Hash,
+			execution_times: Vec<UnixTime>,
+		) -> Result<T::Hash, Error<T>> {
 			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
@@ -1089,32 +1093,26 @@ pub mod pallet {
 				return Ok(task_id)
 			}
 
-			let outcome = with_transaction(
-				|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
-					for time in execution_times.iter() {
-						match Self::get_scheduled_tasks(*time) {
-							None => {
-								let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-									vec![task_id].try_into().unwrap();
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
-							Some(mut task_ids) => {
-								if let Err(_) = task_ids.try_push(task_id) {
-									return Rollback(Err(DispatchError::Other("time slot full")))
-								}
-								<ScheduledTasks<T>>::insert(*time, task_ids);
-							},
-						}
+			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
+				for time in execution_times.iter() {
+					match Self::get_scheduled_tasks(*time) {
+						None => {
+							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+								vec![task_id].try_into().unwrap();
+							<ScheduledTasks<T>>::insert(*time, task_ids);
+						},
+						Some(mut task_ids) => {
+							if let Err(_) = task_ids.try_push(task_id) {
+								return Rollback(Err(DispatchError::Other("time slot full")))
+							}
+							<ScheduledTasks<T>>::insert(*time, task_ids);
+						},
 					}
+				}
 
-					Commit(Ok(task_id))
-				},
-			);
-
-			match outcome {
-				Ok(task_id) => Ok(task_id),
-				Err(_) => Err(Error::<T>::TimeSlotFull),
-			}
+				Commit(Ok(task_id))
+			})
+			.map_err(|_| Error::<T>::TimeSlotFull)
 		}
 
 		/// Validate and schedule task.
@@ -1156,6 +1154,29 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
+			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+				.map_err(|_| Error::LiquidityRestrictions)?;
+
+			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Ok(())
+		}
+
+		fn reschedule_existing_task(
+			task_id: T::Hash,
+			execution_times: Vec<UnixTime>,
+		) -> Result<(), Error<T>> {
+			let task = Self::get_task(task_id).ok_or(Error::<T>::TaskDNE)?;
+			let who = task.owner_id.clone();
+			let new_executions = execution_times.len().try_into().unwrap();
+			let fee = Self::calculate_execution_fee(&task.action, new_executions);
+			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+				.map_err(|_| Error::InsufficientBalance)?;
+
+			Self::insert_scheduled_tasks(task_id, execution_times)?;
+			let updated_task =
+				Task { executions_left: task.executions_left + new_executions, ..task };
+			<Tasks<T>>::insert(task_id, updated_task);
+
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
 
