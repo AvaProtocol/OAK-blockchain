@@ -985,6 +985,7 @@ pub mod pallet {
 			if task.executions_left <= 0 {
 				Tasks::<T>::remove(task_id);
 			} else {
+				task.execution_times.remove(0);
 				Tasks::<T>::insert(task_id, task);
 			}
 		}
@@ -1168,17 +1169,20 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), Error<T>> {
-			let task = Self::get_task(task_id).ok_or(Error::<T>::TaskDNE)?;
+			let mut task = Self::get_task(task_id).ok_or(Error::<T>::TaskDNE)?;
 			let who = task.owner_id.clone();
 			let new_executions = execution_times.len().try_into().unwrap();
 			let fee = Self::calculate_execution_fee(&task.action, new_executions);
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
-			Self::insert_scheduled_tasks(task_id, execution_times)?;
-			let updated_task =
-				Task { executions_left: task.executions_left + new_executions, ..task };
-			<Tasks<T>>::insert(task_id, updated_task);
+			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
+			task.executions_left += new_executions;
+			execution_times
+				.iter()
+				.try_for_each(|t| task.execution_times.try_push(*t))
+				.or(Err(Error::<T>::TooManyExecutionsTimes))?;
+			<Tasks<T>>::insert(task_id, task);
 
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
