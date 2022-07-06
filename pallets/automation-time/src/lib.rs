@@ -478,6 +478,9 @@ pub mod pallet {
 			if frequency % 3600 != 0 {
 				Err(Error::<T>::InvalidTime)?
 			}
+			if frequency > T::MaxScheduleSeconds::get() {
+				Err(Error::<T>::TimeTooFarOut)?
+			}
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,
