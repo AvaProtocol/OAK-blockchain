@@ -41,9 +41,20 @@ cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', defau
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 std = [
+	"codec/std",
+	"cumulus-pallet-xcm/std",
+	"cumulus-primitives-core/std",
+	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-automation-time/std",
+	"pallet-balances/std",
+	"pallet-timestamp/std",
+	"pallet-xcm/std",
 	"scale-info/std",
 	"sp-runtime/std",
 	"sp-std/std",
+	"xcm/std",
+	"xcm-builder/std",
+	"xcm-executor/std",
 ]
