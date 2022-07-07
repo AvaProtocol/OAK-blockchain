@@ -46,7 +46,7 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
-use cumulus_primitives_core::{relay_chain::AccountId, ParaId};
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
 };
@@ -344,10 +344,6 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_time: UnixTime,
 		},
-
-		XCMPTest {
-			account_id: AccountId,
-		},
 	}
 
 	#[pallet::hooks]
@@ -465,7 +461,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Schedule a task through XCMP to fire an XCMP event with a provided call.
+		/// Schedule a task through XCMP to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
@@ -478,7 +474,7 @@ pub mod pallet {
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
 		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the privded call will take.
+		/// * `weight_at_most`: Required weight at most the provided call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
