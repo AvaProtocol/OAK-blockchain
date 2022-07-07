@@ -1091,16 +1091,6 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 
-			Self::insert_scheduled_tasks(task_id, execution_times)
-		}
-
-		/// Insert task id into scheduled tasks
-		/// With transaction will protect against a partial success where N of M execution times might be full,
-		/// rolling back any successful insertions into the schedule task table.
-		fn insert_scheduled_tasks(
-			task_id: T::Hash,
-			execution_times: Vec<UnixTime>,
-		) -> Result<T::Hash, Error<T>> {
 			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
@@ -1111,6 +1101,16 @@ pub mod pallet {
 				return Ok(task_id)
 			}
 
+			Self::insert_scheduled_tasks(task_id, execution_times)
+		}
+
+		/// Insert task id into scheduled tasks
+		/// With transaction will protect against a partial success where N of M execution times might be full,
+		/// rolling back any successful insertions into the schedule task table.
+		fn insert_scheduled_tasks(
+			task_id: T::Hash,
+			execution_times: Vec<UnixTime>,
+		) -> Result<T::Hash, Error<T>> {
 			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
 				for time in execution_times.iter() {
 					match Self::get_scheduled_tasks(*time) {
