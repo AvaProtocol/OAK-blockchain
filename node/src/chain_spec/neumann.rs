@@ -11,8 +11,8 @@ use crate::chain_spec::{
 	Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	DOLLAR, TOKEN_DECIMALS,
+	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
+	VestingConfig, DOLLAR, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 

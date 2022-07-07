@@ -501,7 +501,7 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 					GeneralKey(parachains::heiko::SKSM_KEY.to_vec()),
 				),
 			)),
-			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID))))
+			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID)))),
 		}
 	}
 }
@@ -529,10 +529,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					// If it's TUR
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
-					id if id == u32::from(parachains::testchain::ID) =>
-						Some(CurrencyId::UNIT),
-					id if id == parachains::khala::ID => 
-						Some(CurrencyId::PHA),
+					id if id == u32::from(parachains::testchain::ID) => Some(CurrencyId::UNIT),
+					id if id == parachains::khala::ID => Some(CurrencyId::PHA),
 					_ => None,
 				}
 			},

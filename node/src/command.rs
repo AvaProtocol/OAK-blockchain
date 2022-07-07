@@ -146,7 +146,8 @@ impl SubstrateCli for RelayChainCli {
 			"neumann-relay" => Ok(Box::new(polkadot_service::RococoChainSpec::from_json_bytes(
 				&include_bytes!("../../node/res/neumann-rococo-testnet.json")[..],
 			)?)),
-			_ => polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter()).load_spec(id)
+			_ => polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter())
+				.load_spec(id),
 		}
 	}
 
@@ -325,9 +326,7 @@ pub fn run() -> Result<()> {
 					match cmd {
 						BenchmarkCmd::Pallet(cmd) =>
 							if cfg!(feature = "runtime-benchmarks") {
-								runner.sync_run(|config| {
-									cmd.run::<Block, Executor>(config)
-								})
+								runner.sync_run(|config| cmd.run::<Block, Executor>(config))
 							} else {
 								Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
