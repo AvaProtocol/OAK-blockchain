@@ -144,7 +144,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 282,
+	spec_version: 283,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 9,
@@ -803,11 +803,12 @@ impl pallet_scheduler::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LaunchPeriod: BlockNumber = 7 * DAYS;
-	pub const VotingPeriod: BlockNumber = 7 * DAYS;
+	pub const LaunchPeriod: BlockNumber = 5 * DAYS;
+	pub const VotingPeriod: BlockNumber = 5 * DAYS;
 	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 100 * CENT;
-	pub const EnactmentPeriod: BlockNumber = 8 * DAYS;
+	pub const MinimumDeposit: Balance = 40 * DOLLAR;
+	pub const EnactmentPeriod: BlockNumber = 2 * DAYS;
+	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const InstantAllowed: bool = true;
 	pub const MaxVotes: u32 = 100;
@@ -819,7 +820,7 @@ impl pallet_democracy::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
-	type VoteLockingPeriod = EnactmentPeriod;
+	type VoteLockingPeriod = VoteLockingPeriod;
 	type LaunchPeriod = LaunchPeriod;
 	type VotingPeriod = VotingPeriod;
 	type MinimumDeposit = MinimumDeposit;
@@ -908,6 +909,8 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type NativeTokenExchange =
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+	type XcmSender = xcm_config::XcmRouter;
 	type DelegatorActions = ParachainStaking;
 }
 
@@ -971,7 +974,7 @@ construct_runtime!(
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin} = 41,
+		PolkadotXcm: pallet_xcm::{Pallet, Call, Event<T>, Origin, Config} = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,

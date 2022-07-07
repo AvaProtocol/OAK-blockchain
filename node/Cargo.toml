@@ -109,6 +109,20 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.20" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.20" }
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.20" }
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.20" } 
 
 # Moonbeam Dependencies
+# TODO: fix dep
 parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking", default-features = false }
+
+[package.metadata.deb]
+name = "oak-collator"
+maintainer-scripts = "../.maintain/debian/deb-maintainer-scripts"
+assets = [
+	["target/release/oak-collator", "/usr/bin/", "755"],
+	["../.maintain/debian/oak-collator.service", "/lib/systemd/system/", "644"],
+	["../.maintain/debian/defaults", "/usr/share/oak-collator/oak-collator", "644"]
+]
+conf-files = [
+	"/etc/default/oak-collator"
+]

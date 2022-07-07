@@ -80,6 +80,34 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 	task_id
 }
 
+fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
+	let transfer_amount =
+		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+	T::NativeTokenExchange::deposit_creating(&owner, transfer_amount.clone());
+	let para_id: u32 = 2001;
+	let time_moment: u32 = times[0].saturated_into();
+	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	let mut task_id: T::Hash = T::Hash::default();
+
+	for i in 0..count {
+		let provided_id: Vec<u8> =
+			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
+		task_id =
+			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone())
+				.unwrap();
+		let task = Task::<T>::create_xcmp_task(
+			owner.clone(),
+			provided_id,
+			times.clone().try_into().unwrap(),
+			para_id.clone().try_into().unwrap(),
+			vec![4, 5, 6],
+			100_000,
+		);
+		<Tasks<T>>::insert(task_id, task);
+	}
+	task_id
+}
+
 benchmarks! {
 	schedule_notify_task_empty {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -182,6 +210,14 @@ benchmarks! {
 
 		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
 	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
+
+	run_xcmp_task {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let time: u64 = 10800;
+		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
+		let para_id: u32 = 2001;
+		let call = vec![4,5,6];
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
 
 	/*
 	* This section is to test run_missed_tasks.
