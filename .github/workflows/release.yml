@@ -1,0 +1,162 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag for release
+        required: true
+
+jobs:
+  build-binary:
+    name: Build Binary
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Setup Rust
+        run: rustup show
+      - name: Build
+        run: |
+          cargo build --locked --release --features turing-node
+          mkdir -p artifacts/
+          cp target/release/oak-collator artifacts/
+      - name: Build debian
+        run: |
+          cargo install cargo-deb
+          cargo deb -p oak-node
+          cp target/debian/*.deb artifacts/
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: oak-collator
+          path: artifacts/
+  build-runtime:
+    name: Build Runtime
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        chain: ["turing"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Build
+        id: srtool_build
+        uses: chevdor/srtool-actions@v0.4.0
+        with:
+          chain: ${{ matrix.chain }}
+      - name: Summary
+        run: |
+          echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.chain }}-srtool-digest.json
+          cat ${{ matrix.chain }}-srtool-digest.json
+          cp ${{ steps.srtool_build.outputs.wasm_compressed }} ${{ matrix.chain }}-runtime.wasm
+      - name: Upload runtime
+        uses: actions/upload-artifact@v2
+        with:
+          name: turing-runtime
+          path: |
+            ${{ matrix.chain }}-runtime.wasm
+            ${{ matrix.chain }}-srtool-digest.json
+  build-docker:
+    name: Build Docker
+    runs-on: ubuntu-latest
+    needs: build-binary
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: oak-collator
+      - name: Build
+        run: |
+          tag=${{ github.event.inputs.tag }}
+          docker_tag="${tag:1}"
+          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$docker_tag .
+          docker tag oaknetwork/turing:$docker_tag oaknetwork/turing:latest
+          docker push oaknetwork/turing:$docker_tag
+          docker push oaknetwork/turing:latest
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-binary
+      - build-runtime
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: oak-collator
+      - name: Get debian package name
+        id: package
+        run: |
+          echo ::set-output name=name::$(ls -a *.deb | head -n 1)
+      - name: Download runtime
+        uses: actions/download-artifact@v2
+        with:
+          name: turing-runtime
+      - name: Generate notes
+        run: |
+          ./.maintain/generate-release-notes ${{ github.event.inputs.tag }} > notes.md
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.tag }}
+          release_name: ${{ github.event.inputs.tag }}
+          body_path: notes.md
+          draft: true
+      - name: Upload binary
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: oak-collator
+          asset_name: oak-collator
+          asset_content_type: application/octet-stream
+      - name: Upload deb
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.package.outputs.name }}
+          asset_name: oak-collator.deb
+          asset_content_type: application/octet-stream
+      - name: Upload runtime
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: turing-runtime.wasm
+          asset_name: turing-runtime.wasm
+          asset_content_type: application/octet-stream
+      - name: Upload runtime digest
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: turing-srtool-digest.json
+          asset_name: turing-srtool-digest.json
+          asset_content_type: application/octet-stream

@@ -464,7 +464,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Schedule a task through XCMP to fire an XCMP event with a provided call.
+		/// Schedule a task through XCMP to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
@@ -477,7 +477,7 @@ pub mod pallet {
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
 		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the privded call will take.
+		/// * `weight_at_most`: Required weight at most the provided call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.

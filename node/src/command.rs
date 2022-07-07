@@ -96,16 +96,18 @@ impl SubstrateCli for Cli {
 	) -> &'static RuntimeVersion {
 		match chain_spec {
 			chain_spec if chain_spec.is_turing() => {
-				#[cfg(feature = "turing-node")]
-				return &service::turing_runtime::VERSION;
 				#[cfg(not(feature = "turing-node"))]
 				panic!("{}", service::TURING_RUNTIME_NOT_AVAILABLE);
+
+				#[cfg(feature = "turing-node")]
+				return &service::turing_runtime::VERSION
 			},
 			_ => {
-				#[cfg(feature = "neumann-node")]
-				return &service::neumann_runtime::VERSION;
 				#[cfg(not(feature = "neumann-node"))]
 				panic!("{}", service::NEUMANN_RUNTIME_NOT_AVAILABLE);
+
+				#[cfg(feature = "neumann-node")]
+				return &service::neumann_runtime::VERSION
 			},
 		}
 	}
