@@ -55,14 +55,21 @@ xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-feature
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 std = [
-    "codec/std",
-	"scale-info/std",
-    "sp-runtime/std",
-    "sp-std/std",
-	"pallet-timestamp/std",
-	"parachain-staking/std",
+	"codec/std",
+	"cumulus-pallet-xcm/std",
+	"cumulus-primitives-core/std",
+	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"frame-benchmarking/std",
+	"pallet-timestamp/std",
+	"pallet-xcm/std",
+	"parachain-staking/std",
+	"polkadot-parachain/std",
+	"scale-info/std",
+	"sp-runtime/std",
+	"sp-std/std",
+	"xcm/std",
+	"xcm-builder/std",
+	"xcm-executor/std",
 ]
 dev-queue = []

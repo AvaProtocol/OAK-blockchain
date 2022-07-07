@@ -24,7 +24,7 @@ runtime-benchmarks = [
     "neumann-runtime/runtime-benchmarks",
     "turing-runtime/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
-    ]
+]
 neumann-node = ["neumann-runtime"]
 turing-node = ["turing-runtime"]
 all-nodes = ["neumann-node", "turing-node"]
@@ -113,7 +113,8 @@ xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.2
 
 # Moonbeam Dependencies
 # TODO: fix dep
-parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking", default-features = false }
+parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking" }
+# parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.20" }
 
 [package.metadata.deb]
 name = "oak-collator"
