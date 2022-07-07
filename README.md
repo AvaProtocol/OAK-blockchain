@@ -30,7 +30,7 @@ Live Networks
 ============
 
 - `neumann`: testnet parachain (January 2022)
-- `turing-staging`: rococo parachain (coming soon)
+- `turing-staging`: rococo parachain (May 2022)
 - `turing`: kusama parachain (April 2022)
 - `oak`: polkadot parachain (coming soon)
 
