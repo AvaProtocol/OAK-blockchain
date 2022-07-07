@@ -1546,8 +1546,12 @@ fn create_task(
 	let task_hash_input =
 		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task =
-		Task::<Test>::create_task(owner, provided_id, scheduled_times.try_into().unwrap(), action);
+	let task = Task::<Test>::create_task(
+		owner.into(),
+		provided_id,
+		scheduled_times.try_into().unwrap(),
+		action,
+	);
 	Tasks::<Test>::insert(task_id, task);
 	task_id
 }

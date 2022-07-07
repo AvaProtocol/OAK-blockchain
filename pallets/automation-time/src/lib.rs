@@ -48,7 +48,14 @@ use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
+	pallet_prelude::*,
+	sp_runtime::traits::Hash,
+	storage::{
+		with_transaction,
+		TransactionOutcome::{Commit, Rollback},
+	},
+	traits::StorageVersion,
+	transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
@@ -568,50 +575,6 @@ pub mod pallet {
 				frequency,
 			};
 			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
-			Ok(().into())
-		}
-
-		/// Schedule a task through XCMP to fire an XCMP event with a provided call.
-		///
-		/// Before the task can be scheduled the task must past validation checks.
-		/// * The transaction is signed
-		/// * The provided_id's length > 0
-		/// * The para_id is that of the sender
-		/// * The times are valid
-		///
-		/// # Parameters
-		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
-		/// * `para_id`: Parachain id the XCMP call will be sent to.
-		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the privded call will take.
-		///
-		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole hour.
-		/// * `PastTime`: Time must be in the future.
-		/// * `DuplicateTask`: There can be no duplicate tasks.
-		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
-		///
-		/// TODO: Create benchmark for schedule_xcmp_task
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
-		#[transactional]
-		pub fn schedule_xcmp_task(
-			origin: OriginFor<T>,
-			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-		) -> DispatchResult {
-			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
-			if para_id != origin_para_id {
-				Err(<Error<T>>::ParaIdMismatch)?
-			}
-
-			let who = Sibling::from(para_id).into_account();
-			let action = Action::XCMP { para_id, call, weight_at_most };
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
 
