@@ -807,7 +807,7 @@ pub mod pallet {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
-					Some(task) => {
+					Some(mut task) => {
 						let task_action_weight = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
@@ -822,14 +822,18 @@ pub mod pallet {
 								collator,
 								account_minimum,
 								frequency,
-							} => Self::run_auto_compound_delegated_stake(
-								delegator,
-								collator,
-								account_minimum,
-								frequency,
-								task.execution_times.clone(),
-								task_id.clone(),
-							),
+							} => {
+								let (mut_task, weight) = Self::run_auto_compound_delegated_stake(
+									delegator,
+									collator,
+									account_minimum,
+									frequency,
+									task_id.clone(),
+									task,
+								);
+								task = mut_task;
+								weight
+							},
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -920,9 +924,9 @@ pub mod pallet {
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			task_id: T::Hash,
-		) -> Weight {
+			mut task: Task<T>,
+		) -> (Task<T>, Weight) {
 			match Self::compound_delegator_stake(
 				delegator.clone(),
 				collator.clone(),
@@ -941,26 +945,36 @@ pub mod pallet {
 			}
 
 			// TODO: handle error on checked_add
-			match Self::reschedule_existing_task(
+			let new_execution_times: Vec<UnixTime> = task
+				.execution_times
+				.iter()
+				.map(|when| when.checked_add(frequency).unwrap())
+				.collect();
+			let _ = Self::reschedule_existing_task(
 				task_id,
-				execution_times
+				task.owner_id.clone(),
+				&task.action,
+				new_execution_times.clone(),
+			)
+			.map(|_| {
+				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
+				task.executions_left += new_executions_left;
+				new_execution_times
 					.iter()
-					.map(|when| when.checked_add(frequency).unwrap())
-					.collect(),
-			) {
-				Ok(_) => {},
-				Err(e) => {
-					let err: DispatchError = e.into();
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-						task_id,
-						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-						error: err,
-					})
-				},
-			}
+					.try_for_each(|t| task.execution_times.try_push(*t))
+					.or(Err(Error::<T>::TooManyExecutionsTimes))
+			})
+			.map_err(|e| {
+				let err: DispatchError = e.into();
+				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					task_id,
+					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
+					error: err,
+				});
+			});
 
 			// TODO: Real weight
-			0
+			(task, 0)
 		}
 
 		fn compound_delegator_stake(
@@ -1167,22 +1181,16 @@ pub mod pallet {
 
 		fn reschedule_existing_task(
 			task_id: T::Hash,
+			who: T::AccountId,
+			action: &Action<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), Error<T>> {
-			let mut task = Self::get_task(task_id).ok_or(Error::<T>::TaskDNE)?;
-			let who = task.owner_id.clone();
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(&task.action, new_executions);
+			let fee = Self::calculate_execution_fee(action, new_executions);
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
 
 			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
-			task.executions_left += new_executions;
-			execution_times
-				.iter()
-				.try_for_each(|t| task.execution_times.try_push(*t))
-				.or(Err(Error::<T>::TooManyExecutionsTimes))?;
-			<Tasks<T>>::insert(task_id, task);
 
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::LiquidityRestrictions)?;
