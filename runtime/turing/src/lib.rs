@@ -403,7 +403,6 @@ parameter_type_with_key! {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CurrencyId {
 	Native,
-	UNIT,
 	KSM,
 	AUSD,
 	KAR,
@@ -411,6 +410,7 @@ pub enum CurrencyId {
 	HKO,
 	SKSM,
 	PHA,
+	UNIT,
 }
 
 impl TokenInfo for CurrencyId {
