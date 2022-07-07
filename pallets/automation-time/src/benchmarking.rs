@@ -32,13 +32,16 @@ const ED_MULTIPLIER: u32 = 1_000;
 const DEPOSIT_MULTIPLIER: u32 = 100_000_000;
 
 fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
-    frame_system::Pallet::<T>::assert_last_event(generic_event.into());
+	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount =
 		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-	T::NativeTokenExchange::deposit_creating(&owner, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
+	T::NativeTokenExchange::deposit_creating(
+		&owner,
+		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+	);
 	let time_moment: u32 = times[0].saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	let mut task_id: T::Hash = T::Hash::default();
@@ -205,8 +208,8 @@ benchmarks! {
 		let message = b"hello there".to_vec();
 	}: { AutomationTime::<T>::run_notify_task(message.clone()) }
 	verify {
-        assert_last_event::<T>(Event::Notify{ message }.into())
-    }
+		assert_last_event::<T>(Event::Notify{ message }.into())
+	}
 
 	run_native_transfer_task {
 		let starting_multiplier: u32 = 20;
@@ -220,8 +223,8 @@ benchmarks! {
 		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
 	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
 	verify {
-        assert_last_event::<T>(Event::SuccessfullyTransferredFunds{ task_id }.into())
-    }
+		assert_last_event::<T>(Event::SuccessfullyTransferredFunds{ task_id }.into())
+	}
 
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
