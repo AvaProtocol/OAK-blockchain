@@ -1067,6 +1067,19 @@ impl_runtime_apis! {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
+		/**
+		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
+		 * This function requires the action type and the number of executions in order to generate an estimate.
+		 * However, the AutomationTime::calculate_execution_fee requires an Action enum from the automation time pallet,
+		 * which requires more information than is necessary for this calculation.
+		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
+		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
+		 * 
+		 * Action enums:
+		 * - 0: Notify
+		 * - 1: NativeTransfer
+		 * - 2: XCMP
+		 */
 		fn get_time_automation_fees(
 			action: u8,
 			executions: u32,

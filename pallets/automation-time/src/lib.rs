@@ -501,20 +501,14 @@ pub mod pallet {
 			call: Vec<u8>,
 			weight_at_most: Weight,
 		) -> DispatchResult {
-			info!("xcmp task received");
 			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
-			info!("passes ensure sibling");
 			if para_id != origin_para_id {
-				info!("para mismatch");
 				Err(<Error<T>>::ParaIdMismatch)?
 			}
-			info!("no para mismatch");
 
 			let who = Sibling::from(para_id).into_account();
-			info!("got account id");
 			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
-			info!("scheduled task");
 			Ok(().into())
 		}
 
@@ -1092,28 +1086,22 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
 		) -> Result<(), Error<T>> {
-			info!("validating and scheduling");
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
-			info!("provided id valid");
 
 			Self::clean_execution_times_vector(&mut execution_times);
 			if execution_times.len() > T::MaxExecutionTimes::get().try_into().unwrap() {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
-			info!("execution times not too long");
 			for time in execution_times.iter() {
 				Self::is_valid_time(*time)?;
 			}
-			info!("are valid times");
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
-			info!("fee is calculated");
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::InsufficientBalance)?;
-			info!("sufficient balance");
 
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
