@@ -46,7 +46,7 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
-use cumulus_primitives_core::{ParaId};
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
 };
