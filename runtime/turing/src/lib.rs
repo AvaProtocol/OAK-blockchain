@@ -1113,7 +1113,7 @@ impl_runtime_apis! {
 		 * which requires more information than is necessary for this calculation.
 		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
 		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
-		 * 
+		 *
 		 * Action enums:
 		 * - 0: Notify
 		 * - 1: NativeTransfer

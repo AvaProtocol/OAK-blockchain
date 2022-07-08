@@ -21,9 +21,9 @@ use jsonrpc_derive::rpc;
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
-use std::{sync::Arc, fmt::Debug};
 use sp_rpc::number::NumberOrHex;
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use std::{fmt::Debug, sync::Arc};
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc]
@@ -73,8 +73,8 @@ impl From<Error> for i64 {
 	}
 }
 
-impl<C, Block, AccountId, Hash, Balance> AutomationTimeApi<<Block as BlockT>::Hash, AccountId, Hash, Balance>
-	for AutomationTime<C, Block>
+impl<C, Block, AccountId, Hash, Balance>
+	AutomationTimeApi<<Block as BlockT>::Hash, AccountId, Hash, Balance> for AutomationTime<C, Block>
 where
 	Block: BlockT,
 	Balance: Codec + Copy + TryInto<NumberOrHex> + Debug,
@@ -108,16 +108,17 @@ where
 		action: u8,
 		executions: u32,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<NumberOrHex, > {
+	) -> Result<NumberOrHex> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
 			self.client.info().best_hash));
-		let runtime_api_result = api.get_time_automation_fees(&at, action, executions).map_err(|e| RpcError {
-			code: ErrorCode::ServerError(Error::RuntimeError.into()),
-			message: "Unable to get time automation fees".into(),
-			data: Some(format!("{:?}", e).into()),
-		})?;
+		let runtime_api_result =
+			api.get_time_automation_fees(&at, action, executions).map_err(|e| RpcError {
+				code: ErrorCode::ServerError(Error::RuntimeError.into()),
+				message: "Unable to get time automation fees".into(),
+				data: Some(format!("{:?}", e).into()),
+			})?;
 
 		let try_into_rpc_balance = |value: Balance| {
 			value.try_into().map_err(|_| RpcError {
