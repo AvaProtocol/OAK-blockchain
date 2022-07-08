@@ -46,13 +46,9 @@ pub use exchange::*;
 
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
-use cumulus_primitives_core::{ParaId, relay_chain::AccountId};
+use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*,
-	sp_runtime::traits::Hash,
-	traits::StorageVersion,
-	transactional,
-	BoundedVec,
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
@@ -468,7 +464,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Schedule a task through XCMP to fire an XCMP event with a provided call.
+		/// Schedule a task through XCMP to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
@@ -481,7 +477,7 @@ pub mod pallet {
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
 		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the privded call will take.
+		/// * `weight_at_most`: Required weight at most the provided call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
@@ -489,7 +485,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
-		/// 
+		///
 		/// TODO: Create benchmark for schedule_xcmp_task
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		#[transactional]
@@ -946,7 +942,9 @@ pub mod pallet {
 				},
 			}
 			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-			T::DbWeight::get().writes(1).saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
+			T::DbWeight::get()
+				.writes(1)
+				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
 		/// Decrements task executions left.
@@ -1135,8 +1133,9 @@ pub mod pallet {
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { para_id: _, call: _, weight_at_most: _ } =>
-					T::DbWeight::get().writes(1).saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
+					.writes(1)
+					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());

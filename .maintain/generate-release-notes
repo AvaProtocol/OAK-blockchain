@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+
+tag=$1
+
+notes=$(
+  curl -s -L \
+    -X POST \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Accept: application/vnd.github+json" \
+    -d '{"tag_name":"'$tag'","target_commitish":"'$tag'"}' \
+    https://api.github.com/repos/OAK-Foundation/OAK-blockchain/releases/generate-notes
+)
+
+echo $notes | jq .body | sed -e 's/^"//' -e 's/"$//' -e 's/\\n/\n/g'
+echo
+
+echo "## Turing srtool output"
+echo
+
+runtime=$(cat turing-srtool-digest.json)
+rust=$(echo $runtime | jq --raw-output .rustc)
+version=$(
+  echo $runtime| jq --raw-output .runtimes.compressed.subwasm.core_version
+)
+size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
+proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
+ipfs=$(echo $runtime | jq --raw-output .runtimes.compressed.ipfs)
+blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
+
+cat <<-EOF
+\`\`\`
+Rust        : $rust
+Version     : $version
+Size        : $size
+Proposal    : $proposal
+IPFS        : $ipfs
+BLAKE2_256  : $blake2_256
+\`\`\`
+EOF

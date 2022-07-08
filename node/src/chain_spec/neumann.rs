@@ -1,4 +1,5 @@
 use hex_literal::hex;
+use std::time::SystemTime;
 
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
@@ -11,13 +12,10 @@ use crate::chain_spec::{
 	Extensions,
 };
 use neumann_runtime::{
-	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	DOLLAR, TOKEN_DECIMALS,
+	VestingConfig, DOLLAR, TOKEN_DECIMALS,
 };
-use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
-const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 const DEFAULT_PARA_ID: u32 = 2000;
@@ -79,8 +77,16 @@ pub fn development_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				vec![],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				],
 			)
 		},
 		Vec::new(),
@@ -122,10 +128,28 @@ pub fn local_testnet_config() -> ChainSpec {
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
 
-			let vesting_json =
-				&include_bytes!("../../../distribution/neumann_vesting_local.json")[..];
-			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
-				serde_json::from_slice(vesting_json).unwrap();
+			let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+			let now_to_the_hour = now - (now % 3600);
+			let month_in_seconds = 2_628_000;
+			let vest_amount = 1_000_000_000_000;
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![
+				(
+					now_to_the_hour + month_in_seconds,
+					vec![
+						(accounts[0].clone(), vest_amount),
+						(accounts[1].clone(), vest_amount),
+						(accounts[2].clone(), vest_amount),
+					],
+				),
+				(
+					now_to_the_hour + 2 * month_in_seconds,
+					vec![
+						(accounts[0].clone(), vest_amount),
+						(accounts[1].clone(), vest_amount),
+						(accounts[2].clone(), vest_amount),
+					],
+				),
+			];
 
 			testnet_genesis(
 				// initial collators.
@@ -144,8 +168,16 @@ pub fn local_testnet_config() -> ChainSpec {
 				DEFAULT_PARA_ID.into(),
 				vec![],
 				initial_vesting,
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+					get_account_id_from_seed::<sr25519::Public>("Charlie"),
+				],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Dave"),
+					get_account_id_from_seed::<sr25519::Public>("Eve"),
+					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+				],
 			)
 		},
 		// Bootnodes
