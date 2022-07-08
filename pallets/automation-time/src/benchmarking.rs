@@ -234,14 +234,6 @@ benchmarks! {
 		let call = vec![4,5,6];
 	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
 
-	run_xcmp_task {
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let time: u64 = 10800;
-		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
-		let para_id: u32 = 2001;
-		let call = vec![4,5,6];
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
-
 	/*
 	* This section is to test run_missed_tasks.
 	* run_missed_tasks_many_found: measuring many existing tasks for linear progression

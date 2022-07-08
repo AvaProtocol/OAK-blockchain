@@ -344,9 +344,6 @@ pub mod pallet {
 			task_id: T::Hash,
 			execution_time: UnixTime,
 		},
-		XCMPTest {
-			account_id: AccountId,
-		},
 	}
 
 	#[pallet::hooks]

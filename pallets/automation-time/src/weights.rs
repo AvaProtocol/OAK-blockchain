@@ -135,7 +135,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	fn run_notify_task() -> Weight {
 		(7_000_000 as Weight)
 	}
-	// Storage: System Account (r:2 w:0)
+	// Storage: System Account (r:2 w:2)
 	fn run_native_transfer_task() -> Weight {
 		(29_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
@@ -161,13 +161,13 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
-	// Storage: System Account (r:2 w:0)
+	// Storage: System Account (r:2 w:2)
 	fn run_tasks_many_found(v: u32, ) -> Weight {
 		(0 as Weight)
 			// Standard Error: 88_000
 			.saturating_add((32_406_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:0)
 	fn run_tasks_many_missing(v: u32, ) -> Weight {

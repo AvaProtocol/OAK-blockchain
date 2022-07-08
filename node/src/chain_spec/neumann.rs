@@ -12,10 +12,13 @@ use crate::chain_spec::{
 	Extensions,
 };
 use neumann_runtime::{
+	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, DOLLAR, TOKEN_DECIMALS,
 };
+use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
+const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static NEUMANN_RELAY_CHAIN: &str = "rococo-testnet";
 const DEFAULT_PARA_ID: u32 = 2000;
