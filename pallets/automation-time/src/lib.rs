@@ -196,6 +196,28 @@ pub mod pallet {
 			Self::create_task(owner_id, provided_id, execution_times, action)
 		}
 
+		pub fn create_auto_compound_delegated_stake_task(
+			owner_id: AccountOf<T>,
+			provided_id: Vec<u8>,
+			execution_time: UnixTime,
+			frequency: Seconds,
+			collator_id: AccountOf<T>,
+			account_minimum: BalanceOf<T>,
+		) -> Task<T> {
+			let action = Action::AutoCompoundDelegatedStake {
+				delegator: owner_id.clone(),
+				collator: collator_id,
+				account_minimum,
+				frequency,
+			};
+			Self::create_task(
+				owner_id,
+				provided_id,
+				vec![execution_time].try_into().unwrap(),
+				action,
+			)
+		}
+
 		pub fn get_executions_left(&self) -> u32 {
 			self.executions_left
 		}

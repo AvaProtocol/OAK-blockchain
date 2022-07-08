@@ -310,6 +310,67 @@ fn schedule_xcmp_errors_bad_origin() {
 }
 
 #[test]
+fn schedule_auto_compound_delegated_stake() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake(
+			Origin::signed(AccountId32::new(ALICE)),
+			vec![1],
+			SCHEDULED_TIME,
+			3_600,
+			AccountId32::new(BOB),
+			1_000_000_000,
+		));
+		let task_id = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME)
+			.expect("Task should be scheduled")[0];
+		assert_eq!(
+			AutomationTime::get_task(task_id),
+			Some(Task::<Test>::create_auto_compound_delegated_stake_task(
+				AccountId32::new(ALICE),
+				vec![1],
+				SCHEDULED_TIME,
+				3_600,
+				AccountId32::new(BOB),
+				1_000_000_000,
+			))
+		);
+	})
+}
+
+#[test]
+fn schedule_auto_compound_with_bad_frequency() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_auto_compound_delegated_stake(
+				Origin::signed(AccountId32::new(ALICE)),
+				vec![1],
+				SCHEDULED_TIME,
+				4_000,
+				AccountId32::new([2u8; 32]),
+				100_000,
+			),
+			Error::<Test>::InvalidTime,
+		);
+	})
+}
+
+#[test]
+fn schedule_auto_compound_with_high_frequency() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		assert_noop!(
+			AutomationTime::schedule_auto_compound_delegated_stake(
+				Origin::signed(AccountId32::new(ALICE)),
+				vec![1],
+				SCHEDULED_TIME,
+				<Test as Config>::MaxScheduleSeconds::get() + 3_600,
+				AccountId32::new([2u8; 32]),
+				100_000,
+			),
+			Error::<Test>::TimeTooFarOut,
+		);
+	})
+}
+
+#[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
@@ -1212,6 +1273,174 @@ fn trigger_tasks_xcmp_sends_error_event() {
 				error: SendError::Transport(""),
 			}),]
 		);
+	})
+}
+
+#[test]
+fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
+		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		let account_minimum = before_balance / 2;
+
+		let task_id = add_task_to_task_queue(
+			ALICE,
+			vec![1],
+			vec![SCHEDULED_TIME],
+			Action::AutoCompoundDelegatedStake {
+				delegator: AccountId32::new(ALICE),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+				frequency: 3600,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		let new_balance = Balances::free_balance(AccountId32::new(ALICE));
+		assert!(new_balance < before_balance);
+		assert_eq!(new_balance, account_minimum);
+		let delegation_event = events()
+			.into_iter()
+			.find(|e| match e {
+				Event::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
+					..
+				}) => true,
+				_ => false,
+			})
+			.expect("AutoCompound success event should have been emitted");
+		assert_eq!(
+			delegation_event,
+			Event::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
+				task_id,
+				amount: before_balance - account_minimum
+			})
+		);
+	})
+}
+
+#[test]
+fn auto_compound_delegated_stake_reschedules() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
+		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		let account_minimum = before_balance / 2;
+		let frequency = 3_600;
+
+		let task_id = add_task_to_task_queue(
+			ALICE,
+			vec![1],
+			vec![SCHEDULED_TIME],
+			Action::AutoCompoundDelegatedStake {
+				delegator: AccountId32::new(ALICE),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+				frequency,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		events()
+			.into_iter()
+			.find(|e| match e {
+				Event::AutomationTime(crate::Event::TaskScheduled { .. }) => true,
+				_ => false,
+			})
+			.expect("TaskScheduled event should have been emitted");
+		AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
+			.expect("Task should have been rescheduled")
+			.into_iter()
+			.find(|t| *t == task_id)
+			.expect("Task should have been rescheduled");
+		let task = AutomationTime::get_task(task_id)
+			.expect("Task should not have been removed from task map");
+		assert_eq!(task.get_executions_left(), 1);
+	})
+}
+
+#[test]
+fn auto_compound_delegated_stake_without_minimum_balance() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
+		let balance = Balances::free_balance(AccountId32::new(ALICE));
+		let account_minimum = balance * 2;
+
+		add_task_to_task_queue(
+			ALICE,
+			vec![1],
+			vec![SCHEDULED_TIME],
+			Action::AutoCompoundDelegatedStake {
+				delegator: AccountId32::new(ALICE),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+				frequency: 3600,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		let new_balance = Balances::free_balance(AccountId32::new(ALICE));
+		assert_eq!(new_balance, balance);
+		events()
+			.into_iter()
+			.find(|e| match e {
+				Event::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
+					..
+				}) => true,
+				_ => false,
+			})
+			.expect("AutoCompound failure event should have been emitted");
+	})
+}
+
+#[test]
+fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
+		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		let account_minimum = before_balance * 2;
+		let frequency = 3_600;
+
+		let task_id = add_task_to_task_queue(
+			ALICE,
+			vec![1],
+			vec![SCHEDULED_TIME],
+			Action::AutoCompoundDelegatedStake {
+				delegator: AccountId32::new(ALICE),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+				frequency,
+			},
+		);
+
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(120_000);
+
+		events()
+			.into_iter()
+			.find(|e| match e {
+				Event::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
+					..
+				}) => true,
+				_ => false,
+			})
+			.expect("AutoCompound failure event should have been emitted");
+		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
+			.filter(|tasks| { tasks.iter().any(|t| *t == task_id) })
+			.is_none());
+		assert!(AutomationTime::get_task(task_id).is_none());
 	})
 }
 
