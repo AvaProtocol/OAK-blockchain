@@ -196,15 +196,15 @@ fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 }
 
 #[test]
-fn schedule_arithmetic_overflow() {
+fn validate_and_schedule_task_arithmetic_overflow() {
 	let max_execution_time = u64::MAX - (u64::MAX % 3600);
 	new_test_ext(max_execution_time - 1).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
-				Origin::signed(AccountId32::new(ALICE)),
+			AutomationTime::validate_and_schedule_task(
+				Action::Notify { message: vec![12] },
+				AccountId32::new(ALICE),
 				vec![60],
 				vec![max_execution_time],
-				vec![12]
 			),
 			ArithmeticError::Overflow,
 		);
