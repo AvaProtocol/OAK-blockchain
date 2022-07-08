@@ -83,7 +83,9 @@ where
 
 pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
-		use pallet_parachain_staking::inflation::{perbill_annual_to_perbill_round, BLOCKS_PER_YEAR};
+		use pallet_parachain_staking::inflation::{
+			perbill_annual_to_perbill_round, BLOCKS_PER_YEAR,
+		};
 		perbill_annual_to_perbill_round(annual, BLOCKS_PER_YEAR / blocks_per_round)
 	}
 
