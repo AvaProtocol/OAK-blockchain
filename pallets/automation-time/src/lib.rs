@@ -957,7 +957,6 @@ pub mod pallet {
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		///
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
 			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());

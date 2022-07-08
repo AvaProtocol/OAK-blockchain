@@ -373,6 +373,7 @@ parameter_type_with_key! {
 	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
 		match currency_id {
 			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
+			CurrencyId::UNIT => 10 * CurrencyId::UNIT.millicent(),
 			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
 			CurrencyId::AUSD => CurrencyId::AUSD.cent(),
 			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
@@ -409,12 +410,14 @@ pub enum CurrencyId {
 	HKO,
 	SKSM,
 	PHA,
+	UNIT,
 }
 
 impl TokenInfo for CurrencyId {
 	fn get_decimals(&self) -> u32 {
 		match self {
 			CurrencyId::Native => 10,
+			CurrencyId::UNIT => 12,
 			CurrencyId::KSM => 12,
 			CurrencyId::AUSD => 12,
 			CurrencyId::KAR => 12,
