@@ -207,6 +207,14 @@ parameter_types! {
 	);
 
 	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
+
+	pub UnitPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X1(Parachain(parachains::testchain::ID)),
+		).into(),
+		roc_per_second() * 2
+	);
 }
 
 pub struct ToNativeTreasury;
@@ -246,6 +254,7 @@ pub type Trader = (
 	FixedRateOfFungible<NeuPerSecond, ToNativeTreasury>,
 	FixedRateOfFungible<NeuCanonicalPerSecond, ToNativeTreasury>,
 	FixedRateOfFungible<RocPerSecond, ToForeignTreasury>,
+	FixedRateOfFungible<UnitPerSecond, ToForeignTreasury>,
 );
 
 pub struct XcmConfig;
@@ -359,6 +368,12 @@ impl orml_unknown_tokens::Config for Runtime {
 	type Event = Event;
 }
 
+pub mod parachains {
+	pub mod testchain {
+		pub const ID: u32 = 1999;
+	}
+}
+
 pub struct CurrencyIdConvert;
 impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
@@ -366,6 +381,8 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 			CurrencyId::Native =>
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
 			CurrencyId::ROC => Some(MultiLocation::parent()),
+			CurrencyId::UNIT =>
+				Some(MultiLocation::new(1, X1(Parachain(parachains::testchain::ID)))),
 		}
 	}
 }
@@ -382,6 +399,8 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					// If it's NEU
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
+					// testchain
+					id if id == u32::from(parachains::testchain::ID) => Some(CurrencyId::UNIT),
 					_ => None,
 				}
 			},

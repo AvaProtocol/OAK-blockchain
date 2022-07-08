@@ -370,6 +370,7 @@ parameter_type_with_key! {
 		match currency_id {
 			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
 			CurrencyId::ROC => 10 * CurrencyId::ROC.millicent(),
+			CurrencyId::UNIT => 10 * CurrencyId::UNIT.millicent(),
 		}
 	};
 }
@@ -391,6 +392,7 @@ parameter_type_with_key! {
 pub enum CurrencyId {
 	Native,
 	ROC,
+	UNIT,
 }
 
 impl TokenInfo for CurrencyId {
@@ -398,6 +400,7 @@ impl TokenInfo for CurrencyId {
 		match self {
 			CurrencyId::Native => 10,
 			CurrencyId::ROC => 12,
+			CurrencyId::UNIT => 12,
 		}
 	}
 }

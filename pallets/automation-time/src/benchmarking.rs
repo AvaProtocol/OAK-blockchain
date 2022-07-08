@@ -28,11 +28,20 @@ use crate::Pallet as AutomationTime;
 const SEED: u32 = 0;
 // existential deposit multiplier
 const ED_MULTIPLIER: u32 = 1_000;
+// ensure enough funds to execute tasks
+const DEPOSIT_MULTIPLIER: u32 = 100_000_000;
+
+fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
+}
 
 fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount =
 		T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-	T::NativeTokenExchange::deposit_creating(&owner, transfer_amount.clone());
+	T::NativeTokenExchange::deposit_creating(
+		&owner,
+		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+	);
 	let time_moment: u32 = times[0].saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 	let mut task_id: T::Hash = T::Hash::default();
@@ -115,7 +124,7 @@ benchmarks! {
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], vec![time], vec![4, 5])
 
 	schedule_notify_task_full {
@@ -133,7 +142,7 @@ benchmarks! {
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_notify_task(RawOrigin::Signed(caller), provided_id, times, vec![4, 5])
 
 	schedule_native_transfer_task_empty{
@@ -143,7 +152,7 @@ benchmarks! {
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
 		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], vec![time], recipient, transfer_amount)
 
 	schedule_native_transfer_task_full{
@@ -152,7 +161,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let recipient: T::AccountId = account("to", 0, SEED);
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 
 		let mut times: Vec<u64> = vec![];
 		for i in 0..v {
@@ -197,19 +206,25 @@ benchmarks! {
 
 	run_notify_task {
 		let message = b"hello there".to_vec();
-	}: { AutomationTime::<T>::run_notify_task(message) }
+	}: { AutomationTime::<T>::run_notify_task(message.clone()) }
+	verify {
+		assert_last_event::<T>(Event::Notify{ message }.into())
+	}
 
 	run_native_transfer_task {
 		let starting_multiplier: u32 = 20;
 		let amount_starting: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(starting_multiplier.into());
 		let caller: T::AccountId = account("caller", 0, SEED);
-		T::NativeTokenExchange::deposit_creating(&caller, amount_starting.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, amount_starting.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 		let time: u64 = 10800;
 		let recipient: T::AccountId = account("recipient", 0, SEED);
 		let amount_transferred: BalanceOf<T> = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
 		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
 	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
+	verify {
+		assert_last_event::<T>(Event::SuccessfullyTransferredFunds{ task_id }.into())
+	}
 
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -273,7 +288,7 @@ benchmarks! {
 		let starting_multiplier: u32 = 20;
 		let transfer_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let starting_amount = T::NativeTokenExchange::minimum_balance().saturating_mul(starting_multiplier.into());
-		T::NativeTokenExchange::deposit_creating(&caller, starting_amount.clone());
+		T::NativeTokenExchange::deposit_creating(&caller, starting_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];

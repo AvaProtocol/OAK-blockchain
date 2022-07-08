@@ -112,6 +112,8 @@ jobs:
         with:
           name: turing-runtime
       - name: Generate notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./.maintain/generate-release-notes ${{ github.event.inputs.tag }} > notes.md
       - name: Create release
