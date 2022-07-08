@@ -191,6 +191,14 @@ pub fn tur_per_second() -> u128 {
 }
 
 parameter_types! {
+	pub UnitPerSecond: (AssetId, u128) = (
+		MultiLocation::new(
+			1,
+			X1(Parachain(parachains::testchain::ID)),
+		).into(),
+		ksm_per_second() * 2
+	);
+
 	pub TurPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
@@ -301,6 +309,7 @@ impl TakeRevenue for ToForeignTreasury {
 pub type Trader = (
 	FixedRateOfFungible<TurPerSecond, ToNativeTreasury>,
 	FixedRateOfFungible<TurCanonicalPerSecond, ToNativeTreasury>,
+	FixedRateOfFungible<UnitPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<KsmPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<KarPerSecond, ToForeignTreasury>,
 	FixedRateOfFungible<AusdPerSecond, ToForeignTreasury>,
@@ -422,6 +431,9 @@ impl orml_unknown_tokens::Config for Runtime {
 }
 
 pub mod parachains {
+	pub mod testchain {
+		pub const ID: u32 = 1999;
+	}
 
 	pub mod heiko {
 		pub const ID: u32 = 2085;
@@ -451,6 +463,8 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 		match id {
 			CurrencyId::Native =>
 				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
+			CurrencyId::UNIT =>
+				Some(MultiLocation::new(1, X1(Parachain(parachains::testchain::ID)))),
 			CurrencyId::KSM => Some(MultiLocation::parent()),
 			CurrencyId::AUSD => Some(MultiLocation::new(
 				1,
@@ -515,6 +529,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
 					// If it's TUR
 					id if id == u32::from(ParachainInfo::parachain_id()) =>
 						Some(CurrencyId::Native),
+					id if id == u32::from(parachains::testchain::ID) => Some(CurrencyId::UNIT),
 					id if id == parachains::khala::ID => Some(CurrencyId::PHA),
 					_ => None,
 				}
