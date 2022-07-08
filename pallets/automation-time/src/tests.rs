@@ -18,8 +18,8 @@
 use crate::{
 	migrations::{v1, v2},
 	mock::*,
-	Action, Error, LastTimeSlot, MissedQueue, MissedTask, Shutdown, Task, TaskHashInput, TaskQueue,
-	Tasks, WeightInfo,
+	Action, Config, Error, LastTimeSlot, MissedQueue, MissedTask, Shutdown, Task, TaskHashInput,
+	TaskQueue, Tasks, WeightInfo,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};

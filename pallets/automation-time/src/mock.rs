@@ -176,12 +176,17 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
-pub struct MockDelegatorActions<T>(PhantomData<T>);
-impl<T: Config> parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
-	for MockDelegatorActions<T>
+pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
+impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
+	parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>> for MockDelegatorActions<T, C>
 {
-	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: BalanceOf<T>) -> DispatchResult {
-		Ok(())
+	fn delegator_bond_more(
+		delegator: &T::AccountId,
+		_: &T::AccountId,
+		amount: BalanceOf<T>,
+	) -> DispatchResult {
+		let delegation: u128 = amount.saturated_into();
+		C::reserve(delegator, delegation.saturated_into())
 	}
 }
 
@@ -282,7 +287,7 @@ impl pallet_automation_time::Config for Test {
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
-	type DelegatorActions = MockDelegatorActions<Test>;
+	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 }
 
 // XCMP Mocks
