@@ -139,6 +139,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	fn run_native_transfer_task() -> Weight {
 		(29_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	// Storage: ParachainSystem RelevantMessagingState (r:1 w:0)
 	fn run_xcmp_task() -> Weight {
