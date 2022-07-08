@@ -1075,11 +1075,15 @@ pub mod pallet {
 						task_id,
 						amount: delegation,
 					}),
-				Err(e) => Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
-					error: e,
-				}),
+				Err(e) => {
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						task_id,
+						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
+						error: e,
+					});
+					// TODO: real weight
+					return (task, 0)
+				},
 			}
 
 			// TODO: handle error on checked_add
