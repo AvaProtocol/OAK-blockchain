@@ -27,9 +27,9 @@ pub fn do_calculate_optimal_autostaking(
 	principal: i128,
 	collator_stake: i128,
 	fee: i128,
-	duration: i128,
+	duration: i32,
 	daily_collator_awards: i128,
-) -> i128 {
+) -> i32 {
 	let initial_interval_row = IntervalRow {
 		interval_earnings_after_fee: 0,
 		stake: principal,
@@ -47,7 +47,7 @@ pub fn do_calculate_optimal_autostaking(
 				interval_table[(interval - 1) as usize];
 
 			let interval_earnings =
-				(previous_ownership * (daily_collator_awards * period) as f64) as i128;
+				(previous_ownership * (daily_collator_awards * period as i128) as f64) as i128;
 			let interval_earnings_after_fee = interval_earnings - fee;
 			let stake = previous_stake + interval_earnings_after_fee;
 			let ownership = stake as f64 / (collator_stake - principal + stake) as f64;
@@ -59,7 +59,7 @@ pub fn do_calculate_optimal_autostaking(
 			interval_table.iter().map(|row| row.interval_earnings_after_fee).sum();
 		let extra_days = duration % period;
 		let remainder_earnings = (interval_table.last().unwrap().ownership *
-			(extra_days * daily_collator_awards) as f64) as i128;
+			(extra_days as i128 * daily_collator_awards) as f64) as i128;
 		let total_earnings = period_earnings_after_fee + remainder_earnings;
 
 		if total_earnings > best_earnings {
@@ -77,7 +77,7 @@ mod tests {
 
 	const PLANCK: i128 = 10_000_000_000;
 
-	const AVERAGE_STAKING_DURATION: i128 = 90;
+	const AVERAGE_STAKING_DURATION: i32 = 90;
 	const ANNUAL_REWARDS_PER_COLLATOR: i128 = 1_041_667 * PLANCK;
 	const DAILY_COLLATOR_AWARDS: i128 = ANNUAL_REWARDS_PER_COLLATOR / 365;
 
