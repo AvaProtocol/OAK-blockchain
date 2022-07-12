@@ -37,6 +37,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod tests_calculation;
+
 mod benchmarking;
 pub mod migrations;
 pub mod weights;
@@ -56,8 +59,8 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, SaturatedConversion, Saturating},
-	DispatchError, Perbill,
+	traits::{AccountIdConversion, CheckedConversion, CheckedMul, SaturatedConversion, Saturating},
+	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
@@ -558,14 +561,18 @@ pub mod pallet {
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole hour.
-		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
-			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
+		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
+			let now = <timestamp::Pallet<T>>::get()
+				.checked_into::<UnixTime>()
+				.ok_or(ArithmeticError::Overflow)?;
+
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
-			let diff_to_hour = now % 3600;
-			Ok(now.saturating_sub(diff_to_hour))
+
+			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
+			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
+			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
 		}
 
 		/// Checks to see if the scheduled time is valid.
@@ -574,13 +581,13 @@ pub mod pallet {
 		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
 			#[cfg(feature = "dev-queue")]
 			if scheduled_time == 0 {
 				return Ok(())
 			}
 
-			let remainder = scheduled_time % 3600;
+			let remainder = scheduled_time.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
 			}
@@ -590,7 +597,11 @@ pub mod pallet {
 				Err(<Error<T>>::PastTime)?;
 			}
 
-			if scheduled_time > current_time_slot + T::MaxScheduleSeconds::get() {
+			let max_schedule_time = current_time_slot
+				.checked_add(T::MaxScheduleSeconds::get())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			if scheduled_time > max_schedule_time {
 				Err(Error::<T>::TimeTooFarOut)?;
 			}
 
@@ -1080,7 +1091,7 @@ pub mod pallet {
 			who: T::AccountId,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
-		) -> Result<(), Error<T>> {
+		) -> Result<(), DispatchError> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
@@ -1094,9 +1105,9 @@ pub mod pallet {
 			}
 
 			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::InsufficientBalance)?;
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
@@ -1112,9 +1123,9 @@ pub mod pallet {
 
 			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
-				.map_err(|_| Error::LiquidityRestrictions)?;
+				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
 			Ok(())
 		}
 
@@ -1124,7 +1135,10 @@ pub mod pallet {
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
-		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
+		fn calculate_execution_fee(
+			action: &Action<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
@@ -1132,12 +1146,18 @@ pub mod pallet {
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
 				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
 					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+					.checked_add(<T as Config>::WeightInfo::run_xcmp_task())
+					.ok_or(ArithmeticError::Overflow)?,
 			};
 
-			let total_weight = action_weight.saturating_mul(executions.into());
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			let total_weight =
+				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
+			let weight_as_balance =
+				<BalanceOf<T>>::checked_from(total_weight).ok_or(ArithmeticError::Overflow)?;
+
+			Ok(T::ExecutionWeightFee::get()
+				.checked_mul(&weight_as_balance)
+				.ok_or(ArithmeticError::Overflow)?)
 		}
 	}
 }
