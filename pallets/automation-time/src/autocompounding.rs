@@ -48,8 +48,7 @@ pub fn do_calculate_optimal_autostaking(
 	let mut best_earnings = 0;
 	let mut best_period = 0;
 	for period in 1..=duration {
-		let mut interval_table = Vec::new();
-		interval_table.push(initial_interval_row.clone());
+		let mut interval_table: Vec<IntervalRow> = vec![initial_interval_row.clone()];
 
 		for interval in 1..=(duration / period) {
 			let IntervalRow { stake: previous_stake, ownership: previous_ownership, .. } =
@@ -159,5 +158,51 @@ mod tests {
 		let result =
 			do_calculate_optimal_autostaking(principal, collator_stake, fee, 180, 2_900 * PLANCK);
 		assert_eq!(result, 31)
+	}
+
+	#[test]
+	fn test_6() {
+		let principal = 10_000 * PLANCK;
+		let collator_stake = 500_000 * PLANCK;
+		let fee = 50 * PLANCK;
+		let result = do_calculate_optimal_autostaking(
+			principal,
+			collator_stake,
+			fee,
+			90,
+			DAILY_COLLATOR_AWARDS,
+		);
+		assert_eq!(result, 19)
+	}
+
+	#[test]
+	fn test_7() {
+		let principal = 490_000 * PLANCK;
+		let collator_stake = 500_000 * PLANCK;
+		let fee = 10 * PLANCK;
+		let result = do_calculate_optimal_autostaking(
+			principal,
+			collator_stake,
+			fee,
+			180,
+			DAILY_COLLATOR_AWARDS,
+		);
+		assert_eq!(result, 13)
+	}
+
+	#[test]
+	fn test_8() {
+		let principal = 50 * PLANCK;
+		let collator_stake = 250_000 * PLANCK;
+		let fee = 1 * PLANCK;
+		let daily_collator_awards = 500_000 / 365 * PLANCK;
+		let result = do_calculate_optimal_autostaking(
+			principal,
+			collator_stake,
+			fee,
+			360,
+			daily_collator_awards,
+		);
+		assert_eq!(result, 28)
 	}
 }
