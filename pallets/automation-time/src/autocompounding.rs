@@ -38,7 +38,7 @@ pub fn do_calculate_optimal_autostaking(
 	fee: i128,
 	duration: i32,
 	daily_collator_awards: i128,
-) -> i32 {
+) -> (i32, f64) {
 	let initial_interval_row = IntervalRow {
 		interval_earnings_after_fee: 0,
 		stake: principal,
@@ -47,6 +47,7 @@ pub fn do_calculate_optimal_autostaking(
 
 	let mut best_earnings = 0;
 	let mut best_period = 0;
+	let mut best_apy = 0.0;
 	for period in 1..=duration {
 		let mut interval_table: Vec<IntervalRow> = vec![initial_interval_row.clone()];
 
@@ -73,10 +74,12 @@ pub fn do_calculate_optimal_autostaking(
 		if total_earnings > best_earnings {
 			best_earnings = total_earnings;
 			best_period = period;
+			// ((end amount-principal)/principal)*(360/duration assumption)
+			best_apy = (total_earnings as f64 / principal as f64) * (365 as f64 / duration as f64);
 		}
 	}
 
-	return best_period
+	return (best_period, best_apy)
 }
 
 #[cfg(test)]
@@ -102,7 +105,7 @@ mod tests {
 			AVERAGE_STAKING_DURATION,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 32)
+		assert_eq!(result, (32, 2.255207252238667))
 	}
 
 	#[test]
@@ -117,7 +120,7 @@ mod tests {
 			AVERAGE_STAKING_DURATION,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 1)
+		assert_eq!(result, (1, 2.322886915924501))
 	}
 
 	#[test]
@@ -132,7 +135,7 @@ mod tests {
 			AVERAGE_STAKING_DURATION,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 5)
+		assert_eq!(result, (5, 2.2971572933834423))
 	}
 
 	#[test]
@@ -147,7 +150,7 @@ mod tests {
 			365,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 3)
+		assert_eq!(result, (3, 2.8130749814046747))
 	}
 
 	#[test]
@@ -157,7 +160,7 @@ mod tests {
 		let fee = 35 * DOLLAR;
 		let result =
 			do_calculate_optimal_autostaking(principal, collator_stake, fee, 180, 2_900 * DOLLAR);
-		assert_eq!(result, 31)
+		assert_eq!(result, (31, 0.5786527967406478))
 	}
 
 	#[test]
@@ -172,7 +175,7 @@ mod tests {
 			90,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 19)
+		assert_eq!(result, (19, 2.4399220232480014))
 	}
 
 	#[test]
@@ -187,7 +190,7 @@ mod tests {
 			180,
 			DAILY_COLLATOR_AWARDS,
 		);
-		assert_eq!(result, 13)
+		assert_eq!(result, (13, 2.0951444282821376))
 	}
 
 	#[test]
@@ -203,11 +206,12 @@ mod tests {
 			360,
 			daily_collator_awards,
 		);
-		assert_eq!(result, 28)
+		assert_eq!(result, (28, 4.65808623150761))
 	}
 
 	#[test]
 	fn test_9() {
+		// current issuance at some point
 		let money_supply: i128 = 580_000_000_099_999_996;
 
 		let principal = 5_000 * DOLLAR;
@@ -222,6 +226,6 @@ mod tests {
 			90,
 			daily_collator_awards,
 		);
-		assert_eq!(result, 46)
+		assert_eq!(result, (46, 0.029450359762913332))
 	}
 }
