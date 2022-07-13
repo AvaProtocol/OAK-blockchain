@@ -574,8 +574,8 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		// TODO: fix the weight
-		#[pallet::weight(0)]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
+		#[transactional]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -1082,8 +1082,10 @@ pub mod pallet {
 						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
 						error: e,
 					});
-					// TODO: real weight
-					return (task, 0)
+					return (
+						task,
+						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+					)
 				},
 			}
 
@@ -1116,8 +1118,7 @@ pub mod pallet {
 				});
 			});
 
-			// TODO: Real weight
-			(task, 0)
+			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
 		}
 
 		fn compound_delegator_stake(
@@ -1357,8 +1358,8 @@ pub mod pallet {
 				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
 					.writes(1)
 					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
-				// TODO: Figure out real weight
-				Action::AutoCompoundDelegatedStake { .. } => 0,
+				Action::AutoCompoundDelegatedStake { .. } =>
+					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());

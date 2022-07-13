@@ -188,6 +188,9 @@ impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())
 	}
+	fn testing_prepare_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
 }
 
 parameter_types! {
@@ -216,6 +219,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
+	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
+		0
+	}
 	fn cancel_scheduled_task_full() -> Weight {
 		0
 	}
@@ -232,6 +238,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		20_000
 	}
 	fn run_xcmp_task() -> Weight {
+		20_000
+	}
+	fn run_auto_compound_delegated_stake_task() -> Weight {
 		20_000
 	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {

@@ -38,12 +38,14 @@ pub trait WeightInfo {
 	fn schedule_notify_task_full(v: u32, ) -> Weight;
 	fn schedule_native_transfer_task_empty() -> Weight;
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight;
+	fn schedule_auto_compound_delegated_stake_task_full() -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
 	fn run_notify_task() -> Weight;
 	fn run_native_transfer_task() -> Weight;
 	fn run_xcmp_task() -> Weight;
+	fn run_auto_compound_delegated_stake_task() -> Weight;
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight;
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight;
 	fn run_tasks_many_found(v: u32, ) -> Weight;

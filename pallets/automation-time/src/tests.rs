@@ -312,6 +312,7 @@ fn schedule_xcmp_errors_bad_origin() {
 #[test]
 fn schedule_auto_compound_delegated_stake() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
 		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
 			Origin::signed(AccountId32::new(ALICE)),
 			vec![1],
