@@ -1313,11 +1313,15 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 				_ => false,
 			})
 			.expect("AutoCompound success event should have been emitted");
+		let execution_weight = MockWeight::<Test>::run_auto_compound_delegated_stake_task();
+		let fee = ExecutionWeightFee::get().saturating_mul(execution_weight.into());
 		assert_eq!(
 			delegation_event,
 			Event::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
 				task_id,
-				amount: before_balance - account_minimum
+				amount: before_balance
+					.checked_sub(account_minimum.saturating_add(fee))
+					.expect("Event should not exist if value is neg"),
 			})
 		);
 	})

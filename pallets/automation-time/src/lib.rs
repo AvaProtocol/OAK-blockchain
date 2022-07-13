@@ -1069,7 +1069,7 @@ pub mod pallet {
 			match Self::compound_delegator_stake(
 				delegator.clone(),
 				collator.clone(),
-				account_minimum,
+				account_minimum.saturating_add(Self::calculate_execution_fee(&task.action, 1)),
 			) {
 				Ok(delegation) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
