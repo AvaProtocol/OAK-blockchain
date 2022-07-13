@@ -112,10 +112,11 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 	owner: T::AccountId,
 	time: u64,
 	count: u32,
-) {
+) -> Vec<(T::Hash, Task<T>)> {
 	let time_moment: u32 = time.saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
 
+	let mut tasks = Vec::with_capacity(count.try_into().unwrap());
 	for i in 0..count {
 		let provided_id: Vec<u8> =
 			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
@@ -137,8 +138,10 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 			collator,
 			account_minimum,
 		);
-		<Tasks<T>>::insert(task_id, task);
+		Tasks::<T>::insert(task_id, task);
+		tasks.push((task_id, Pallet::<T>::get_task(task_id).unwrap()));
 	}
+	tasks
 }
 
 benchmarks! {
@@ -198,8 +201,6 @@ benchmarks! {
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
 	schedule_auto_compound_delegated_stake_task_full {
-		let v in 1..T::MaxExecutionTimes::get();
-
 		let delegator: T::AccountId = account("delegator", 0, SEED);
 		let collator: T::AccountId = account("collator", 0, SEED);
 		let account_minimum = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -263,6 +264,18 @@ benchmarks! {
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
 	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
+
+	run_auto_compound_delegated_stake_task {
+		let delegator: T::AccountId = account("delegator", 0, SEED);
+		let collator: T::AccountId = account("collator", 0, SEED);
+		let account_minimum = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+
+		T::NativeTokenExchange::deposit_creating(&delegator, (10_000_000_000_000_000 as u128).saturated_into());
+		T::NativeTokenExchange::deposit_creating(&collator, (100_000_000_000_000_000 as u128).saturated_into());
+		T::DelegatorActions::testing_prepare_delegator(&collator, &delegator)?;
+
+		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
+   }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
 
 	/*
 	* This section is to test run_missed_tasks.

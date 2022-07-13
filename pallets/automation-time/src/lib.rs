@@ -935,14 +935,15 @@ pub mod pallet {
 								account_minimum,
 								frequency,
 							} => {
-								let (mut_task, weight) = Self::run_auto_compound_delegated_stake(
-									delegator,
-									collator,
-									account_minimum,
-									frequency,
-									task_id.clone(),
-									task,
-								);
+								let (mut_task, weight) =
+									Self::run_auto_compound_delegated_stake_task(
+										delegator,
+										collator,
+										account_minimum,
+										frequency,
+										task_id.clone(),
+										task,
+									);
 								task = mut_task;
 								weight
 							},
@@ -1057,7 +1058,7 @@ pub mod pallet {
 				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
-		pub fn run_auto_compound_delegated_stake(
+		pub fn run_auto_compound_delegated_stake_task(
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
