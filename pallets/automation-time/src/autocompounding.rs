@@ -83,17 +83,17 @@ pub fn do_calculate_optimal_autostaking(
 mod tests {
 	use super::*;
 
-	const PLANCK: i128 = 10_000_000_000;
+	const DOLLAR: i128 = 10_000_000_000;
 
 	const AVERAGE_STAKING_DURATION: i32 = 90;
-	const ANNUAL_REWARDS_PER_COLLATOR: i128 = 1_041_667 * PLANCK;
+	const ANNUAL_REWARDS_PER_COLLATOR: i128 = 1_041_667 * DOLLAR;
 	const DAILY_COLLATOR_AWARDS: i128 = ANNUAL_REWARDS_PER_COLLATOR / 365;
 
 	#[test]
 	fn test_1() {
-		let principal = 50 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 1 * PLANCK;
+		let principal = 50 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 1 * DOLLAR;
 
 		let result = do_calculate_optimal_autostaking(
 			principal,
@@ -107,9 +107,9 @@ mod tests {
 
 	#[test]
 	fn test_2() {
-		let principal = 250_000 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 1 * PLANCK;
+		let principal = 250_000 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 1 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -122,9 +122,9 @@ mod tests {
 
 	#[test]
 	fn test_3() {
-		let principal = 250_000 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 50 * PLANCK;
+		let principal = 250_000 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 50 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -137,9 +137,9 @@ mod tests {
 
 	#[test]
 	fn test_4() {
-		let principal = 250_000 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 10 * PLANCK;
+		let principal = 250_000 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 10 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -152,19 +152,19 @@ mod tests {
 
 	#[test]
 	fn test_5() {
-		let principal = 40_000 * PLANCK;
-		let collator_stake = 2_000_000 * PLANCK;
-		let fee = 35 * PLANCK;
+		let principal = 40_000 * DOLLAR;
+		let collator_stake = 2_000_000 * DOLLAR;
+		let fee = 35 * DOLLAR;
 		let result =
-			do_calculate_optimal_autostaking(principal, collator_stake, fee, 180, 2_900 * PLANCK);
+			do_calculate_optimal_autostaking(principal, collator_stake, fee, 180, 2_900 * DOLLAR);
 		assert_eq!(result, 31)
 	}
 
 	#[test]
 	fn test_6() {
-		let principal = 10_000 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 50 * PLANCK;
+		let principal = 10_000 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 50 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -177,9 +177,9 @@ mod tests {
 
 	#[test]
 	fn test_7() {
-		let principal = 490_000 * PLANCK;
-		let collator_stake = 500_000 * PLANCK;
-		let fee = 10 * PLANCK;
+		let principal = 490_000 * DOLLAR;
+		let collator_stake = 500_000 * DOLLAR;
+		let fee = 10 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -192,10 +192,10 @@ mod tests {
 
 	#[test]
 	fn test_8() {
-		let principal = 50 * PLANCK;
-		let collator_stake = 250_000 * PLANCK;
-		let fee = 1 * PLANCK;
-		let daily_collator_awards = 500_000 / 365 * PLANCK;
+		let principal = 50 * DOLLAR;
+		let collator_stake = 250_000 * DOLLAR;
+		let fee = 1 * DOLLAR;
+		let daily_collator_awards = 500_000 / 365 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -204,5 +204,24 @@ mod tests {
 			daily_collator_awards,
 		);
 		assert_eq!(result, 28)
+	}
+
+	#[test]
+	fn test_9() {
+		let money_supply: i128 = 580_000_000_099_999_996;
+
+		let principal = 5_000 * DOLLAR;
+		let collator_stake = 20_000_000_000_000_000;
+		let fee = 1 * DOLLAR;
+		let daily_collator_awards = (money_supply as f64 * 0.025) as i128 / 24 / 365;
+		println!("{}", daily_collator_awards);
+		let result = do_calculate_optimal_autostaking(
+			principal,
+			collator_stake,
+			fee,
+			90,
+			daily_collator_awards,
+		);
+		assert_eq!(result, 46)
 	}
 }
