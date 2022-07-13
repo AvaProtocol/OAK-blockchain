@@ -1106,6 +1106,16 @@ impl_runtime_apis! {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
+
+		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> i32 {
+			pallet_automation_time::do_calculate_optimal_autostaking(
+				principal,
+				(500_000 * DOLLAR) as i128,
+				(1 * DOLLAR) as i128,
+				90,
+				(1_041_667 * DOLLAR) as i128 / 365,
+			)
+		}
 	}
 
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {

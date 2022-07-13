@@ -35,6 +35,9 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		provided_id: String,
 		at: Option<BlockHash>,
 	) -> Result<Hash>;
+
+	#[rpc(name = "automationTime_calculateOptimalAutostaking")]
+	fn caclulate_optimal_autostaking(&self, principal: i128, collator: AccountId) -> Result<i32>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -89,6 +92,17 @@ where
 		runtime_api_result.map_err(|e| RpcError {
 			code: ErrorCode::ServerError(Error::RuntimeError.into()),
 			message: "Unable to generate task_id".into(),
+			data: Some(format!("{:?}", e).into()),
+		})
+	}
+
+	fn caclulate_optimal_autostaking(&self, principal: i128, collator: AccountId) -> Result<i32> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
+		runtime_api_result.map_err(|e| RpcError {
+			code: ErrorCode::ServerError(Error::RuntimeError.into()),
+			message: "Unable to calculate optimal autostaking".into(),
 			data: Some(format!("{:?}", e).into()),
 		})
 	}

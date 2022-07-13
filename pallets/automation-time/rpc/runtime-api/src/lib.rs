@@ -26,5 +26,6 @@ sp_api::decl_runtime_apis! {
 		Hash: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
+		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> i32;
 	}
 }
