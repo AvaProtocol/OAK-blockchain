@@ -312,7 +312,7 @@ fn schedule_xcmp_errors_bad_origin() {
 #[test]
 fn schedule_auto_compound_delegated_stake() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake(
+		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
 			Origin::signed(AccountId32::new(ALICE)),
 			vec![1],
 			SCHEDULED_TIME,
@@ -340,7 +340,7 @@ fn schedule_auto_compound_delegated_stake() {
 fn schedule_auto_compound_with_bad_frequency() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake(
+			AutomationTime::schedule_auto_compound_delegated_stake_task(
 				Origin::signed(AccountId32::new(ALICE)),
 				vec![1],
 				SCHEDULED_TIME,
@@ -357,7 +357,7 @@ fn schedule_auto_compound_with_bad_frequency() {
 fn schedule_auto_compound_with_high_frequency() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake(
+			AutomationTime::schedule_auto_compound_delegated_stake_task(
 				Origin::signed(AccountId32::new(ALICE)),
 				vec![1],
 				SCHEDULED_TIME,

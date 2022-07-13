@@ -108,6 +108,39 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 	task_id
 }
 
+fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
+	owner: T::AccountId,
+	time: u64,
+	count: u32,
+) {
+	let time_moment: u32 = time.saturated_into();
+	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+
+	for i in 0..count {
+		let provided_id: Vec<u8> =
+			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
+		let task_id = AutomationTime::<T>::schedule_task(
+			owner.clone(),
+			provided_id.clone(),
+			vec![time.clone()],
+		)
+		.unwrap();
+		let collator: T::AccountId = account("collator", 0, SEED);
+		let frequency = 3600;
+		let account_minimum =
+			T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		let task = Task::<T>::create_auto_compound_delegated_stake_task(
+			owner.clone(),
+			provided_id,
+			time,
+			frequency,
+			collator,
+			account_minimum,
+		);
+		<Tasks<T>>::insert(task_id, task);
+	}
+}
+
 benchmarks! {
 	schedule_notify_task_empty {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -163,6 +196,18 @@ benchmarks! {
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
+
+	schedule_auto_compound_delegated_stake_task_full {
+		let v in 1..T::MaxExecutionTimes::get();
+
+		let delegator: T::AccountId = account("delegator", 0, SEED);
+		let collator: T::AccountId = account("collator", 0, SEED);
+		let account_minimum = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		let time: u64 = 3600;
+		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
+
+		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), T::MaxTasksPerSlot::get() - 1);
+	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), provided_id, time, 3600 , collator, account_minimum)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
