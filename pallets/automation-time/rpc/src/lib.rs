@@ -16,8 +16,11 @@
 // limitations under the License.
 
 use codec::Codec;
-use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
-use jsonrpc_derive::rpc;
+use jsonrpsee::{
+	core::{async_trait, Error as JsonRpseeError, RpcResult},
+	proc_macros::rpc,
+	types::error::{CallError, ErrorObject},
+};
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
@@ -25,16 +28,16 @@ use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::sync::Arc;
 
 /// An RPC endpoint to provide information about tasks.
-#[rpc]
+#[rpc(client, server)]
 pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 	/// Generates the task_id given the account_id and provided_id.
-	#[rpc(name = "automationTime_generateTaskId")]
+	#[method(name = "automationTime_generateTaskId")]
 	fn generate_task_id(
 		&self,
 		account: AccountId,
 		provided_id: String,
 		at: Option<BlockHash>,
-	) -> Result<Hash>;
+	) -> RpcResult<Hash>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -56,15 +59,16 @@ pub enum Error {
 	RuntimeError,
 }
 
-impl From<Error> for i64 {
-	fn from(e: Error) -> i64 {
+impl From<Error> for i32 {
+	fn from(e: Error) -> i32 {
 		match e {
 			Error::RuntimeError => 1,
 		}
 	}
 }
 
-impl<C, Block, AccountId, Hash> AutomationTimeApi<<Block as BlockT>::Hash, AccountId, Hash>
+#[async_trait]
+impl<C, Block, AccountId, Hash> AutomationTimeApiServer<<Block as BlockT>::Hash, AccountId, Hash>
 	for AutomationTime<C, Block>
 where
 	Block: BlockT,
@@ -77,19 +81,19 @@ where
 		&self,
 		account: AccountId,
 		provided_id: String,
-		at: Option<<Block as BlockT>::Hash>,
-	) -> Result<Hash> {
+		at: Option<Block::Hash>,
+	) -> RpcResult<Hash> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(||
-			// If the block hash is not supplied assume the best block.
-			self.client.info().best_hash));
+		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
 		let runtime_api_result =
 			api.generate_task_id(&at, account, provided_id.as_bytes().to_vec());
-		runtime_api_result.map_err(|e| RpcError {
-			code: ErrorCode::ServerError(Error::RuntimeError.into()),
-			message: "Unable to generate task_id".into(),
-			data: Some(format!("{:?}", e).into()),
+		runtime_api_result.map_err(|e| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to generate task_id",
+				Some(format!("{:?}", e)),
+			)))
 		})
 	}
 }

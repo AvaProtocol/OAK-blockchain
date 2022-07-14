@@ -362,7 +362,7 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account();
+	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 }
 
 parameter_type_with_key! {
@@ -424,6 +424,8 @@ impl orml_tokens::Config for Runtime {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = DustRemovalWhitelist;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
 }
 
 parameter_types! {
@@ -552,7 +554,7 @@ parameter_types! {
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 1_000_000 * DOLLAR;
 }
-impl parachain_staking::Config for Runtime {
+impl pallet_parachain_staking::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
@@ -592,11 +594,9 @@ impl parachain_staking::Config for Runtime {
 	type OnCollatorPayout = ();
 	/// Handler to notify the runtime when a new round begins
 	type OnNewRound = ();
-	/// Whether a given collator has completed required registration to be selected as block author
-	type CollatorRegistration = Session;
 	/// Any additional issuance that should be used for inflation calcs
 	type AdditionalIssuance = Vesting;
-	type WeightInfo = parachain_staking::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -943,7 +943,7 @@ construct_runtime!(
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 21,
-		ParachainStaking: parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 22,
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
 		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
 
@@ -1101,14 +1101,14 @@ impl_runtime_apis! {
 			use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
-			use parachain_staking::Pallet as ParachainStaking;
+			use pallet_parachain_staking::Pallet as ParachainStaking;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
-			list_benchmark!(list, extra, parachain_staking, ParachainStaking::<Runtime>);
+			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1124,7 +1124,7 @@ impl_runtime_apis! {
 			use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
-			use parachain_staking::Pallet as ParachainStaking;
+			use pallet_parachain_staking::Pallet as ParachainStaking;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1145,7 +1145,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
-			add_benchmark!(params, batches, parachain_staking, ParachainStaking::<Runtime>);
+			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

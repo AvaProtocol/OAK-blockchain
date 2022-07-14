@@ -3,7 +3,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 /// Sub-commands supported by the collator.
-#[derive(Debug, Parser)]
+#[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
 	/// Export the genesis state of the parachain.
 	#[clap(name = "export-genesis-state")]
@@ -78,12 +78,27 @@ pub struct ExportGenesisWasmCommand {
 }
 
 #[derive(Debug, Parser)]
+#[clap(
+	propagate_version = true,
+	args_conflicts_with_subcommands = true,
+	subcommand_negates_reqs = true
+)]
 pub struct Cli {
 	#[clap(subcommand)]
 	pub subcommand: Option<Subcommand>,
 
 	#[clap(flatten)]
 	pub run: cumulus_client_cli::RunCmd,
+
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[clap(long)]
+	pub no_hardware_benchmarks: bool,
 
 	/// Relay chain arguments
 	#[clap(raw = true)]

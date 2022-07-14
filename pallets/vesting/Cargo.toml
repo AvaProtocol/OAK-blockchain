@@ -14,27 +14,27 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
 scale-info = { version = "2.1", default-features = false, features = ["derive"] }
-log = { version = "0.4.16", default-features = false }
+log = { version = "0.4.17", default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
-sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 ## Substrate FRAME Dependencies
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.20" }
-frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
-frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.23" }
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 ## Substrate Pallet Dependencies
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.20" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.20" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
 
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.20" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
+pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 
 [features]
 default = ["std"]
@@ -47,5 +47,5 @@ std = [
     "frame-support/std",
 	"frame-system/std",
 	"pallet-timestamp/std",
-	"parachain-staking/std",
+	"pallet-parachain-staking/std",
 ]
