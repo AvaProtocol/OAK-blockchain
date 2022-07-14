@@ -365,10 +365,10 @@ impl pallet_identity::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ProxyDepositBase: Balance = 25 * CENT; // key size 32, value size 8
-	pub const ProxyDepositFactor: Balance = 50 * CENT; // 33 bytes on-chain
-	pub const AnnouncementDepositBase: Balance = 25 * CENT; // key size 32, value size 8?
-	pub const AnnouncementDepositFactor: Balance = 1 * DOLLAR; // ?
+	pub const ProxyDepositBase: Balance = deposit(1, 8);
+	pub const ProxyDepositFactor: Balance = deposit(0, 33);
+	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
 }
 
 #[derive(
