@@ -1128,7 +1128,10 @@ impl_runtime_apis! {
 					let action_enum = pallet_automation_time::Action::Notify {
 						message: "get_fees".into()
 					};
-					AutomationTime::calculate_execution_fee(&action_enum, executions)
+					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
+						Ok(balance) => balance,
+						Err(_e) => 0,
+					}
 				},
 				1 => {
 					let action_enum = pallet_automation_time::Action::NativeTransfer {
@@ -1136,7 +1139,10 @@ impl_runtime_apis! {
 						recipient: sp_runtime::AccountId32::new([2u8; 32]),
 						amount: 1_000_000,
 					};
-					AutomationTime::calculate_execution_fee(&action_enum, executions)
+					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
+						Ok(balance) => balance,
+						Err(_e) => 0,
+					}
 				},
 				2 => {
 					let action_enum = pallet_automation_time::Action::XCMP {
@@ -1144,7 +1150,10 @@ impl_runtime_apis! {
 						call: vec![0, 1],
 						weight_at_most: 1_000_000_000,
 					};
-					AutomationTime::calculate_execution_fee(&action_enum, executions)
+					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
+						Ok(balance) => balance,
+						Err(_e) => 0,
+					}
 				},
 				_ => {
 					0
