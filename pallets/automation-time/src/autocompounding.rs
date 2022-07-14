@@ -74,7 +74,6 @@ pub fn do_calculate_optimal_autostaking(
 		if total_earnings > best_earnings {
 			best_earnings = total_earnings;
 			best_period = period;
-			// ((end amount-principal)/principal)*(360/duration assumption)
 			best_apy = (total_earnings as f64 / principal as f64) * (365 as f64 / duration as f64);
 		}
 	}
