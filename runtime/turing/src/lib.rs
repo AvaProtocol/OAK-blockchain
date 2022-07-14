@@ -388,6 +388,7 @@ parameter_types! {
 pub enum ProxyType {
 	Any = 0,
 	Session = 1,
+	Staking = 2,
 }
 
 impl Default for ProxyType {
@@ -402,6 +403,9 @@ impl InstanceFilter<Call> for ProxyType {
 			ProxyType::Any => true,
 			ProxyType::Session => {
 				matches!(c, Call::Session(..))
+			},
+			ProxyType::Staking => {
+				matches!(c, Call::ParachainStaking(...), Call::Session(..))
 			},
 		}
 	}
