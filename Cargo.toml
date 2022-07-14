@@ -8,6 +8,7 @@ resolver = "2"
 members = [
 	"node",
 	"runtime/*",
+	"pallets/automation-price",
 	"pallets/automation-time",
 	"pallets/automation-time/rpc",
 	"pallets/automation-time/rpc/runtime-api",

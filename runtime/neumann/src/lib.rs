@@ -79,6 +79,7 @@ use primitives::{
 
 // Custom pallet imports
 pub use pallet_automation_time;
+pub use pallet_automation_price;
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -893,6 +894,23 @@ impl pallet_automation_time::Config for Runtime {
 	type XcmSender = xcm_config::XcmRouter;
 }
 
+impl pallet_automation_price::Config for Runtime {
+	type Event = Event;
+	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxExecutionTimes = MaxExecutionTimes;
+	type MaxScheduleSeconds = MaxScheduleSeconds;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
+	type UpdateQueueRatio = UpdateQueueRatio;
+	type SecondsPerBlock = SecondsPerBlock;
+	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type NativeTokenExchange =
+		pallet_automation_price::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+	type XcmSender = xcm_config::XcmRouter;
+}
+
 pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
@@ -973,6 +991,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
+		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 62,
 	}
 );
 

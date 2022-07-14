@@ -4979,6 +4979,7 @@ dependencies = [
  "orml-xtokens",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-automation-price",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
@@ -5451,6 +5452,32 @@ dependencies = [
  "sp-authorship",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-automation-price"
+version = "1.0.0"
+dependencies = [
+ "cumulus-pallet-xcm",
+ "cumulus-primitives-core",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-balances",
+ "pallet-timestamp",
+ "pallet-xcm",
+ "parity-scale-codec",
+ "polkadot-parachain",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
@@ -11794,6 +11821,7 @@ dependencies = [
  "orml-xtokens",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-automation-price",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
