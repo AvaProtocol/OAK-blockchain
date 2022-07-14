@@ -405,7 +405,7 @@ impl InstanceFilter<Call> for ProxyType {
 				matches!(c, Call::Session(..))
 			},
 			ProxyType::Staking => {
-				matches!(c, Call::ParachainStaking(...), Call::Session(..))
+				matches!(c, Call::ParachainStaking(..) | Call::Session(..))
 			},
 		}
 	}
