@@ -23,6 +23,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1082,8 +1083,11 @@ impl_runtime_apis! {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
 
-		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> i32 {
-			25
+		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult {
+			AutostakingResult{
+				period: 25,
+				apy: 2.50,
+			}
 		}
 	}
 

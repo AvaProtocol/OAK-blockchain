@@ -17,8 +17,21 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Codec;
+use codec::{Codec, Decode, Encode};
+use sp_core::RuntimeDebug;
 use sp_std::vec::Vec;
+
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Clone, Encode, Decode, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
+pub struct AutostakingResult {
+	pub period: i32,
+	pub apy: f64,
+}
 
 sp_api::decl_runtime_apis! {
 	pub trait AutomationTimeApi<AccountId, Hash> where
@@ -26,6 +39,6 @@ sp_api::decl_runtime_apis! {
 		Hash: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
-		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> i32;
+		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult;
 	}
 }

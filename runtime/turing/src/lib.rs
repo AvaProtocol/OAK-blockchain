@@ -24,6 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
+use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1107,7 +1108,7 @@ impl_runtime_apis! {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
 
-		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> i32 {
+		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult{
 			let candidate_info = ParachainStaking::candidate_info(collator);
 			let money_supply = Balances::total_issuance();
 
@@ -1116,13 +1117,18 @@ impl_runtime_apis! {
 			let duration = 90;
 			let daily_collator_rewards = (money_supply as f64 * 0.025) as i128 / 24 / 365;
 
-			pallet_automation_time::do_calculate_optimal_autostaking(
+			let res = pallet_automation_time::do_calculate_optimal_autostaking(
 				principal,
 				collator_stake,
 				fee,
 				duration, // Average Staking Duration
 				daily_collator_rewards,
-			)
+			);
+
+			AutostakingResult{
+				period: res.0,
+				apy: res.1,
+			}
 		}
 	}
 

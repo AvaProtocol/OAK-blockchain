@@ -19,6 +19,7 @@ use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
+use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -37,7 +38,11 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 	) -> Result<Hash>;
 
 	#[rpc(name = "automationTime_calculateOptimalAutostaking")]
-	fn caclulate_optimal_autostaking(&self, principal: i128, collator: AccountId) -> Result<i32>;
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> Result<AutostakingResult>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -96,7 +101,11 @@ where
 		})
 	}
 
-	fn caclulate_optimal_autostaking(&self, principal: i128, collator: AccountId) -> Result<i32> {
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> Result<AutostakingResult> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
