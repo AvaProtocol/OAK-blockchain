@@ -6330,6 +6330,7 @@ dependencies = [
  "pallet-balances",
  "pallet-timestamp",
  "pallet-xcm",
+ "parachain-staking",
  "parity-scale-codec",
  "scale-info",
  "sp-core",

@@ -188,7 +188,7 @@ impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())
 	}
-	fn testing_prepare_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+	fn testing_setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
 }

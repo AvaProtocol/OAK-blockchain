@@ -37,6 +37,10 @@ xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-feature
 cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.20' }
 cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.20' }
 
+# Moonbeam Dependencies
+# TODO: fix dep
+parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking", default-features = false }
+
 [features]
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
@@ -51,6 +55,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-timestamp/std",
 	"pallet-xcm/std",
+	"parachain-staking/std",
 	"scale-info/std",
 	"sp-runtime/std",
 	"sp-std/std",

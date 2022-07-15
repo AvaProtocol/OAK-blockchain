@@ -1118,10 +1118,7 @@ pub mod pallet {
 			.map(|_| {
 				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
 				task.executions_left += new_executions_left;
-				new_execution_times
-					.iter()
-					.try_for_each(|t| task.execution_times.try_push(*t))
-					.or(Err(Error::<T>::TooManyExecutionsTimes))
+				new_execution_times.iter().try_for_each(|t| task.execution_times.try_push(*t))
 			})
 			.map_err(|e| {
 				let err: DispatchError = e.into();
