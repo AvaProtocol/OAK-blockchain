@@ -37,6 +37,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod tests_calculation;
+
 mod benchmarking;
 pub mod migrations;
 pub mod weights;
@@ -59,13 +62,16 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
+use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
-use parachain_staking::DelegatorActions;
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedSub, SaturatedConversion, Saturating},
-	DispatchError, Perbill,
+	traits::{
+		AccountIdConversion, CheckedConversion, CheckedMul, CheckedSub, SaturatedConversion,
+		Saturating,
+	},
+	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
@@ -568,7 +574,7 @@ pub mod pallet {
 				Err(<Error<T>>::ParaIdMismatch)?
 			}
 
-			let who = Sibling::from(para_id).into_account();
+			let who = Sibling::from(para_id).into_account_truncating();
 			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
@@ -671,14 +677,18 @@ pub mod pallet {
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
 		/// * Bring the timestamp down to the last whole hour.
-		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
-			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
+		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
+			let now = <timestamp::Pallet<T>>::get()
+				.checked_into::<UnixTime>()
+				.ok_or(ArithmeticError::Overflow)?;
+
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
-			let diff_to_hour = now % 3600;
-			Ok(now.saturating_sub(diff_to_hour))
+
+			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
+			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
+			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
 		}
 
 		/// Checks to see if the scheduled time is valid.
@@ -687,13 +697,13 @@ pub mod pallet {
 		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), Error<T>> {
+		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
 			#[cfg(feature = "dev-queue")]
 			if scheduled_time == 0 {
 				return Ok(())
 			}
 
-			let remainder = scheduled_time % 3600;
+			let remainder = scheduled_time.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
 			}
@@ -703,7 +713,11 @@ pub mod pallet {
 				Err(<Error<T>>::PastTime)?;
 			}
 
-			if scheduled_time > current_time_slot + T::MaxScheduleSeconds::get() {
+			let max_schedule_time = current_time_slot
+				.checked_add(T::MaxScheduleSeconds::get())
+				.ok_or(ArithmeticError::Overflow)?;
+
+			if scheduled_time > max_schedule_time {
 				Err(Error::<T>::TimeTooFarOut)?;
 			}
 
@@ -1087,7 +1101,8 @@ pub mod pallet {
 			match Self::compound_delegator_stake(
 				delegator.clone(),
 				collator.clone(),
-				account_minimum.saturating_add(Self::calculate_execution_fee(&task.action, 1)),
+				account_minimum,
+				Self::calculate_execution_fee(&task.action, 1),
 			) {
 				Ok(delegation) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
@@ -1136,9 +1151,11 @@ pub mod pallet {
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
+			execution_fee: Result<BalanceOf<T>, DispatchError>,
 		) -> Result<BalanceOf<T>, DispatchError> {
+			let reserved_funds = account_minimum.saturating_add(execution_fee?);
 			T::NativeTokenExchange::free_balance(&delegator)
-				.checked_sub(&account_minimum)
+				.checked_sub(&reserved_funds)
 				.ok_or(Error::<T>::AccountMinimumBalanceNotMet.into())
 				.and_then(|delegation| {
 					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
@@ -1160,7 +1177,6 @@ pub mod pallet {
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		///
 		fn remove_task(task_id: T::Hash, task: Task<T>) {
 			let mut found_task: bool = false;
 			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
@@ -1295,7 +1311,7 @@ pub mod pallet {
 			who: T::AccountId,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
-		) -> Result<(), Error<T>> {
+		) -> Result<(), DispatchError> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
@@ -1310,9 +1326,9 @@ pub mod pallet {
 			}
 
 			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::InsufficientBalance)?;
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
@@ -1328,9 +1344,9 @@ pub mod pallet {
 
 			// This should never error if can_pay_fee passed.
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
-				.map_err(|_| Error::LiquidityRestrictions)?;
+				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
 			Ok(())
 		}
 
@@ -1340,18 +1356,18 @@ pub mod pallet {
 			who: T::AccountId,
 			action: &Action<T>,
 			execution_times: Vec<UnixTime>,
-		) -> Result<(), Error<T>> {
+		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions);
+			let fee = Self::calculate_execution_fee(action, new_executions)?;
 			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::InsufficientBalance)?;
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
 
 			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
-				.map_err(|_| Error::LiquidityRestrictions)?;
+				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
 			Ok(())
 		}
 
@@ -1371,7 +1387,10 @@ pub mod pallet {
 			provided_id
 		}
 
-		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
+		fn calculate_execution_fee(
+			action: &Action<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let action_weight = match action {
 				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
@@ -1379,14 +1398,20 @@ pub mod pallet {
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
 				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
 					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+					.checked_add(<T as Config>::WeightInfo::run_xcmp_task())
+					.ok_or(ArithmeticError::Overflow)?,
 				Action::AutoCompoundDelegatedStake { .. } =>
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			};
 
-			let total_weight = action_weight.saturating_mul(executions.into());
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			let total_weight =
+				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
+			let weight_as_balance =
+				<BalanceOf<T>>::checked_from(total_weight).ok_or(ArithmeticError::Overflow)?;
+
+			Ok(T::ExecutionWeightFee::get()
+				.checked_mul(&weight_as_balance)
+				.ok_or(ArithmeticError::Overflow)?)
 		}
 	}
 }

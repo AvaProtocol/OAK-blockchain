@@ -26,7 +26,7 @@ jobs:
       - name: Build debian
         run: |
           cargo install cargo-deb
-          cargo deb -p oak-node
+          cargo deb -p oak-node -- --release --features turing-node
           cp target/debian/*.deb artifacts/
       - name: Upload binary
         uses: actions/upload-artifact@v2
@@ -112,6 +112,8 @@ jobs:
         with:
           name: turing-runtime
       - name: Generate notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ./.maintain/generate-release-notes ${{ github.event.inputs.tag }} > notes.md
       - name: Create release

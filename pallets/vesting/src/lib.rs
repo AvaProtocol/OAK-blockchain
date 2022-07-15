@@ -34,7 +34,7 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-use parachain_staking::AdditionalIssuance;
+use pallet_parachain_staking::AdditionalIssuance;
 
 #[frame_support::pallet]
 pub mod pallet {

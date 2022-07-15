@@ -222,7 +222,7 @@ where
 
 use frame_support::pallet_prelude::{DispatchResult, DispatchResultWithPostInfo};
 pub struct MockDelegatorActions<T>(PhantomData<T>);
-impl<T: Config> parachain_staking::DelegatorActions<T::AccountId, Balance>
+impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance>
 	for MockDelegatorActions<T>
 {
 	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: Balance) -> DispatchResult {

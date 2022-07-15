@@ -17,7 +17,7 @@
 
 use crate::{mock::*, Event};
 use frame_support::traits::OnInitialize;
-use parachain_staking::AdditionalIssuance;
+use pallet_parachain_staking::AdditionalIssuance;
 
 const FIRST_VEST_TIME: u64 = 1646028000;
 const SECOND_VEST_TIME: u64 = FIRST_VEST_TIME + 3_600;
