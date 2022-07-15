@@ -118,15 +118,16 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 
 	let mut tasks = Vec::with_capacity(count.try_into().unwrap());
 	for i in 0..count {
-		let provided_id: Vec<u8> =
-			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
+		let collator: T::AccountId = account("collator", 0, i);
+		let provided_id = AutomationTime::<T>::generate_auto_compound_delegated_stake_provided_id(
+			&owner, &collator,
+		);
 		let task_id = AutomationTime::<T>::schedule_task(
 			owner.clone(),
 			provided_id.clone(),
 			vec![time.clone()],
 		)
 		.unwrap();
-		let collator: T::AccountId = account("collator", 0, SEED);
 		let frequency = 3600;
 		let account_minimum =
 			T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -202,13 +203,14 @@ benchmarks! {
 
 	schedule_auto_compound_delegated_stake_task_full {
 		let delegator: T::AccountId = account("delegator", 0, SEED);
-		let collator: T::AccountId = account("collator", 0, SEED);
-		let account_minimum = T::NativeTokenExchange::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		let collator: T::AccountId = account("collator", 0, T::MaxTasksPerSlot::get());
+		let account_minimum = T::NativeTokenExchange::minimum_balance();
+		let starting_balance = account_minimum.saturating_mul(ED_MULTIPLIER.into());
 		let time: u64 = 3600;
-		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
 
+		T::NativeTokenExchange::deposit_creating(&delegator, starting_balance);
 		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), T::MaxTasksPerSlot::get() - 1);
-	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), provided_id, time, 3600 , collator, account_minimum)
+	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), time, 3600 , collator, account_minimum)
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);

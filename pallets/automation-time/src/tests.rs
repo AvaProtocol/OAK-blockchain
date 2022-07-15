@@ -311,14 +311,15 @@ fn schedule_xcmp_errors_bad_origin() {
 
 #[test]
 fn schedule_auto_compound_delegated_stake() {
+	let alice = AccountId32::new(ALICE);
+	let bob = AccountId32::new(BOB);
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
+		get_funds(alice.clone());
 		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
-			Origin::signed(AccountId32::new(ALICE)),
-			vec![1],
+			Origin::signed(alice.clone()),
 			SCHEDULED_TIME,
 			3_600,
-			AccountId32::new(BOB),
+			bob.clone(),
 			1_000_000_000,
 		));
 		let task_id = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME)
@@ -326,11 +327,11 @@ fn schedule_auto_compound_delegated_stake() {
 		assert_eq!(
 			AutomationTime::get_task(task_id),
 			Some(Task::<Test>::create_auto_compound_delegated_stake_task(
-				AccountId32::new(ALICE),
-				vec![1],
+				alice.clone(),
+				AutomationTime::generate_auto_compound_delegated_stake_provided_id(&alice, &bob),
 				SCHEDULED_TIME,
 				3_600,
-				AccountId32::new(BOB),
+				bob,
 				1_000_000_000,
 			))
 		);
@@ -343,10 +344,9 @@ fn schedule_auto_compound_with_bad_frequency() {
 		assert_noop!(
 			AutomationTime::schedule_auto_compound_delegated_stake_task(
 				Origin::signed(AccountId32::new(ALICE)),
-				vec![1],
 				SCHEDULED_TIME,
 				4_000,
-				AccountId32::new([2u8; 32]),
+				AccountId32::new(BOB),
 				100_000,
 			),
 			Error::<Test>::InvalidTime,
@@ -360,10 +360,9 @@ fn schedule_auto_compound_with_high_frequency() {
 		assert_noop!(
 			AutomationTime::schedule_auto_compound_delegated_stake_task(
 				Origin::signed(AccountId32::new(ALICE)),
-				vec![1],
 				SCHEDULED_TIME,
 				<Test as Config>::MaxScheduleSeconds::get() + 3_600,
-				AccountId32::new([2u8; 32]),
+				AccountId32::new(BOB),
 				100_000,
 			),
 			Error::<Test>::TimeTooFarOut,

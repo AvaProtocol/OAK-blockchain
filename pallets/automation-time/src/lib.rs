@@ -578,13 +578,14 @@ pub mod pallet {
 		#[transactional]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
-			provided_id: Vec<u8>,
 			execution_time: UnixTime,
 			frequency: Seconds,
 			collator_id: T::AccountId,
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			let provided_id: Vec<u8> =
+				Self::generate_auto_compound_delegated_stake_provided_id(&who, &collator_id);
 			if frequency % 3600 != 0 {
 				Err(Error::<T>::InvalidTime)?
 			}
@@ -1347,6 +1348,16 @@ pub mod pallet {
 			let task_hash_input =
 				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
 			T::Hashing::hash_of(&task_hash_input)
+		}
+
+		pub fn generate_auto_compound_delegated_stake_provided_id(
+			delegator: &AccountOf<T>,
+			collator: &AccountOf<T>,
+		) -> Vec<u8> {
+			let mut provided_id = "AutoCompoundDelegatedStake".as_bytes().to_vec();
+			provided_id.extend(delegator.encode());
+			provided_id.extend(collator.encode());
+			provided_id
 		}
 
 		fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
