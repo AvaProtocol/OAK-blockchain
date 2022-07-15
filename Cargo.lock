@@ -5501,7 +5501,6 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-api",
- "sp-core",
  "sp-std",
 ]
 
