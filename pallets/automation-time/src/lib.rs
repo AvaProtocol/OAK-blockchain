@@ -574,6 +574,22 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Schedule a task to increase delegation to a specified up to a minimum balance
+		/// Task will reschedule itself to run on a given frequency until a failure occurs
+		///
+		/// # Parameters
+		/// * `execution_time`: The unix timestamp when the task should run for the first time
+		/// * `frequence`: Number of seconds to wait inbetween task executions
+		/// * `collator_id`: Account ID of the target collator
+		/// * `account_minimum`: The minimum amount of funds that should be left in the wallet
+		///
+		/// # Errors
+		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		/// * `InsufficientBalance`: Not enough funds to pay execution fee.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
 		#[transactional]
 		pub fn schedule_auto_compound_delegated_stake_task(
@@ -1059,6 +1075,7 @@ pub mod pallet {
 				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
+		/// Executes auto compounding delegation and reschedules task on success
 		pub fn run_auto_compound_delegated_stake_task(
 			delegator: T::AccountId,
 			collator: T::AccountId,
@@ -1090,12 +1107,8 @@ pub mod pallet {
 				},
 			}
 
-			// TODO: handle error on checked_add
-			let new_execution_times: Vec<UnixTime> = task
-				.execution_times
-				.iter()
-				.map(|when| when.checked_add(frequency).unwrap())
-				.collect();
+			let new_execution_times: Vec<UnixTime> =
+				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
 			let _ = Self::reschedule_existing_task(
 				task_id,
 				task.owner_id.clone(),
@@ -1324,6 +1337,7 @@ pub mod pallet {
 			Ok(())
 		}
 
+		/// Reschedules an existing task for a given number of execution times
 		fn reschedule_existing_task(
 			task_id: T::Hash,
 			who: T::AccountId,
