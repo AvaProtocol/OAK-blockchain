@@ -353,7 +353,7 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// ParaId provided does not match origin paraId.
 		ParaIdMismatch,
-		TaskDNE,
+		/// Account minimum not met
 		AccountMinimumBalanceNotMet,
 	}
 
