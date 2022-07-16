@@ -228,7 +228,7 @@ pub mod pallet {
 		type Currency: Currency<Self::AccountId>;
 
 		/// Handler for fees
-		type FeesHandler: HandleFees<Self>;
+		type FeeHandler: HandleFees<Self>;
 
 		/// Utility for sending XCM messages
 		type XcmSender: SendXcm;
@@ -1117,7 +1117,7 @@ pub mod pallet {
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
-			T::FeesHandler::can_pay_fee(&who, fee.clone())
+			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
@@ -1133,7 +1133,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeesHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });

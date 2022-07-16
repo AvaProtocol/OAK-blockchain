@@ -142,7 +142,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
-	type FeesHandler = FeesHandler<DealWithExecutionFees<Test>>;
+	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
 }

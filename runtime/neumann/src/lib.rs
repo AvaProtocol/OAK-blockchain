@@ -961,7 +961,7 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
-	type FeesHandler = pallet_automation_time::FeesHandler<DealWithExecutionFees<Runtime>>;
+	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
 }
