@@ -51,7 +51,10 @@ use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
+	pallet_prelude::*,
+	sp_runtime::traits::Hash,
+	traits::{Currency, ExistenceRequirement, StorageVersion},
+	transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
@@ -76,7 +79,8 @@ pub mod pallet {
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 
 	/// The enum that stores all action specific data.
@@ -220,6 +224,8 @@ pub mod pallet {
 
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
+
+		type Currency: Currency<Self::AccountId>;
 
 		/// Handler for fees and native token transfers.
 		type NativeTokenExchange: NativeTokenExchange<Self>;
@@ -451,7 +457,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			if amount < T::NativeTokenExchange::minimum_balance() {
+			if amount < T::Currency::minimum_balance() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
@@ -921,7 +927,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
+			match T::Currency::transfer(
+				&sender,
+				&recipient,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			) {
 				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
