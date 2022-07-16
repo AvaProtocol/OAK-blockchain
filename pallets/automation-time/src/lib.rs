@@ -225,6 +225,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
+		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
 		/// Handler for fees

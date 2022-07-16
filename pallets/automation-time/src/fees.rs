@@ -40,18 +40,11 @@ pub trait HandleFees<T: Config> {
 	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError>;
 }
 
+pub struct FeeHandler<OU>(PhantomData<OU>);
+
 /// Implements the transaction payment for a pallet implementing the `Currency`
 /// trait (eg. the pallet_balances) using an unbalance handler (implementing
 /// `OnUnbalanced`).
-///
-/// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: fee and
-/// then tip.
-pub struct FeeHandler<OU>(PhantomData<OU>);
-
-/// Default implementation for an OnUnbalanced handler.
-///
-/// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: fee and
-/// then tip.
 impl<T, OU> HandleFees<T> for FeeHandler<OU>
 where
 	T: Config,
