@@ -44,8 +44,8 @@ mod benchmarking;
 pub mod migrations;
 pub mod weights;
 
-mod exchange;
-pub use exchange::*;
+mod fees;
+pub use fees::*;
 
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
@@ -227,8 +227,8 @@ pub mod pallet {
 
 		type Currency: Currency<Self::AccountId>;
 
-		/// Handler for fees and native token transfers.
-		type NativeTokenExchange: NativeTokenExchange<Self>;
+		/// Handler for fees
+		type FeesHandler: HandleFees<Self>;
 
 		/// Utility for sending XCM messages
 		type XcmSender: SendXcm;
@@ -1117,7 +1117,7 @@ pub mod pallet {
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+			T::FeesHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
@@ -1133,7 +1133,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+			T::FeesHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });

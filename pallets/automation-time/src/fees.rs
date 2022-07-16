@@ -32,7 +32,7 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 >>::NegativeImbalance;
 
 /// Handle withdrawing, refunding and depositing of transaction fees.
-pub trait NativeTokenExchange<T: Config> {
+pub trait HandleFees<T: Config> {
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError>;
 
@@ -46,13 +46,13 @@ pub trait NativeTokenExchange<T: Config> {
 ///
 /// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: fee and
 /// then tip.
-pub struct CurrencyAdapter<OU>(PhantomData<OU>);
+pub struct FeesHandler<OU>(PhantomData<OU>);
 
-/// Default implementation for a Currency and an OnUnbalanced handler.
+/// Default implementation for an OnUnbalanced handler.
 ///
 /// The unbalance handler is given 2 unbalanceds in [`OnUnbalanced::on_unbalanceds`]: fee and
 /// then tip.
-impl<T, OU> NativeTokenExchange<T> for CurrencyAdapter<OU>
+impl<T, OU> HandleFees<T> for FeesHandler<OU>
 where
 	T: Config,
 	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
