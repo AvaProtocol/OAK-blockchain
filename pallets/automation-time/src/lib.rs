@@ -59,7 +59,7 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::StorageVersion,
-	transactional, BoundedVec,
+	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
@@ -466,7 +466,6 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
-		#[transactional]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -511,7 +510,6 @@ pub mod pallet {
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
 		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
-		#[transactional]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -559,7 +557,6 @@ pub mod pallet {
 		///
 		/// TODO: Create benchmark for schedule_xcmp_task
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
-		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -596,7 +593,6 @@ pub mod pallet {
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `InsufficientBalance`: Not enough funds to pay execution fee.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
-		#[transactional]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
 			execution_time: UnixTime,
