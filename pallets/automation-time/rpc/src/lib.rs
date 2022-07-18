@@ -114,12 +114,22 @@ where
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
-		runtime_api_result.map_err(|e| {
-			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"Unable to calculate optimal autostaking",
-				Some(format!("{:?}", e)),
-			)))
-		})
+		runtime_api_result
+			.map_err(|e| {
+				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to calculate optimal autostaking",
+					Some(format!("{:?}", e)),
+				)))
+			})
+			.map(|r| {
+				r.map_err(|e| {
+					JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+						Error::RuntimeError.into(),
+						"Unable to calculate optimal autostaking",
+						Some(format!("{}", String::from_utf8(e).unwrap())),
+					)))
+				})
+			})?
 	}
 }

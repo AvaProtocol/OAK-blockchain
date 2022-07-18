@@ -1182,11 +1182,18 @@ impl_runtime_apis! {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
 
-		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult{
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>> {
 			let candidate_info = ParachainStaking::candidate_info(collator);
 			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
-			let collator_stake = candidate_info.unwrap().total_counted as i128;
+			let collator_stake = match candidate_info {
+				Some(x) => Ok(x.total_counted as i128),
+				None => Err("collator does not exist"),
+			}?;
+
 			let fee = (1 * DOLLAR) as i128;
 			let duration = 90;
 			// 24 = number of collators
@@ -1200,10 +1207,7 @@ impl_runtime_apis! {
 				daily_collator_rewards,
 			);
 
-			AutostakingResult{
-				period: res.0,
-				apy: res.1,
-			}
+			Ok(AutostakingResult{period: res.0, apy: res.1})
 		}
 	}
 
