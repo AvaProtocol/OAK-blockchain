@@ -137,7 +137,7 @@ pub mod pallet {
 	pub struct Task<T: Config> {
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 		executions_left: u32,
 		action: Action<T>,
 	}
@@ -1133,7 +1133,12 @@ pub mod pallet {
 			.map(|_| {
 				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
 				task.executions_left += new_executions_left;
-				new_execution_times.iter().try_for_each(|t| task.execution_times.try_push(*t))
+				new_execution_times.iter().try_for_each(|t| {
+					task.execution_times.try_push(*t).and_then(|_| {
+						task.execution_times.remove(0);
+						Ok(())
+					})
+				})
 			})
 			.map_err(|e| {
 				let err: DispatchErrorWithPostInfo = e.into();
@@ -1171,7 +1176,6 @@ pub mod pallet {
 			if task.executions_left <= 0 {
 				Tasks::<T>::remove(task_id);
 			} else {
-				task.execution_times.remove(0);
 				Tasks::<T>::insert(task_id, task);
 			}
 		}

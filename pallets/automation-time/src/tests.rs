@@ -1358,7 +1358,8 @@ fn auto_compound_delegated_stake_reschedules() {
 				_ => false,
 			})
 			.expect("TaskScheduled event should have been emitted");
-		AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
+		let next_scheduled_time = SCHEDULED_TIME + frequency;
+		AutomationTime::get_scheduled_tasks(next_scheduled_time)
 			.expect("Task should have been rescheduled")
 			.into_iter()
 			.find(|t| *t == task_id)
@@ -1366,6 +1367,7 @@ fn auto_compound_delegated_stake_reschedules() {
 		let task = AutomationTime::get_task(task_id)
 			.expect("Task should not have been removed from task map");
 		assert_eq!(task.get_executions_left(), 1);
+		assert_eq!(task.execution_times.to_vec(), vec![next_scheduled_time]);
 	})
 }
 
