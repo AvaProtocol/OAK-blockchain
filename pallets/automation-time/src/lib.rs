@@ -502,7 +502,7 @@ pub mod pallet {
 				Err(<Error<T>>::ParaIdMismatch)?
 			}
 
-			let who = Sibling::from(para_id).into_account();
+			let who = Sibling::from(para_id).into_account_truncating();
 			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
