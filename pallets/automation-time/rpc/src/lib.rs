@@ -40,12 +40,12 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		at: Option<BlockHash>,
 	) -> RpcResult<Hash>;
 
-	#[rpc(name = "automationTime_calculateOptimalAutostaking")]
+	#[method(name = "automationTime_calculateOptimalAutostaking")]
 	fn caclulate_optimal_autostaking(
 		&self,
 		principal: i128,
 		collator: AccountId,
-	) -> Result<AutostakingResult>;
+	) -> RpcResult<AutostakingResult>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -109,14 +109,16 @@ where
 		&self,
 		principal: i128,
 		collator: AccountId,
-	) -> Result<AutostakingResult> {
+	) -> RpcResult<AutostakingResult> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
-		runtime_api_result.map_err(|e| RpcError {
-			code: ErrorCode::ServerError(Error::RuntimeError.into()),
-			message: "Unable to calculate optimal autostaking".into(),
-			data: Some(format!("{:?}", e).into()),
+		runtime_api_result.map_err(|e| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to calculate optimal autostaking",
+				Some(format!("{:?}", e)),
+			)))
 		})
 	}
 }
