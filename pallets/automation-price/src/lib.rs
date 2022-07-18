@@ -44,28 +44,21 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
-use cumulus_primitives_core::ParaId;
+use cumulus_pallet_xcm::{Origin as CumulusOrigin};
 use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
-use pallet_timestamp::{self as timestamp};
-use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, SaturatedConversion, Saturating},
-	DispatchError, Perbill,
+	traits::{Saturating},
+	Perbill,
 };
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 pub use weights::WeightInfo;
-
-// NOTE: this is the current storage version for the code.
-// On migration, you will need to increment this.
-const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -73,7 +66,6 @@ pub mod pallet {
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
-	type UnixTime = u64;
 
 	/// The struct that stores all information needed for a task.
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
@@ -83,7 +75,7 @@ pub mod pallet {
 		provided_id: Vec<u8>,
 		asset: Vec<u8>,
 		direction: u8,
-		trigger_percentage: u16,
+		trigger_percentage: u128,
 	}
 
 	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
@@ -103,7 +95,7 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			asset: Vec<u8>,
 			direction: u8,
-			trigger_percentage: u16,
+			trigger_percentage: u128,
 		) -> Task<T> {
 			Task::<T> { owner_id, provided_id, asset, direction, trigger_percentage }
 		}
@@ -178,7 +170,11 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasks<T: Config> =
-		StorageMap<_, Twox64Concat, Vec<u8>, Vec<Vec<Vec<T::Hash>>>>;
+		StorageNMap<_, (
+			NMapKey<Twox64Concat, Vec<u8>>, // asset name
+			NMapKey<Twox64Concat, u8>, // direction
+			NMapKey<Twox64Concat, u128>, // price
+		), Vec<T::Hash>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_target_price)]
@@ -263,10 +259,10 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			asset: Vec<u8>,
 			direction: u8,
-			trigger_percentage: u16,
+			trigger_percentage: u128,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			Self::validate_and_schedule_task(who, provided_id, asset, direction, trigger_percentage);
+			Self::validate_and_schedule_task(who, provided_id, asset, direction, trigger_percentage)?;
 			Ok(().into())
 		}
 
@@ -284,15 +280,12 @@ pub mod pallet {
 		pub fn add_asset(
 			origin: OriginFor<T>,
 			asset: Vec<u8>,
-			directions: u8,
 			target_price: u128,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			if let Some(asset_tasks) = Self::get_scheduled_tasks(asset.clone()) {
+			let _who = ensure_signed(origin)?;
+			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
 				Err(Error::<T>::AssetAlreadySupported)?
 			} else {
-				let asset_struct: Vec<Vec<Vec<T::Hash>>> = vec![vec![vec![]; 100]; directions.into()];
-				<ScheduledTasks<T>>::insert(asset.clone(), asset_struct);
 				AssetTargetPrices::<T>::insert(asset, target_price);
 			}
 			Ok(().into())
@@ -314,29 +307,43 @@ pub mod pallet {
 			asset: Vec<u8>,
 			value: u128,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			if let Some(asset_tasks) = Self::get_scheduled_tasks(asset.clone()) {
-				let asset_clone: Vec<Vec<Vec<T::Hash>>> = asset_tasks.clone();
-				if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
-					let direction: u8 = if asset_target_price > value { 0 } else { 1 };
-					let asset_move_percentage = if direction == 0 {
-						((asset_target_price - value) * 100) / asset_target_price
-					} else {
-						((value - asset_target_price) * 100) / asset_target_price
-					};
-					// let mut taskList = asset_clone[direction as usize][asset_move_percentage as usize];
-					info!("direction: {}", direction);
-					info!("asset_move_percentage: {}", asset_move_percentage);
-
-					let mut existingTaskQueue: Vec<T::Hash> = Self::get_task_queue();
-					// let newTaskQueue: Vec<T::Hash> = existingTaskQueue.append(&mut taskList);
-					let newTaskQueue: Vec<T::Hash> = existingTaskQueue;
-					TaskQueue::<T>::put(newTaskQueue);
-
-					<ScheduledTasks<T>>::insert(asset, asset_tasks);
+			let _who = ensure_signed(origin)?;
+			if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
+				let direction: u8 = if asset_target_price > value { 0 } else { 1 };
+				let asset_move_percentage = if direction == 0 {
+					((asset_target_price - value) * 100) / asset_target_price
 				} else {
-					Err(Error::<T>::AssetNotSupported)?
+					((value - asset_target_price) * 100) / asset_target_price
 				};
+				info!("direction: {}", direction);
+				info!("asset_move_percentage: {}", asset_move_percentage);
+				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), asset_move_percentage.clone())) {
+					// let asset_clone: Vec<Vec<Vec<T::Hash>>> = asset_tasks.clone();
+				// if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
+					// let direction: u8 = if asset_target_price > value { 0 } else { 1 };
+					// let asset_move_percentage = if direction == 0 {
+					// 	((asset_target_price - value) * 100) / asset_target_price
+					// } else {
+					// 	((value - asset_target_price) * 100) / asset_target_price
+					// };
+					// // let mut taskList = asset_clone[direction as usize][asset_move_percentage as usize];
+					// info!("direction: {}", direction);
+					// info!("asset_move_percentage: {}", asset_move_percentage);
+
+					let mut existing_task_queue: Vec<T::Hash> = Self::get_task_queue();
+					for task in asset_tasks {
+						existing_task_queue.push(task);
+					}
+					// let newTaskQueue: Vec<T::Hash> = existing_task_queue.append(&mut asset_tasks);
+					// let newTaskQueue: Vec<T::Hash> = existing_task_queue;
+					TaskQueue::<T>::put(existing_task_queue);
+
+					<ScheduledTasks<T>>::remove((asset, direction, asset_move_percentage));
+				} else {
+					info!("hiiiiiii");
+				};
+			} else {
+				Err(Error::<T>::AssetNotSupported)?
 			}
 			Ok(().into())
 		}
@@ -364,7 +371,7 @@ pub mod pallet {
 				weight_left =
 					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
-			max_weight
+			weight_left
 		}
 
 		/// Update the task queue.
@@ -377,9 +384,7 @@ pub mod pallet {
 		/// Update the task queue with scheduled tasks for the current slot
 		///
 		///
-		pub fn update_scheduled_task_queue(
-			current_time_slot: u64,
-		) -> Weight {
+		pub fn update_scheduled_task_queue() -> Weight {
 			100
 		}
 
@@ -440,29 +445,33 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			asset: Vec<u8>,
 			direction: u8,
-			trigger_percentage: u16,
+			trigger_percentage: u128,
 		) -> Result<T::Hash, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
 			if let Some(_) = Self::get_task(task_id.clone()) {
 				Err(Error::<T>::DuplicateTask)?
 			}
-			if let Some(mut asset_tasks) = Self::get_scheduled_tasks(asset.clone()) {
-				let mut asset_clone: Vec<Vec<Vec<T::Hash>>> = asset_tasks.clone();
-				let mut task_list = asset_clone[0][0][0];
-				
-				// let mut inner_task_list = task_list[0];
-				// let mut task_list2 = inner_task_list.push(task_id.clone());
-				// let taskList = &asset_clone[direction as usize][(trigger_percentage - 1) as usize];
-				// taskList.append(&mut vec![task_id.clone()]);
-				// std::mem::replace(&mut asset_tasks[direction as usize][(trigger_percentage - 1) as usize], taskList);
-				// TODO: temp, please remove! 
-				TaskQueue::<T>::put(vec![task_id]);
-
-				<ScheduledTasks<T>>::insert(asset, asset_tasks);
+			if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
+				if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
+					asset_tasks.push(task_id.clone());
+					// let mut task_list = asset_clone[0][0][0];
+					
+					// let mut inner_task_list = task_list[0];
+					// let mut task_list2 = inner_task_list.push(task_id.clone());
+					// let taskList = asset_tasks[direction as usize][(trigger_percentage - 1) as usize];
+					// taskList.push(task_id.clone());
+	
+					// std::mem::replace(&mut asset_tasks[direction as usize][(trigger_percentage - 1) as usize], taskList);
+					// TODO: temp, please remove! 
+					// TaskQueue::<T>::put(vec![task_id]);
+	
+					<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
+				} else {
+					<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), vec![task_id.clone()]);
+				}	
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
-
 			Ok(task_id)
 		}
 
@@ -473,7 +482,7 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			asset: Vec<u8>,
 			direction: u8,
-			trigger_percentage: u16,
+			trigger_percentage: u128,
 		) -> Result<(), Error<T>> {
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), asset.clone(), direction, trigger_percentage)?;
