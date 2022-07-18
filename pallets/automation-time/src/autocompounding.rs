@@ -23,15 +23,6 @@ pub struct IntervalRow {
 	ownership: f64,
 }
 
-// API signature should be
-// calculateOptimalAutostaking(principal: i128, collator: AccountId)
-// - principal passed directly through
-// - collator_stake: chain state parachainStaking.candidateInfo(AccountId).totalCounted
-//		- <CandidateInfo<T>>::get(AccountId).total_counted
-// - fee: TBD; provided by autocompounding
-// - duration: constant passed in; 90 to start
-// - daily_collator_awards: chain state for balances.totalIssuance * 0.025 / 24 (# of collators)
-//		- Currency::total_issuance();
 pub fn do_calculate_optimal_autostaking(
 	principal: i128,
 	collator_stake: i128,
