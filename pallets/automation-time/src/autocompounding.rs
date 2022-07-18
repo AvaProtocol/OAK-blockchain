@@ -82,6 +82,9 @@ mod tests {
 	const ANNUAL_REWARDS_PER_COLLATOR: i128 = 1_041_667 * DOLLAR;
 	const DAILY_COLLATOR_AWARDS: i128 = ANNUAL_REWARDS_PER_COLLATOR / 365;
 
+	// The specific tests below do not represent any specifc scenarios and are only an assortment
+	// selected to adjust enough of the inputs to completely validate the calculation.
+
 	#[test]
 	fn test_1() {
 		let principal = 50 * DOLLAR;
