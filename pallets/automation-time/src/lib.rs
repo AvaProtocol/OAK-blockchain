@@ -586,7 +586,7 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `execution_time`: The unix timestamp when the task should run for the first time
-		/// * `frequence`: Number of seconds to wait inbetween task executions
+		/// * `frequency`: Number of seconds to wait inbetween task executions
 		/// * `collator_id`: Account ID of the target collator
 		/// * `account_minimum`: The minimum amount of funds that should be left in the wallet
 		///
@@ -1118,6 +1118,7 @@ pub mod pallet {
 					});
 					return (
 						task,
+						// TODO: benchmark and return a smaller weight here to account for the early exit
 						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 					)
 				},
