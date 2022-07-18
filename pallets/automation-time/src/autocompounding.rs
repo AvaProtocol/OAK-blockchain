@@ -208,7 +208,6 @@ mod tests {
 		let collator_stake = 20_000_000_000_000_000;
 		let fee = 1 * DOLLAR;
 		let daily_collator_awards = (money_supply as f64 * 0.025) as i128 / 24 / 365;
-		println!("{}", daily_collator_awards);
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
