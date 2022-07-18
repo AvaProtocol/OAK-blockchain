@@ -225,10 +225,15 @@ pub struct MockDelegatorActions<T>(PhantomData<T>);
 impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance>
 	for MockDelegatorActions<T>
 {
-	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: Balance) -> DispatchResultWithPostInfo {
+	fn delegator_bond_more(
+		_: &T::AccountId,
+		_: &T::AccountId,
+		_: Balance,
+	) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
-	fn testing_setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
 }

@@ -289,7 +289,7 @@ benchmarks! {
 
 		T::NativeTokenExchange::deposit_creating(&delegator, (10_000_000_000_000_000 as u128).saturated_into());
 		T::NativeTokenExchange::deposit_creating(&collator, (100_000_000_000_000_000 as u128).saturated_into());
-		T::DelegatorActions::testing_prepare_delegator(&collator, &delegator)?;
+		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
    }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }

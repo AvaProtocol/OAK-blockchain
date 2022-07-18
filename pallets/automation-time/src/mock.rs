@@ -190,7 +190,8 @@ impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
 		C::reserve(delegator, delegation.saturated_into())?;
 		Ok(().into())
 	}
-	fn testing_setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
 }
