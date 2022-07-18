@@ -240,7 +240,7 @@ fn schedule_native_transfer_works() {
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let call: Vec<u8> = vec![2, 4, 5];
-		get_funds(Sibling::from(PARA_ID).into_account());
+		get_funds(Sibling::from(PARA_ID).into_account_truncating());
 		assert_ok!(AutomationTime::schedule_xcmp_task(
 			cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
 			vec![50],
@@ -259,7 +259,7 @@ fn schedule_xcmp_works() {
 				},
 				Some(task) => {
 					let expected_task = Task::<Test>::create_xcmp_task(
-						Sibling::from(PARA_ID).into_account(),
+						Sibling::from(PARA_ID).into_account_truncating(),
 						vec![50],
 						vec![SCHEDULED_TIME].try_into().unwrap(),
 						PARA_ID.try_into().unwrap(),
