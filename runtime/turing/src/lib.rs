@@ -1184,7 +1184,7 @@ impl_runtime_apis! {
 
 		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult{
 			let candidate_info = ParachainStaking::candidate_info(collator);
-			let money_supply = Balances::total_issuance();
+			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
 			let collator_stake = candidate_info.unwrap().total_counted as i128;
 			let fee = (1 * DOLLAR) as i128;
