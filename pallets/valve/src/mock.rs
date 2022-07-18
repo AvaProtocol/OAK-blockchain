@@ -220,12 +220,12 @@ where
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
-use frame_support::pallet_prelude::{DispatchResult, DispatchResultWithPostInfo};
+use frame_support::pallet_prelude::DispatchResultWithPostInfo;
 pub struct MockDelegatorActions<T>(PhantomData<T>);
 impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance>
 	for MockDelegatorActions<T>
 {
-	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: Balance) -> DispatchResult {
+	fn delegator_bond_more(_: &T::AccountId, _: &T::AccountId, _: Balance) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
 	fn testing_setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {

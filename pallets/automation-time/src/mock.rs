@@ -178,15 +178,17 @@ impl pallet_timestamp::Config for Test {
 
 pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
 impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
-	pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>> for MockDelegatorActions<T, C>
+	pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
+	for MockDelegatorActions<T, C>
 {
 	fn delegator_bond_more(
 		delegator: &T::AccountId,
 		_: &T::AccountId,
 		amount: BalanceOf<T>,
-	) -> DispatchResult {
+	) -> DispatchResultWithPostInfo {
 		let delegation: u128 = amount.saturated_into();
-		C::reserve(delegator, delegation.saturated_into())
+		C::reserve(delegator, delegation.saturated_into())?;
+		Ok(().into())
 	}
 	fn testing_setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())

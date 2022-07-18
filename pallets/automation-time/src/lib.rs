@@ -51,6 +51,7 @@ use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
+	dispatch::DispatchErrorWithPostInfo,
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
@@ -411,7 +412,7 @@ pub mod pallet {
 		AutoCompoundDelegatorStakeFailed {
 			task_id: T::Hash,
 			error_message: Vec<u8>,
-			error: DispatchError,
+			error: DispatchErrorWithPostInfo,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
@@ -1136,7 +1137,7 @@ pub mod pallet {
 				new_execution_times.iter().try_for_each(|t| task.execution_times.try_push(*t))
 			})
 			.map_err(|e| {
-				let err: DispatchError = e.into();
+				let err: DispatchErrorWithPostInfo = e.into();
 				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 					task_id,
 					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
@@ -1152,7 +1153,7 @@ pub mod pallet {
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
 			execution_fee: Result<BalanceOf<T>, DispatchError>,
-		) -> Result<BalanceOf<T>, DispatchError> {
+		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
 			let reserved_funds = account_minimum.saturating_add(execution_fee?);
 			T::NativeTokenExchange::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
