@@ -1154,6 +1154,7 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 			execution_fee: Result<BalanceOf<T>, DispatchError>,
 		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
+			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum.saturating_add(execution_fee?);
 			T::NativeTokenExchange::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
