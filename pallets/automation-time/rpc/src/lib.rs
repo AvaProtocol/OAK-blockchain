@@ -40,6 +40,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		at: Option<BlockHash>,
 	) -> RpcResult<Hash>;
 
+	/// Returns optimal autostaking period based on principal and a target collator.
 	#[method(name = "automationTime_calculateOptimalAutostaking")]
 	fn caclulate_optimal_autostaking(
 		&self,
