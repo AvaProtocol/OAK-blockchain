@@ -360,8 +360,6 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// ParaId provided does not match origin paraId.
 		ParaIdMismatch,
-		/// Account minimum not met
-		AccountMinimumBalanceNotMet,
 	}
 
 	#[pallet::event]
@@ -1158,7 +1156,7 @@ pub mod pallet {
 			let reserved_funds = account_minimum.saturating_add(execution_fee?);
 			T::NativeTokenExchange::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
-				.ok_or(Error::<T>::AccountMinimumBalanceNotMet.into())
+				.ok_or(Error::<T>::InsufficientBalance.into())
 				.and_then(|delegation| {
 					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
 						.and(Ok(delegation))
