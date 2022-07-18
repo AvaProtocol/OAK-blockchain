@@ -1158,9 +1158,26 @@ impl_runtime_apis! {
 		}
 
 		fn calculate_optimal_autostaking(principal: i128, collator: AccountId) -> AutostakingResult {
+			let candidate_info = ParachainStaking::candidate_info(collator);
+			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
+
+			let collator_stake = candidate_info.unwrap().total_counted as i128;
+			let fee = (1 * DOLLAR) as i128;
+			let duration = 90;
+			// 24 = number of collators
+			let daily_collator_rewards = (money_supply as f64 * 0.025) as i128 / 24 / 365;
+
+			let res = pallet_automation_time::do_calculate_optimal_autostaking(
+				principal,
+				collator_stake,
+				fee,
+				duration,
+				daily_collator_rewards,
+			);
+
 			AutostakingResult{
-				period: 25,
-				apy: 2.50,
+				period: res.0,
+				apy: res.1,
 			}
 		}
 	}
