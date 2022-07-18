@@ -91,9 +91,7 @@ xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
 
 # Moonbeam Dependencies
-## TODO: fix deps
-pallet-parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking", default-features = false }
-# pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
 
 # ORML Dependencies
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "e1caed6585f97110c2fd6f5fbcde9eea011457df" }

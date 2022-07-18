@@ -5828,6 +5828,7 @@ dependencies = [
 [[package]]
 name = "pallet-parachain-staking"
 version = "3.0.0"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.23#78f068abdd218e748f089f38eec7b1e1b3b18eb2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",

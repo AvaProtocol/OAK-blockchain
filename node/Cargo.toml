@@ -113,9 +113,7 @@ polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" } 
 
 # Moonbeam Dependencies
-# TODO: fix dep
-pallet-parachain-staking = { path = "/Users/nikhil/oak/moonbeam/pallets/parachain-staking" }
-# pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.23" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.23" }
 
 [package.metadata.deb]
 name = "oak-collator"
