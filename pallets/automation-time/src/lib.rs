@@ -607,6 +607,7 @@ pub mod pallet {
 			let provided_id: Vec<u8> =
 				Self::generate_auto_compound_delegated_stake_provided_id(&who, &collator_id);
 
+			// Validate frequency by ensuring that the next proposed execution is at a valid time
 			let next_execution =
 				execution_time.checked_add(frequency).ok_or(Error::<T>::TimeTooFarOut)?;
 			Self::is_valid_time(next_execution)?;
