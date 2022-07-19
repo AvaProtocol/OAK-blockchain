@@ -176,6 +176,26 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
+impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
+	pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
+	for MockDelegatorActions<T, C>
+{
+	fn delegator_bond_more(
+		delegator: &T::AccountId,
+		_: &T::AccountId,
+		amount: BalanceOf<T>,
+	) -> DispatchResultWithPostInfo {
+		let delegation: u128 = amount.saturated_into();
+		C::reserve(delegator, delegation.saturated_into())?;
+		Ok(().into())
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
+}
+
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
@@ -202,6 +222,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
+	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
+		0
+	}
 	fn cancel_scheduled_task_full() -> Weight {
 		0
 	}
@@ -218,6 +241,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		20_000
 	}
 	fn run_xcmp_task() -> Weight {
+		20_000
+	}
+	fn run_auto_compound_delegated_stake_task() -> Weight {
 		20_000
 	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
@@ -273,6 +299,7 @@ impl pallet_automation_time::Config for Test {
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
+	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 }
 
 // XCMP Mocks

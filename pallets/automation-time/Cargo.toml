@@ -38,6 +38,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 ## Substrate Pallet Dependencies
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
+## Moonbeam Dependencies
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
+
 [dev-dependencies]
 serde = { version = "1.0.137" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
@@ -50,7 +53,10 @@ xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-feature
 
 [features]
 default = ["std"]
-runtime-benchmarks = ["frame-benchmarking"]
+runtime-benchmarks = [
+	"frame-benchmarking",
+	"pallet-parachain-staking/runtime-benchmarks",
+]
 std = [
 	"codec/std",
 	"cumulus-pallet-xcm/std",
@@ -60,6 +66,7 @@ std = [
 	"frame-system/std",
 	"pallet-timestamp/std",
 	"pallet-xcm/std",
+	"pallet-parachain-staking/std",
 	"polkadot-parachain/std",
 	"scale-info/std",
 	"sp-runtime/std",

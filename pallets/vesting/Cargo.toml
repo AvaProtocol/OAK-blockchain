@@ -29,6 +29,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 ## Substrate Pallet Dependencies
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
+## Moonbeam dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
 
 [dev-dependencies]

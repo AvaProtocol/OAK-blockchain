@@ -964,6 +964,7 @@ impl pallet_automation_time::Config for Runtime {
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;

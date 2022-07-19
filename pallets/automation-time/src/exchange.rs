@@ -73,6 +73,9 @@ pub trait NativeTokenExchange<T: Config> {
 
 	/// Once the task has been scheduled we need to charge for the execution cost.
 	fn withdraw_fee(who: &T::AccountId, fee: Self::Balance) -> Result<(), DispatchError>;
+
+	/// How much free balance is in an account
+	fn free_balance(who: &T::AccountId) -> Self::Balance;
 }
 
 /// Implements the transaction payment for a pallet implementing the `Currency`
@@ -155,5 +158,9 @@ where
 			},
 			Err(_) => Err(DispatchError::Token(BelowMinimum)),
 		}
+	}
+
+	fn free_balance(who: &T::AccountId) -> Self::Balance {
+		C::free_balance(who)
 	}
 }
