@@ -1327,7 +1327,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 }
 
 #[test]
-fn auto_compound_delegated_stake_reschedules() {
+fn auto_compound_delegated_stake_reschedules_and_reruns() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
@@ -1346,7 +1346,6 @@ fn auto_compound_delegated_stake_reschedules() {
 			},
 		);
 
-		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(120_000);
@@ -1368,6 +1367,21 @@ fn auto_compound_delegated_stake_reschedules() {
 			.expect("Task should not have been removed from task map");
 		assert_eq!(task.get_executions_left(), 1);
 		assert_eq!(task.execution_times.to_vec(), vec![next_scheduled_time]);
+
+		Timestamp::set_timestamp(next_scheduled_time * 1_000);
+		get_funds(AccountId32::new(ALICE));
+		System::reset_events();
+		AutomationTime::trigger_tasks(100_000_000_000);
+
+		events()
+			.into_iter()
+			.find(|e| match e {
+				Event::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
+					..
+				}) => true,
+				_ => false,
+			})
+			.expect("AutoCompound success event should have been emitted");
 	})
 }
 
