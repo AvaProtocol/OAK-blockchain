@@ -22,6 +22,7 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
+use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -38,6 +39,14 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		provided_id: String,
 		at: Option<BlockHash>,
 	) -> RpcResult<Hash>;
+
+	/// Returns optimal autostaking period based on principal and a target collator.
+	#[method(name = "automationTime_calculateOptimalAutostaking")]
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -95,5 +104,25 @@ where
 				Some(format!("{:?}", e)),
 			)))
 		})
+	}
+
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
+		let mapped_err = |message| -> JsonRpseeError {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to calculate optimal autostaking",
+				Some(message),
+			)))
+		};
+		runtime_api_result
+			.map_err(|e| mapped_err(format!("{:?}", e)))
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
 	}
 }

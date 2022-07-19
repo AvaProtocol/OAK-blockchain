@@ -47,6 +47,9 @@ pub mod weights;
 mod exchange;
 pub use exchange::*;
 
+mod autocompounding;
+pub use autocompounding::*;
+
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
@@ -1388,7 +1391,7 @@ pub mod pallet {
 			provided_id
 		}
 
-		fn calculate_execution_fee(
+		pub fn calculate_execution_fee(
 			action: &Action<T>,
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
