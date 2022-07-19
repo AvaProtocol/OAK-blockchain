@@ -4943,7 +4943,6 @@ dependencies = [
  "jsonrpsee",
  "log",
  "neumann-runtime",
- "pallet-automation-time",
  "pallet-automation-time-rpc",
  "pallet-parachain-staking",
  "pallet-transaction-payment-rpc",
@@ -5287,7 +5286,6 @@ dependencies = [
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
- "sp-rpc",
  "sp-runtime",
 ]
 

@@ -25,7 +25,6 @@ pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationT
 use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_rpc::number::NumberOrHex;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::{fmt::Debug, sync::Arc};
 
@@ -47,7 +46,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 		action: u8,
 		executions: u32,
 		at: Option<BlockHash>,
-	) -> RpcResult<NumberOrHex>;
+	) -> RpcResult<u64>;
 
 	/// Returns optimal autostaking period based on principal and a target collator.
 	#[method(name = "automationTime_calculateOptimalAutostaking")]
@@ -97,7 +96,7 @@ impl<C, Block, AccountId, Hash, Balance>
 	for AutomationTime<C, Block>
 where
 	Block: BlockT,
-	Balance: Codec + Copy + TryInto<NumberOrHex> + Debug,
+	Balance: Codec + Copy + TryInto<u64> + Debug,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	AccountId: Codec,
@@ -128,7 +127,7 @@ where
 		action: u8,
 		executions: u32,
 		at: Option<<Block as BlockT>::Hash>,
-	) -> RpcResult<NumberOrHex> {
+	) -> RpcResult<u64> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(||
 			// If the block hash is not supplied assume the best block.
@@ -146,7 +145,7 @@ where
 			value.try_into().map_err(|_| {
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
-					"RPC value doesn't fit in NumberOrHex representation",
+					"RPC value doesn't fit in u64 representation",
 					Some(format!("RPC value cannot be translated into NumberOrHex representation")),
 				)))
 			})
