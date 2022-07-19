@@ -24,7 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
-use pallet_automation_time_rpc_runtime_api::AutostakingResult;
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1196,9 +1196,27 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
+		}
+		/**
+		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
+		 * This function requires the action type and the number of executions in order to generate an estimate.
+		 * However, the AutomationTime::calculate_execution_fee requires an Action enum from the automation time pallet,
+		 * which requires more information than is necessary for this calculation.
+		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
+		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
+		 *
+		 */
+		fn get_time_automation_fees(
+			action: AutomationAction,
+			executions: u32,
+		) -> Balance {
+			match AutomationTime::calculate_execution_fee(&(action.into()), executions) {
+				Ok(balance) => balance,
+				Err(_e) => 0,
+			}
 		}
 
 		fn calculate_optimal_autostaking(

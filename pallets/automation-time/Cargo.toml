@@ -41,6 +41,9 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-fe
 ## Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
 
+## Local
+pallet-automation-time-rpc-runtime-api = { path = "./rpc/runtime-api", default-features = false }
+
 [dev-dependencies]
 serde = { version = "1.0.137" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
@@ -64,6 +67,7 @@ std = [
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
+	"pallet-automation-time-rpc-runtime-api/std",
 	"pallet-timestamp/std",
 	"pallet-xcm/std",
 	"pallet-parachain-staking/std",

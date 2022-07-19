@@ -66,6 +66,7 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
+use pallet_automation_time_rpc_runtime_api::AutomationAction;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
@@ -78,9 +79,8 @@ use sp_runtime::{
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
-use xcm::latest::prelude::*;
-
 pub use weights::WeightInfo;
+use xcm::latest::prelude::*;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
@@ -118,6 +118,34 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
 		},
+	}
+
+	impl<T: Config> From<AutomationAction> for Action<T> {
+		fn from(a: AutomationAction) -> Self {
+			let default_account =
+				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+					.expect("always valid");
+			match a {
+				AutomationAction::Notify => Action::Notify { message: "default".into() },
+				AutomationAction::NativeTransfer => Action::NativeTransfer {
+					sender: default_account.clone(),
+					recipient: default_account,
+					amount: 0u32.into(),
+				},
+				AutomationAction::XCMP => Action::XCMP {
+					para_id: ParaId::from(2114 as u32),
+					call: vec![0],
+					weight_at_most: 0,
+				},
+				AutomationAction::AutoCompoundDelegatedStake =>
+					Action::AutoCompoundDelegatedStake {
+						delegator: default_account.clone(),
+						collator: default_account,
+						account_minimum: 0u32.into(),
+						frequency: 0,
+					},
+			}
+		}
 	}
 
 	/// The struct that stores data for a missed task.

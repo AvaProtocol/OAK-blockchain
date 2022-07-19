@@ -22,15 +22,15 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
-use pallet_automation_time_rpc_runtime_api::AutostakingResult;
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc(client, server)]
-pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
+pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 	/// Generates the task_id given the account_id and provided_id.
 	#[method(name = "automationTime_generateTaskId")]
 	fn generate_task_id(
@@ -39,6 +39,14 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		provided_id: String,
 		at: Option<BlockHash>,
 	) -> RpcResult<Hash>;
+
+	#[method(name = "automationTime_getTimeAutomationFees")]
+	fn get_time_automation_fees(
+		&self,
+		action: AutomationAction,
+		executions: u32,
+		at: Option<BlockHash>,
+	) -> RpcResult<u64>;
 
 	/// Returns optimal autostaking period based on principal and a target collator.
 	#[method(name = "automationTime_calculateOptimalAutostaking")]
@@ -83,12 +91,14 @@ impl From<Error> for i32 {
 }
 
 #[async_trait]
-impl<C, Block, AccountId, Hash> AutomationTimeApiServer<<Block as BlockT>::Hash, AccountId, Hash>
+impl<C, Block, AccountId, Hash, Balance>
+	AutomationTimeApiServer<<Block as BlockT>::Hash, AccountId, Hash, Balance>
 	for AutomationTime<C, Block>
 where
 	Block: BlockT,
+	Balance: Codec + Copy + TryInto<u64> + Debug,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash>,
+	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	AccountId: Codec,
 	Hash: Codec,
 {
@@ -108,6 +118,33 @@ where
 				Error::RuntimeError.into(),
 				"Unable to generate task_id",
 				Some(format!("{:?}", e)),
+			)))
+		})
+	}
+
+	fn get_time_automation_fees(
+		&self,
+		action: AutomationAction,
+		executions: u32,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<u64> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(at.unwrap_or_else(||
+			// If the block hash is not supplied assume the best block.
+			self.client.info().best_hash));
+		let runtime_api_result =
+			api.get_time_automation_fees(&at, action, executions).map_err(|e| {
+				CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to get time automation fees",
+					Some(e.to_string()),
+				))
+			})?;
+		runtime_api_result.try_into().map_err(|_| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"RPC value doesn't fit in u64 representation",
+				Some(format!("RPC value cannot be translated into u64 representation")),
 			)))
 		})
 	}
