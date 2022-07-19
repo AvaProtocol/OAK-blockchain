@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RPC to get execution fee for automation time
 - New auto re-staking automation time feature
 - RPC to get ideal frequency for re-staking
+- Added proxy pallet
+- Added multisig pallet
 
 ## [283] - 2022-06-23
 Note: Runtime-only release
