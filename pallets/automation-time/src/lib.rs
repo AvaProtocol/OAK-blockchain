@@ -47,6 +47,9 @@ pub mod weights;
 mod exchange;
 pub use exchange::*;
 
+mod autocompounding;
+pub use autocompounding::*;
+
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;

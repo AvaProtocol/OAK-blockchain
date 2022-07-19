@@ -22,6 +22,7 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
+use pallet_automation_time_rpc_runtime_api::AutostakingResult;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_rpc::number::NumberOrHex;
@@ -47,6 +48,20 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 		executions: u32,
 		at: Option<BlockHash>,
 	) -> RpcResult<NumberOrHex>;
+
+	/// Returns optimal autostaking period based on principal and a target collator.
+	#[method(name = "automationTime_calculateOptimalAutostaking")]
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult>;
+
+	#[method(name = "automationTime_getAutoCompoundDelegatedStakeTaskIds")]
+	fn get_auto_compound_delegated_stake_task_ids(
+		&self,
+		account: AccountId,
+	) -> RpcResult<Vec<Hash>>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -137,5 +152,42 @@ where
 			})
 		};
 		Ok(try_into_rpc_balance(runtime_api_result)?)
+	}
+
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
+		let mapped_err = |message| -> JsonRpseeError {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to calculate optimal autostaking",
+				Some(message),
+			)))
+		};
+		runtime_api_result
+			.map_err(|e| mapped_err(format!("{:?}", e)))
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
+	}
+
+	fn get_auto_compound_delegated_stake_task_ids(
+		&self,
+		account: AccountId,
+	) -> RpcResult<Vec<Hash>> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+
+		let runtime_api_result = api.get_auto_compound_delegated_stake_task_ids(&at, account);
+		runtime_api_result.map_err(|e| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to get AutoCompoundDelegatedStakeTask ids",
+				Some(format!("{:?}", e)),
+			)))
+		})
 	}
 }
