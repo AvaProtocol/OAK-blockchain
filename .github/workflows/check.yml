@@ -7,6 +7,7 @@ on:
     branches:
     - master
   pull_request:
+    types: [opened, reopened, synchronize, closed]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -20,6 +21,7 @@ jobs:
   linting:
     name: "Check rustfmt"
     runs-on: ubuntu-latest
+    if: github.event.action != 'close'
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -30,6 +32,7 @@ jobs:
   build:
     name: "Build release"
     runs-on: self-hosted
+    if: github.event.action != 'close'
     steps:
     - name: Checkout
       uses: actions/checkout@v2
@@ -41,3 +44,26 @@ jobs:
     - name: Test
       run: |
         cargo test --release --all --features all-nodes
+  dependencies-pr-status:
+    name: "Dependencies PR status"
+    runs-on: ubuntu-latest
+    if: (contains(github.event.pull_request.title, 'dependenc') || contains(github.event.pull_request.title, 'Dependenc')) && ( github.event.action == 'opened' || github.event.action == 'reopened' || github.event.pull_request.merged == true)
+    steps:
+      - name: Report PR merged to slack
+        if: ${{ github.event.pull_request.merged == true }}
+        uses: ravsamhq/notify-slack-action@v1
+        with:
+          status: ${{ job.status }}
+          notification_title: 'Dependencies update PR merged'
+          message_format: '${{ github.event.pull_request.title }} ${{ github.event.pull_request.html_url }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Report PR opened to slack
+        if: ${{ github.event.action == 'opened' || github.event.action == 'reopened' }}
+        uses: ravsamhq/notify-slack-action@v1
+        with:
+          status: ${{ job.status }}
+          notification_title: 'Dependencies update PR ${{ github.event.action }}'
+          message_format: '${{ github.event.pull_request.title }} ${{ github.event.pull_request.html_url }}'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
