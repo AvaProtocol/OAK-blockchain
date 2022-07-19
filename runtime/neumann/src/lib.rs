@@ -1191,6 +1191,21 @@ impl_runtime_apis! {
 
 			Ok(AutostakingResult{period: res.0, apy: res.1})
 		}
+
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash> {
+			ParachainStaking::delegator_state(account_id.clone())
+				.map_or(vec![], |s| s.delegations.0).into_iter()
+				.map(|d| d.owner)
+				.map(|collator_id| {
+					AutomationTime::generate_auto_compound_delegated_stake_provided_id(&account_id, &collator_id)
+				})
+				.map(|provided_id| {
+					AutomationTime::generate_task_id(account_id.clone(), provided_id)
+				})
+				.filter(|task_id| {
+					AutomationTime::get_task(task_id).is_some()
+				}).collect()
+		}
 	}
 
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {

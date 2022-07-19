@@ -47,6 +47,12 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash> {
 		principal: i128,
 		collator: AccountId,
 	) -> RpcResult<AutostakingResult>;
+
+	#[method(name = "automationTime_getAutoCompoundDelegatedStakeTaskIds")]
+	fn get_auto_compound_delegated_stake_task_ids(
+		&self,
+		account: AccountId,
+	) -> RpcResult<Vec<Hash>>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -124,5 +130,22 @@ where
 		runtime_api_result
 			.map_err(|e| mapped_err(format!("{:?}", e)))
 			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
+	}
+
+	fn get_auto_compound_delegated_stake_task_ids(
+		&self,
+		account: AccountId,
+	) -> RpcResult<Vec<Hash>> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+
+		let runtime_api_result = api.get_auto_compound_delegated_stake_task_ids(&at, account);
+		runtime_api_result.map_err(|e| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to get AutoCompoundDelegatedStakeTask ids",
+				Some(format!("{:?}", e)),
+			)))
+		})
 	}
 }
