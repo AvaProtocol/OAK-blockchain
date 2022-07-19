@@ -1165,12 +1165,16 @@ impl_runtime_apis! {
 			let candidate_info = ParachainStaking::candidate_info(collator);
 			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
-			let collator_stake = match candidate_info {
-				Some(x) => Ok(x.total_counted as i128),
-				None => Err("collator does not exist"),
-			}?;
+			let collator_stake = candidate_info.ok_or("collator dne")?.total_counted as i128;
+			let fake_action = pallet_automation_time::Action::AutoCompoundDelegatedStake {
+				delegator: sp_runtime::AccountId32::new([1u8; 32]),
+				collator: sp_runtime::AccountId32::new([2u8; 32]),
+				account_minimum: 1_000_000_000,
+				frequency: 60 * 60 * 24 * 90,
+			};
+			let fee = AutomationTime::calculate_execution_fee(&fake_action, 1)
+				.map_err(|_| "could not calculate fee")? as i128;
 
-			let fee = (1 * DOLLAR) as i128;
 			let duration = 90;
 			// 24 = number of collators
 			let daily_collator_rewards = (money_supply as f64 * 0.025) as i128 / 24 / 365;

@@ -1391,7 +1391,7 @@ pub mod pallet {
 			provided_id
 		}
 
-		fn calculate_execution_fee(
+		pub fn calculate_execution_fee(
 			action: &Action<T>,
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
