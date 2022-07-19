@@ -44,8 +44,8 @@ use sp_version::RuntimeVersion;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, InstanceFilter, OnUnbalanced,
-		PrivilegeCmp,
+		ConstU128, ConstU16, ConstU32, Contains, EnsureOneOf, Imbalance, InstanceFilter,
+		OnUnbalanced, PrivilegeCmp,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -286,6 +286,23 @@ impl frame_system::Config for Runtime {
 	/// The action to take on a Runtime Upgrade
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = ConstU32<16>;
+}
+
+parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = ConstU16<100>;
+	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -989,6 +1006,7 @@ impl pallet_automation_time::Config for Runtime {
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;
@@ -1068,6 +1086,7 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 56,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 57,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 58,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
@@ -1223,6 +1242,18 @@ impl_runtime_apis! {
 						para_id: cumulus_primitives_core::ParaId::from(2114),
 						call: vec![0, 1],
 						weight_at_most: 1_000_000_000,
+					};
+					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
+						Ok(balance) => balance,
+						Err(_e) => 0,
+					}
+				},
+				3 => {
+					let action_enum = pallet_automation_time::Action::AutoCompoundDelegatedStake {
+						delegator: sp_runtime::AccountId32::new([1u8; 32]),
+						collator: sp_runtime::AccountId32::new([2u8; 32]),
+						account_minimum: 1_000_000,
+						frequency: 3600,
 					};
 					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
 						Ok(balance) => balance,

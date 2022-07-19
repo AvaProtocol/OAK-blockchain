@@ -964,6 +964,7 @@ impl pallet_automation_time::Config for Runtime {
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;
@@ -1198,6 +1199,18 @@ impl_runtime_apis! {
 						para_id: cumulus_primitives_core::ParaId::from(2114),
 						call: vec![0, 1],
 						weight_at_most: 1_000_000_000,
+					};
+					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
+						Ok(balance) => balance,
+						Err(_e) => 0,
+					}
+				},
+				3 => {
+					let action_enum = pallet_automation_time::Action::AutoCompoundDelegatedStake {
+						delegator: sp_runtime::AccountId32::new([1u8; 32]),
+						collator: sp_runtime::AccountId32::new([2u8; 32]),
+						account_minimum: 1_000_000,
+						frequency: 3600,
 					};
 					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
 						Ok(balance) => balance,

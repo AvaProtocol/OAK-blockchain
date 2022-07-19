@@ -162,6 +162,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
 		0
 	}
+	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
+		0
+	}
 	fn cancel_scheduled_task_full() -> Weight {
 		0
 	}
@@ -178,6 +181,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
 		0
 	}
 	fn run_xcmp_task() -> Weight {
+		0
+	}
+	fn run_auto_compound_delegated_stake_task() -> Weight {
 		0
 	}
 	fn run_missed_tasks_many_found(_v: u32) -> Weight {
@@ -214,6 +220,24 @@ where
 	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
 }
 
+use frame_support::pallet_prelude::DispatchResultWithPostInfo;
+pub struct MockDelegatorActions<T>(PhantomData<T>);
+impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance>
+	for MockDelegatorActions<T>
+{
+	fn delegator_bond_more(
+		_: &T::AccountId,
+		_: &T::AccountId,
+		_: Balance,
+	) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
+		Ok(().into())
+	}
+}
+
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Any;
 }
@@ -232,6 +256,7 @@ impl pallet_automation_time::Config for Test {
 		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = DoNothingRouter;
+	type DelegatorActions = MockDelegatorActions<Test>;
 }
 
 /// During maintenance mode we will not allow any calls.
