@@ -22,7 +22,7 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
-use pallet_automation_time_rpc_runtime_api::AutostakingResult;
+use pallet_automation_time_rpc_runtime_api::{AutostakingResult, AutomationAction};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -43,7 +43,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 	#[method(name = "automationTime_getTimeAutomationFees")]
 	fn get_time_automation_fees(
 		&self,
-		action: u8,
+		action: AutomationAction,
 		executions: u32,
 		at: Option<BlockHash>,
 	) -> RpcResult<u64>;
@@ -124,7 +124,7 @@ where
 
 	fn get_time_automation_fees(
 		&self,
-		action: u8,
+		action: AutomationAction,
 		executions: u32,
 		at: Option<<Block as BlockT>::Hash>,
 	) -> RpcResult<u64> {

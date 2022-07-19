@@ -24,7 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
-use pallet_automation_time_rpc_runtime_api::AutostakingResult;
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1208,62 +1208,14 @@ impl_runtime_apis! {
 		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
 		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
 		 *
-		 * Action enums:
-		 * - 0: Notify
-		 * - 1: NativeTransfer
-		 * - 2: XCMP
 		 */
 		fn get_time_automation_fees(
-			action: u8,
+			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
-			match action {
-				0 => {
-					let action_enum = pallet_automation_time::Action::Notify {
-						message: "get_fees".into()
-					};
-					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
-						Ok(balance) => balance,
-						Err(_e) => 0,
-					}
-				},
-				1 => {
-					let action_enum = pallet_automation_time::Action::NativeTransfer {
-						sender: sp_runtime::AccountId32::new([1u8; 32]),
-						recipient: sp_runtime::AccountId32::new([2u8; 32]),
-						amount: 1_000_000,
-					};
-					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
-						Ok(balance) => balance,
-						Err(_e) => 0,
-					}
-				},
-				2 => {
-					let action_enum = pallet_automation_time::Action::XCMP {
-						para_id: cumulus_primitives_core::ParaId::from(2114),
-						call: vec![0, 1],
-						weight_at_most: 1_000_000_000,
-					};
-					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
-						Ok(balance) => balance,
-						Err(_e) => 0,
-					}
-				},
-				3 => {
-					let action_enum = pallet_automation_time::Action::AutoCompoundDelegatedStake {
-						delegator: sp_runtime::AccountId32::new([1u8; 32]),
-						collator: sp_runtime::AccountId32::new([2u8; 32]),
-						account_minimum: 1_000_000,
-						frequency: 3600,
-					};
-					match AutomationTime::calculate_execution_fee(&action_enum, executions) {
-						Ok(balance) => balance,
-						Err(_e) => 0,
-					}
-				},
-				_ => {
-					0
-				}
+			match AutomationTime::calculate_execution_fee(&(action.into()), executions) {
+				Ok(balance) => balance,
+				Err(_e) => 0,
 			}
 		}
 

@@ -79,7 +79,7 @@ use sp_runtime::{
 };
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
-
+use pallet_automation_time_rpc_runtime_api::AutomationAction;
 pub use weights::WeightInfo;
 
 // NOTE: this is the current storage version for the code.
@@ -118,6 +118,42 @@ pub mod pallet {
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
 		},
+	}
+
+	impl<T: Config> From<AutomationAction> for Action<T> {
+		fn from(a: AutomationAction) -> Self {
+			let default_account = T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+				.expect("always valid");
+			match a {
+				AutomationAction::Notify => {
+					Action::Notify {
+						message: "default".into()
+					}
+				},
+				AutomationAction::NativeTransfer => {
+					Action::NativeTransfer {
+						sender: default_account.clone(),
+						recipient: default_account,
+						amount: 0u32.into(),
+					}
+				},
+				AutomationAction::XCMP => {
+					Action::XCMP {
+						para_id: ParaId::from(2114 as u32),
+						call: vec![0],
+						weight_at_most: 0,
+					}
+				},
+				AutomationAction::AutoCompoundDelegatedStake => {
+					Action::AutoCompoundDelegatedStake {
+						delegator: default_account.clone(),
+						collator: default_account,
+						account_minimum: 0u32.into(),
+						frequency: 0,
+					}
+				},
+			}
+		}
 	}
 
 	/// The struct that stores data for a missed task.

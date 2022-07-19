@@ -23,7 +23,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use pallet_automation_time_rpc_runtime_api::AutostakingResult;
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1165,17 +1165,13 @@ impl_runtime_apis! {
 		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
 		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
 		 *
-		 * Action enums:
-		 * - 0: Notify
-		 * - 1: NativeTransfer
-		 * - 2: XCMP
 		 */
-		fn get_time_automation_fees(
-			action: u8,
+		 fn get_time_automation_fees(
+			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
 			match action {
-				0 => {
+				AutomationAction::Notify => {
 					let action_enum = pallet_automation_time::Action::Notify {
 						message: "get_fees".into()
 					};
@@ -1184,7 +1180,7 @@ impl_runtime_apis! {
 						Err(_e) => 0,
 					}
 				},
-				1 => {
+				AutomationAction::NativeTransfer => {
 					let action_enum = pallet_automation_time::Action::NativeTransfer {
 						sender: sp_runtime::AccountId32::new([1u8; 32]),
 						recipient: sp_runtime::AccountId32::new([2u8; 32]),
@@ -1195,7 +1191,7 @@ impl_runtime_apis! {
 						Err(_e) => 0,
 					}
 				},
-				2 => {
+				AutomationAction::XCMP => {
 					let action_enum = pallet_automation_time::Action::XCMP {
 						para_id: cumulus_primitives_core::ParaId::from(2114),
 						call: vec![0, 1],
@@ -1206,7 +1202,7 @@ impl_runtime_apis! {
 						Err(_e) => 0,
 					}
 				},
-				3 => {
+				AutomationAction::AutoCompoundDelegatedStake => {
 					let action_enum = pallet_automation_time::Action::AutoCompoundDelegatedStake {
 						delegator: sp_runtime::AccountId32::new([1u8; 32]),
 						collator: sp_runtime::AccountId32::new([2u8; 32]),
@@ -1218,9 +1214,6 @@ impl_runtime_apis! {
 						Err(_e) => 0,
 					}
 				},
-				_ => {
-					0
-				}
 			}
 		}
 

@@ -5259,6 +5259,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
  "pallet-parachain-staking",
  "pallet-timestamp",

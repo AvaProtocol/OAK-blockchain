@@ -32,6 +32,15 @@ pub struct AutostakingResult {
 	pub apy: f64,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum AutomationAction {
+	Notify,
+	NativeTransfer,
+	XCMP,
+	AutoCompoundDelegatedStake,
+}
+
 sp_api::decl_runtime_apis! {
 	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
 		AccountId: Codec,
@@ -39,7 +48,7 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
-		fn get_time_automation_fees(action: u8, executions: u32) -> Balance;
+		fn get_time_automation_fees(action: AutomationAction, executions: u32) -> Balance;
 		fn calculate_optimal_autostaking(
 			principal: i128,
 			collator: AccountId
