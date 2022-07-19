@@ -606,12 +606,15 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let provided_id: Vec<u8> =
 				Self::generate_auto_compound_delegated_stake_provided_id(&who, &collator_id);
-			if frequency % 3600 != 0 {
-				Err(Error::<T>::InvalidTime)?
+
+			// Validate frequency by ensuring that the next proposed execution is at a valid time
+			let next_execution =
+				execution_time.checked_add(frequency).ok_or(Error::<T>::TimeTooFarOut)?;
+			Self::is_valid_time(next_execution)?;
+			if next_execution == execution_time {
+				Err(Error::<T>::InvalidTime)?;
 			}
-			if frequency > T::MaxScheduleSeconds::get() {
-				Err(Error::<T>::TimeTooFarOut)?
-			}
+
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,

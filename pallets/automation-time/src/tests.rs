@@ -351,6 +351,16 @@ fn schedule_auto_compound_with_bad_frequency() {
 			),
 			Error::<Test>::InvalidTime,
 		);
+		assert_noop!(
+			AutomationTime::schedule_auto_compound_delegated_stake_task(
+				Origin::signed(AccountId32::new(ALICE)),
+				SCHEDULED_TIME,
+				0,
+				AccountId32::new(BOB),
+				100_000,
+			),
+			Error::<Test>::InvalidTime,
+		);
 	})
 }
 
