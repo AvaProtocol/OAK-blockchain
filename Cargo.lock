@@ -11513,6 +11513,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-identity",
  "pallet-membership",
+ "pallet-multisig",
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-proxy",
