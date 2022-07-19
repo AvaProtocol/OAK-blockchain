@@ -41,8 +41,8 @@ use crate::mock::{
 	AccountId, AdvertisedXcmVersion, Balance, Barrier, BlockHashCount, DealWithExecutionFees,
 	DummyAssetTransactor, DummyWeightTrader, ExecutionWeightFee, ExistentialDeposit, InvertNothing,
 	MaxBlockWeight, MaxExecutionTimes, MaxInstructions, MaxLocks, MaxReserves, MaxTasksPerSlot,
-	MaxWeightPercentage, MinimumPeriod, MockWeight, RelayNetwork, SS58Prefix, SecondsPerBlock,
-	TestSendXcm, UnitWeightCost, UpdateQueueRatio, ALICE,
+	MaxWeightPercentage, MinimumPeriod, MockDelegatorActions, MockWeight, RelayNetwork, SS58Prefix,
+	SecondsPerBlock, TestSendXcm, UnitWeightCost, UpdateQueueRatio, ALICE,
 };
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
@@ -144,6 +144,7 @@ impl pallet_automation_time::Config for Test {
 	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
+	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 }
 
 pub struct XcmConfig;
