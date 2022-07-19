@@ -22,7 +22,7 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
-use pallet_automation_time_rpc_runtime_api::{AutostakingResult, AutomationAction};
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT};
@@ -140,17 +140,13 @@ where
 					Some(e.to_string()),
 				))
 			})?;
-
-		let try_into_rpc_balance = |value: Balance| {
-			value.try_into().map_err(|_| {
-				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-					Error::RuntimeError.into(),
-					"RPC value doesn't fit in u64 representation",
-					Some(format!("RPC value cannot be translated into NumberOrHex representation")),
-				)))
-			})
-		};
-		Ok(try_into_rpc_balance(runtime_api_result)?)
+		runtime_api_result.try_into().map_err(|_| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"RPC value doesn't fit in u64 representation",
+				Some(format!("RPC value cannot be translated into u64 representation")),
+			)))
+		})
 	}
 
 	fn caclulate_optimal_autostaking(
