@@ -1165,7 +1165,8 @@ impl_runtime_apis! {
 			let candidate_info = ParachainStaking::candidate_info(collator);
 			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
-			let collator_stake = candidate_info.ok_or("collator dne")?.total_counted as i128;
+			let collator_stake =
+				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
 			let fake_action = pallet_automation_time::Action::AutoCompoundDelegatedStake {
 				delegator: sp_runtime::AccountId32::new([1u8; 32]),
 				collator: sp_runtime::AccountId32::new([2u8; 32]),
