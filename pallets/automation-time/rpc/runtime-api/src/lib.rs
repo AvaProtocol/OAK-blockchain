@@ -42,5 +42,6 @@ sp_api::decl_runtime_apis! {
 			principal: i128,
 			collator: AccountId
 		) -> Result<AutostakingResult, Vec<u8>>;
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash>;
 	}
 }
