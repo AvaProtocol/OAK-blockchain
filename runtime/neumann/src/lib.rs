@@ -23,6 +23,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -146,10 +147,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 283,
+	spec_version: 284,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 9,
+	transaction_version: 10,
 	state_version: 0,
 };
 
@@ -964,6 +965,7 @@ impl pallet_automation_time::Config for Runtime {
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;
@@ -1151,9 +1153,76 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
+		}
+		/**
+		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
+		 * This function requires the action type and the number of executions in order to generate an estimate.
+		 * However, the AutomationTime::calculate_execution_fee requires an Action enum from the automation time pallet,
+		 * which requires more information than is necessary for this calculation.
+		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
+		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
+		 *
+		 */
+		 fn get_time_automation_fees(
+			action: AutomationAction,
+			executions: u32,
+		) -> Balance {
+			match AutomationTime::calculate_execution_fee(&(action.into()), executions) {
+				Ok(balance) => balance,
+				Err(_e) => 0,
+			}
+		}
+
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>> {
+			let candidate_info = ParachainStaking::candidate_info(collator);
+			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
+
+			let collator_stake =
+				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
+			let fake_action = pallet_automation_time::Action::AutoCompoundDelegatedStake {
+				delegator: sp_runtime::AccountId32::new([1u8; 32]),
+				collator: sp_runtime::AccountId32::new([2u8; 32]),
+				account_minimum: 1_000_000_000,
+				frequency: 60 * 60 * 24 * 90,
+			};
+			let fee = AutomationTime::calculate_execution_fee(&fake_action, 1)
+				.map_err(|_| "could not calculate fee")? as i128;
+
+			let duration = 90;
+			let total_collators = ParachainStaking::total_selected();
+			let daily_collator_rewards =
+				(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
+
+			let res = pallet_automation_time::do_calculate_optimal_autostaking(
+				principal,
+				collator_stake,
+				fee,
+				duration,
+				daily_collator_rewards,
+			);
+
+			Ok(AutostakingResult{period: res.0, apy: res.1})
+		}
+
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash> {
+			ParachainStaking::delegator_state(account_id.clone())
+				.map_or(vec![], |s| s.delegations.0).into_iter()
+				.map(|d| d.owner)
+				.map(|collator_id| {
+					AutomationTime::generate_auto_compound_delegated_stake_provided_id(&account_id, &collator_id)
+				})
+				.map(|provided_id| {
+					AutomationTime::generate_task_id(account_id.clone(), provided_id)
+				})
+				.filter(|task_id| {
+					AutomationTime::get_task(task_id).is_some()
+				}).collect()
 		}
 	}
 

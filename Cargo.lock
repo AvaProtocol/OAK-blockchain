@@ -4920,7 +4920,7 @@ dependencies = [
 
 [[package]]
 name = "oak-node"
-version = "1.4.0"
+version = "1.5.0"
 dependencies = [
  "async-trait",
  "clap",
@@ -5259,7 +5259,9 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
+ "pallet-parachain-staking",
  "pallet-timestamp",
  "pallet-xcm",
  "parity-scale-codec",
@@ -5293,6 +5295,7 @@ name = "pallet-automation-time-rpc-runtime-api"
 version = "0.1.0"
 dependencies = [
  "parity-scale-codec",
+ "serde",
  "sp-api",
  "sp-std",
 ]
@@ -5827,7 +5830,7 @@ dependencies = [
 [[package]]
 name = "pallet-parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.23#0bff80d83b8644b95ba8148547fe4204c80087d7"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.23#78f068abdd218e748f089f38eec7b1e1b3b18eb2"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -6137,6 +6140,7 @@ dependencies = [
  "frame-system",
  "pallet-automation-time",
  "pallet-balances",
+ "pallet-parachain-staking",
  "pallet-timestamp",
  "pallet-xcm",
  "parity-scale-codec",
@@ -6253,9 +6257,9 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec"
-version = "3.1.2"
+version = "3.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8b44461635bbb1a0300f100a841e571e7d919c81c73075ef5d152ffdb521066"
+checksum = "9182e4a71cae089267ab03e67c99368db7cd877baf50f931e5d6d4b71e195ac0"
 dependencies = [
  "arrayvec 0.7.2",
  "bitvec",
@@ -6267,9 +6271,9 @@ dependencies = [
 
 [[package]]
 name = "parity-scale-codec-derive"
-version = "3.1.2"
+version = "3.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c45ed1f39709f5a89338fab50e59816b2e8815f5bb58276e7ddf9afd495f73f8"
+checksum = "9299338969a3d2f491d65f140b00ddec470858402f888af98e8642fb5e8965cd"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -11510,6 +11514,7 @@ dependencies = [
  "pallet-democracy",
  "pallet-identity",
  "pallet-membership",
+ "pallet-multisig",
  "pallet-parachain-staking",
  "pallet-preimage",
  "pallet-proxy",
