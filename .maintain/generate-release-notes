@@ -23,9 +23,25 @@ spec=$(
   echo $runtime \
     | jq --raw-output .runtimes.compressed.subwasm.core_version.specName
 )
+impl_name=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.implName
+)
 version=$(
   echo $runtime \
     | jq --raw-output .runtimes.compressed.subwasm.core_version.specVersion
+)
+impl_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.implVersion
+)
+authoring_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.authoringVersion
+)
+transaction_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.transactionVersion
 )
 size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
 proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
@@ -35,7 +51,8 @@ blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
 cat <<-EOF
 \`\`\`
 Rust        : $rust
-Version     : $spec-$version
+(turing-1.tx9.au1)
+Version     : $spec-$version ($impl_name-$impl_version.tx$transaction_version.au$authoring_version)
 Size        : $size
 Proposal    : $proposal
 IPFS        : $ipfs
