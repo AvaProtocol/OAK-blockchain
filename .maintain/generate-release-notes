@@ -19,8 +19,13 @@ echo
 
 runtime=$(cat turing-srtool-digest.json)
 rust=$(echo $runtime | jq --raw-output .rustc)
+spec=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.specName
+)
 version=$(
-  echo $runtime| jq --raw-output .runtimes.compressed.subwasm.core_version
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.specVersion
 )
 size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
 proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
@@ -30,7 +35,7 @@ blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
 cat <<-EOF
 \`\`\`
 Rust        : $rust
-Version     : $version
+Version     : $spec-$version
 Size        : $size
 Proposal    : $proposal
 IPFS        : $ipfs
