@@ -33,12 +33,8 @@ pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod tests_calculation;
 
 mod benchmarking;
 pub mod migrations;
