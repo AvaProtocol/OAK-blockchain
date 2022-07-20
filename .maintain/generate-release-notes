@@ -51,7 +51,6 @@ blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
 cat <<-EOF
 \`\`\`
 Rust        : $rust
-(turing-1.tx9.au1)
 Version     : $spec-$version ($impl_name-$impl_version.tx$transaction_version.au$authoring_version)
 Size        : $size
 Proposal    : $proposal
