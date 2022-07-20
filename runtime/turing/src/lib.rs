@@ -1194,10 +1194,7 @@ impl_runtime_apis! {
 			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
-			match AutomationTime::calculate_execution_fee(&(action.into()), executions) {
-				Ok(balance) => balance,
-				Err(_e) => 0,
-			}
+			AutomationTime::calculate_execution_fee(&(action.into()), executions)
 		}
 
 		fn calculate_optimal_autostaking(
@@ -1209,14 +1206,7 @@ impl_runtime_apis! {
 
 			let collator_stake =
 				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-			let fake_action = pallet_automation_time::Action::AutoCompoundDelegatedStake {
-				delegator: sp_runtime::AccountId32::new([1u8; 32]),
-				collator: sp_runtime::AccountId32::new([2u8; 32]),
-				account_minimum: 1_000_000_000,
-				frequency: 60 * 60 * 24 * 90,
-			};
-			let fee = AutomationTime::calculate_execution_fee(&fake_action, 1)
-				.map_err(|_| "could not calculate fee")? as i128;
+			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1) as i128;
 
 			let duration = 90;
 			let total_collators = ParachainStaking::total_selected();
