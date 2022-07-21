@@ -33,12 +33,8 @@ pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod tests_calculation;
 
 mod benchmarking;
 pub mod migrations;
@@ -72,10 +68,7 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{
-		AccountIdConversion, CheckedConversion, CheckedMul, CheckedSub, SaturatedConversion,
-		Saturating,
-	},
+	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -1195,10 +1188,10 @@ pub mod pallet {
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
-			execution_fee: Result<BalanceOf<T>, DispatchError>,
+			execution_fee: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds = account_minimum.saturating_add(execution_fee?);
+			let reserved_funds = account_minimum.saturating_add(execution_fee);
 			T::Currency::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
 				.ok_or(Error::<T>::InsufficientBalance.into())
@@ -1370,7 +1363,7 @@ pub mod pallet {
 			}
 
 			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
 			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1402,7 +1395,7 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions)?;
+			let fee = Self::calculate_execution_fee(action, new_executions);
 			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1431,31 +1424,27 @@ pub mod pallet {
 			provided_id
 		}
 
-		pub fn calculate_execution_fee(
-			action: &Action<T>,
-			executions: u32,
-		) -> Result<BalanceOf<T>, DispatchError> {
+		/// Calculates the execution fee for a given action based on weight and num of executions
+		///
+		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
+		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
+		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
 			let action_weight = match action {
-				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
+				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
+				Action::NativeTransfer { .. } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
+				Action::XCMP { .. } => T::DbWeight::get()
 					.writes(1)
-					.checked_add(<T as Config>::WeightInfo::run_xcmp_task())
-					.ok_or(ArithmeticError::Overflow)?,
+					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 				Action::AutoCompoundDelegatedStake { .. } =>
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			};
 
-			let total_weight =
-				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
-			let weight_as_balance =
-				<BalanceOf<T>>::checked_from(total_weight).ok_or(ArithmeticError::Overflow)?;
+			let total_weight = action_weight.saturating_mul(executions.into());
+			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
-			Ok(T::ExecutionWeightFee::get()
-				.checked_mul(&weight_as_balance)
-				.ok_or(ArithmeticError::Overflow)?)
+			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
 		}
 	}
 }
