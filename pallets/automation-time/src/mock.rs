@@ -296,7 +296,8 @@ impl pallet_automation_time::Config for Test {
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
-	type NativeTokenExchange = CurrencyAdapter<Balances, DealWithExecutionFees<Test>>;
+	type Currency = Balances;
+	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;

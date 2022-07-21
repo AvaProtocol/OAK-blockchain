@@ -33,19 +33,15 @@ pub use pallet::*;
 
 #[cfg(test)]
 mod mock;
-
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod tests_calculation;
 
 mod benchmarking;
 pub mod migrations;
 pub mod weights;
 
-mod exchange;
-pub use exchange::*;
+mod fees;
+pub use fees::*;
 
 mod autocompounding;
 pub use autocompounding::*;
@@ -61,7 +57,7 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::StorageVersion,
+	traits::{Currency, ExistenceRequirement, StorageVersion},
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
@@ -72,10 +68,7 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{
-		AccountIdConversion, CheckedConversion, CheckedMul, CheckedSub, SaturatedConversion,
-		Saturating,
-	},
+	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -91,7 +84,8 @@ pub mod pallet {
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 	type Seconds = u64;
 
@@ -312,8 +306,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
-		/// Handler for fees and native token transfers.
-		type NativeTokenExchange: NativeTokenExchange<Self>;
+		/// The Currency type for interacting with balances
+		type Currency: Currency<Self::AccountId>;
+
+		/// Handler for fees
+		type FeeHandler: HandleFees<Self>;
 
 		/// Utility for sending XCM messages
 		type XcmSender: SendXcm;
@@ -551,7 +548,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			if amount < T::NativeTokenExchange::minimum_balance() {
+			if amount < T::Currency::minimum_balance() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
@@ -1084,7 +1081,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
+			match T::Currency::transfer(
+				&sender,
+				&recipient,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			) {
 				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
@@ -1186,11 +1188,11 @@ pub mod pallet {
 			delegator: T::AccountId,
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
-			execution_fee: Result<BalanceOf<T>, DispatchError>,
+			execution_fee: BalanceOf<T>,
 		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds = account_minimum.saturating_add(execution_fee?);
-			T::NativeTokenExchange::free_balance(&delegator)
+			let reserved_funds = account_minimum.saturating_add(execution_fee);
+			T::Currency::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
 				.ok_or(Error::<T>::InsufficientBalance.into())
 				.and_then(|delegation| {
@@ -1361,8 +1363,8 @@ pub mod pallet {
 			}
 
 			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
@@ -1378,7 +1380,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
@@ -1393,13 +1395,13 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions)?;
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+			let fee = Self::calculate_execution_fee(action, new_executions);
+			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
 
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
@@ -1422,31 +1424,27 @@ pub mod pallet {
 			provided_id
 		}
 
-		pub fn calculate_execution_fee(
-			action: &Action<T>,
-			executions: u32,
-		) -> Result<BalanceOf<T>, DispatchError> {
+		/// Calculates the execution fee for a given action based on weight and num of executions
+		///
+		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
+		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
+		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
 			let action_weight = match action {
-				Action::Notify { message: _ } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { sender: _, recipient: _, amount: _ } =>
+				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
+				Action::NativeTransfer { .. } =>
 					<T as Config>::WeightInfo::run_native_transfer_task(),
 				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { para_id: _, call: _, weight_at_most: _ } => T::DbWeight::get()
+				Action::XCMP { .. } => T::DbWeight::get()
 					.writes(1)
-					.checked_add(<T as Config>::WeightInfo::run_xcmp_task())
-					.ok_or(ArithmeticError::Overflow)?,
+					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 				Action::AutoCompoundDelegatedStake { .. } =>
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			};
 
-			let total_weight =
-				action_weight.checked_mul(executions.into()).ok_or(ArithmeticError::Overflow)?;
-			let weight_as_balance =
-				<BalanceOf<T>>::checked_from(total_weight).ok_or(ArithmeticError::Overflow)?;
+			let total_weight = action_weight.saturating_mul(executions.into());
+			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
-			Ok(T::ExecutionWeightFee::get()
-				.checked_mul(&weight_as_balance)
-				.ok_or(ArithmeticError::Overflow)?)
+			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
 		}
 	}
 }
