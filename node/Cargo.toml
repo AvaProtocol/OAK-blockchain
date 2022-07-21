@@ -43,6 +43,7 @@ hex-literal = "0.3.1"
 jsonrpsee = { version = "0.13.0", features = ["server"] }
 
 # Local Dependencies
+common-runtime = { path ='../runtime/common'}
 neumann-runtime = { path = "../runtime/neumann", optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
