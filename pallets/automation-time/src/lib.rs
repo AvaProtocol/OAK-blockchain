@@ -44,8 +44,8 @@ mod benchmarking;
 pub mod migrations;
 pub mod weights;
 
-mod exchange;
-pub use exchange::*;
+mod fees;
+pub use fees::*;
 
 mod autocompounding;
 pub use autocompounding::*;
@@ -61,7 +61,7 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::StorageVersion,
+	traits::{Currency, ExistenceRequirement, StorageVersion},
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
@@ -91,7 +91,8 @@ pub mod pallet {
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 	type Seconds = u64;
 
@@ -312,8 +313,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
-		/// Handler for fees and native token transfers.
-		type NativeTokenExchange: NativeTokenExchange<Self>;
+		/// The Currency type for interacting with balances
+		type Currency: Currency<Self::AccountId>;
+
+		/// Handler for fees
+		type FeeHandler: HandleFees<Self>;
 
 		/// Utility for sending XCM messages
 		type XcmSender: SendXcm;
@@ -551,7 +555,7 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// check for greater than existential deposit
-			if amount < T::NativeTokenExchange::minimum_balance() {
+			if amount < T::Currency::minimum_balance() {
 				Err(<Error<T>>::InvalidAmount)?
 			}
 			// check not sent to self
@@ -1084,7 +1088,12 @@ pub mod pallet {
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
-			match T::NativeTokenExchange::transfer(&sender, &recipient, amount) {
+			match T::Currency::transfer(
+				&sender,
+				&recipient,
+				amount,
+				ExistenceRequirement::KeepAlive,
+			) {
 				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
 				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
 			};
@@ -1190,7 +1199,7 @@ pub mod pallet {
 		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum.saturating_add(execution_fee?);
-			T::NativeTokenExchange::free_balance(&delegator)
+			T::Currency::free_balance(&delegator)
 				.checked_sub(&reserved_funds)
 				.ok_or(Error::<T>::InsufficientBalance.into())
 				.and_then(|delegation| {
@@ -1362,7 +1371,7 @@ pub mod pallet {
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
@@ -1378,7 +1387,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
@@ -1394,12 +1403,12 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
 			let fee = Self::calculate_execution_fee(action, new_executions)?;
-			T::NativeTokenExchange::can_pay_fee(&who, fee.clone())
+			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
 
-			T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
