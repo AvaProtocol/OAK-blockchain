@@ -19,18 +19,42 @@ echo
 
 runtime=$(cat turing-srtool-digest.json)
 rust=$(echo $runtime | jq --raw-output .rustc)
-version=$(
-  echo $runtime| jq --raw-output .runtimes.compressed.subwasm.core_version
+spec_name=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.specName
+)
+impl_name=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.implName
+)
+spec_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.specVersion
+)
+impl_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.implVersion
+)
+authoring_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.authoringVersion
+)
+transaction_version=$(
+  echo $runtime \
+    | jq --raw-output .runtimes.compressed.subwasm.core_version.transactionVersion
 )
 size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
 proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
 ipfs=$(echo $runtime | jq --raw-output .runtimes.compressed.ipfs)
 blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
 
+spec="$spec_name-$spec_version"
+extended="$impl_name-$impl_version.tx$transaction_version.au$authoring_version"
+
 cat <<-EOF
 \`\`\`
 Rust        : $rust
-Version     : $version
+Version     : $spec ($extended)
 Size        : $size
 Proposal    : $proposal
 IPFS        : $ipfs
