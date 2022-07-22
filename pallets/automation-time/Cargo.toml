@@ -43,7 +43,7 @@ pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam",
 
 ## Local
 pallet-automation-time-rpc-runtime-api = { path = "./rpc/runtime-api", default-features = false }
-pallet-valve = { path = "../valve" }
+pallet-valve = { path = "../valve", default-features = false }
 
 [dev-dependencies]
 serde = { version = "1.0.137" }
