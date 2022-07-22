@@ -61,6 +61,7 @@ pub mod pallet {
 		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
 
+		/// The AutomationTime pallet.
 		type AutomationTime: Shutdown;
 	}
 
@@ -231,10 +232,7 @@ pub mod pallet {
 		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ensure!(
-				!T::AutomationTime::is_shutdown(),
-				Error::<T>::ScheduledTasksAlreadyStopped
-			);
+			ensure!(!T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyStopped);
 
 			T::AutomationTime::shutdown();
 			Self::deposit_event(Event::ScheduledTasksStopped);

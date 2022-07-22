@@ -195,26 +195,26 @@ impl Config for Test {
 	type Event = Event;
 	type WeightInfo = MockWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
-	type ShutdownablePallet = MockShutdown;
+	type AutomationTime = MockAutomationTime;
 }
 
 thread_local! {
-	pub static MOCK_SHUTDOWN_STORE: RefCell<bool> = RefCell::new(false);
+	pub static MOCK_AUTOMATION_TIME_STORE: RefCell<bool> = RefCell::new(false);
 }
-pub struct MockShutdown;
-impl Shutdown for MockShutdown {
+pub struct MockAutomationTime;
+impl Shutdown for MockAutomationTime {
 	fn is_shutdown() -> bool {
-		MOCK_SHUTDOWN_STORE.with(|s| *s.borrow())
+		MOCK_AUTOMATION_TIME_STORE.with(|s| *s.borrow())
 	}
 	fn shutdown() {
-		MOCK_SHUTDOWN_STORE.with(|l| {
+		MOCK_AUTOMATION_TIME_STORE.with(|l| {
 			let r = *l.borrow();
 			*l.borrow_mut() = true;
 			r
 		});
 	}
 	fn restart() {
-		MOCK_SHUTDOWN_STORE.with(|l| {
+		MOCK_AUTOMATION_TIME_STORE.with(|l| {
 			let r = *l.borrow();
 			*l.borrow_mut() = false;
 			r
