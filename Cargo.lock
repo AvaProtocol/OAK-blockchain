@@ -4778,6 +4778,7 @@ dependencies = [
  "pallet-xcm",
  "parachain-info",
  "parity-scale-codec",
+ "poc",
  "polkadot-parachain",
  "polkadot-runtime-common",
  "primitives",
@@ -6541,6 +6542,18 @@ name = "platforms"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8d0eef3571242013a0d5dc84861c3ae4a652e56e12adf8bdc26ff5f8cb34c94"
+
+[[package]]
+name = "poc"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-std",
+]
 
 [[package]]
 name = "polkadot-approval-distribution"

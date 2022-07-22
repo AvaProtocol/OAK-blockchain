@@ -975,6 +975,11 @@ impl pallet_vesting::Config for Runtime {
 	type Currency = Balances;
 }
 
+impl poc::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1030,6 +1035,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
+		Poc: poc::{Pallet, Call, Event<T>} = 62,
 	}
 );
 
