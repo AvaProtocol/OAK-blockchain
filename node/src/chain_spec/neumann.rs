@@ -360,7 +360,6 @@ mod tests {
 	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
 	use common_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
 
-
 	#[test]
 	fn validate_neumann_allocation() {
 		let allocation_json = &include_bytes!("../../../distribution/neumann_alloc.json")[..];
