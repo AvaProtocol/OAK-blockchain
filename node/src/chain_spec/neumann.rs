@@ -358,7 +358,8 @@ fn testnet_genesis(
 mod tests {
 	use super::*;
 	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
-	use neumann_runtime::EXISTENTIAL_DEPOSIT;
+	use common_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
+
 
 	#[test]
 	fn validate_neumann_allocation() {
