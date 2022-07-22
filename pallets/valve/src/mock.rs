@@ -20,15 +20,14 @@ use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Contains, GenesisBuild},
-	weights::Weight,
 };
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	AccountId32, Perbill,
+	AccountId32,
 };
-use sp_std::{cell::RefCell, marker::PhantomData};
+use sp_std::cell::RefCell;
 
 pub type AccountId = AccountId32;
 pub type BlockNumber = u64;
@@ -51,9 +50,6 @@ construct_runtime!(
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const AvailableBlockRatio: Perbill = Perbill::one();
 	pub const SS58Prefix: u8 = 51;
 }
 impl frame_system::Config for Test {
@@ -91,34 +87,6 @@ impl Contains<Call> for ClosedCallFilter {
 	}
 }
 
-pub struct MockWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_valve::WeightInfo for MockWeight<Test> {
-	fn close_valve() -> Weight {
-		0
-	}
-	fn open_valve() -> Weight {
-		0
-	}
-	fn close_pallet_gate_new() -> Weight {
-		0
-	}
-	fn close_pallet_gate_existing() -> Weight {
-		0
-	}
-	fn open_pallet_gate() -> Weight {
-		0
-	}
-	fn open_pallet_gates() -> Weight {
-		0
-	}
-	fn stop_scheduled_tasks() -> Weight {
-		0
-	}
-	fn start_scheduled_tasks() -> Weight {
-		0
-	}
-}
-
 thread_local! {
 	pub static MOCK_AUTOMATION_TIME_STORE: RefCell<bool> = RefCell::new(false);
 }
@@ -145,7 +113,7 @@ impl Shutdown for MockAutomationTime {
 
 impl Config for Test {
 	type Event = Event;
-	type WeightInfo = MockWeight<Test>;
+	type WeightInfo = pallet_valve::weights::ValveWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
 }
