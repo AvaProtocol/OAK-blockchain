@@ -972,7 +972,7 @@ pub mod pallet {
 			};
 
 			let transact_instruction = Transact::<()> {
-				origin_type: OriginKind::Native,
+				origin_type: OriginKind::SovereignAccount,
 				require_weight_at_most: weight_at_most,
 				call: call.into(),
 			};
@@ -1003,6 +1003,21 @@ pub mod pallet {
 
 			let reserve_asset_instruction = ReserveAssetDeposited::<()>(multiassets);
 
+			// TODO: withdraw Tur from Tur sovereign account on destination chain (ie. mangata) to use for XCM fees
+			// Will take place of `execute_xcm_in_credit` call where assets get withdrawn from users account
+			// let withdraw_asset_instruction = WithdrawAsset::<()>(vec![MultiAsset {
+			// 	id: Concrete(MultiLocation {
+			// 		parents: 1,
+			// 		interior: X1(Parachain(self_para_id.into())),
+			// 	}),
+			// 	fun: Fungibility::Fungible(10_000_000_000),
+			// }].into());
+
+			let withdraw_asset_instruction = WithdrawAsset::<()>(vec![MultiAsset {
+				id: Concrete(MultiLocation::here()),
+				fun: Fungibility::Fungible(10_000_000_000),
+			}].into());
+
 			let recipient_xcm_instruction_set = Xcm(vec![
 				reserve_asset_instruction,
 				buy_execution_instruction,
@@ -1011,11 +1026,6 @@ pub mod pallet {
 				refund_surplus_instruction,
 				deposit_asset_instruction,
 			]);
-
-			let withdraw_asset_instruction = WithdrawAsset::<()>(vec![MultiAsset {
-				id: Concrete(MultiLocation::here()),
-				fun: Fungibility::Fungible(10_000_000_000),
-			}].into());
 
 			let internal_instruction_set = Xcm(vec![
 				withdraw_asset_instruction,
