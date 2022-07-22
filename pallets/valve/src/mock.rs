@@ -19,17 +19,16 @@ use super::*;
 use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, Everything, GenesisBuild, OnUnbalanced},
+	traits::{Contains, Everything, GenesisBuild},
 	weights::Weight,
 };
-use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 	AccountId32, Perbill,
 };
-use sp_std::marker::PhantomData;
+use sp_std::{cell::RefCell, marker::PhantomData};
 use xcm::latest::prelude::*;
 use xcm_builder::{
 	AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, SignedToAccountId32,
@@ -58,7 +57,6 @@ construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
-		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 51,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
 		Valve: pallet_valve::{Pallet, Call, Storage, Event<T>, Config},
@@ -136,111 +134,9 @@ impl pallet_timestamp::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 2;
-	pub const MaxExecutionTimes: u32 = 24;
-	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1200_000;
-	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
-	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const SecondsPerBlock: u64 = 12;
-	pub const ExecutionWeightFee: Balance = 12;
-}
-
-pub struct MockAutomationTimeWeight<T>(PhantomData<T>);
-impl<Test: frame_system::Config> pallet_automation_time::WeightInfo
-	for MockAutomationTimeWeight<Test>
-{
-	fn schedule_notify_task_empty() -> Weight {
-		0
-	}
-	fn schedule_notify_task_full(_v: u32) -> Weight {
-		0
-	}
-	fn schedule_native_transfer_task_empty() -> Weight {
-		0
-	}
-	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
-		0
-	}
-	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
-		0
-	}
-	fn cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn force_cancel_scheduled_task() -> Weight {
-		0
-	}
-	fn force_cancel_scheduled_task_full() -> Weight {
-		0
-	}
-	fn run_notify_task() -> Weight {
-		0
-	}
-	fn run_native_transfer_task() -> Weight {
-		0
-	}
-	fn run_xcmp_task() -> Weight {
-		0
-	}
-	fn run_auto_compound_delegated_stake_task() -> Weight {
-		0
-	}
-	fn run_missed_tasks_many_found(_v: u32) -> Weight {
-		0
-	}
-	fn run_missed_tasks_many_missing(_v: u32) -> Weight {
-		0
-	}
-	fn run_tasks_many_found(_v: u32) -> Weight {
-		0
-	}
-	fn run_tasks_many_missing(_v: u32) -> Weight {
-		0
-	}
-	fn update_task_queue_overhead() -> Weight {
-		0
-	}
-	fn append_to_missed_tasks(_v: u32) -> Weight {
-		0
-	}
-	fn update_scheduled_task_queue() -> Weight {
-		0
-	}
-	fn shift_missed_tasks() -> Weight {
-		0
-	}
-}
-
-pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
-where
-	R: pallet_balances::Config,
-{
-	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
-}
-
-use frame_support::pallet_prelude::DispatchResultWithPostInfo;
-pub struct MockDelegatorActions<T>(PhantomData<T>);
-impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance>
-	for MockDelegatorActions<T>
-{
-	fn delegator_bond_more(
-		_: &T::AccountId,
-		_: &T::AccountId,
-		_: Balance,
-	) -> DispatchResultWithPostInfo {
-		Ok(().into())
-	}
-	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
-		Ok(().into())
-	}
-}
-
-parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Any;
 }
+    j
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -299,6 +195,31 @@ impl Config for Test {
 	type Event = Event;
 	type WeightInfo = MockWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
+	type ShutdownablePallet = MockShutdown;
+}
+
+thread_local! {
+	pub static MOCK_SHUTDOWN_STORE: RefCell<bool> = RefCell::new(false);
+}
+pub struct MockShutdown;
+impl Shutdown for MockShutdown {
+	fn is_shutdown() -> bool {
+		MOCK_SHUTDOWN_STORE.with(|s| *s.borrow())
+	}
+	fn shutdown() {
+		MOCK_SHUTDOWN_STORE.with(|l| {
+			let r = *l.borrow();
+			*l.borrow_mut() = true;
+			r
+		});
+	}
+	fn restart() {
+		MOCK_SHUTDOWN_STORE.with(|l| {
+			let r = *l.borrow();
+			*l.borrow_mut() = false;
+			r
+		});
+	}
 }
 
 /// Externality builder for pallet maintenance mode's mock runtime
