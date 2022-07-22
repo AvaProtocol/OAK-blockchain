@@ -48,7 +48,7 @@ mod exchange;
 pub use exchange::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
@@ -56,10 +56,9 @@ use frame_support::{
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
 use pallet_timestamp::{self as timestamp};
-use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion, CheckedMul, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, CheckedMul, Convert, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -227,8 +226,16 @@ pub mod pallet {
 		/// Utility for sending XCM messages
 		type XcmSender: SendXcm;
 
+		type XcmCall: From<Call<Self>> + Encode;
+
+		type XcmExecutor: ExecuteXcm<<Self as pallet::Config>::XcmCall>;
+
 		type Origin: From<<Self as SystemConfig>::Origin>
 			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
+
+		type SelfParaId: Get<ParaId>;
+
+		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
 	}
 
 	#[pallet::pallet]
@@ -346,6 +353,18 @@ pub mod pallet {
 			who: T::AccountId,
 			task_id: T::Hash,
 			execution_time: UnixTime,
+		},
+		/// Failed to withdraw asset
+		XCMPFailedToWithdrawAsset {
+			who: T::AccountId,
+			para_id: ParaId,
+			task_id: T::Hash,
+		},
+		/// Failed to convert origin to multilocation
+		XCMPFailedToConvertOriginLocation {
+			who: T::AccountId,
+			para_id: ParaId,
+			task_id: T::Hash,
 		},
 	}
 
@@ -497,13 +516,9 @@ pub mod pallet {
 			call: Vec<u8>,
 			weight_at_most: Weight,
 		) -> DispatchResult {
-			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
-			if para_id != origin_para_id {
-				Err(<Error<T>>::ParaIdMismatch)?
-			}
-
-			let who = Sibling::from(para_id).into_account_truncating();
+			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, call, weight_at_most };
+
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
@@ -843,7 +858,7 @@ pub mod pallet {
 									task_id.clone(),
 								),
 							Action::XCMP { para_id, call, weight_at_most } =>
-								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
+								Self::run_xcmp_task(task.owner_id.clone(), para_id, call, weight_at_most, task_id.clone()),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -930,25 +945,123 @@ pub mod pallet {
 		}
 
 		pub fn run_xcmp_task(
+			who: AccountOf<T>,
 			para_id: ParaId,
 			call: Vec<u8>,
 			weight_at_most: Weight,
 			task_id: T::Hash,
 		) -> Weight {
-			let destination = (1, Junction::Parachain(para_id.into()));
-			let message = Xcm(vec![Transact {
+			let self_para_id: ParaId = T::SelfParaId::get();
+			let multiassets: MultiAssets = vec![MultiAsset {
+				id: Concrete(MultiLocation {
+					parents: 1,
+					interior: X1(Parachain(self_para_id.into())),
+				}),
+				fun: Fungibility::Fungible(10_000_000_000),
+			}].into();
+
+			let interior: Junctions = match T::AccountIdToMultiLocation::convert(who.clone()).clone().try_into() {
+				Ok(interior) => interior,
+				Err(e) => {
+					log::error!("Failed execute transfer message with {:?}", e);
+					Self::deposit_event(Event::XCMPFailedToConvertOriginLocation { who, para_id, task_id });
+					return T::DbWeight::get()
+						.writes(1)
+						.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
+				},
+			};
+
+			let transact_instruction = Transact::<()> {
 				origin_type: OriginKind::Native,
 				require_weight_at_most: weight_at_most,
 				call: call.into(),
-			}]);
-			match T::XcmSender::send_xcm(destination, message) {
+			};
+
+			let refund_surplus_instruction = RefundSurplus::<()>;
+
+			let buy_execution_instruction = BuyExecution::<()> {
+				fees: MultiAsset {
+					id: Concrete(MultiLocation {
+						parents: 1,
+						interior: X1(Parachain(self_para_id.into())),
+					}),
+					fun: Fungibility::Fungible(10_000_000_000),
+				},
+				weight_limit: Unlimited,
+			};
+
+			let deposit_asset_instruction = DepositAsset::<()> {
+				assets: MultiAssetFilter::Definite(multiassets.clone()),
+				max_assets: 1,
+				beneficiary: MultiLocation {
+					parents: 1,
+					interior: X1(Parachain(para_id.into())),
+				},
+			};
+
+			let descend_origin_instruction = DescendOrigin::<()>(interior);
+
+			let reserve_asset_instruction = ReserveAssetDeposited::<()>(multiassets);
+
+			let recipient_xcm_instruction_set = Xcm(vec![
+				reserve_asset_instruction,
+				buy_execution_instruction,
+				descend_origin_instruction,
+				transact_instruction,
+				refund_surplus_instruction,
+				deposit_asset_instruction,
+			]);
+
+			let withdraw_asset_instruction = WithdrawAsset::<()>(vec![MultiAsset {
+				id: Concrete(MultiLocation::here()),
+				fun: Fungibility::Fungible(10_000_000_000),
+			}].into());
+
+			let internal_instruction_set = Xcm(vec![
+				withdraw_asset_instruction,
+				DepositAsset {
+					assets: MultiAssetFilter::Definite(vec![MultiAsset {
+						id: Concrete(MultiLocation::here()),
+						fun: Fungibility::Fungible(10_000_000_000),
+					}].into()),
+					max_assets: 1,
+					beneficiary: MultiLocation {
+						parents: 1,
+						interior: X1(Parachain(para_id.into())),
+					},
+				}
+			]);
+
+			let xcm_origin = T::AccountIdToMultiLocation::convert(who.clone());
+
+			match T::XcmExecutor::execute_xcm_in_credit(
+				xcm_origin.clone(),
+				internal_instruction_set.into(),
+				11_000_000_000,
+				11_000_000_000
+			).ensure_complete() {
+				Ok(()) => (),
+				Err(e) => {
+					log::error!("Failed execute transfer message with {:?}", e);
+					Self::deposit_event(Event::XCMPFailedToWithdrawAsset { who, para_id, task_id });
+					return T::DbWeight::get()
+						.writes(1)
+						.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
+				},
+			};
+
+			match T::XcmSender::send_xcm(
+				(1, Junction::Parachain(para_id.into())),
+				recipient_xcm_instruction_set,
+			) {
 				Ok(()) => {
 					Self::deposit_event(Event::SuccessfullySentXCMP { task_id, para_id });
 				},
 				Err(e) => {
 					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
 				},
-			}
+			};
+
 			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
 			T::DbWeight::get()
 				.writes(1)
