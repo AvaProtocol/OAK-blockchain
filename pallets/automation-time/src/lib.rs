@@ -1450,7 +1450,7 @@ pub mod pallet {
 
 	impl<T: Config> pallet_valve::Shutdown for Pallet<T> {
 		fn is_shutdown() -> bool {
-			Pallet::<T>::is_shutdown()
+			Self::is_shutdown()
 		}
 		fn shutdown() {
 			Shutdown::<T>::put(true);
