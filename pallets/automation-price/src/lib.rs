@@ -114,6 +114,15 @@ pub mod pallet {
 		}
 	}
 
+	#[derive(Debug, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct AssetMetadatum<T: Config> {
+		upper_bound: u16,
+		lower_bound: u8,
+		expiration_period: u32,
+		asset_sudo: AccountOf<T>,
+	}
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -198,8 +207,14 @@ pub mod pallet {
 	#[pallet::getter(fn is_shutdown)]
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_asset_metadata)]
+	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, AssetMetadatum<T>>;
+
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The provided_id cannot be empty
+		EmptyProvidedId,
 		/// Time must end in a whole hour.
 		InvalidTime,
 		/// Duplicate task
@@ -207,7 +222,11 @@ pub mod pallet {
 		/// Non existent asset
 		AssetNotSupported,
 		/// Asset already supported
-		AssetAlreadySupported
+		AssetAlreadySupported,
+		/// Asset cannot be updated by this account
+		InvalidAssetSudo,
+		/// Asset must be in triggerable range.
+		AssetNotInTriggerableRange,
 	}
 
 	#[pallet::event]
@@ -281,12 +300,23 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			asset: Vec<u8>,
 			target_price: u128,
+			upper_bound: u16,
+			lower_bound: u8,
+			expiration_period: u32,
 		) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
 				Err(Error::<T>::AssetAlreadySupported)?
 			} else {
-				AssetTargetPrices::<T>::insert(asset, target_price);
+				AssetTargetPrices::<T>::insert(asset.clone(), target_price);
+				let asset_metadatum = AssetMetadatum::<T> {
+					upper_bound,
+					lower_bound,
+					expiration_period,
+					asset_sudo: who
+				};
+				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
+				AssetPrices::<T>::insert(asset, target_price);
 			}
 			Ok(().into())
 		}
@@ -307,41 +337,28 @@ pub mod pallet {
 			asset: Vec<u8>,
 			value: u128,
 		) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
+			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
+				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
+				if asset_sudo != who {
+					Err(Error::<T>::InvalidAssetSudo)?
+				}
+			}
 			if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
-				let direction: u8 = if asset_target_price > value { 0 } else { 1 };
-				let asset_move_percentage = if direction == 0 {
-					((asset_target_price - value) * 100) / asset_target_price
-				} else {
-					((value - asset_target_price) * 100) / asset_target_price
+				let last_asset_price: u128 = match Self::get_asset_price(asset.clone()) {
+					None => Err(Error::<T>::AssetNotSupported)?,
+					Some(asset_price) => asset_price,
 				};
-				info!("direction: {}", direction);
-				info!("asset_move_percentage: {}", asset_move_percentage);
-				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), asset_move_percentage.clone())) {
-					// let asset_clone: Vec<Vec<Vec<T::Hash>>> = asset_tasks.clone();
-				// if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
-					// let direction: u8 = if asset_target_price > value { 0 } else { 1 };
-					// let asset_move_percentage = if direction == 0 {
-					// 	((asset_target_price - value) * 100) / asset_target_price
-					// } else {
-					// 	((value - asset_target_price) * 100) / asset_target_price
-					// };
-					// // let mut taskList = asset_clone[direction as usize][asset_move_percentage as usize];
-					// info!("direction: {}", direction);
-					// info!("asset_move_percentage: {}", asset_move_percentage);
-
-					let mut existing_task_queue: Vec<T::Hash> = Self::get_task_queue();
-					for task in asset_tasks {
-						existing_task_queue.push(task);
-					}
-					// let newTaskQueue: Vec<T::Hash> = existing_task_queue.append(&mut asset_tasks);
-					// let newTaskQueue: Vec<T::Hash> = existing_task_queue;
-					TaskQueue::<T>::put(existing_task_queue);
-
-					<ScheduledTasks<T>>::remove((asset, direction, asset_move_percentage));
+				let asset_update_percentage = Self::get_asset_percentage(value, asset_target_price) + 1;
+				let asset_last_percentage = 0;
+				info!("update percentage: {}", asset_update_percentage.clone());
+				info!("last percentage: {}", asset_last_percentage.clone());
+				if value > last_asset_price {
+					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 1)?;
 				} else {
-					info!("hiiiiiii");
-				};
+					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 0)?;
+				}
+				AssetPrices::<T>::insert(asset, value);
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
@@ -451,26 +468,11 @@ pub mod pallet {
 			if let Some(_) = Self::get_task(task_id.clone()) {
 				Err(Error::<T>::DuplicateTask)?
 			}
-			if let Some(asset_target_price) = Self::get_asset_target_price(asset.clone()) {
-				if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
-					asset_tasks.push(task_id.clone());
-					// let mut task_list = asset_clone[0][0][0];
-					
-					// let mut inner_task_list = task_list[0];
-					// let mut task_list2 = inner_task_list.push(task_id.clone());
-					// let taskList = asset_tasks[direction as usize][(trigger_percentage - 1) as usize];
-					// taskList.push(task_id.clone());
-	
-					// std::mem::replace(&mut asset_tasks[direction as usize][(trigger_percentage - 1) as usize], taskList);
-					// TODO: temp, please remove! 
-					// TaskQueue::<T>::put(vec![task_id]);
-	
-					<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
-				} else {
-					<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), vec![task_id.clone()]);
-				}	
+			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
+				asset_tasks.push(task_id.clone());
+				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
 			} else {
-				Err(Error::<T>::AssetNotSupported)?
+				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), vec![task_id.clone()]);
 			}
 			Ok(task_id)
 		}
@@ -484,6 +486,35 @@ pub mod pallet {
 			direction: u8,
 			trigger_percentage: u128,
 		) -> Result<(), Error<T>> {
+			if provided_id.len() == 0 {
+				Err(Error::<T>::EmptyProvidedId)?
+			}
+			let asset_target_price: u128 = match Self::get_asset_target_price(asset.clone()) {
+				None => Err(Error::<T>::AssetNotSupported)?,
+				Some(asset_price) => asset_price,
+			};
+			let last_asset_price: u128 = match Self::get_asset_price(asset.clone()) {
+				None => Err(Error::<T>::AssetNotSupported)?,
+				Some(asset_price) => asset_price,
+			};
+			let last_asset_percentage = last_asset_price / asset_target_price.clone();
+			info!("last_asset_percentage: {}", last_asset_percentage);
+			if direction == 0 {
+				// TODO: fix 100 hardcode
+				let modified_trigger_percentage = (100 - trigger_percentage) / 100;
+				info!("modified_trigger_percentage: {}", modified_trigger_percentage);
+				if modified_trigger_percentage > last_asset_percentage {
+					Err(Error::<T>::AssetNotInTriggerableRange)?
+				}
+			}
+			if direction == 1 {
+				// TODO: fix 100 hardcode
+				let modified_trigger_percentage = (100 + trigger_percentage) / 100;
+				info!("modified_trigger_percentage: {}", modified_trigger_percentage);
+				if modified_trigger_percentage < last_asset_percentage {
+					Err(Error::<T>::AssetNotInTriggerableRange)?
+				}
+			}
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), asset.clone(), direction, trigger_percentage)?;
 			let task: Task<T> = Task::<T> {
@@ -501,6 +532,39 @@ pub mod pallet {
 
 			Self::deposit_event(Event::TaskScheduled { who, task_id });
 			Ok(())
+		}
+
+		pub fn move_scheduled_tasks(
+			asset: Vec<u8>,
+			lower: u128,
+			higher: u128,
+			direction: u8,
+		) -> DispatchResult {
+			let mut existing_task_queue: Vec<T::Hash> = Self::get_task_queue();
+			info!("direction: {}", direction.clone());
+			for percentage in lower..higher {
+				info!("percentage: {}", percentage.clone());
+				// TODO: pull all and cycle through in memory
+				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage.clone())) {
+					for task in asset_tasks {
+						existing_task_queue.push(task);
+					}
+					<ScheduledTasks<T>>::remove((asset.clone(), direction, percentage));
+				}
+			}
+			TaskQueue::<T>::put(existing_task_queue);
+			Ok(())
+		}
+
+		pub fn get_asset_percentage(
+			asset_update_value: u128,
+			asset_target_price: u128,
+		) -> u128 {
+			if asset_target_price > asset_update_value {
+				((asset_target_price - asset_update_value) * 100) / asset_target_price
+			} else {
+				((asset_update_value - asset_target_price) * 100) / asset_target_price
+			}
 		}
 	}
 }

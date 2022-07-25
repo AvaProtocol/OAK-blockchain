@@ -78,8 +78,8 @@ use primitives::{
 };
 
 // Custom pallet imports
-pub use pallet_automation_time;
 pub use pallet_automation_price;
+pub use pallet_automation_time;
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
