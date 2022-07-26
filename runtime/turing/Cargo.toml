@@ -27,6 +27,7 @@ pallet-automation-time = { path = "../../pallets/automation-time", default-featu
 pallet-automation-time-rpc-runtime-api = { path = "../../pallets/automation-time/rpc/runtime-api", default-features = false }
 pallet-valve = { path= "../../pallets/valve", default-features = false }
 pallet-vesting = { path= "../../pallets/vesting", default-features = false}
+poc = { path= "../../pallets/poc", default-features = false}
 primitives = { path = "../../primitives", default-features = false }
 
 # Substrate Dependencies
@@ -149,6 +150,7 @@ std = [
 	"pallet-valve/std",
 	"pallet-vesting/std",
 	"pallet-parachain-staking/std",
+	"poc/std",
 	"primitives/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",

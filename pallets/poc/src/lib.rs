@@ -12,8 +12,10 @@ pub mod pallet {
 		weights::{GetDispatchInfo, Weight},
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Dispatchable;
+	use sp_runtime::traits::{Convert, Dispatchable};
 	use sp_std::prelude::*;
+	use cumulus_primitives_core::ParaId;
+	use xcm::latest::prelude::*;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -26,6 +28,13 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
 			+ IsType<<Self as frame_system::Config>::Call>;
+
+		//The paraId of this chain.
+		type SelfParaId: Get<ParaId>;
+
+		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
+
+		type XcmSender: SendXcm;
 	}
 
 	#[pallet::pallet]
@@ -40,6 +49,8 @@ pub mod pallet {
 		CallWeight { weight: Weight },
 		/// The dispatch result.
 		DispatchResult { result: DispatchResult },
+		CallSent,
+		ErrorSendingCall { error: SendError},
 	}
 
 	#[pallet::error]
@@ -176,6 +187,50 @@ pub mod pallet {
 			RunnerTwo::<T>::put(task);
 
 			Ok(().into())
+		}
+
+		#[pallet::weight(100_000)]
+		pub fn xcm_test(origin: OriginFor<T>, encoded_call: Vec<u8>, target_chain: u32) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+			let instruction_set = Self::create_xcm_instruction_set(who, encoded_call);
+
+			match T::XcmSender::send_xcm(
+				(1, Junction::Parachain(target_chain)),
+				instruction_set,
+			) {
+				Ok(()) => {
+					Self::deposit_event(Event::CallSent);
+				},
+				Err(e) => {
+					Self::deposit_event(Event::ErrorSendingCall{ error: e});
+				},
+			};
+
+			Ok(().into())
+		}
+	} 
+
+	impl<T: Config> Pallet<T> {
+
+		pub fn create_xcm_instruction_set(caller:T::AccountId, encoded_call: Vec<u8>) -> xcm::v2::Xcm<()> {
+			let local_asset = MultiAsset {
+				id: Concrete(MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))),
+				fun: Fungibility::Fungible(5_000_000_000_000), //500 TUR
+			};
+
+			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller).try_into().unwrap();
+
+			let withdraw = WithdrawAsset::<()>(vec![local_asset.clone()].into());
+			let buy_execution = BuyExecution::<()>{ fees: local_asset, weight_limit: Unlimited };
+			let descend = DescendOrigin(descend_location);
+			let transact =  Transact::<()> { origin_type: OriginKind::SovereignAccount , require_weight_at_most: 3_000_000_000, call:  encoded_call.encode().into()};
+
+			Xcm(vec![
+				withdraw,
+				buy_execution,
+				descend,
+				transact,
+			])
 		}
 	}
 }

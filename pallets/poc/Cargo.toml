@@ -19,13 +19,21 @@ sp-std = { git = "https://github.com/paritytech/substrate", default-features = f
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
+# Cumulus dependencies
+cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.23', default-features = false }
+
+# Polkadot Dependencies
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
+
 [features]
 default = ["std"]
 std = [
     "codec/std",
+    "cumulus-primitives-core/std",
     "frame-support/std",
     "frame-system/std",
     "scale-info/std",
     "sp-runtime/std",
-    "sp-std/std"
+    "sp-std/std",
+    "xcm/std",
 ]
