@@ -24,6 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
+use pallet_automation_time::Action;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
@@ -1194,7 +1195,7 @@ impl_runtime_apis! {
 			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
-			AutomationTime::calculate_execution_fee(&(action.into()), executions)
+			Action::<Runtime>::from(action).calculate_execution_fee(executions)
 		}
 
 		fn calculate_optimal_autostaking(
@@ -1206,7 +1207,7 @@ impl_runtime_apis! {
 
 			let collator_stake =
 				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1) as i128;
+			let fee = Action::<Runtime>::from(AutomationAction::AutoCompoundDelegatedStake).calculate_execution_fee(1) as i128;
 
 			let duration = 90;
 			let total_collators = ParachainStaking::total_selected();

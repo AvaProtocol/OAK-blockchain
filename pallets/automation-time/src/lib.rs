@@ -40,6 +40,8 @@ mod benchmarking;
 pub mod migrations;
 pub mod weights;
 
+mod action;
+pub use action::*;
 mod fees;
 pub use fees::*;
 
@@ -57,18 +59,17 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement, StorageVersion},
+	traits::{Currency, StorageVersion},
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
-use pallet_automation_time_rpc_runtime_api::AutomationAction;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, CheckedConversion, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -86,61 +87,8 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-	type UnixTime = u64;
-	type Seconds = u64;
-
-	/// The enum that stores all action specific data.
-	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub enum Action<T: Config> {
-		Notify {
-			message: Vec<u8>,
-		},
-		NativeTransfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		},
-		XCMP {
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-		},
-		AutoCompoundDelegatedStake {
-			delegator: AccountOf<T>,
-			collator: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
-		},
-	}
-
-	impl<T: Config> From<AutomationAction> for Action<T> {
-		fn from(a: AutomationAction) -> Self {
-			let default_account =
-				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-					.expect("always valid");
-			match a {
-				AutomationAction::Notify => Action::Notify { message: "default".into() },
-				AutomationAction::NativeTransfer => Action::NativeTransfer {
-					sender: default_account.clone(),
-					recipient: default_account,
-					amount: 0u32.into(),
-				},
-				AutomationAction::XCMP => Action::XCMP {
-					para_id: ParaId::from(2114 as u32),
-					call: vec![0],
-					weight_at_most: 0,
-				},
-				AutomationAction::AutoCompoundDelegatedStake =>
-					Action::AutoCompoundDelegatedStake {
-						delegator: default_account.clone(),
-						collator: default_account,
-						account_minimum: 0u32.into(),
-						frequency: 0,
-					},
-			}
-		}
-	}
+	pub type UnixTime = u64;
+	pub type Seconds = u64;
 
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -160,11 +108,11 @@ pub mod pallet {
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
+		pub owner_id: AccountOf<T>,
+		pub provided_id: Vec<u8>,
 		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-		executions_left: u32,
-		action: Action<T>,
+		pub executions_left: u32,
+		pub action: Action<T>,
 	}
 
 	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
@@ -974,39 +922,11 @@ pub mod pallet {
 						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
-					Some(mut task) => {
-						let task_action_weight = match task.action.clone() {
-							Action::Notify { message } => Self::run_notify_task(message),
-							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
-							Action::XCMP { para_id, call, weight_at_most } =>
-								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
-							Action::AutoCompoundDelegatedStake {
-								delegator,
-								collator,
-								account_minimum,
-								frequency,
-							} => {
-								let (mut_task, weight) =
-									Self::run_auto_compound_delegated_stake_task(
-										delegator,
-										collator,
-										account_minimum,
-										frequency,
-										task_id.clone(),
-										task,
-									);
-								task = mut_task;
-								weight
-							},
-						};
-						Self::decrement_task_and_remove_if_complete(*task_id, task);
-						task_action_weight
+					Some(task) => {
+						let execution_response = task.action.clone().execute(task_id.clone(), task);
+						Self::decrement_task_and_remove_if_complete(*task_id, execution_response.1);
+						execution_response
+							.0
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
@@ -1067,138 +987,6 @@ pub mod pallet {
 			} else {
 				return (missed_tasks.split_off(consumed_task_index), weight_left)
 			}
-		}
-
-		/// Fire the notify event with the custom message.
-		pub fn run_notify_task(message: Vec<u8>) -> Weight {
-			Self::deposit_event(Event::Notify { message });
-			<T as Config>::WeightInfo::run_notify_task()
-		}
-
-		pub fn run_native_transfer_task(
-			sender: T::AccountId,
-			recipient: T::AccountId,
-			amount: BalanceOf<T>,
-			task_id: T::Hash,
-		) -> Weight {
-			match T::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
-				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
-				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
-			};
-
-			<T as Config>::WeightInfo::run_native_transfer_task()
-		}
-
-		pub fn run_xcmp_task(
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-			task_id: T::Hash,
-		) -> Weight {
-			let destination = (1, Junction::Parachain(para_id.into()));
-			let message = Xcm(vec![Transact {
-				origin_type: OriginKind::Native,
-				require_weight_at_most: weight_at_most,
-				call: call.into(),
-			}]);
-			match T::XcmSender::send_xcm(destination, message) {
-				Ok(()) => {
-					Self::deposit_event(Event::SuccessfullySentXCMP { task_id, para_id });
-				},
-				Err(e) => {
-					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
-				},
-			}
-			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-			T::DbWeight::get()
-				.writes(1)
-				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
-		}
-
-		/// Executes auto compounding delegation and reschedules task on success
-		pub fn run_auto_compound_delegated_stake_task(
-			delegator: T::AccountId,
-			collator: T::AccountId,
-			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
-			task_id: T::Hash,
-			mut task: Task<T>,
-		) -> (Task<T>, Weight) {
-			match Self::compound_delegator_stake(
-				delegator.clone(),
-				collator.clone(),
-				account_minimum,
-				Self::calculate_execution_fee(&task.action, 1),
-			) {
-				Ok(delegation) =>
-					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
-						task_id,
-						amount: delegation,
-					}),
-				Err(e) => {
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-						task_id,
-						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
-						error: e,
-					});
-					return (
-						task,
-						// TODO: benchmark and return a smaller weight here to account for the early exit
-						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					)
-				},
-			}
-
-			let new_execution_times: Vec<UnixTime> =
-				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-			let _ = Self::reschedule_existing_task(
-				task_id,
-				task.owner_id.clone(),
-				&task.action,
-				new_execution_times.clone(),
-			)
-			.map(|_| {
-				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-				task.executions_left += new_executions_left;
-				new_execution_times.iter().try_for_each(|t| {
-					task.execution_times.try_push(*t).and_then(|_| {
-						task.execution_times.remove(0);
-						Ok(())
-					})
-				})
-			})
-			.map_err(|e| {
-				let err: DispatchErrorWithPostInfo = e.into();
-				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-					error: err,
-				});
-			});
-
-			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
-		}
-
-		fn compound_delegator_stake(
-			delegator: T::AccountId,
-			collator: T::AccountId,
-			account_minimum: BalanceOf<T>,
-			execution_fee: BalanceOf<T>,
-		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds = account_minimum.saturating_add(execution_fee);
-			T::Currency::free_balance(&delegator)
-				.checked_sub(&reserved_funds)
-				.ok_or(Error::<T>::InsufficientBalance.into())
-				.and_then(|delegation| {
-					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
-						.and(Ok(delegation))
-				})
 		}
 
 		/// Decrements task executions left.
@@ -1362,8 +1150,7 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+			let fee = action.calculate_execution_fee(execution_times.len().try_into().unwrap());
 			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1388,14 +1175,14 @@ pub mod pallet {
 		}
 
 		/// Reschedules an existing task for a given number of execution times
-		fn reschedule_existing_task(
+		pub fn reschedule_existing_task(
 			task_id: T::Hash,
 			who: T::AccountId,
 			action: &Action<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions);
+			let fee = action.calculate_execution_fee(new_executions);
 			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1422,29 +1209,6 @@ pub mod pallet {
 			provided_id.extend(delegator.encode());
 			provided_id.extend(collator.encode());
 			provided_id
-		}
-
-		/// Calculates the execution fee for a given action based on weight and num of executions
-		///
-		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
-		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
-			let action_weight = match action {
-				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { .. } =>
-					<T as Config>::WeightInfo::run_native_transfer_task(),
-				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { .. } => T::DbWeight::get()
-					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
-				Action::AutoCompoundDelegatedStake { .. } =>
-					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-			};
-
-			let total_weight = action_weight.saturating_mul(executions.into());
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
-
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
 		}
 	}
 }
