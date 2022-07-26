@@ -24,6 +24,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
+use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -43,7 +44,10 @@ use sp_version::RuntimeVersion;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, Contains, EnsureOneOf, Imbalance, OnUnbalanced, PrivilegeCmp},
+	traits::{
+		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EnsureOneOf, Imbalance, InstanceFilter,
+		OnUnbalanced, PrivilegeCmp,
+	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
 		ConstantMultiplier, DispatchClass, Weight,
@@ -145,10 +149,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("turing"),
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
-	spec_version: 283,
+	spec_version: 284,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 9,
+	transaction_version: 10,
 	state_version: 0,
 };
 
@@ -231,7 +235,6 @@ parameter_types! {
 		})
 		.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO + SCHEDULED_TASKS_INITIALIZE_RATIO)
 		.build_or_panic();
-	pub const SS58Prefix: u16 = 51;
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -280,10 +283,27 @@ impl frame_system::Config for Runtime {
 	/// The maximum length of a block (in bytes).
 	type BlockLength = RuntimeBlockLength;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix. OAK is 51.
-	type SS58Prefix = SS58Prefix;
+	type SS58Prefix = ConstU16<51>;
 	/// The action to take on a Runtime Upgrade
 	type OnSetCode = cumulus_pallet_parachain_system::ParachainSetCode<Self>;
 	type MaxConsumers = ConstU32<16>;
+}
+
+parameter_types! {
+	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
+	pub const DepositBase: Balance = deposit(1, 88);
+	// Additional storage item size of 32 bytes.
+	pub const DepositFactor: Balance = deposit(0, 32);
+}
+
+impl pallet_multisig::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type DepositBase = DepositBase;
+	type DepositFactor = DepositFactor;
+	type MaxSignatories = ConstU16<100>;
+	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -298,13 +318,9 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const UncleGenerations: u32 = 0;
-}
-
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	type UncleGenerations = UncleGenerations;
+	type UncleGenerations = ConstU32<0>;
 	type FilterUncle = ();
 	type EventHandler = ParachainStaking;
 }
@@ -361,6 +377,76 @@ impl pallet_identity::Config for Runtime {
 	type RegistrarOrigin = RegistrarOrigin;
 
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+	pub const ProxyDepositBase: Balance = deposit(1, 8);
+	pub const ProxyDepositFactor: Balance = deposit(0, 33);
+	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
+	pub const AnnouncementDepositFactor: Balance = deposit(0, 66);
+}
+
+#[derive(
+	Copy,
+	Clone,
+	Eq,
+	PartialEq,
+	Ord,
+	PartialOrd,
+	Encode,
+	Decode,
+	RuntimeDebug,
+	MaxEncodedLen,
+	scale_info::TypeInfo,
+)]
+pub enum ProxyType {
+	Any = 0,
+	Session = 1,
+	Staking = 2,
+}
+
+impl Default for ProxyType {
+	fn default() -> Self {
+		Self::Any
+	}
+}
+
+impl InstanceFilter<Call> for ProxyType {
+	fn filter(&self, c: &Call) -> bool {
+		match self {
+			ProxyType::Any => true,
+			ProxyType::Session => {
+				matches!(c, Call::Session(..))
+			},
+			ProxyType::Staking => {
+				matches!(c, Call::ParachainStaking(..) | Call::Session(..))
+			},
+		}
+	}
+
+	fn is_superset(&self, o: &Self) -> bool {
+		match (self, o) {
+			(x, y) if x == y => true,
+			(ProxyType::Any, _) => true,
+			(_, ProxyType::Any) => false,
+			_ => false,
+		}
+	}
+}
+
+impl pallet_proxy::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type Currency = Balances;
+	type ProxyType = ProxyType;
+	type ProxyDepositBase = ProxyDepositBase;
+	type ProxyDepositFactor = ProxyDepositFactor;
+	type MaxProxies = ConstU32<32>;
+	type WeightInfo = pallet_proxy::weights::SubstrateWeight<Runtime>;
+	type MaxPending = ConstU32<32>;
+	type CallHasher = BlakeTwo256;
+	type AnnouncementDepositBase = AnnouncementDepositBase;
+	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
 parameter_types! {
@@ -477,7 +563,6 @@ parameter_types! {
 	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub const TransactionByteFee: Balance = 0;
 	pub const WeightToFeeScalar: Balance = 6;
-	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
 /// Parameterized slow adjusting fee updated based on
@@ -520,7 +605,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
-	type OperationalFeeMultiplier = OperationalFeeMultiplier;
+	type OperationalFeeMultiplier = ConstU8<5>;
 }
 
 parameter_types! {
@@ -545,8 +630,6 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 parameter_types! {
 	pub const Period: u32 = 6 * HOURS;
-	pub const Offset: u32 = 0;
-	pub const MaxAuthorities: u32 = 100_000;
 }
 
 impl pallet_session::Config for Runtime {
@@ -565,7 +648,7 @@ impl pallet_session::Config for Runtime {
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
-	type MaxAuthorities = MaxAuthorities;
+	type MaxAuthorities = ConstU32<100_000>;
 }
 
 parameter_types! {
@@ -626,8 +709,6 @@ impl pallet_parachain_staking::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
-	pub const CouncilMaxProposals: u32 = 100;
-	pub const CouncilMaxMembers: u32 = 100;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -640,7 +721,7 @@ impl pallet_bounties::Config for Runtime {
 	type CuratorDepositMin = CuratorDepositMin;
 	type CuratorDepositMax = CuratorDepositMax;
 	type DataDepositPerByte = DataDepositPerByte;
-	type MaximumReasonLength = MaximumReasonLength;
+	type MaximumReasonLength = ConstU32<16384>;
 	type WeightInfo = pallet_bounties::weights::SubstrateWeight<Runtime>;
 	type ChildBountyManager = ();
 }
@@ -651,16 +732,14 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type Proposal = Call;
 	type Event = Event;
 	type MotionDuration = CouncilMotionDuration;
-	type MaxProposals = CouncilMaxProposals;
-	type MaxMembers = CouncilMaxMembers;
+	type MaxProposals = ConstU32<100>;
+	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
 	pub TechnicalMotionDuration: BlockNumber = 3 * DAYS;
-	pub const TechnicalMaxProposals: u32 = 100;
-	pub const TechnicalMaxMembers: u32 = 100;
 }
 
 type TechnicalCollective = pallet_collective::Instance2;
@@ -669,8 +748,8 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type Proposal = Call;
 	type Event = Event;
 	type MotionDuration = TechnicalMotionDuration;
-	type MaxProposals = TechnicalMaxProposals;
-	type MaxMembers = TechnicalMaxMembers;
+	type MaxProposals = ConstU32<100>;
+	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
@@ -689,7 +768,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 	type PrimeOrigin = MoreThanHalfCouncil;
 	type MembershipInitialized = TechnicalCommittee;
 	type MembershipChanged = TechnicalCommittee;
-	type MaxMembers = TechnicalMaxMembers;
+	type MaxMembers = ConstU32<100>;
 	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
 }
 
@@ -712,12 +791,10 @@ parameter_types! {
 	pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
-	pub const MaximumReasonLength: u32 = 16384;
 	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
 	pub CuratorDepositMin: Balance = DOLLAR;
 	pub CuratorDepositMax: Balance = 100 * DOLLAR;
 	pub const BountyValueMinimum: Balance = 5 * UNIT;
-	pub const MaxApprovals: u32 = 100;
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -741,7 +818,7 @@ impl pallet_treasury::Config for Runtime {
 	type BurnDestination = ();
 	type SpendFunds = Bounties;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
-	type MaxApprovals = MaxApprovals;
+	type MaxApprovals = ConstU32<100>;
 }
 
 parameter_types! {
@@ -762,7 +839,6 @@ impl pallet_preimage::Config for Runtime {
 
 parameter_types! {
 	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(10) * RuntimeBlockWeights::get().max_block;
-	pub const MaxScheduledPerBlock: u32 = 50;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
@@ -801,7 +877,7 @@ impl pallet_scheduler::Config for Runtime {
 	type Call = Call;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = ScheduleOrigin;
-	type MaxScheduledPerBlock = MaxScheduledPerBlock;
+	type MaxScheduledPerBlock = ConstU32<50>;
 	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type PreimageProvider = Preimage;
@@ -817,8 +893,6 @@ parameter_types! {
 	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
 	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
 	pub const InstantAllowed: bool = true;
-	pub const MaxVotes: u32 = 100;
-	pub const MaxProposals: u32 = 100;
 }
 
 impl pallet_democracy::Config for Runtime {
@@ -869,14 +943,12 @@ impl pallet_democracy::Config for Runtime {
 	type Slash = Treasury;
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
-	type MaxVotes = MaxVotes;
+	type MaxVotes = ConstU32<100>;
 	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
-	type MaxProposals = MaxProposals;
+	type MaxProposals = ConstU32<100>;
 }
 
 parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 256;
-	pub const MaxExecutionTimes: u32 = 24;
 	pub const MaxScheduleSeconds: u64 = 6 * 30 * 24 * 60 * 60;
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
@@ -904,8 +976,8 @@ where
 
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
-	type MaxTasksPerSlot = MaxTasksPerSlot;
-	type MaxExecutionTimes = MaxExecutionTimes;
+	type MaxTasksPerSlot = ConstU32<256>;
+	type MaxExecutionTimes = ConstU32<24>;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
@@ -913,14 +985,15 @@ impl pallet_automation_time::Config for Runtime {
 	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
-	type NativeTokenExchange =
-		pallet_automation_time::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Currency = Balances;
+	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
 	type XcmCall = Call;
 	type XcmExecutor = XcmExecutor<xcm_config::XcmConfig>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = xcm_config::AccountIdToMultiLocation;
+	type DelegatorActions = ParachainStaking;
 }
 
 pub struct ClosedCallFilter;
@@ -980,6 +1053,7 @@ construct_runtime!(
 		// Utilities
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
+		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 32,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
@@ -999,6 +1073,7 @@ construct_runtime!(
 		Preimage: pallet_preimage::{Pallet, Call, Storage, Event<T>} = 56,
 		Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 57,
 		Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 58,
+		Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 59,
 
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
@@ -1107,9 +1182,66 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash> for Runtime {
+	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
+		}
+		/**
+		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
+		 * This function requires the action type and the number of executions in order to generate an estimate.
+		 * However, the AutomationTime::calculate_execution_fee requires an Action enum from the automation time pallet,
+		 * which requires more information than is necessary for this calculation.
+		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
+		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
+		 *
+		 */
+		fn get_time_automation_fees(
+			action: AutomationAction,
+			executions: u32,
+		) -> Balance {
+			AutomationTime::calculate_execution_fee(&(action.into()), executions)
+		}
+
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>> {
+			let candidate_info = ParachainStaking::candidate_info(collator);
+			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
+
+			let collator_stake =
+				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
+			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1) as i128;
+
+			let duration = 90;
+			let total_collators = ParachainStaking::total_selected();
+			let daily_collator_rewards =
+				(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
+
+			let res = pallet_automation_time::do_calculate_optimal_autostaking(
+				principal,
+				collator_stake,
+				fee,
+				duration,
+				daily_collator_rewards,
+			);
+
+			Ok(AutostakingResult{period: res.0, apy: res.1})
+		}
+
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash> {
+			ParachainStaking::delegator_state(account_id.clone())
+				.map_or(vec![], |s| s.delegations.0).into_iter()
+				.map(|d| d.owner)
+				.map(|collator_id| {
+					AutomationTime::generate_auto_compound_delegated_stake_provided_id(&account_id, &collator_id)
+				})
+				.map(|provided_id| {
+					AutomationTime::generate_task_id(account_id.clone(), provided_id)
+				})
+				.filter(|task_id| {
+					AutomationTime::get_task(task_id).is_some()
+				}).collect()
 		}
 	}
 

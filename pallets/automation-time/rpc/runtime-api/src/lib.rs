@@ -17,14 +17,42 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use codec::Codec;
+use codec::{Codec, Decode, Encode};
 use sp_std::vec::Vec;
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+#[derive(PartialEq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
+pub struct AutostakingResult {
+	pub period: i32,
+	pub apy: f64,
+}
+
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum AutomationAction {
+	Notify,
+	NativeTransfer,
+	XCMP,
+	AutoCompoundDelegatedStake,
+}
+
 sp_api::decl_runtime_apis! {
-	pub trait AutomationTimeApi<AccountId, Hash> where
+	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
 		AccountId: Codec,
 		Hash: Codec,
+		Balance: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
+		fn get_time_automation_fees(action: AutomationAction, executions: u32) -> Balance;
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>>;
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash>;
 	}
 }
