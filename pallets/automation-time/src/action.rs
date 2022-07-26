@@ -1,7 +1,7 @@
 use crate::{
-	pallet::{AccountOf, BalanceOf, Config, Error, Event, Pallet, Seconds, Task, UnixTime},
+	pallet::{AccountOf, BalanceOf, Config, Error, Event, Pallet, Seconds, UnixTime},
 	weights::WeightInfo,
-	Decode, Encode, Junction, ParaId, Transact, TypeInfo, Xcm,
+	Decode, Encode, Junction, ParaId, Task, Transact, TypeInfo, Xcm,
 };
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
@@ -55,7 +55,7 @@ impl<T: Config> Action<T> {
 				account_minimum,
 				frequency,
 			} => {
-				let (mut_task, weight) = Self::run_auto_compound_delegated_stake_task(
+				let (weight, mut_task) = Self::run_auto_compound_delegated_stake_task(
 					delegator,
 					collator,
 					account_minimum,
@@ -125,7 +125,7 @@ impl<T: Config> Action<T> {
 		frequency: Seconds,
 		task_id: T::Hash,
 		mut task: Task<T>,
-	) -> (Task<T>, Weight) {
+	) -> (Weight, Task<T>) {
 		match Self::compound_delegator_stake(
 			delegator.clone(),
 			collator.clone(),
@@ -144,9 +144,9 @@ impl<T: Config> Action<T> {
 					error: e,
 				});
 				return (
-					task,
 					// TODO: benchmark and return a smaller weight here to account for the early exit
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+					task,
 				)
 			},
 		}
@@ -178,7 +178,7 @@ impl<T: Config> Action<T> {
 			});
 		});
 
-		(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
+		(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), task)
 	}
 
 	fn compound_delegator_stake(

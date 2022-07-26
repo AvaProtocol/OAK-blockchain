@@ -42,6 +42,8 @@ pub mod weights;
 
 mod action;
 pub use action::*;
+mod task;
+pub use task::*;
 mod fees;
 pub use fees::*;
 
@@ -101,105 +103,6 @@ pub mod pallet {
 	impl<T: Config> MissedTask<T> {
 		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
 			MissedTask::<T> { task_id, execution_time }
-		}
-	}
-
-	/// The struct that stores all information needed for a task.
-	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct Task<T: Config> {
-		pub owner_id: AccountOf<T>,
-		pub provided_id: Vec<u8>,
-		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-		pub executions_left: u32,
-		pub action: Action<T>,
-	}
-
-	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
-	impl<T: Config> PartialEq for Task<T> {
-		fn eq(&self, other: &Self) -> bool {
-			self.owner_id == other.owner_id &&
-				self.provided_id == other.provided_id &&
-				self.action == other.action &&
-				self.executions_left == other.executions_left &&
-				self.execution_times.len() == other.execution_times.len() &&
-				self.execution_times.capacity() == other.execution_times.capacity() &&
-				self.execution_times.to_vec() == other.execution_times.to_vec()
-		}
-	}
-
-	impl<T: Config> Task<T> {
-		pub fn create_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			action: Action<T>,
-		) -> Task<T> {
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
-		}
-
-		pub fn create_event_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			message: Vec<u8>,
-		) -> Task<T> {
-			let action = Action::Notify { message };
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_native_transfer_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			recipient_id: AccountOf<T>,
-			amount: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::NativeTransfer {
-				sender: owner_id.clone(),
-				recipient: recipient_id,
-				amount,
-			};
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_xcmp_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-		) -> Task<T> {
-			let action = Action::XCMP { para_id, call, weight_at_most };
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_auto_compound_delegated_stake_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_time: UnixTime,
-			frequency: Seconds,
-			collator_id: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::AutoCompoundDelegatedStake {
-				delegator: owner_id.clone(),
-				collator: collator_id,
-				account_minimum,
-				frequency,
-			};
-			Self::create_task(
-				owner_id,
-				provided_id,
-				vec![execution_time].try_into().unwrap(),
-				action,
-			)
-		}
-
-		pub fn get_executions_left(&self) -> u32 {
-			self.executions_left
 		}
 	}
 
@@ -698,12 +601,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Cleans the executions times by removing duplicates and putting in ascending order.
-		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
-			execution_times.sort_unstable();
-			execution_times.dedup();
-		}
-
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
@@ -923,10 +820,8 @@ pub mod pallet {
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						let execution_response = task.action.clone().execute(task_id.clone(), task);
-						Self::decrement_task_and_remove_if_complete(*task_id, execution_response.1);
-						execution_response
-							.0
+						let weight = task.execute(task_id.clone());
+						weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
 					},
@@ -964,13 +859,13 @@ pub mod pallet {
 						});
 						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 					},
-					Some(task) => {
+					Some(mut task) => {
 						Self::deposit_event(Event::TaskMissed {
 							who: task.owner_id.clone(),
 							task_id: missed_task.task_id.clone(),
 							execution_time: missed_task.execution_time,
 						});
-						Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
+						task.decrement_task_and_remove_if_complete(missed_task.task_id);
 						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 					},
 				};
@@ -989,22 +884,10 @@ pub mod pallet {
 			}
 		}
 
-		/// Decrements task executions left.
-		/// If task is complete then removes task. If task not complete update task map.
-		/// A task has been completed if executions left equals 0.
-		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
-			task.executions_left = task.executions_left.saturating_sub(1);
-			if task.executions_left <= 0 {
-				Tasks::<T>::remove(task_id);
-			} else {
-				Tasks::<T>::insert(task_id, task);
-			}
-		}
-
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		fn remove_task(task_id: T::Hash, task: Task<T>) {
+		fn remove_task(task_id: T::Hash, mut task: Task<T>) {
 			let mut found_task: bool = false;
-			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
+			task.clean_execution_times();
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
@@ -1141,7 +1024,8 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			Self::clean_execution_times_vector(&mut execution_times);
+			Task::<T>::clean_execution_times_vector(&mut execution_times);
+
 			let max_allowed_executions: usize = T::MaxExecutionTimes::get().try_into().unwrap();
 			if execution_times.len() > max_allowed_executions {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
