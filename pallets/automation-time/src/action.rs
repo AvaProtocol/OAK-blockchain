@@ -153,23 +153,7 @@ impl<T: Config> Action<T> {
 
 		let new_execution_times: Vec<UnixTime> =
 			task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-		let _ = Pallet::<T>::reschedule_existing_task(
-			task_id,
-			task.owner_id.clone(),
-			&task.action,
-			new_execution_times.clone(),
-		)
-		.map(|_| {
-			let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-			task.executions_left += new_executions_left;
-			new_execution_times.iter().try_for_each(|t| {
-				task.execution_times.try_push(*t).and_then(|_| {
-					task.execution_times.remove(0);
-					Ok(())
-				})
-			})
-		})
-		.map_err(|e| {
+		let _ = task.reschedule(task_id, new_execution_times).map_err(|e| {
 			let err: DispatchErrorWithPostInfo = e.into();
 			Pallet::<T>::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 				task_id,

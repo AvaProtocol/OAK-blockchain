@@ -1,9 +1,11 @@
 use crate::{
-	pallet::{AccountOf, BalanceOf, Config, Seconds, Tasks, UnixTime},
+	fees::HandleFees,
+	pallet::{AccountOf, BalanceOf, Config, Error, Event, Pallet, Seconds, Tasks, UnixTime},
 	Action, Decode, Encode, ParaId, TypeInfo,
 };
 
-use frame_support::{weights::Weight, BoundedVec};
+use frame_support::{pallet_prelude::DispatchError, weights::Weight, BoundedVec};
+use sp_runtime::traits::SaturatedConversion;
 use sp_std::{vec, vec::Vec};
 
 /// The struct that stores all information needed for a task.
@@ -106,6 +108,37 @@ impl<T: Config> Task<T> {
 		Self::clean_execution_times_vector(&mut execution_times);
 		self.execution_times = execution_times.try_into().expect("Vec did not grow or change type");
 		self
+	}
+
+	/// Reschedules an existing task for a given number of execution times
+	pub fn reschedule(
+		&mut self,
+		task_id: T::Hash,
+		execution_times: Vec<UnixTime>,
+	) -> Result<&Self, DispatchError> {
+		let fee = self.action.calculate_execution_fee(execution_times.len().saturated_into());
+		T::FeeHandler::can_pay_fee(&self.owner_id, fee.clone())
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
+
+		Pallet::<T>::insert_scheduled_tasks(task_id, execution_times.clone())?;
+
+		self.executions_left =
+			self.executions_left.saturating_add(execution_times.len().saturated_into());
+		let _ = execution_times.iter().try_for_each(|t| {
+			self.execution_times.try_push(*t).and_then(|_| {
+				self.execution_times.remove(0);
+				Ok(())
+			})
+		});
+
+		T::FeeHandler::withdraw_fee(&self.owner_id, fee.clone())
+			.map_err(|_| Error::<T>::LiquidityRestrictions)?;
+
+		Pallet::<T>::deposit_event(Event::<T>::TaskScheduled {
+			who: self.owner_id.clone(),
+			task_id,
+		});
+		Ok(self)
 	}
 }
 

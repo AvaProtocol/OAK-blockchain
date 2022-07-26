@@ -986,7 +986,7 @@ pub mod pallet {
 		/// Insert task id into scheduled tasks
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
-		fn insert_scheduled_tasks(
+		pub fn insert_scheduled_tasks(
 			task_id: T::Hash,
 			execution_times: Vec<UnixTime>,
 		) -> Result<T::Hash, Error<T>> {
@@ -1051,27 +1051,6 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
-				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
-
-			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
-			Ok(())
-		}
-
-		/// Reschedules an existing task for a given number of execution times
-		pub fn reschedule_existing_task(
-			task_id: T::Hash,
-			who: T::AccountId,
-			action: &Action<T>,
-			execution_times: Vec<UnixTime>,
-		) -> Result<(), DispatchError> {
-			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = action.calculate_execution_fee(new_executions);
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
-
-			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
-
 			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
