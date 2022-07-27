@@ -250,7 +250,7 @@ benchmarks! {
 
 	run_notify_task {
 		let message = b"hello there".to_vec();
-	}: { AutomationTime::<T>::run_notify_task(message.clone()) }
+	}: { Action::<T>::run_notify_task(message.clone()) }
 	verify {
 		assert_last_event::<T>(Event::Notify{ message }.into())
 	}
@@ -265,7 +265,7 @@ benchmarks! {
 		let amount_transferred: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
 		let task_id: T::Hash = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
-	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
+	}: { Action::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
 	verify {
 		assert_last_event::<T>(Event::SuccessfullyTransferredFunds{ task_id }.into())
 	}
@@ -276,7 +276,7 @@ benchmarks! {
 		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
+	}: { Action::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);
@@ -288,7 +288,7 @@ benchmarks! {
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
-   }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
+   }: { Action::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
 
 	/*
 	* This section is to test run_missed_tasks.
