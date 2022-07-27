@@ -50,9 +50,10 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
+use pallet_timestamp::{self as timestamp};
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{Saturating},
+	traits::{SaturatedConversion, Saturating},
 	Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -66,6 +67,7 @@ pub mod pallet {
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	type UnixTime = u64;
 
 	/// The struct that stores all information needed for a task.
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
@@ -119,7 +121,7 @@ pub mod pallet {
 	pub struct AssetMetadatum<T: Config> {
 		upper_bound: u16,
 		lower_bound: u8,
-		expiration_period: u32,
+		expiration_period: UnixTime,
 		asset_sudo: AccountOf<T>,
 	}
 
@@ -186,6 +188,11 @@ pub mod pallet {
 		), Vec<T::Hash>>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn get_scheduled_asset_period_reset)]
+	pub type ScheduledAssetDeletion<T: Config> =
+		StorageMap<_, Twox64Concat, u64, Vec<Vec<u8>>>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn get_asset_target_price)]
 	pub type AssetTargetPrices<T: Config> =
 		StorageMap<_, Twox64Concat, Vec<u8>, u128>;
@@ -227,6 +234,8 @@ pub mod pallet {
 		InvalidAssetSudo,
 		/// Asset must be in triggerable range.
 		AssetNotInTriggerableRange,
+		/// Block Time not set
+		BlockTimeNotSet
 	}
 
 	#[pallet::event]
@@ -302,7 +311,7 @@ pub mod pallet {
 			target_price: u128,
 			upper_bound: u16,
 			lower_bound: u8,
-			expiration_period: u32,
+			expiration_period: UnixTime,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
@@ -316,6 +325,8 @@ pub mod pallet {
 					asset_sudo: who
 				};
 				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
+				let new_time_slot = Self::get_current_time_slot().unwrap() + expiration_period;
+				Self::update_asset_reset(asset.clone(), new_time_slot);
 				AssetPrices::<T>::insert(asset, target_price);
 			}
 			Ok(().into())
@@ -379,6 +390,27 @@ pub mod pallet {
 				return weight_left
 			}
 
+			// remove assets as necessary
+			let current_time_slot = match Self::get_current_time_slot() {
+				Ok(time_slot) => time_slot,
+				Err(_) => return weight_left,
+			};
+			if let Some(scheduled_deletion_assets) = Self::get_scheduled_asset_period_reset(current_time_slot) {
+				// delete assets' tasks
+				for asset in scheduled_deletion_assets {
+					// delete asset tasks
+					Self::delete_asset_tasks(asset.clone());
+
+					// get time period duration
+					Self::update_asset_reset(asset.clone(), current_time_slot);
+					// 2. set new target price
+					if let Some(last_asset_price) = Self::get_asset_price(asset.clone()) {
+						AssetTargetPrices::<T>::insert(asset.clone(), last_asset_price);
+					};
+				}
+				ScheduledAssetDeletion::<T>::remove(current_time_slot);
+			}
+
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
 			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
@@ -389,6 +421,42 @@ pub mod pallet {
 					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
 			weight_left
+		}
+
+		pub fn update_asset_reset(asset: Vec<u8>, current_time_slot: u64) {
+			if let Some(metadata) = Self::get_asset_metadata(asset.clone()) {
+				let expiration_period: u64 = metadata.expiration_period;
+				// start new duration
+				// 1. schedule new deletion time
+				let new_time_slot = current_time_slot + expiration_period;
+				if let Some(mut future_scheduled_deletion_assets) = Self::get_scheduled_asset_period_reset(new_time_slot) {
+					future_scheduled_deletion_assets.push(asset.clone());
+					<ScheduledAssetDeletion<T>>::insert(new_time_slot, future_scheduled_deletion_assets);
+				} else {
+					let new_asset_list = vec![asset.clone()];
+					<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
+				}
+			};
+		}
+
+		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
+			let now = <timestamp::Pallet<T>>::get().saturated_into::<UnixTime>();
+			if now == 0 {
+				Err(Error::<T>::BlockTimeNotSet)?
+			}
+			let now = now / 1000;
+			let diff_to_min = now % 60;
+			Ok(now.saturating_sub(diff_to_min))
+		}
+
+		pub fn delete_asset_tasks(asset: Vec<u8>) -> Weight {
+			// delete scheduled tasks
+			ScheduledTasks::<T>::remove_prefix((asset, ), None);
+			// delete tasks from tasks table
+
+			// delete tasks from task queue
+
+			10_000
 		}
 
 		/// Update the task queue.
