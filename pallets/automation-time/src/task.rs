@@ -8,13 +8,15 @@ use frame_support::{pallet_prelude::DispatchError, weights::Weight, BoundedVec};
 use sp_runtime::traits::SaturatedConversion;
 use sp_std::{vec, vec::Vec};
 
+pub type ExecutionTimes<T> = BoundedVec<UnixTime, <T as Config>::MaxExecutionTimes>;
+
 /// The struct that stores all information needed for a task.
 #[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(T))]
 pub struct Task<T: Config> {
 	pub owner_id: AccountOf<T>,
 	pub provided_id: Vec<u8>,
-	pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+	pub execution_times: ExecutionTimes<T>,
 	pub executions_left: u32,
 	pub action: Action<T>,
 }
@@ -23,7 +25,7 @@ impl<T: Config> Task<T> {
 	pub fn create_task(
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		execution_times: ExecutionTimes<T>,
 		action: Action<T>,
 	) -> Task<T> {
 		let executions_left: u32 = execution_times.len().try_into().unwrap();
@@ -33,7 +35,7 @@ impl<T: Config> Task<T> {
 	pub fn create_event_task(
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		execution_times: ExecutionTimes<T>,
 		message: Vec<u8>,
 	) -> Task<T> {
 		let action = Action::Notify { message };
@@ -43,7 +45,7 @@ impl<T: Config> Task<T> {
 	pub fn create_native_transfer_task(
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		execution_times: ExecutionTimes<T>,
 		recipient_id: AccountOf<T>,
 		amount: BalanceOf<T>,
 	) -> Task<T> {
@@ -55,7 +57,7 @@ impl<T: Config> Task<T> {
 	pub fn create_xcmp_task(
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
+		execution_times: ExecutionTimes<T>,
 		para_id: ParaId,
 		call: Vec<u8>,
 		weight_at_most: Weight,
@@ -125,10 +127,10 @@ impl<T: Config> Task<T> {
 		self.executions_left =
 			self.executions_left.saturating_add(execution_times.len().saturated_into());
 		let _ = execution_times.iter().try_for_each(|t| {
-			self.execution_times.try_push(*t).and_then(|_| {
+			if self.execution_times.len() >= ExecutionTimes::<T>::bound() {
 				self.execution_times.remove(0);
-				Ok(())
-			})
+			}
+			self.execution_times.try_push(*t)
 		});
 
 		T::FeeHandler::withdraw_fee(&self.owner_id, fee.clone())
