@@ -16,6 +16,7 @@
 // limitations under the License.
 
 use codec::Codec;
+use frame_support::parameter_types;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
@@ -27,6 +28,16 @@ use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
+use xcm::{
+	latest::{prelude::*, MultiLocation, NetworkId},
+	v1::Junction::Parachain,
+};
+use xcm_builder::Account32Hash;
+use xcm_executor::traits::Convert;
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
+}
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc(client, server)]
@@ -63,7 +74,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 	) -> RpcResult<Vec<Hash>>;
 
 	#[method(name = "automationTime_crosssChainAccount")]
-	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<String>;
+	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -189,19 +200,14 @@ where
 		})
 	}
 
-	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<String> {
-		use codec::{Decode, Encode};
-		use sp_io::hashing::blake2_256;
-		use sp_runtime::AccountId32;
-		use xcm::latest::{prelude::*, Junction::*, Junctions::*, MultiLocation, NetworkId};
-		let account = AccountId32::from(account_id);
-		let oak_multiloc = MultiLocation::new(
+	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
+		let multiloc = MultiLocation::new(
 			1,
-			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account.into() }),
+			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account_id.into() }),
 		);
+		let result =
+			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).unwrap();
 
-		let cross_chain_account: AccountId32 =
-			("multiloc", oak_multiloc).using_encoded(blake2_256).into();
-		Ok(format!("{:}", cross_chain_account))
+		Ok(result)
 	}
 }

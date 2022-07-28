@@ -5281,6 +5281,7 @@ dependencies = [
 name = "pallet-automation-time-rpc"
 version = "0.1.0"
 dependencies = [
+ "frame-support",
  "jsonrpsee",
  "pallet-automation-time-rpc-runtime-api",
  "parity-scale-codec",
@@ -5290,6 +5291,8 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
