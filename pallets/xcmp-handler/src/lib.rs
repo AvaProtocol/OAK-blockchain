@@ -17,7 +17,7 @@
 
 //! # XCMP Handler pallet
 //!
-//! This pallet is used to send XCM messages to other chains.
+//! This pallet is used to send XCM Transact messages to other chains.
 //! In order to do that it needs to keep track of what tokens other chains accept,
 //! and the relevant rates.
 //!
@@ -44,18 +44,17 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use codec::Decode;
-	use frame_support::{
-		dispatch::DispatchResultWithPostInfo,
-		pallet_prelude::{StorageDoubleMap, *},
-	};
+	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
 	use frame_system::pallet_prelude::*;
 	use sp_std::prelude::*;
+
+	type ParachainId = u32;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-		///The currencyIds that our chain supports.
+		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
 			+ Member
 			+ Copy
@@ -64,7 +63,7 @@ pub mod pallet {
 			+ TypeInfo
 			+ MaxEncodedLen;
 
-		///The currencyId for the native currency.
+		/// The currencyId for the native currency.
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<Self::CurrencyId>;
 
@@ -79,41 +78,51 @@ pub mod pallet {
 
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
-	pub enum Event<T> {
+	pub enum Event<T: Config> {
 		/// XCM data was added for a chain/currency pair.
-		XcmDataAdded { para_id: u32 },
+		XcmDataAdded { para_id: ParachainId, currency_id: T::CurrencyId },
 		/// XCM data was removed for a chain/currency pair.
-		XcmDataRemoved { para_id: u32 },
+		XcmDataRemoved { para_id: ParachainId, currency_id: T::CurrencyId },
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
-		///We only support certain currency/chain combinations.
+		/// We only support certain currency/chain combinations.
 		CurrencyChainComboNotSupported,
+		/// There is no entry for that currency/chain combination.
+		CurrencyChainComboNotFound,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
 	pub struct XcmCurrencyData {
+		/// Is the token native to the chain?
 		pub native: bool,
 		pub fee_per_second: u128,
+		/// The weight of the instructions for the chain/currency pair minus the Transact.
 		pub instruction_weight: u64,
 	}
 
 	/// Stores XCM data for a chain/currency pair.
 	#[pallet::storage]
 	#[pallet::getter(fn get_xcm_chain_data)]
-	pub type XcmChainCurrencyData<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, u32, Twox64Concat, T::CurrencyId, XcmCurrencyData>;
+	pub type XcmChainCurrencyData<T: Config> = StorageDoubleMap<
+		_,
+		Twox64Concat,
+		ParachainId,
+		Twox64Concat,
+		T::CurrencyId,
+		XcmCurrencyData,
+	>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		///Add or update XCM data for a chain/currency pair.
-		///For now we only support our native currency.
+		/// Add or update XCM data for a chain/currency pair.
+		/// For now we only support our native currency.
 		#[pallet::weight(T::WeightInfo::add_chain_currency_data())]
 		pub fn add_chain_currency_data(
 			origin: OriginFor<T>,
-			para_id: u32,
+			para_id: ParachainId,
 			currency_id: T::CurrencyId,
 			xcm_data: XcmCurrencyData,
 		) -> DispatchResultWithPostInfo {
@@ -124,22 +133,26 @@ pub mod pallet {
 			}
 
 			XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
-			Self::deposit_event(Event::XcmDataAdded { para_id });
+			Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
 
 			Ok(().into())
 		}
 
-		///Remove XCM data for a chain/currency pair.
+		/// Remove XCM data for a chain/currency pair.
 		#[pallet::weight(T::WeightInfo::remove_chain_currency_data())]
 		pub fn remove_chain_currency_data(
 			origin: OriginFor<T>,
-			para_id: u32,
+			para_id: ParachainId,
 			currency_id: T::CurrencyId,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			XcmChainCurrencyData::<T>::remove(para_id, currency_id);
-			Self::deposit_event(Event::XcmDataRemoved { para_id });
+			if let Some(_) = XcmChainCurrencyData::<T>::get(para_id, currency_id) {
+				XcmChainCurrencyData::<T>::remove(para_id, currency_id);
+				Self::deposit_event(Event::XcmDataRemoved { para_id, currency_id });
+			} else {
+				Err(Error::<T>::CurrencyChainComboNotFound)?
+			}
 
 			Ok(().into())
 		}

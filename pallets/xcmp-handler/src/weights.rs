@@ -44,9 +44,10 @@ impl WeightInfo for () {
 		(12_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
-	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
+	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
 	fn remove_chain_currency_data() -> Weight {
-		(12_000_000 as Weight)
+		(15_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 	}
 }

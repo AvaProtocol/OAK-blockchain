@@ -22,7 +22,7 @@ use frame_system::RawOrigin;
 //Extrinsics
 //*****************
 
-//add_chain_currency_data
+// add_chain_currency_data
 #[test]
 fn can_add_new_data() {
 	new_test_ext().execute_with(|| {
@@ -91,7 +91,7 @@ fn can_only_use_native_currency() {
 	});
 }
 
-//remove_chain_currency_data
+// remove_chain_currency_data
 #[test]
 fn can_remove_data() {
 	new_test_ext().execute_with(|| {
@@ -110,5 +110,21 @@ fn can_remove_data() {
 		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
 			panic!("There should be no data set")
 		};
+	});
+}
+
+#[test]
+fn errors_if_not_found() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+
+		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+			panic!("There should be no data set")
+		};
+		assert_noop!(
+			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), para_id, currency_id,),
+			Error::<Test>::CurrencyChainComboNotFound
+		);
 	});
 }
