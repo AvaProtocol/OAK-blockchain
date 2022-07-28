@@ -4776,6 +4776,7 @@ dependencies = [
  "pallet-valve",
  "pallet-vesting 1.0.0",
  "pallet-xcm",
+ "pallet-xcmp-handler",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
@@ -6221,6 +6222,22 @@ dependencies = [
  "sp-std",
  "xcm",
  "xcm-executor",
+]
+
+[[package]]
+name = "pallet-xcmp-handler"
+version = "0.1.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
@@ -11528,6 +11545,7 @@ dependencies = [
  "pallet-valve",
  "pallet-vesting 1.0.0",
  "pallet-xcm",
+ "pallet-xcmp-handler",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
