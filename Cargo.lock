@@ -5287,7 +5287,9 @@ dependencies = [
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
+ "sp-io",
  "sp-runtime",
+ "xcm",
 ]
 
 [[package]]

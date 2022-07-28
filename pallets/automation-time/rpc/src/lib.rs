@@ -25,7 +25,7 @@ pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationT
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
 
 /// An RPC endpoint to provide information about tasks.
@@ -61,6 +61,9 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 		&self,
 		account: AccountId,
 	) -> RpcResult<Vec<Hash>>;
+
+	#[method(name = "automationTime_crosssChainAccount")]
+	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<String>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -184,5 +187,21 @@ where
 				Some(format!("{:?}", e)),
 			)))
 		})
+	}
+
+	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<String> {
+		use codec::{Decode, Encode};
+		use sp_io::hashing::blake2_256;
+		use sp_runtime::AccountId32;
+		use xcm::latest::{prelude::*, Junction::*, Junctions::*, MultiLocation, NetworkId};
+		let account = AccountId32::from(account_id);
+		let oak_multiloc = MultiLocation::new(
+			1,
+			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account.into() }),
+		);
+
+		let cross_chain_account: AccountId32 =
+			("multiloc", oak_multiloc).using_encoded(blake2_256).into();
+		Ok(format!("{:}", cross_chain_account))
 	}
 }
