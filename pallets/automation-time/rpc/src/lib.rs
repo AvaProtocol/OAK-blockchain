@@ -205,9 +205,12 @@ where
 			1,
 			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account_id.into() }),
 		);
-		let result =
-			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).unwrap();
-
-		Ok(result)
+		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).map_err(|e| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to get cross chain AccountId",
+				Some(format!("{:?}", e)),
+			)))
+		})
 	}
 }
