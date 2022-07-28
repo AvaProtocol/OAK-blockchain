@@ -29,7 +29,7 @@ fn can_add_new_data() {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
 
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 
@@ -107,7 +107,7 @@ fn can_remove_data() {
 			para_id,
 			currency_id
 		));
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 	});
@@ -119,7 +119,7 @@ fn errors_if_not_found() {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
 
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(

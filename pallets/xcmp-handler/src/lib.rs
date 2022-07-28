@@ -147,12 +147,9 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			if let Some(_) = XcmChainCurrencyData::<T>::get(para_id, currency_id) {
-				XcmChainCurrencyData::<T>::remove(para_id, currency_id);
-				Self::deposit_event(Event::XcmDataRemoved { para_id, currency_id });
-			} else {
-				Err(Error::<T>::CurrencyChainComboNotFound)?
-			}
+			XcmChainCurrencyData::<T>::take(para_id, currency_id)
+				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+			Self::deposit_event(Event::XcmDataRemoved { para_id, currency_id });
 
 			Ok(().into())
 		}
