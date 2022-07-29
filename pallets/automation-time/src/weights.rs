@@ -161,15 +161,17 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
+	// Storage: ParachainStaking DelegationScheduledRequests (r:1 w:0)
+	// Storage: ParachainStaking DelegatorReserveToLockMigrations (r:1 w:0)
+	// Storage: Balances Locks (r:1 w:1)
 	// Storage: ParachainStaking CandidateInfo (r:1 w:1)
 	// Storage: ParachainStaking TopDelegations (r:1 w:1)
 	// Storage: ParachainStaking CandidatePool (r:1 w:1)
 	// Storage: ParachainStaking Total (r:1 w:1)
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		(74_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(9 as Weight))
+		(87_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(11 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
