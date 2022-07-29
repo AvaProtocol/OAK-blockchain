@@ -44,7 +44,10 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use codec::Decode;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, pallet_prelude::*};
+	use frame_support::{
+		dispatch::DispatchResultWithPostInfo, pallet_prelude::*,
+		weights::constants::WEIGHT_PER_SECOND,
+	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::prelude::*;
 
@@ -91,6 +94,8 @@ pub mod pallet {
 		CurrencyChainComboNotSupported,
 		/// There is no entry for that currency/chain combination.
 		CurrencyChainComboNotFound,
+		/// Either the weight or fee per second are too large.
+		FeeOverflow,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -99,7 +104,12 @@ pub mod pallet {
 		/// Is the token native to the chain?
 		pub native: bool,
 		pub fee_per_second: u128,
-		/// The weight of the instructions for the chain/currency pair minus the Transact.
+		/// The weight of the instructions for the chain/currency pair minus the Transact encoded call.
+		/// For example, if the chain is using FixedWeightBounds then the weight is the
+		/// number of instructions times the UnitWeightCost. The number of instructions inlcudes the Transact instruction.
+		///
+		/// FixedWeightBounds link:
+		/// (https://github.com/paritytech/polkadot/blob/63b611e8b1c332e4d7aaaa9ebd99d8d40f2a6f49/xcm/xcm-builder/src/weight.rs#L30)
 		pub instruction_weight: u64,
 	}
 
@@ -152,6 +162,24 @@ pub mod pallet {
 			Self::deposit_event(Event::XcmDataRemoved { para_id, currency_id });
 
 			Ok(().into())
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		pub fn calculate_xcm_fee(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			transact_encoded_call_weight: u64,
+		) -> Result<u128, DispatchError> {
+			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
+				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+			let fee_or_err = xcm_data
+				.fee_per_second
+				.checked_mul(transact_encoded_call_weight as u128)
+				.ok_or(Error::<T>::FeeOverflow.into())
+				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128));
+
+			fee_or_err
 		}
 	}
 }

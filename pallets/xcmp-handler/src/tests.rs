@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
-use frame_support::{assert_noop, assert_ok};
+use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 
 //*****************
@@ -124,6 +124,67 @@ fn errors_if_not_found() {
 		};
 		assert_noop!(
 			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), para_id, currency_id,),
+			Error::<Test>::CurrencyChainComboNotFound
+		);
+	});
+}
+
+//*****************
+//Helper  functions
+//*****************
+
+// calculate_xcm_fee
+#[test]
+fn returns_fee() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+		let xcm_data = XcmCurrencyData {
+			native: false,
+			fee_per_second: 50_000_000_000,
+			instruction_weight: 1_000,
+		};
+		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+		let transact_encoded_call_weight: u64 = 100_000_000;
+
+		let expected_fee = xcm_data.fee_per_second * (transact_encoded_call_weight as u128) /
+			(WEIGHT_PER_SECOND as u128);
+		assert_ok!(
+			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			expected_fee,
+		);
+	});
+}
+
+#[test]
+fn errors_if_not_overflow() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+		let xcm_data =
+			XcmCurrencyData { native: false, fee_per_second: u128::MAX, instruction_weight: 1_000 };
+		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+		let transact_encoded_call_weight: u64 = u64::MAX;
+
+		assert_noop!(
+			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			Error::<Test>::FeeOverflow
+		);
+	});
+}
+
+#[test]
+fn no_xcm_data() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+		let transact_encoded_call_weight: u64 = 100_000_000;
+
+		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+			panic!("There should be no data set")
+		};
+		assert_noop!(
+			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
 			Error::<Test>::CurrencyChainComboNotFound
 		);
 	});
