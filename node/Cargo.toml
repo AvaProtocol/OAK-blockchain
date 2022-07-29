@@ -113,7 +113,7 @@ polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" } 
 
 # Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.23" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "nikhil/auto-compound-after-locks" }
 
 [package.metadata.deb]
 name = "oak-collator"
