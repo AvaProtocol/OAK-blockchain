@@ -39,7 +39,7 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 ## Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "nikhil/auto-compound-after-locks" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-staging" }
 
 ## Local
 pallet-automation-time-rpc-runtime-api = { path = "./rpc/runtime-api", default-features = false }
