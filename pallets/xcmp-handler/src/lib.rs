@@ -171,17 +171,16 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			transact_encoded_call_weight: u64,
 		) -> Result<u128, DispatchError> {
-			if let Some(xcm_data) = XcmChainCurrencyData::<T>::get(para_id, currency_id) {
-				if let Some(raw_fee) =
-					xcm_data.fee_per_second.checked_mul(transact_encoded_call_weight as u128)
-				{
-					Ok(raw_fee / (WEIGHT_PER_SECOND as u128))
-				} else {
-					Err(Error::<T>::FeeOverflow)?
-				}
-			} else {
-				Err(Error::<T>::CurrencyChainComboNotFound)?
-			}
+			XcmChainCurrencyData::<T>::get(para_id, currency_id).map_or(
+				Err(Error::<T>::CurrencyChainComboNotFound.into()),
+				|xcm_data| {
+					xcm_data
+						.fee_per_second
+						.checked_mul(transact_encoded_call_weight as u128)
+						.ok_or(Error::<T>::FeeOverflow.into())
+						.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128))
+				},
+			)
 		}
 	}
 }
