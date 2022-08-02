@@ -135,10 +135,6 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.build_storage::<Test>()
 		.expect("Frame system builds valid default genesis config");
 
-	// let parachain_info_config = parachain_info::GenesisConfig {
-	// 	parachain_id: 2114u32.into(),
-	// };
-	// <parachain_info::GenesisConfig as GenesisBuild<Test>>::assimilate_storage(&parachain_info_config, &mut t).unwrap();
 	GenesisBuild::<Test>::assimilate_storage(
 		&parachain_info::GenesisConfig { parachain_id: 2114u32.into() },
 		&mut t,
