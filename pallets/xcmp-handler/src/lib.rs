@@ -94,8 +94,10 @@ pub mod pallet {
 		CurrencyChainComboNotSupported,
 		/// There is no entry for that currency/chain combination.
 		CurrencyChainComboNotFound,
-		/// Either the weight or fee per second are too large.
+		/// Either the weight or fee per second is too large.
 		FeeOverflow,
+		/// Either the instruction weight or the transact weight is too large.
+		WeightOverflow,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -173,9 +175,13 @@ pub mod pallet {
 		) -> Result<u128, DispatchError> {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+			let xcm_weight = xcm_data
+				.instruction_weight
+				.checked_add(transact_encoded_call_weight)
+				.ok_or(Error::<T>::WeightOverflow)?;
 			let fee_or_err = xcm_data
 				.fee_per_second
-				.checked_mul(transact_encoded_call_weight as u128)
+				.checked_mul(xcm_weight as u128)
 				.ok_or(Error::<T>::FeeOverflow.into())
 				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128));
 

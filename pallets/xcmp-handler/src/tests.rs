@@ -135,7 +135,7 @@ fn errors_if_not_found() {
 
 // calculate_xcm_fee
 #[test]
-fn returns_fee() {
+fn calculate_xcm_fee_works() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -147,7 +147,8 @@ fn returns_fee() {
 		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_fee = xcm_data.fee_per_second * (transact_encoded_call_weight as u128) /
+		let expected_fee = xcm_data.fee_per_second *
+			(transact_encoded_call_weight as u128 + xcm_data.instruction_weight as u128) /
 			(WEIGHT_PER_SECOND as u128);
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
@@ -157,14 +158,14 @@ fn returns_fee() {
 }
 
 #[test]
-fn errors_if_not_overflow() {
+fn calculate_xcm_fee_overflow() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
 		let xcm_data =
 			XcmCurrencyData { native: false, fee_per_second: u128::MAX, instruction_weight: 1_000 };
 		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
-		let transact_encoded_call_weight: u64 = u64::MAX;
+		let transact_encoded_call_weight: u64 = 100_000_000;
 
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
@@ -174,7 +175,24 @@ fn errors_if_not_overflow() {
 }
 
 #[test]
-fn no_xcm_data() {
+fn calculate_xcm_weight_overflow() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+		let xcm_data =
+			XcmCurrencyData { native: false, fee_per_second: 1_000, instruction_weight: u64::MAX };
+		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+		let transact_encoded_call_weight: u64 = u64::MAX;
+
+		assert_noop!(
+			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			Error::<Test>::WeightOverflow
+		);
+	});
+}
+
+#[test]
+fn calculate_xcm_no_xcm_data() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
