@@ -25,6 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
+use pallet_xcmp_handler_rpc_runtime_api;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -1175,6 +1176,12 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+	}
+
+	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Hash, Balance> for Runtime {
+		fn fees() -> Balance {
+			10_000_000 as Balance
 		}
 	}
 

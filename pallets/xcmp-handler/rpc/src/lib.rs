@@ -15,16 +15,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use codec::Codec;
 use frame_support::parameter_types;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
 	types::error::{CallError, ErrorObject},
 };
+pub use pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi as XcmpHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{traits::Block as BlockT, AccountId32};
-use std::sync::Arc;
+use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
+use std::{fmt::Debug, sync::Arc};
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
 	v1::Junction::Parachain,
@@ -38,9 +40,11 @@ parameter_types! {
 
 /// An RPC endpoint to provide information about xcmp.
 #[rpc(client, server)]
-pub trait XcmpHandlerApi<BlockHash> {
+pub trait XcmpHandlerApi<Block, Hash, Balance> {
 	#[method(name = "xcmpHandler_crossChainAccount")]
 	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
+	#[method(name = "xcmpHandler_fees")]
+	fn fees(&self) -> RpcResult<u64>;
 }
 
 /// An implementation of XCMP-specific RPC methods on full client.
@@ -71,10 +75,14 @@ impl From<Error> for i32 {
 }
 
 #[async_trait]
-impl<C, Block> XcmpHandlerApiServer<<Block as BlockT>::Hash> for XcmpHandler<C, Block>
+impl<C, Block, Hash, Balance> XcmpHandlerApiServer<<Block as BlockT>::Hash, Hash, Balance>
+	for XcmpHandler<C, Block>
 where
 	Block: BlockT,
+	Balance: Codec + Copy + TryInto<u64> + Debug,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
+	C::Api: XcmpHandlerRuntimeApi<Block, Hash, Balance>,
+	Hash: Codec,
 {
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
 		let multiloc = MultiLocation::new(
@@ -86,6 +94,25 @@ where
 				Error::RuntimeError.into(),
 				"Unable to get cross chain AccountId",
 				Some(format!("{:?}", e)),
+			)))
+		})
+	}
+
+	fn fees(&self) -> RpcResult<u64> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+		let runtime_api_result = api.fees(&at).map_err(|e| {
+			CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to get fees",
+				Some(e.to_string()),
+			))
+		})?;
+		runtime_api_result.try_into().map_err(|_| {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"RPC value doesn't fit in u64 representation",
+				Some(format!("RPC value cannot be translated into u64 representation")),
 			)))
 		})
 	}

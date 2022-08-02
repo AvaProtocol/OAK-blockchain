@@ -6247,6 +6247,8 @@ version = "0.1.0"
 dependencies = [
  "frame-support",
  "jsonrpsee",
+ "pallet-xcmp-handler-rpc-runtime-api",
+ "parity-scale-codec",
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
@@ -6254,6 +6256,16 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
+]
+
+[[package]]
+name = "pallet-xcmp-handler-rpc-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde",
+ "sp-api",
+ "sp-std",
 ]
 
 [[package]]
@@ -11562,6 +11574,7 @@ dependencies = [
  "pallet-vesting 1.0.0",
  "pallet-xcm",
  "pallet-xcmp-handler",
+ "pallet-xcmp-handler-rpc-runtime-api",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
