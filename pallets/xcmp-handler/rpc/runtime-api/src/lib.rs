@@ -20,8 +20,7 @@
 use codec::Codec;
 
 sp_api::decl_runtime_apis! {
-	pub trait XcmpHandlerApi<Hash, Balance> where
-		Hash: Codec,
+	pub trait XcmpHandlerApi<Balance> where
 		Balance: Codec,
 	{
 		fn fees() -> Balance;

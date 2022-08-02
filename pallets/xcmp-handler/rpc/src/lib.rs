@@ -40,7 +40,7 @@ parameter_types! {
 
 /// An RPC endpoint to provide information about xcmp.
 #[rpc(client, server)]
-pub trait XcmpHandlerApi<Block, Hash, Balance> {
+pub trait XcmpHandlerApi<Block, Balance> {
 	#[method(name = "xcmpHandler_crossChainAccount")]
 	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
 	#[method(name = "xcmpHandler_fees")]
@@ -75,14 +75,13 @@ impl From<Error> for i32 {
 }
 
 #[async_trait]
-impl<C, Block, Hash, Balance> XcmpHandlerApiServer<<Block as BlockT>::Hash, Hash, Balance>
+impl<C, Block, Balance> XcmpHandlerApiServer<<Block as BlockT>::Hash, Balance>
 	for XcmpHandler<C, Block>
 where
 	Block: BlockT,
 	Balance: Codec + Copy + TryInto<u64> + Debug,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
-	C::Api: XcmpHandlerRuntimeApi<Block, Hash, Balance>,
-	Hash: Codec,
+	C::Api: XcmpHandlerRuntimeApi<Block, Balance>,
 {
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
 		let multiloc = MultiLocation::new(

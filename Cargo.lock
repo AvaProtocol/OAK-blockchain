@@ -4777,6 +4777,7 @@ dependencies = [
  "pallet-vesting 1.0.0",
  "pallet-xcm",
  "pallet-xcmp-handler",
+ "pallet-xcmp-handler-rpc-runtime-api",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",

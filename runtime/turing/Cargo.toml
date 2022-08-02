@@ -152,6 +152,7 @@ std = [
 	"pallet-vesting/std",
 	"pallet-parachain-staking/std",
 	"pallet-xcmp-handler/std",
+	"pallet-xcmp-handler-rpc-runtime-api/std",
 	"primitives/std",
 	"cumulus-pallet-aura-ext/std",
 	"cumulus-pallet-parachain-system/std",
