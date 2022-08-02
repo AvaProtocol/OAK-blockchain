@@ -438,6 +438,8 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type Event = Event;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type WeightInfo = ();
 }
 

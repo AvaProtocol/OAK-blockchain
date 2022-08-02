@@ -44,12 +44,15 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use codec::Decode;
+	use cumulus_primitives_core::ParaId;
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo, pallet_prelude::*,
 		weights::constants::WEIGHT_PER_SECOND,
 	};
 	use frame_system::pallet_prelude::*;
+	use sp_runtime::traits::Convert;
 	use sp_std::prelude::*;
+	use xcm::latest::prelude::*;
 
 	type ParachainId = u32;
 
@@ -69,6 +72,12 @@ pub mod pallet {
 		/// The currencyId for the native currency.
 		#[pallet::constant]
 		type GetNativeCurrencyId: Get<Self::CurrencyId>;
+
+		//The paraId of this chain.
+		type SelfParaId: Get<ParaId>;
+
+		/// Convert an accountId to a multilocation.
+		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -168,6 +177,7 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		/// Get the xcm fee for a transact xcm for a given chain/currency pair.
 		pub fn calculate_xcm_fee(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
@@ -179,13 +189,129 @@ pub mod pallet {
 				.instruction_weight
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
-			let fee_or_err = xcm_data
+			let fee = xcm_data
 				.fee_per_second
 				.checked_mul(xcm_weight as u128)
-				.ok_or(Error::<T>::FeeOverflow.into())
-				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128));
+				.ok_or(Error::<T>::FeeOverflow)
+				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128))?;
 
-			fee_or_err
+			Ok(fee)
+		}
+
+		/// Get the instructions for a transact xcm.
+		/// Currently we only support instructions if the currency is the local chain's.
+		///
+		/// Returns two instructions sets.
+		/// The first is to execute locally.
+		/// The second is to executre on the target chain.
+		pub fn get_instruction_set(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			caller: T::AccountId,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+		) -> Result<(xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>), DispatchError> {
+			if currency_id != T::GetNativeCurrencyId::get() {
+				Err(Error::<T>::CurrencyChainComboNotSupported)?
+			}
+
+			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
+				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+			let weight = xcm_data
+				.instruction_weight
+				.checked_add(transact_encoded_call_weight)
+				.ok_or(Error::<T>::WeightOverflow)?;
+			let fee = Self::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight)?;
+
+			let instructions = Self::get_local_currency_instructions(
+				para_id,
+				caller,
+				transact_encoded_call,
+				transact_encoded_call_weight,
+				weight,
+				fee,
+			);
+
+			Ok(instructions)
+		}
+
+		/// Construct the instructions for a transact xcm with the chain's local currency.
+		///
+		/// Local instructions
+		/// 	- WithdrawAsset
+		/// 	- DepositAsset
+		///
+		/// Target instructions
+		/// 	- ReserveAssetDeposited
+		/// 	- BuyExecution
+		/// 	- DescendOrigin
+		/// 	- Transact
+		/// 	- RefundSurplus
+		/// 	- DepositAsset
+		pub fn get_local_currency_instructions(
+			para_id: ParachainId,
+			caller: T::AccountId,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+			xcm_weight: u64,
+			fee: u128,
+		) -> (xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>) {
+			// XCM for foreign chain
+			let local_asset_on_foreign = MultiAsset {
+				id: Concrete(MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))),
+				fun: Fungibility::Fungible(fee),
+			};
+
+			let reserve_asset =
+				ReserveAssetDeposited::<()>(vec![local_asset_on_foreign.clone()].into());
+
+			let buy_execution = BuyExecution::<()> {
+				fees: local_asset_on_foreign,
+				weight_limit: Limited(xcm_weight),
+			};
+
+			let descend_location: Junctions =
+				T::AccountIdToMultiLocation::convert(caller).try_into().unwrap();
+			let descend = DescendOrigin::<()>(descend_location);
+
+			let transact = Transact::<()> {
+				origin_type: OriginKind::SovereignAccount,
+				require_weight_at_most: transact_encoded_call_weight,
+				call: transact_encoded_call.into(),
+			};
+
+			let refund = RefundSurplus::<()>;
+
+			let deposit = DepositAsset::<()> {
+				assets: Wild(All),
+				max_assets: 1,
+				beneficiary: MultiLocation {
+					parents: 1,
+					interior: X1(Parachain(T::SelfParaId::get().into())),
+				},
+			};
+
+			let target_xcm =
+				Xcm(vec![reserve_asset, buy_execution, descend, transact, refund, deposit]);
+
+			// XCM for local chain
+			let local_asset = MultiAsset {
+				id: Concrete(MultiLocation::new(0, Here)),
+				fun: Fungibility::Fungible(fee),
+			};
+
+			let multi_assets: MultiAssets = vec![local_asset].into();
+			let withdraw = WithdrawAsset::<T::Call>(multi_assets.clone());
+
+			let deposit = DepositAsset::<T::Call> {
+				assets: Wild(All),
+				max_assets: 1,
+				beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
+			};
+
+			let local_xcm = Xcm(vec![withdraw, deposit]);
+
+			(local_xcm, target_xcm)
 		}
 	}
 }

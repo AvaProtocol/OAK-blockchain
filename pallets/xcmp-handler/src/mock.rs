@@ -17,6 +17,7 @@
 
 use crate as pallet_xcmp_handler;
 use codec::{Decode, Encode, MaxEncodedLen};
+use cumulus_primitives_core::ParaId;
 use frame_support::{parameter_types, traits::Everything};
 use frame_system as system;
 use scale_info::TypeInfo;
@@ -24,12 +25,16 @@ use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
-	RuntimeDebug,
+	traits::{BlakeTwo256, Convert, IdentityLookup},
+	AccountId32, RuntimeDebug,
 };
+use xcm::latest::prelude::*;
+
+pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+pub type AccountId = AccountId32;
 
 // Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
@@ -59,7 +64,7 @@ impl system::Config for Test {
 	type BlockNumber = u64;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
-	type AccountId = u64;
+	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type Event = Event;
@@ -97,14 +102,24 @@ pub enum CurrencyId {
 	UNIT,
 }
 
+pub struct AccountIdToMultiLocation;
+impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
+	fn convert(account: AccountId) -> MultiLocation {
+		X1(Junction::AccountId32 { network: NetworkId::Any, id: account.into() }).into()
+	}
+}
+
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub ChainId: ParaId = 2114u32.into();
 }
 
 impl pallet_xcmp_handler::Config for Test {
 	type Event = Event;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type SelfParaId = ChainId;
+	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type WeightInfo = ();
 }
 
