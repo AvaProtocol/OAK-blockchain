@@ -177,25 +177,25 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Get the xcm fee for a transact xcm for a given chain/currency pair.
-		pub fn calculate_xcm_fee(
+		/// Get the xcm fee and weight for a transact xcm for a given chain/currency pair.
+		pub fn calculate_xcm_fee_and_weight(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
 			transact_encoded_call_weight: u64,
-		) -> Result<u128, DispatchError> {
+		) -> Result<(u128, u64), DispatchError> {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
-			let xcm_weight = xcm_data
+			let weight = xcm_data
 				.instruction_weight
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
 			let fee = xcm_data
 				.fee_per_second
-				.checked_mul(xcm_weight as u128)
+				.checked_mul(weight as u128)
 				.ok_or(Error::<T>::FeeOverflow)
 				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128))?;
 
-			Ok(fee)
+			Ok((fee, weight))
 		}
 
 		/// Get the instructions for a transact xcm.
@@ -215,13 +215,11 @@ pub mod pallet {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			}
 
-			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
-				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
-			let weight = xcm_data
-				.instruction_weight
-				.checked_add(transact_encoded_call_weight)
-				.ok_or(Error::<T>::WeightOverflow)?;
-			let fee = Self::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight)?;
+			let (fee, weight) = Self::calculate_xcm_fee_and_weight(
+				para_id,
+				currency_id,
+				transact_encoded_call_weight,
+			)?;
 
 			let instructions = Self::get_local_currency_instructions(
 				para_id,
