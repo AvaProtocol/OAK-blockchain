@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use codec::Codec;
-use frame_support::parameter_types;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
@@ -26,18 +25,8 @@ pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationT
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
+use sp_runtime::{generic::BlockId, traits::Block as BlockT};
 use std::{fmt::Debug, sync::Arc};
-use xcm::{
-	latest::{prelude::*, MultiLocation, NetworkId},
-	v1::Junction::Parachain,
-};
-use xcm_builder::Account32Hash;
-use xcm_executor::traits::Convert;
-
-parameter_types! {
-	pub const RelayNetwork: NetworkId = NetworkId::Any;
-}
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc(client, server)]
@@ -72,9 +61,6 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 		&self,
 		account: AccountId,
 	) -> RpcResult<Vec<Hash>>;
-
-	#[method(name = "automationTime_crosssChainAccount")]
-	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -195,20 +181,6 @@ where
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to get AutoCompoundDelegatedStakeTask ids",
-				Some(format!("{:?}", e)),
-			)))
-		})
-	}
-
-	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
-		let multiloc = MultiLocation::new(
-			1,
-			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account_id.into() }),
-		);
-		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).map_err(|e| {
-			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"Unable to get cross chain AccountId",
 				Some(format!("{:?}", e)),
 			)))
 		})
