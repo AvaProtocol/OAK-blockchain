@@ -247,7 +247,7 @@ fn get_instruction_set_only_support_local_currency() {
 }
 
 #[test]
-fn get_instruction_set_no_chain_data() {
+fn get_instruction_calculate_xcm_fee_and_weight_errors() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -263,33 +263,6 @@ fn get_instruction_set_no_chain_data() {
 				transact_encoded_call_weight
 			),
 			Error::<Test>::CurrencyChainComboNotFound
-		);
-	});
-}
-
-#[test]
-fn get_instruction_set_weight_overflow() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = u64::MAX;
-		let xcm_data = XcmCurrencyData {
-			native: false,
-			fee_per_second: 100_000,
-			instruction_weight: u64::MAX,
-		};
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data);
-
-		assert_noop!(
-			XcmpHandler::get_instruction_set(
-				para_id,
-				currency_id,
-				ALICE,
-				transact_encoded_call,
-				transact_encoded_call_weight
-			),
-			Error::<Test>::WeightOverflow
 		);
 	});
 }
