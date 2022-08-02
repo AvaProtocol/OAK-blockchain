@@ -4947,6 +4947,7 @@ dependencies = [
  "pallet-automation-time-rpc",
  "pallet-parachain-staking",
  "pallet-transaction-payment-rpc",
+ "pallet-xcmp-handler-rpc",
  "parity-scale-codec",
  "polkadot-cli",
  "polkadot-parachain",
@@ -6238,6 +6239,21 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-xcmp-handler-rpc"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "jsonrpsee",
+ "sp-api",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-runtime",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]

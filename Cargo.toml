@@ -11,6 +11,7 @@ members = [
 	"pallets/automation-time",
 	"pallets/automation-time/rpc",
 	"pallets/automation-time/rpc/runtime-api",
+	"pallets/xcmp-handler/rpc",
 	"pallets/valve",
 	"pallets/vesting",
 ]

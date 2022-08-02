@@ -49,6 +49,7 @@ where
 {
 	use pallet_automation_time_rpc::{AutomationTime, AutomationTimeApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
+	use pallet_xcmp_handler_rpc::{XcmpHandler, XcmpHandlerApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 
 	let mut module = RpcExtension::new(());
@@ -57,6 +58,7 @@ where
 	module.merge(System::new(client.clone(), pool.clone(), deny_unsafe).into_rpc())?;
 	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
 	module.merge(AutomationTime::new(client.clone()).into_rpc())?;
+	module.merge(XcmpHandler::new(client.clone()).into_rpc())?;
 
 	Ok(module)
 }
