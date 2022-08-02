@@ -17,8 +17,10 @@
 
 use crate as pallet_xcmp_handler;
 use codec::{Decode, Encode, MaxEncodedLen};
-use cumulus_primitives_core::ParaId;
-use frame_support::{parameter_types, traits::Everything};
+use frame_support::{
+	parameter_types,
+	traits::{Everything, GenesisBuild},
+};
 use frame_system as system;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
@@ -29,6 +31,7 @@ use sp_runtime::{
 	AccountId32, RuntimeDebug,
 };
 use xcm::latest::prelude::*;
+use xcm_builder::LocationInverter;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 
@@ -36,7 +39,6 @@ type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = AccountId32;
 
-// Configure a mock runtime to test the pallet.
 frame_support::construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -44,6 +46,7 @@ frame_support::construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -80,6 +83,8 @@ impl system::Config for Test {
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
 }
 
+impl parachain_info::Config for Test {}
+
 #[derive(
 	Encode,
 	Decode,
@@ -111,19 +116,36 @@ impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
 
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
-	pub ChainId: ParaId = 2114u32.into();
+	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
 impl pallet_xcmp_handler::Config for Test {
 	type Event = Event;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type SelfParaId = ChainId;
+	type SelfParaId = parachain_info::Pallet<Test>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type LocationInverter = LocationInverter<Ancestry>;
 	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+	let mut t = frame_system::GenesisConfig::default()
+		.build_storage::<Test>()
+		.expect("Frame system builds valid default genesis config");
+
+	// let parachain_info_config = parachain_info::GenesisConfig {
+	// 	parachain_id: 2114u32.into(),
+	// };
+	// <parachain_info::GenesisConfig as GenesisBuild<Test>>::assimilate_storage(&parachain_info_config, &mut t).unwrap();
+	GenesisBuild::<Test>::assimilate_storage(
+		&parachain_info::GenesisConfig { parachain_id: 2114u32.into() },
+		&mut t,
+	)
+	.expect("Pallet Parachain info can be assimilated");
+
+	let mut ext = sp_io::TestExternalities::new(t);
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }

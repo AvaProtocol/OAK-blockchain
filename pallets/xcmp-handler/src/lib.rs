@@ -53,6 +53,7 @@ pub mod pallet {
 	use sp_runtime::traits::Convert;
 	use sp_std::prelude::*;
 	use xcm::latest::prelude::*;
+	use xcm_executor::traits::InvertLocation;
 
 	type ParachainId = u32;
 
@@ -78,6 +79,9 @@ pub mod pallet {
 
 		/// Convert an accountId to a multilocation.
 		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
+
+		/// Means of inverting a location.
+		type LocationInverter: InvertLocation;
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -107,6 +111,10 @@ pub mod pallet {
 		FeeOverflow,
 		/// Either the instruction weight or the transact weight is too large.
 		WeightOverflow,
+		/// Failed when creating the multilocation for descend origin.
+		FailedMultiLocationToJunction,
+		/// Unable to reanchor the asset.
+		CannotReanchor,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -221,14 +229,18 @@ pub mod pallet {
 				transact_encoded_call_weight,
 			)?;
 
+			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
+				.try_into()
+				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
+
 			let instructions = Self::get_local_currency_instructions(
 				para_id,
-				caller,
+				descend_location,
 				transact_encoded_call,
 				transact_encoded_call_weight,
 				weight,
 				fee,
-			);
+			)?;
 
 			Ok(instructions)
 		}
@@ -248,68 +260,56 @@ pub mod pallet {
 		/// 	- DepositAsset
 		pub fn get_local_currency_instructions(
 			para_id: ParachainId,
-			caller: T::AccountId,
+			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
 			fee: u128,
-		) -> (xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>) {
-			// XCM for foreign chain
-			let local_asset_on_foreign = MultiAsset {
-				id: Concrete(MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))),
-				fun: Fungibility::Fungible(fee),
-			};
-
-			let reserve_asset =
-				ReserveAssetDeposited::<()>(vec![local_asset_on_foreign.clone()].into());
-
-			let buy_execution = BuyExecution::<()> {
-				fees: local_asset_on_foreign,
-				weight_limit: Limited(xcm_weight),
-			};
-
-			let descend_location: Junctions =
-				T::AccountIdToMultiLocation::convert(caller).try_into().unwrap();
-			let descend = DescendOrigin::<()>(descend_location);
-
-			let transact = Transact::<()> {
-				origin_type: OriginKind::SovereignAccount,
-				require_weight_at_most: transact_encoded_call_weight,
-				call: transact_encoded_call.into(),
-			};
-
-			let refund = RefundSurplus::<()>;
-
-			let deposit = DepositAsset::<()> {
-				assets: Wild(All),
-				max_assets: 1,
-				beneficiary: MultiLocation {
-					parents: 1,
-					interior: X1(Parachain(T::SelfParaId::get().into())),
-				},
-			};
-
-			let target_xcm =
-				Xcm(vec![reserve_asset, buy_execution, descend, transact, refund, deposit]);
-
+		) -> Result<(xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>), DispatchError> {
 			// XCM for local chain
 			let local_asset = MultiAsset {
 				id: Concrete(MultiLocation::new(0, Here)),
 				fun: Fungibility::Fungible(fee),
 			};
 
-			let multi_assets: MultiAssets = vec![local_asset].into();
-			let withdraw = WithdrawAsset::<T::Call>(multi_assets.clone());
+			let local_xcm = Xcm(vec![
+				WithdrawAsset::<T::Call>(local_asset.clone().into()),
+				DepositAsset::<T::Call> {
+					assets: Wild(All),
+					max_assets: 1,
+					beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
+				},
+			]);
 
-			let deposit = DepositAsset::<T::Call> {
-				assets: Wild(All),
-				max_assets: 1,
-				beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
-			};
+			// XCM for target chain
+			let local_asset = local_asset
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					&T::LocationInverter::ancestry(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
 
-			let local_xcm = Xcm(vec![withdraw, deposit]);
+			let target_xcm = Xcm(vec![
+				ReserveAssetDeposited::<()>(local_asset.clone().into()),
+				BuyExecution::<()> { fees: local_asset, weight_limit: Limited(xcm_weight) },
+				DescendOrigin::<()>(descend_location),
+				Transact::<()> {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: transact_encoded_call_weight,
+					call: transact_encoded_call.into(),
+				},
+				RefundSurplus::<()>,
+				DepositAsset::<()> {
+					assets: Wild(All),
+					max_assets: 1,
+					beneficiary: MultiLocation {
+						parents: 1,
+						interior: X1(Parachain(T::SelfParaId::get().into())),
+					},
+				},
+			]);
 
-			(local_xcm, target_xcm)
+			Ok((local_xcm, target_xcm))
 		}
 	}
 }

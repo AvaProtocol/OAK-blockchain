@@ -440,6 +440,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type LocationInverter = LocationInverter<Ancestry>;
 	type WeightInfo = ();
 }
 

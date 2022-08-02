@@ -17,6 +17,8 @@
 use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
+use sp_runtime::traits::Convert;
+use xcm::latest::prelude::*;
 
 //*****************
 //Extrinsics
@@ -247,28 +249,7 @@ fn get_instruction_set_only_support_local_currency() {
 }
 
 #[test]
-fn get_instruction_calculate_xcm_fee_and_weight_errors() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = 100_000_000;
-
-		assert_noop!(
-			XcmpHandler::get_instruction_set(
-				para_id,
-				currency_id,
-				ALICE,
-				transact_encoded_call,
-				transact_encoded_call_weight
-			),
-			Error::<Test>::CurrencyChainComboNotFound
-		);
-	});
-}
-
-#[test]
-fn get_instruction_local_currency_instructions() {
+fn get_instruction_set_local_currency_instructions() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -286,14 +267,17 @@ fn get_instruction_local_currency_instructions() {
 			transact_encoded_call_weight,
 		)
 		.unwrap();
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
 			para_id,
-			ALICE,
+			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
-		);
+		)
+		.unwrap();
 
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
@@ -319,15 +303,18 @@ fn get_local_currency_instructions_works() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
 		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let (local, target) = XcmpHandler::get_local_currency_instructions(
 			para_id,
-			ALICE,
+			descend_location,
 			transact_encoded_call,
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
-		);
+		)
+		.unwrap();
 		assert_eq!(local.0.len(), 2);
 		assert_eq!(target.0.len(), 6);
 	});
