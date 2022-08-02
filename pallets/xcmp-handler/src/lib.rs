@@ -203,7 +203,7 @@ pub mod pallet {
 		///
 		/// Returns two instructions sets.
 		/// The first is to execute locally.
-		/// The second is to executre on the target chain.
+		/// The second is to execute on the target chain.
 		pub fn get_instruction_set(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
@@ -233,7 +233,7 @@ pub mod pallet {
 			Ok(instructions)
 		}
 
-		/// Construct the instructions for a transact xcm with the chain's local currency.
+		/// Construct the instructions for a transact xcm with our local currency.
 		///
 		/// Local instructions
 		/// 	- WithdrawAsset
