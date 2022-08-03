@@ -68,7 +68,7 @@ use pallet_timestamp::{self as timestamp};
 use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
+	traits::{AccountIdConversion, CheckedConversion, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -1129,11 +1129,13 @@ pub mod pallet {
 			task_id: T::Hash,
 			mut task: Task<T>,
 		) -> (Task<T>, Weight) {
-			match Self::compound_delegator_stake(
-				delegator.clone(),
-				collator.clone(),
-				account_minimum,
-				Self::calculate_execution_fee(&task.action, 1),
+			// TODO: Handle edge case where user has enough funds to run task but not reschedule
+			let reserved_funds =
+				account_minimum.saturating_add(Self::calculate_execution_fee(&task.action, 1));
+			match T::DelegatorActions::delegator_bond_till_minimum(
+				&delegator,
+				&collator,
+				reserved_funds,
 			) {
 				Ok(delegation) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
@@ -1182,23 +1184,6 @@ pub mod pallet {
 			});
 
 			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
-		}
-
-		fn compound_delegator_stake(
-			delegator: T::AccountId,
-			collator: T::AccountId,
-			account_minimum: BalanceOf<T>,
-			execution_fee: BalanceOf<T>,
-		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds = account_minimum.saturating_add(execution_fee);
-			T::Currency::free_balance(&delegator)
-				.checked_sub(&reserved_funds)
-				.ok_or(Error::<T>::InsufficientBalance.into())
-				.and_then(|delegation| {
-					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
-						.and(Ok(delegation))
-				})
 		}
 
 		/// Decrements task executions left.

@@ -150,7 +150,8 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 			return Err(()) // Deny
 		}
 
-		// allow reserve transfers to arrive from relay chain
+		// An unexpected reserve transfer has arrived from the Relay Chain. Generally, `IsReserve`
+		// should not allow this, but we just log it here.
 		if matches!(origin, MultiLocation { parents: 1, interior: Here }) &&
 			message.0.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
 		{

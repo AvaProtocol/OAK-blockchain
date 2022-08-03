@@ -232,6 +232,15 @@ impl<T: Config> pallet_parachain_staking::DelegatorActions<T::AccountId, Balance
 	) -> DispatchResultWithPostInfo {
 		Ok(().into())
 	}
+
+	fn delegator_bond_till_minimum(
+		_: &T::AccountId,
+		_: &T::AccountId,
+		b: Balance,
+	) -> Result<Balance, frame_support::dispatch::DispatchErrorWithPostInfo> {
+		Ok(b)
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())
