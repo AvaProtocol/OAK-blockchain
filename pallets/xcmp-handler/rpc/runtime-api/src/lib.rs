@@ -24,6 +24,6 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn parachain_id() -> u32;
-		fn fees() -> Balance;
+		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance;
 	}
 }

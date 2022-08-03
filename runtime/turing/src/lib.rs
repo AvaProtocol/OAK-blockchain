@@ -1183,8 +1183,12 @@ impl_runtime_apis! {
 			ParachainInfo::parachain_id().into()
 		}
 
-		fn fees() -> Balance {
-			10_000_000 as Balance
+		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance {
+			XcmpHandler::calculate_xcm_fee(
+				parachain_id,
+				CurrencyId::Native,
+				call_weight,
+			).unwrap()
 		}
 	}
 
