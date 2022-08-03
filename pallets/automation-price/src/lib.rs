@@ -51,7 +51,7 @@ use frame_support::{
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use log::info;
 use pallet_timestamp::{self as timestamp};
-use scale_info::TypeInfo;
+use scale_info::{TypeInfo, prelude::format};
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
 	Perbill,
@@ -204,11 +204,14 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+	pub type Tasks<T: Config> = StorageNMap<_, (
+		NMapKey<Twox64Concat, Vec<u8>>, // asset name
+		NMapKey<Twox64Concat, T::Hash>, // task ID
+	), Task<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+	pub type TaskQueue<T: Config> = StorageValue<_, Vec<(Vec<u8>, T::Hash)>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn is_shutdown)]
@@ -235,7 +238,9 @@ pub mod pallet {
 		/// Asset must be in triggerable range.
 		AssetNotInTriggerableRange,
 		/// Block Time not set
-		BlockTimeNotSet
+		BlockTimeNotSet,
+		/// Invalid Expiration Window for new asset
+		InvalidAssetExpirationWindow,
 	}
 
 	#[pallet::event]
@@ -282,7 +287,7 @@ pub mod pallet {
 		/// # Errors
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(1))]
 		#[transactional]
-		pub fn schedule_notify_task(
+		pub fn schedule_swap_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			asset: Vec<u8>,
@@ -314,6 +319,9 @@ pub mod pallet {
 			expiration_period: UnixTime,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			if expiration_period % 60 != 0 {
+				Err(Error::<T>::InvalidAssetExpirationWindow)?
+			}
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
 				Err(Error::<T>::AssetAlreadySupported)?
 			} else {
@@ -451,26 +459,19 @@ pub mod pallet {
 
 		pub fn delete_asset_tasks(asset: Vec<u8>) -> Weight {
 			// delete scheduled tasks
-			ScheduledTasks::<T>::remove_prefix((asset, ), None);
+			ScheduledTasks::<T>::remove_prefix((asset.clone(), ), None);
 			// delete tasks from tasks table
-
+			Tasks::<T>::remove_prefix((asset.clone(), ), None);
 			// delete tasks from task queue
-
+			let existing_task_queue: Vec<(Vec<u8>, T::Hash)> = Self::get_task_queue();
+			let mut updated_task_queue: Vec<(Vec<u8>, T::Hash)> = vec![];
+			for task in existing_task_queue {
+				if task.0 != asset {
+					updated_task_queue.push(task);
+				}
+			}
+			TaskQueue::<T>::put(updated_task_queue);
 			10_000
-		}
-
-		/// Update the task queue.
-		///
-		///
-		pub fn update_task_queue(allotted_weight: Weight) -> Weight {
-			allotted_weight
-		}
-
-		/// Update the task queue with scheduled tasks for the current slot
-		///
-		///
-		pub fn update_scheduled_task_queue() -> Weight {
-			100
 		}
 
 		pub fn run_notify_task(message: Vec<u8>) -> Weight {
@@ -482,19 +483,20 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_tasks(
-			mut task_ids: Vec<T::Hash>,
+			mut task_ids: Vec<(Vec<u8>, T::Hash)>,
 			mut weight_left: Weight,
-		) -> (Vec<T::Hash>, Weight) {
+		) -> (Vec<(Vec<u8>, T::Hash)>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index.saturating_inc();
 				let action_weight = match Self::get_task(task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
+						Self::deposit_event(Event::TaskNotFound { task_id: task_id.1.clone() });
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						let task_action_weight = Self::run_notify_task(task.asset);
+						let message = format!("asset: {:?}, percentage: {}, direction: {}", task.asset, task.trigger_percentage, task.direction);
+						let task_action_weight = Self::run_notify_task(message.into());
 						Tasks::<T>::remove(task_id);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
@@ -533,7 +535,7 @@ pub mod pallet {
 			trigger_percentage: u128,
 		) -> Result<T::Hash, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
-			if let Some(_) = Self::get_task(task_id.clone()) {
+			if let Some(_) = Self::get_task((asset.clone(), task_id.clone())) {
 				Err(Error::<T>::DuplicateTask)?
 			}
 			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
@@ -565,21 +567,19 @@ pub mod pallet {
 				None => Err(Error::<T>::AssetNotSupported)?,
 				Some(asset_price) => asset_price,
 			};
-			let last_asset_percentage = last_asset_price / asset_target_price.clone();
-			info!("last_asset_percentage: {}", last_asset_percentage);
-			if direction == 0 {
-				// TODO: fix 100 hardcode
-				let modified_trigger_percentage = (100 - trigger_percentage) / 100;
-				info!("modified_trigger_percentage: {}", modified_trigger_percentage);
-				if modified_trigger_percentage > last_asset_percentage {
+			if (direction == 0) & (last_asset_price < asset_target_price) {
+				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
+				info!("last_asset_percentage: {}", last_asset_percentage);
+				info!("trigger_percentage: {}", trigger_percentage);
+				if trigger_percentage > last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
-			if direction == 1 {
-				// TODO: fix 100 hardcode
-				let modified_trigger_percentage = (100 + trigger_percentage) / 100;
-				info!("modified_trigger_percentage: {}", modified_trigger_percentage);
-				if modified_trigger_percentage < last_asset_percentage {
+			if (direction == 1) & (last_asset_price > asset_target_price) {
+				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
+				info!("last_asset_percentage: {}", last_asset_percentage);
+				info!("trigger_percentage: {}", trigger_percentage);
+				if trigger_percentage < last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
@@ -588,11 +588,11 @@ pub mod pallet {
 			let task: Task<T> = Task::<T> {
 				owner_id: who.clone(),
 				provided_id,
-				asset,
+				asset: asset.clone(),
 				direction,
 				trigger_percentage,
 			};
-			<Tasks<T>>::insert(task_id, task);
+			<Tasks<T>>::insert((asset, task_id), task);
 
 			// // This should never error if can_pay_fee passed.
 			// T::NativeTokenExchange::withdraw_fee(&who, fee.clone())
@@ -608,14 +608,14 @@ pub mod pallet {
 			higher: u128,
 			direction: u8,
 		) -> DispatchResult {
-			let mut existing_task_queue: Vec<T::Hash> = Self::get_task_queue();
+			let mut existing_task_queue: Vec<(Vec<u8>, T::Hash)> = Self::get_task_queue();
 			info!("direction: {}", direction.clone());
 			for percentage in lower..higher {
 				info!("percentage: {}", percentage.clone());
 				// TODO: pull all and cycle through in memory
 				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage.clone())) {
 					for task in asset_tasks {
-						existing_task_queue.push(task);
+						existing_task_queue.push((asset.clone(), task));
 					}
 					<ScheduledTasks<T>>::remove((asset.clone(), direction, percentage));
 				}
@@ -628,6 +628,7 @@ pub mod pallet {
 			asset_update_value: u128,
 			asset_target_price: u128,
 		) -> u128 {
+			// TODO: fix 100 hardcode
 			if asset_target_price > asset_update_value {
 				((asset_target_price - asset_update_value) * 100) / asset_target_price
 			} else {
