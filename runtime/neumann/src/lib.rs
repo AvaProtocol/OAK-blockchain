@@ -1137,7 +1137,7 @@ impl_runtime_apis! {
 
 	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
 		fn parachain_id() -> u32 {
-			2114
+			ParachainInfo::parachain_id().into()
 		}
 
 		fn fees() -> Balance {
