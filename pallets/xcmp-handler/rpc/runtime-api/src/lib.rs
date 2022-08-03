@@ -23,6 +23,7 @@ sp_api::decl_runtime_apis! {
 	pub trait XcmpHandlerApi<Balance> where
 		Balance: Codec,
 	{
+		fn parachain_id() -> u32;
 		fn fees() -> Balance;
 	}
 }

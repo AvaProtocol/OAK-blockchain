@@ -84,9 +84,17 @@ where
 	C::Api: XcmpHandlerRuntimeApi<Block, Balance>,
 {
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
+		let api = self.client.runtime_api();
+		let at = BlockId::hash(self.client.info().best_hash);
+
+		let parachain_id = api.parachain_id(&at).unwrap();
+
 		let multiloc = MultiLocation::new(
 			1,
-			X2(Parachain(2114), Junction::AccountId32 { network: Any, id: account_id.into() }),
+			X2(
+				Parachain(parachain_id),
+				Junction::AccountId32 { network: Any, id: account_id.into() },
+			),
 		);
 		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).map_err(|e| {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
