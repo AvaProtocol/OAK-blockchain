@@ -342,8 +342,8 @@ parameter_types! {
 }
 
 parameter_type_with_key! {
-	pub ParachainMinFee: |_location: MultiLocation| -> u128 {
-		u128::MAX
+	pub ParachainMinFee: |_location: MultiLocation| -> Option<u128> {
+		None
 	};
 }
 
@@ -366,6 +366,17 @@ impl orml_xtokens::Config for Runtime {
 
 impl orml_unknown_tokens::Config for Runtime {
 	type Event = Event;
+}
+
+parameter_types! {
+	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+}
+
+impl pallet_xcmp_handler::Config for Runtime {
+	type Event = Event;
+	type CurrencyId = CurrencyId;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
 }
 
 pub mod parachains {

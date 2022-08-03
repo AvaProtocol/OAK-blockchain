@@ -1,10 +1,9 @@
 [package]
-name = "pallet-vesting"
-description = "Pallet for minting tokens on a set schedule"
-version = "1.0.0"
+name = "pallet-xcmp-handler"
+description = "Pallet to handle XCMP intricacies."
+version = "0.1.0"
 edition = "2021"
 authors = ["OAK Developement Team"]
-license = "GPL-3.0"
 homepage = "https://oak.tech"
 repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
 
@@ -14,11 +13,9 @@ targets = ['x86_64-unknown-linux-gnu']
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
 scale-info = { version = "2.1", default-features = false, features = ["derive"] }
-log = { version = "0.4.17", default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 ## Substrate FRAME Dependencies
@@ -26,27 +23,22 @@ frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
-## Substrate Pallet Dependencies
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
-
-## Moonbeam dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
-
 [dev-dependencies]
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
-sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
-pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
+serde = { version = "1.0.132" }
+
+# Substrate
+sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 [features]
 default = ["std"]
-runtime-benchmarks = ["frame-benchmarking"]
+runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 std = [
     "codec/std",
-	"scale-info/std",
-    "sp-runtime/std",
-    "sp-std/std",
+    "frame-benchmarking/std",
     "frame-support/std",
-	"frame-system/std",
-	"pallet-timestamp/std",
-	"pallet-parachain-staking/std",
-]
+    "frame-system/std",
+    "scale-info/std",
+    "sp-std/std",
+] 

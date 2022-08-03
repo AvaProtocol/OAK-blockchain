@@ -6,16 +6,15 @@ use crate::{
 use codec::Encode;
 use cumulus_client_service::genesis::generate_genesis_block;
 use cumulus_primitives_core::ParaId;
-use frame_benchmarking_cli::BenchmarkCmd;
+use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
 use log::info;
-use polkadot_parachain::primitives::AccountIdConversion;
 use sc_cli::{
 	CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams,
 	Result, RuntimeVersion, SharedParams, SubstrateCli,
 };
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::traits::Block as BlockT;
+use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 use std::{io::Write, net::SocketAddr};
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
@@ -352,7 +351,9 @@ pub fn run() -> Result<()> {
 							cmd.run(config, partials.client.clone(), db, storage)
 						}),
 						BenchmarkCmd::Overhead(_) => Err("Unsupported benchmarking command".into()),
-						BenchmarkCmd::Machine(cmd) => runner.sync_run(|config| cmd.run(&config)),
+						BenchmarkCmd::Machine(cmd) => runner.sync_run(|config| {
+							cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+						}),
 					}
 				}
 			})
@@ -362,6 +363,15 @@ pub fn run() -> Result<()> {
 			let collator_options = cli.run.collator_options();
 
 			runner.run_node_until_exit(|config| async move {
+				let hwbench = if !cli.no_hardware_benchmarks {
+					config.database.path().map(|database_path| {
+						let _ = std::fs::create_dir_all(&database_path);
+						sc_sysinfo::gather_hwbench(Some(database_path))
+					})
+				} else {
+					None
+				};
+
 				let chain_spec = &config.chain_spec;
 				let para_id = chain_spec::Extensions::try_get(&*config.chain_spec)
 					.map(|e| e.para_id)
@@ -374,14 +384,13 @@ pub fn run() -> Result<()> {
 
 				let id = ParaId::from(para_id);
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account(&id);
+					AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account_truncating(&id);
 				let tokio_handle = config.tokio_handle.clone();
 				let polkadot_config =
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
 						.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-				let state_version =
-					RelayChainCli::native_runtime_version(&config.chain_spec).state_version();
+				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
 
 				let genesis_state = with_runtime_or_err!(chain_spec, {
 					{
@@ -402,6 +411,7 @@ pub fn run() -> Result<()> {
 							polkadot_config,
 							collator_options,
 							id,
+							hwbench,
 						)
 						.await
 						.map(|r| r.0)
