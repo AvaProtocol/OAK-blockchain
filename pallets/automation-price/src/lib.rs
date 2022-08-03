@@ -256,7 +256,16 @@ pub mod pallet {
 		},
 		TaskNotFound {
 			task_id: T::Hash,
-		}
+		},
+		AssetCreated {
+			asset: Vec<u8>,
+		},
+		AssetUpdated {
+			asset: Vec<u8>,
+		},
+		AssetPeriodReset {
+			asset: Vec<u8>,
+		},
 	}
 
 	#[pallet::hooks]
@@ -316,10 +325,11 @@ pub mod pallet {
 			target_price: u128,
 			upper_bound: u16,
 			lower_bound: u8,
+			asset_owner: AccountOf<T>,
 			expiration_period: UnixTime,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			if expiration_period % 60 != 0 {
+			ensure_root(origin)?;
+			if expiration_period % 86400 != 0 {
 				Err(Error::<T>::InvalidAssetExpirationWindow)?
 			}
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
@@ -330,12 +340,13 @@ pub mod pallet {
 					upper_bound,
 					lower_bound,
 					expiration_period,
-					asset_sudo: who
+					asset_sudo: asset_owner,
 				};
 				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-				let new_time_slot = Self::get_current_time_slot().unwrap() + expiration_period;
+				let new_time_slot = Self::get_current_time_slot()? + expiration_period;
 				Self::update_asset_reset(asset.clone(), new_time_slot);
-				AssetPrices::<T>::insert(asset, target_price);
+				AssetPrices::<T>::insert(asset.clone(), target_price);
+				Self::deposit_event(Event::AssetCreated { asset });
 			}
 			Ok(().into())
 		}
@@ -370,14 +381,13 @@ pub mod pallet {
 				};
 				let asset_update_percentage = Self::get_asset_percentage(value, asset_target_price) + 1;
 				let asset_last_percentage = 0;
-				info!("update percentage: {}", asset_update_percentage.clone());
-				info!("last percentage: {}", asset_last_percentage.clone());
 				if value > last_asset_price {
 					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 1)?;
 				} else {
 					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 0)?;
 				}
-				AssetPrices::<T>::insert(asset, value);
+				AssetPrices::<T>::insert(asset.clone(), value);
+				Self::deposit_event(Event::AssetUpdated { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
@@ -415,6 +425,7 @@ pub mod pallet {
 					if let Some(last_asset_price) = Self::get_asset_price(asset.clone()) {
 						AssetTargetPrices::<T>::insert(asset.clone(), last_asset_price);
 					};
+					Self::deposit_event(Event::AssetPeriodReset { asset });
 				}
 				ScheduledAssetDeletion::<T>::remove(current_time_slot);
 			}
@@ -569,16 +580,12 @@ pub mod pallet {
 			};
 			if (direction == 0) & (last_asset_price < asset_target_price) {
 				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
-				info!("last_asset_percentage: {}", last_asset_percentage);
-				info!("trigger_percentage: {}", trigger_percentage);
 				if trigger_percentage > last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
 			if (direction == 1) & (last_asset_price > asset_target_price) {
 				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
-				info!("last_asset_percentage: {}", last_asset_percentage);
-				info!("trigger_percentage: {}", trigger_percentage);
 				if trigger_percentage < last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
@@ -609,9 +616,7 @@ pub mod pallet {
 			direction: u8,
 		) -> DispatchResult {
 			let mut existing_task_queue: Vec<(Vec<u8>, T::Hash)> = Self::get_task_queue();
-			info!("direction: {}", direction.clone());
 			for percentage in lower..higher {
-				info!("percentage: {}", percentage.clone());
 				// TODO: pull all and cycle through in memory
 				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage.clone())) {
 					for task in asset_tasks {
