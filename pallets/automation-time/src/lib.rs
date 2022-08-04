@@ -1447,4 +1447,16 @@ pub mod pallet {
 			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
 		}
 	}
+
+	impl<T: Config> pallet_valve::Shutdown for Pallet<T> {
+		fn is_shutdown() -> bool {
+			Self::is_shutdown()
+		}
+		fn shutdown() {
+			Shutdown::<T>::put(true);
+		}
+		fn restart() {
+			Shutdown::<T>::put(false);
+		}
+	}
 }

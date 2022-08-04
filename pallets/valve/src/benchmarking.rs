@@ -58,6 +58,6 @@ benchmarks! {
 	}: _(RawOrigin::Root)
 
 	start_scheduled_tasks {
-		<pallet_automation_time::Shutdown<T>>::put(true);
+		T::AutomationTime::shutdown();
 	}: _(RawOrigin::Root)
 }

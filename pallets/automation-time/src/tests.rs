@@ -18,12 +18,13 @@
 use crate::{
 	migrations::{v1, v2},
 	mock::*,
-	Action, Config, Error, LastTimeSlot, MissedQueue, MissedTask, Shutdown, Task, TaskHashInput,
-	TaskQueue, Tasks, WeightInfo,
+	Action, Config, Error, LastTimeSlot, MissedQueue, MissedTask, Task, TaskHashInput, TaskQueue,
+	Tasks, WeightInfo,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
 use frame_system::RawOrigin;
+use pallet_valve::Shutdown;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, Hash},
@@ -1656,7 +1657,7 @@ fn on_init_check_task_queue() {
 #[test]
 fn on_init_shutdown() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		Shutdown::<Test>::put(true);
+		AutomationTime::shutdown();
 
 		let message_one: Vec<u8> = vec![2, 4, 5];
 		let task_id1 = add_task_to_task_queue(
