@@ -1074,6 +1074,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
+		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>} = 62,
 	}
 );
 
@@ -1260,6 +1261,7 @@ impl_runtime_apis! {
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
+			use pallet_xcmp_handler::Pallet as XcmpHandler;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
@@ -1267,6 +1269,7 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
+			list_benchmark!(list, extra, pallet_xcmp_handler, XcmpHandler::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1283,6 +1286,7 @@ impl_runtime_apis! {
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
+			use pallet_xcmp_handler::Pallet as XcmpHandler;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1304,6 +1308,7 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);
+			add_benchmark!(params, batches, pallet_xcmp_handler, XcmpHandler::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

@@ -5,7 +5,6 @@
   "bootNodes": [
     "/ip4/52.54.129.175/tcp/30333/ws/p2p/12D3KooWP9zsTXEzP2KHd7p2vGyjBvb9kpTQPmwgsSSDve3RdthQ",
     "/ip4/52.7.253.72/tcp/30333/ws/p2p/12D3KooWS8HqfDjWtNHYJJUANfufEAC6rGKaZHMznhTinsdESL2Q",
-    "/dns4/node-6914661379459780608-0.p2p.onfinality.io/tcp/11509/ws/p2p/12D3KooWPPAxTYwLeD7g6qkKnHaBwTQJReM99tsPr5Hme1mfH99u",
     "/dns4/oak-turing-bootnode-01.bdnodes.net/tcp/30333/p2p/12D3KooWL9phojBkHLWaATRmzjh4YN6NKtdGPufNpPegHF3NDios"
   ],
   "telemetryEndpoints": [
