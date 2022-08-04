@@ -499,6 +499,23 @@ pub enum CurrencyId {
 	UNIT,
 }
 
+impl From<u32> for CurrencyId {
+	fn from(a: u32) -> Self {
+		match a {
+			0 => CurrencyId::Native,
+			1 => CurrencyId::KSM,
+			2 => CurrencyId::AUSD,
+			3 => CurrencyId::KAR,
+			4 => CurrencyId::LKSM,
+			5 => CurrencyId::HKO,
+			6 => CurrencyId::SKSM,
+			7 => CurrencyId::PHA,
+			8 => CurrencyId::UNIT,
+			_ => CurrencyId::Native,
+		}
+	}
+}
+
 impl TokenInfo for CurrencyId {
 	fn get_decimals(&self) -> u32 {
 		match self {
@@ -1186,7 +1203,7 @@ impl_runtime_apis! {
 		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance {
 			XcmpHandler::calculate_xcm_fee(
 				parachain_id,
-				CurrencyId::Native,
+				CurrencyId::from(currency_id),
 				call_weight,
 			).unwrap()
 		}
