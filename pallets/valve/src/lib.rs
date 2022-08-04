@@ -30,6 +30,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod traits;
+pub use traits::*;
+
 mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
@@ -46,11 +49,10 @@ pub mod pallet {
 		traits::{Contains, PalletInfoAccess},
 	};
 	use frame_system::pallet_prelude::*;
-	use pallet_automation_time::{self as automation_time};
 	use sp_std::vec::Vec;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_automation_time::Config {
+	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// Weight information for the extrinsics in this module.
@@ -58,6 +60,9 @@ pub mod pallet {
 
 		/// The pallets that we want to close on demand.
 		type ClosedCallFilter: Contains<Self::Call>;
+
+		/// The AutomationTime pallet.
+		type AutomationTime: Shutdown;
 	}
 
 	#[pallet::event]
@@ -227,12 +232,9 @@ pub mod pallet {
 		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ensure!(
-				!<automation_time::Pallet<T>>::is_shutdown(),
-				Error::<T>::ScheduledTasksAlreadyStopped
-			);
+			ensure!(!T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyStopped);
 
-			<automation_time::Shutdown<T>>::put(true);
+			T::AutomationTime::shutdown();
 			Self::deposit_event(Event::ScheduledTasksStopped);
 
 			Ok(())
@@ -243,12 +245,9 @@ pub mod pallet {
 		pub fn start_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ensure!(
-				<automation_time::Pallet<T>>::is_shutdown(),
-				Error::<T>::ScheduledTasksAlreadyRunnung
-			);
+			ensure!(T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyRunnung);
 
-			<automation_time::Shutdown<T>>::put(false);
+			T::AutomationTime::restart();
 			Self::deposit_event(Event::ScheduledTasksResumed);
 
 			Ok(())

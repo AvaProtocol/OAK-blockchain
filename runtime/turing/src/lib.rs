@@ -1021,6 +1021,7 @@ impl pallet_valve::Config for Runtime {
 	type Event = Event;
 	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
+	type AutomationTime = AutomationTime;
 }
 
 impl pallet_vesting::Config for Runtime {

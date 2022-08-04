@@ -59,7 +59,7 @@ fn cannot_close_valve_when_already_closed() {
 }
 
 #[test]
-fn can_close_pallet_gatee() {
+fn can_close_pallet_gate() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
 
