@@ -31,25 +31,21 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 pub use pallet::*;
 
-#[cfg(test)]
-mod mock;
+// #[cfg(test)]
+// mod mock;
 
-#[cfg(test)]
-mod tests;
+// #[cfg(test)]
+// mod tests;
 
 mod benchmarking;
 pub mod weights;
 
-mod exchange;
-pub use exchange::*;
-
 use core::convert::TryInto;
 use cumulus_pallet_xcm::{Origin as CumulusOrigin};
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::StorageVersion, transactional, BoundedVec,
+	pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
-use log::info;
 use pallet_timestamp::{self as timestamp};
 use scale_info::{TypeInfo, prelude::format};
 use sp_runtime::{
@@ -57,7 +53,6 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::{vec, vec::Vec};
-use xcm::latest::prelude::*;
 
 pub use weights::WeightInfo;
 
@@ -66,7 +61,8 @@ pub mod pallet {
 	use super::*;
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> = <<T as Config>::NativeTokenExchange as NativeTokenExchange<T>>::Balance;
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 
 	/// The struct that stores all information needed for a task.
@@ -136,14 +132,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxTasksPerSlot: Get<u32>;
 
-		/// The maximum number of times that a task can be scheduled for.
-		#[pallet::constant]
-		type MaxExecutionTimes: Get<u32>;
-
-		/// The farthest out a task can be scheduled.
-		#[pallet::constant]
-		type MaxScheduleSeconds: Get<u64>;
-
 		/// The maximum weight per block.
 		#[pallet::constant]
 		type MaxBlockWeight: Get<Weight>;
@@ -152,22 +140,11 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
 
-		/// The maximum percentage of weight per block used for scheduled tasks.
-		#[pallet::constant]
-		type UpdateQueueRatio: Get<Perbill>;
-
-		/// The time each block takes.
-		#[pallet::constant]
-		type SecondsPerBlock: Get<u64>;
-
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
-		/// Handler for fees and native token transfers.
-		type NativeTokenExchange: NativeTokenExchange<Self>;
-
-		/// Utility for sending XCM messages
-		type XcmSender: SendXcm;
+		/// The Currency type for interacting with balances
+		type Currency: Currency<Self::AccountId>;
 
 		type Origin: From<<Self as SystemConfig>::Origin>
 			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
@@ -185,7 +162,7 @@ pub mod pallet {
 			NMapKey<Twox64Concat, Vec<u8>>, // asset name
 			NMapKey<Twox64Concat, u8>, // direction
 			NMapKey<Twox64Concat, u128>, // price
-		), Vec<T::Hash>>;
+		), BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_asset_period_reset)]
@@ -241,6 +218,10 @@ pub mod pallet {
 		BlockTimeNotSet,
 		/// Invalid Expiration Window for new asset
 		InvalidAssetExpirationWindow,
+		/// Maximum tasks reached for the slot
+		MaxTasksReached,
+		/// Failed to insert task
+		TaskInsertionFailure,
 	}
 
 	#[pallet::event]
@@ -261,6 +242,9 @@ pub mod pallet {
 			asset: Vec<u8>,
 		},
 		AssetUpdated {
+			asset: Vec<u8>,
+		},
+		AssetDeleted {
 			asset: Vec<u8>,
 		},
 		AssetPeriodReset {
@@ -343,7 +327,7 @@ pub mod pallet {
 					asset_sudo: asset_owner,
 				};
 				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-				let new_time_slot = Self::get_current_time_slot()? + expiration_period;
+				let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
 				Self::update_asset_reset(asset.clone(), new_time_slot);
 				AssetPrices::<T>::insert(asset.clone(), target_price);
 				Self::deposit_event(Event::AssetCreated { asset });
@@ -379,7 +363,7 @@ pub mod pallet {
 					None => Err(Error::<T>::AssetNotSupported)?,
 					Some(asset_price) => asset_price,
 				};
-				let asset_update_percentage = Self::get_asset_percentage(value, asset_target_price) + 1;
+				let asset_update_percentage = Self::calculate_asset_percentage(value, asset_target_price).saturating_add(1);
 				let asset_last_percentage = 0;
 				if value > last_asset_price {
 					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 1)?;
@@ -388,6 +372,32 @@ pub mod pallet {
 				}
 				AssetPrices::<T>::insert(asset.clone(), value);
 				Self::deposit_event(Event::AssetUpdated { asset });
+			} else {
+				Err(Error::<T>::AssetNotSupported)?
+			}
+			Ok(().into())
+		}
+
+		/// Delete an asset
+		///
+		/// # Parameters
+		/// * `asset`: asset type
+		/// * `directions`: number of directions of data input. (up, down, ?)
+		///
+		/// # Errors
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(1))]
+		#[transactional]
+		pub fn delete_asset(
+			origin: OriginFor<T>,
+			asset: Vec<u8>,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
+				AssetTargetPrices::<T>::remove(asset.clone());
+				AssetPrices::<T>::remove(asset.clone());
+				AssetMetadata::<T>::remove(asset.clone());
+				Self::delete_asset_tasks(asset.clone());
+				Self::deposit_event(Event::AssetDeleted { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
@@ -447,7 +457,7 @@ pub mod pallet {
 				let expiration_period: u64 = metadata.expiration_period;
 				// start new duration
 				// 1. schedule new deletion time
-				let new_time_slot = current_time_slot + expiration_period;
+				let new_time_slot = current_time_slot.saturating_add(expiration_period);
 				if let Some(mut future_scheduled_deletion_assets) = Self::get_scheduled_asset_period_reset(new_time_slot) {
 					future_scheduled_deletion_assets.push(asset.clone());
 					<ScheduledAssetDeletion<T>>::insert(new_time_slot, future_scheduled_deletion_assets);
@@ -463,7 +473,7 @@ pub mod pallet {
 			if now == 0 {
 				Err(Error::<T>::BlockTimeNotSet)?
 			}
-			let now = now / 1000;
+			let now = now.saturating_div(1000);
 			let diff_to_min = now % 60;
 			Ok(now.saturating_sub(diff_to_min))
 		}
@@ -550,10 +560,13 @@ pub mod pallet {
 				Err(Error::<T>::DuplicateTask)?
 			}
 			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
-				asset_tasks.push(task_id.clone());
+				if let Err(_) = asset_tasks.try_push(task_id.clone()) {
+					Err(Error::<T>::MaxTasksReached)?
+				}
 				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
 			} else {
-				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), vec![task_id.clone()]);
+				let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> = vec![task_id.clone()].try_into().unwrap();
+				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), scheduled_tasks);
 			}
 			Ok(task_id)
 		}
@@ -579,13 +592,13 @@ pub mod pallet {
 				Some(asset_price) => asset_price,
 			};
 			if (direction == 0) & (last_asset_price < asset_target_price) {
-				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
+				let last_asset_percentage = Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 				if trigger_percentage > last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
 			if (direction == 1) & (last_asset_price > asset_target_price) {
-				let last_asset_percentage = Self::get_asset_percentage(last_asset_price, asset_target_price);
+				let last_asset_percentage = Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 				if trigger_percentage < last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
@@ -629,15 +642,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		pub fn get_asset_percentage(
+		pub fn calculate_asset_percentage(
 			asset_update_value: u128,
 			asset_target_price: u128,
 		) -> u128 {
 			// TODO: fix 100 hardcode
 			if asset_target_price > asset_update_value {
-				((asset_target_price - asset_update_value) * 100) / asset_target_price
+				asset_target_price.saturating_sub(asset_update_value).saturating_mul(100).saturating_div(asset_target_price)
 			} else {
-				((asset_update_value - asset_target_price) * 100) / asset_target_price
+				asset_update_value.saturating_sub(asset_target_price).saturating_mul(100).saturating_div(asset_target_price)
 			}
 		}
 	}

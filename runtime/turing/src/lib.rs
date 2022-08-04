@@ -994,19 +994,13 @@ impl pallet_automation_time::Config for Runtime {
 
 impl pallet_automation_price::Config for Runtime {
 	type Event = Event;
-	type MaxTasksPerSlot = MaxTasksPerSlot;
-	type MaxExecutionTimes = MaxExecutionTimes;
-	type MaxScheduleSeconds = MaxScheduleSeconds;
+	type MaxTasksPerSlot = ConstU32<1>;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
-	type UpdateQueueRatio = UpdateQueueRatio;
-	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
-	type NativeTokenExchange =
-		pallet_automation_price::CurrencyAdapter<Balances, DealWithExecutionFees<Runtime>>;
+	type Currency = Balances;
 	type Origin = Origin;
-	type XcmSender = xcm_config::XcmRouter;
 }
 
 pub struct ClosedCallFilter;
