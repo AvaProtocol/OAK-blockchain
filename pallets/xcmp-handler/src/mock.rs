@@ -17,11 +17,15 @@
 
 use crate as pallet_xcmp_handler;
 use codec::{Decode, Encode, MaxEncodedLen};
+use core::cell::RefCell;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, GenesisBuild},
+	weights::Weight,
 };
 use frame_system as system;
+use pallet_xcm::XcmPassthrough;
+use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
@@ -31,8 +35,15 @@ use sp_runtime::{
 	AccountId32, RuntimeDebug,
 };
 use xcm::latest::prelude::*;
-use xcm_builder::LocationInverter;
-
+use xcm_builder::{
+	AccountId32Aliases, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds, LocationInverter,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
+};
+use xcm_executor::{
+	traits::{TransactAsset, WeightTrader},
+	Assets, XcmExecutor,
+};
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -48,6 +59,8 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
+		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 51,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
 	}
 );
 
@@ -55,6 +68,9 @@ parameter_types! {
 	pub const BlockHashCount: u64 = 250;
 	pub const SS58Prefix: u8 = 51;
 }
+
+pub type LocalOriginToLocation = SignedToAccountId32<Origin, AccountId, RelayNetwork>;
+pub type Barrier = AllowUnpaidExecutionFrom<Everything>;
 
 impl system::Config for Test {
 	type BaseCallFilter = Everything;
@@ -114,18 +130,142 @@ impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
 	}
 }
 
+thread_local! {
+	pub static SENT_XCM: RefCell<Vec<(MultiLocation,Xcm<()>)>>  = RefCell::new(Vec::new());
+}
+
+pub(crate) fn sent_xcm() -> Vec<(MultiLocation, Xcm<()>)> {
+	SENT_XCM.with(|q| (*q.borrow()).clone())
+}
+
+pub type LocationToAccountId = (
+	ParentIsPreset<AccountId>,
+	SiblingParachainConvertsVia<Sibling, AccountId>,
+	AccountId32Aliases<RelayNetwork, AccountId>,
+);
+
+pub type XcmOriginToCallOrigin = (
+	SovereignSignedViaLocation<LocationToAccountId, Origin>,
+	RelayChainAsNative<RelayChainOrigin, Origin>,
+	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, Origin>,
+	SignedAccountId32AsNative<RelayNetwork, Origin>,
+	XcmPassthrough<Origin>,
+);
+
+/// Sender that returns error if call equals [9,9,9]
+pub struct TestSendXcm;
+impl SendXcm for TestSendXcm {
+	fn send_xcm(dest: impl Into<MultiLocation>, msg: Xcm<()>) -> SendResult {
+		let dest = dest.into();
+		let err_message = Xcm(vec![Transact {
+			origin_type: OriginKind::Native,
+			require_weight_at_most: 100_000,
+			call: vec![9, 1, 1].into(),
+		}]);
+		if msg == err_message {
+			Err(SendError::Transport("Destination location full"))
+		} else {
+			SENT_XCM.with(|q| q.borrow_mut().push((dest, msg)));
+			Ok(())
+		}
+	}
+}
+
+// XCMP Mocks
+parameter_types! {
+	pub const UnitWeightCost: Weight = 10;
+	pub const MaxInstructions: u32 = 100;
+}
+pub struct DummyWeightTrader;
+impl WeightTrader for DummyWeightTrader {
+	fn new() -> Self {
+		DummyWeightTrader
+	}
+
+	fn buy_weight(&mut self, _weight: Weight, _payment: Assets) -> Result<Assets, XcmError> {
+		Ok(Assets::default())
+	}
+}
+pub struct DummyAssetTransactor;
+impl TransactAsset for DummyAssetTransactor {
+	fn deposit_asset(_what: &MultiAsset, _who: &MultiLocation) -> XcmResult {
+		Ok(())
+	}
+
+	fn withdraw_asset(_what: &MultiAsset, _who: &MultiLocation) -> Result<Assets, XcmError> {
+		let asset: MultiAsset = (Parent, 100_000).into();
+		Ok(asset.into())
+	}
+}
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
+	pub const RelayLocation: MultiLocation = MultiLocation::parent();
+	pub RelayChainOrigin: Origin = cumulus_pallet_xcm::Origin::Relay.into();
+}
+pub struct XcmConfig;
+impl xcm_executor::Config for XcmConfig {
+	type Call = Call;
+	type XcmSender = TestSendXcm;
+	type AssetTransactor = DummyAssetTransactor;
+	type OriginConverter = XcmOriginToCallOrigin;
+	type IsReserve = ();
+	type IsTeleporter = ();
+	type LocationInverter = LocationInverter<Ancestry>;
+	type Barrier = Barrier;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type Trader = DummyWeightTrader;
+	type ResponseHandler = ();
+	type AssetTrap = XcmPallet;
+	type AssetClaims = XcmPallet;
+	type SubscriptionService = XcmPallet;
+}
+
+parameter_types! {
+	pub static AdvertisedXcmVersion: xcm::prelude::XcmVersion = 2;
+}
+
+impl pallet_xcm::Config for Test {
+	type Event = Event;
+	type SendXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmRouter = (TestSendXcm, TestSendXcm);
+	type LocationInverter = LocationInverter<Ancestry>;
+	type ExecuteXcmOrigin = EnsureXcmOrigin<Origin, LocalOriginToLocation>;
+	type XcmExecuteFilter = Everything;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmTeleportFilter = Everything;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
+	type XcmReserveTransferFilter = Everything;
+	type Origin = Origin;
+	type Call = Call;
+	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
+	type AdvertisedXcmVersion = AdvertisedXcmVersion;
+}
+
+impl cumulus_pallet_xcm::Config for Test {
+	type Event = Event;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+}
+
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const BaseXcmWeight: Weight = 100_000_000;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	
 }
 
 impl pallet_xcmp_handler::Config for Test {
 	type Event = Event;
+	type Call = Call;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Test>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type LocationInverter = LocationInverter<Ancestry>;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type XcmSender = TestSendXcm;
+	type BaseXcmWeight = BaseXcmWeight;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
 }
 
