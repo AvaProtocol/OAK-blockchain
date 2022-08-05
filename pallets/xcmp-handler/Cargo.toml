@@ -17,28 +17,46 @@ scale-info = { version = "2.1", default-features = false, features = ["derive"] 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 ## Substrate FRAME Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", default-features = false, optional = true, branch = "polkadot-v0.9.23" }
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
+# Cumulus dependencies
+cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.23', default-features = false }
+
+
+# Polkadot Dependencies
+xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
+
 [dev-dependencies]
 serde = { version = "1.0.132" }
 
 # Substrate
-sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
-sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
-sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
+sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
+
+# Cumulus dependencies
+parachain-info = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.23' }
+
+# Polkadot Dependencies
+xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" }
 
 [features]
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 std = [
     "codec/std",
+    "cumulus-primitives-core/std",
     "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
     "scale-info/std",
+    "sp-runtime/std",
     "sp-std/std",
+    "xcm/std",
+    "xcm-executor/std",
 ] 

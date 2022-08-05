@@ -21,44 +21,22 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
-pallet-automation-time = { path = "../automation-time", default-features = false }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 sp-io = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
-
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
-pallet-xcm = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.23" }
-xcm-builder = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.23" }
-xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.23" }
-
-cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.23' }
-cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.23' }
-
-# Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.23" }
 
 [features]
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 std = [
 	"codec/std",
-	"cumulus-pallet-xcm/std",
-	"cumulus-primitives-core/std",
 	"frame-benchmarking/std",
 	"frame-support/std",
 	"frame-system/std",
-	"pallet-automation-time/std",
 	"pallet-balances/std",
-	"pallet-timestamp/std",
-	"pallet-xcm/std",
-	"pallet-parachain-staking/std",
 	"scale-info/std",
 	"sp-runtime/std",
 	"sp-std/std",
-	"xcm/std",
-	"xcm-builder/std",
-	"xcm-executor/std",
 ]
