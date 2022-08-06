@@ -87,6 +87,8 @@ pub mod pallet {
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 	type Seconds = u64;
+	type TaskId<T> = <T as frame_system::Config>::Hash;
+	type AccountTaskId<T> = (<T as frame_system::Config>::AccountId, TaskId<T>);
 
 	/// The enum that stores all action specific data.
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -141,17 +143,36 @@ pub mod pallet {
 		}
 	}
 
+	// /// The struct that stores data for a missed task.
+	// #[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	// #[scale_info(skip_type_params(T))]
+	// pub struct MissedTask<T: Config> {
+	// 	task_id: T::Hash,
+	// 	execution_time: UnixTime,
+	// }
+
+	// impl<T: Config> MissedTask<T> {
+	// 	pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
+	// 		MissedTask::<T> { task_id, execution_time }
+	// 	}
+	// }
+
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub struct MissedTask<T: Config> {
-		task_id: T::Hash,
+	pub struct MissedTask2<T: Config> {
+		owner_id: T::AccountId,
+		task_id: TaskId<T>,
 		execution_time: UnixTime,
 	}
 
-	impl<T: Config> MissedTask<T> {
-		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
-			MissedTask::<T> { task_id, execution_time }
+	impl<T: Config> MissedTask2<T> {
+		pub fn create_missed_task(
+			owner_id: T::AccountId,
+			task_id: TaskId<T>,
+			execution_time: UnixTime,
+		) -> MissedTask2<T> {
+			MissedTask2::<T> { owner_id, task_id, execution_time }
 		}
 	}
 
@@ -159,6 +180,7 @@ pub mod pallet {
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
+		// TODO remove this field as the double map makes it extraneous.
 		owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
 		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
@@ -334,22 +356,40 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks<T: Config> =
-		StorageMap<_, Twox64Concat, u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_scheduled_tasks)]
+	// pub type ScheduledTasks<T: Config> =
+	// 	StorageMap<_, Twox64Concat, u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+	#[pallet::getter(fn get_scheduled_tasks)]
+	pub type ScheduledTasks2<T: Config> =
+		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
+
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_task)]
+	// pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn get_account_task)]
+	pub type AccountTasks<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, TaskId<T>, Task<T>>;
+
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_task_queue)]
+	// pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+	pub type TaskQueue2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
+
+	// #[pallet::storage]
+	// #[pallet::getter(fn get_missed_queue)]
+	// pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
-	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
+	pub type MissedQueue2<T: Config> = StorageValue<_, Vec<MissedTask2<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
@@ -378,8 +418,6 @@ pub mod pallet {
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
 		TimeSlotFull,
-		/// You are not the owner of the task.
-		NotTaskOwner,
 		/// The task does not exist.
 		TaskDoesNotExist,
 		/// Block time not set.
@@ -406,12 +444,12 @@ pub mod pallet {
 		/// Schedule task success.
 		TaskScheduled {
 			who: AccountOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		// Cancelled a task.
 		TaskCancelled {
 			who: AccountOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		/// Notify event for the task.
 		Notify {
@@ -419,41 +457,41 @@ pub mod pallet {
 		},
 		/// A Task was not found.
 		TaskNotFound {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		/// Successfully transferred funds
 		SuccessfullyTransferredFunds {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		/// Successfully sent XCMP
 		SuccessfullySentXCMP {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			para_id: ParaId,
 		},
 		/// Failed to send XCMP
 		FailedToSendXCMP {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			para_id: ParaId,
 			error: SendError,
 		},
 		/// Transfer Failed
 		TransferFailed {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			error: DispatchError,
 		},
 		SuccesfullyAutoCompoundedDelegatorStake {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			amount: BalanceOf<T>,
 		},
 		AutoCompoundDelegatorStakeFailed {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			error_message: Vec<u8>,
 			error: DispatchErrorWithPostInfo,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
 			who: T::AccountId,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			execution_time: UnixTime,
 		},
 	}
@@ -470,16 +508,16 @@ pub mod pallet {
 			Self::trigger_tasks(max_weight)
 		}
 
-		fn on_runtime_upgrade() -> Weight {
-			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
-			info!("on chain storage version, {:?}", on_chain_storage_version);
-			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v2::migrate::<T>()
-			} else {
-				info!("migration already run before");
-				0
-			}
-		}
+		// fn on_runtime_upgrade() -> Weight {
+		// 	let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
+		// 	info!("on chain storage version, {:?}", on_chain_storage_version);
+		// 	if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
+		// 		migrations::v2::migrate::<T>()
+		// 	} else {
+		// 		info!("migration already run before");
+		// 		0
+		// 	}
+		// }
 	}
 
 	#[pallet::call]
@@ -665,39 +703,37 @@ pub mod pallet {
 		/// * `task_id`: The id of the task.
 		///
 		/// # Errors
-		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
-		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
+		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match Self::get_task(task_id) {
-				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => {
-					if who != task.owner_id {
-						Err(Error::<T>::NotTaskOwner)?
-					}
-					Self::remove_task(task_id, task);
-				},
-			}
+			AccountTasks::<T>::get(who, task_id)
+				.ok_or(Error::<T>::TaskDoesNotExist)
+				.map(|task| Self::remove_task(task_id, task))?;
+
 			Ok(().into())
 		}
 
 		/// Sudo can force cancel a task.
 		///
 		/// # Parameters
+		/// * `owner_id`: The owner of the task.
 		/// * `task_id`: The id of the task.
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
-		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
+		pub fn force_cancel_task(
+			origin: OriginFor<T>,
+			owner_id: T::AccountId,
+			task_id: TaskId<T>,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			match Self::get_task(task_id) {
-				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => Self::remove_task(task_id, task),
-			}
+			AccountTasks::<T>::get(owner_id, task_id)
+				.ok_or(Error::<T>::TaskDoesNotExist)
+				.map(|task| Self::remove_task(task_id, task))?;
 
 			Ok(().into())
 		}
@@ -789,7 +825,7 @@ pub mod pallet {
 			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-				TaskQueue::<T>::put(tasks_left);
+				TaskQueue2::<T>::put(tasks_left);
 				weight_left =
 					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
@@ -805,7 +841,7 @@ pub mod pallet {
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
-					MissedQueue::<T>::put(tasks_left);
+					MissedQueue2::<T>::put(tasks_left);
 					weight_left =
 						new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
@@ -870,18 +906,21 @@ pub mod pallet {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
 				for missed_task in missed_tasks {
-					let new_missed_task: MissedTask<T> =
-						MissedTask::<T> { task_id: missed_task, execution_time: last_time_slot };
+					let new_missed_task: MissedTask2<T> = MissedTask2::<T> {
+						owner_id: missed_task.0,
+						task_id: missed_task.1,
+						execution_time: last_time_slot,
+					};
 					missed_queue.push(new_missed_task);
 				}
-				MissedQueue::<T>::put(missed_queue);
+				MissedQueue2::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
 				if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
-					TaskQueue::<T>::put(task_ids);
-					ScheduledTasks::<T>::remove(current_time_slot);
+					TaskQueue2::<T>::put(task_ids);
+					ScheduledTasks2::<T>::remove(current_time_slot);
 				} else {
-					let empty_queue: Vec<T::Hash> = vec![];
-					TaskQueue::<T>::put(empty_queue);
+					let empty_queue: Vec<AccountTaskId<T>> = vec![];
+					TaskQueue2::<T>::put(empty_queue);
 				}
 			}
 			let weight_used = <T as Config>::WeightInfo::update_scheduled_task_queue();
@@ -937,7 +976,7 @@ pub mod pallet {
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
 			missed_queue.append(&mut missed_tasks);
-			MissedQueue::<T>::put(missed_queue);
+			MissedQueue2::<T>::put(missed_queue);
 
 			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, diff)
@@ -950,16 +989,19 @@ pub mod pallet {
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
-		) -> Vec<MissedTask<T>> {
+		) -> Vec<MissedTask2<T>> {
 			let mut tasks = vec![];
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
-			if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
-				ScheduledTasks::<T>::remove(new_time_slot);
-				for task_id in task_ids {
-					let new_missed_task: MissedTask<T> =
-						MissedTask::<T> { task_id, execution_time: new_time_slot };
+			if let Some(account_task_ids) = Self::get_scheduled_tasks(new_time_slot) {
+				ScheduledTasks2::<T>::remove(new_time_slot);
+				for account_task_id in account_task_ids {
+					let new_missed_task: MissedTask2<T> = MissedTask2::<T> {
+						owner_id: account_task_id.0,
+						task_id: account_task_id.1,
+						execution_time: new_time_slot,
+					};
 					tasks.push(new_missed_task);
 				}
 			}
@@ -970,54 +1012,62 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_tasks(
-			mut task_ids: Vec<T::Hash>,
+			mut account_task_ids: Vec<AccountTaskId<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<T::Hash>, Weight) {
+		) -> (Vec<AccountTaskId<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
-			for task_id in task_ids.iter() {
+			for account_task_id in account_task_ids.iter() {
 				consumed_task_index.saturating_inc();
-				let action_weight = match Self::get_task(task_id) {
-					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
-						<T as Config>::WeightInfo::run_tasks_many_missing(1)
-					},
-					Some(mut task) => {
-						let task_action_weight = match task.action.clone() {
-							Action::Notify { message } => Self::run_notify_task(message),
-							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
-							Action::XCMP { para_id, call, weight_at_most } =>
-								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
-							Action::AutoCompoundDelegatedStake {
-								delegator,
-								collator,
-								account_minimum,
-								frequency,
-							} => {
-								let (mut_task, weight) =
-									Self::run_auto_compound_delegated_stake_task(
-										delegator,
-										collator,
-										account_minimum,
-										frequency,
-										task_id.clone(),
-										task,
-									);
-								task = mut_task;
-								weight
-							},
-						};
-						Self::decrement_task_and_remove_if_complete(*task_id, task);
-						task_action_weight
-							.saturating_add(T::DbWeight::get().writes(1 as Weight))
-							.saturating_add(T::DbWeight::get().reads(1 as Weight))
-					},
-				};
+				let action_weight =
+					match AccountTasks::<T>::get(account_task_id.0.clone(), account_task_id.1) {
+						None => {
+							Self::deposit_event(Event::TaskNotFound {
+								task_id: account_task_id.1.clone(),
+							});
+							<T as Config>::WeightInfo::run_tasks_many_missing(1)
+						},
+						Some(mut task) => {
+							let task_action_weight = match task.action.clone() {
+								Action::Notify { message } => Self::run_notify_task(message),
+								Action::NativeTransfer { sender, recipient, amount } =>
+									Self::run_native_transfer_task(
+										sender,
+										recipient,
+										amount,
+										account_task_id.1,
+									),
+								Action::XCMP { para_id, call, weight_at_most } =>
+									Self::run_xcmp_task(
+										para_id,
+										call,
+										weight_at_most,
+										account_task_id.1,
+									),
+								Action::AutoCompoundDelegatedStake {
+									delegator,
+									collator,
+									account_minimum,
+									frequency,
+								} => {
+									let (mut_task, weight) =
+										Self::run_auto_compound_delegated_stake_task(
+											delegator,
+											collator,
+											account_minimum,
+											frequency,
+											account_task_id.1,
+											task,
+										);
+									task = mut_task;
+									weight
+								},
+							};
+							Self::decrement_task_and_remove_if_complete(account_task_id.1, task);
+							task_action_weight
+								.saturating_add(T::DbWeight::get().writes(1 as Weight))
+								.saturating_add(T::DbWeight::get().reads(1 as Weight))
+						},
+					};
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
@@ -1026,10 +1076,10 @@ pub mod pallet {
 				}
 			}
 
-			if consumed_task_index == task_ids.len() {
+			if consumed_task_index == account_task_ids.len() {
 				return (vec![], weight_left)
 			} else {
-				return (task_ids.split_off(consumed_task_index), weight_left)
+				return (account_task_ids.split_off(consumed_task_index), weight_left)
 			}
 		}
 
@@ -1037,30 +1087,32 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_missed_tasks(
-			mut missed_tasks: Vec<MissedTask<T>>,
+			mut missed_tasks: Vec<MissedTask2<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<MissedTask<T>>, Weight) {
+		) -> (Vec<MissedTask2<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for missed_task in missed_tasks.iter() {
 				consumed_task_index += 1;
 
-				let action_weight = match Self::get_task(missed_task.task_id) {
-					None => {
-						Self::deposit_event(Event::TaskNotFound {
-							task_id: missed_task.task_id.clone(),
-						});
-						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
-					},
-					Some(task) => {
-						Self::deposit_event(Event::TaskMissed {
-							who: task.owner_id.clone(),
-							task_id: missed_task.task_id.clone(),
-							execution_time: missed_task.execution_time,
-						});
-						Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
-						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
-					},
-				};
+				let action_weight =
+					match AccountTasks::<T>::get(missed_task.owner_id.clone(), missed_task.task_id)
+					{
+						None => {
+							Self::deposit_event(Event::TaskNotFound {
+								task_id: missed_task.task_id.clone(),
+							});
+							<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
+						},
+						Some(task) => {
+							Self::deposit_event(Event::TaskMissed {
+								who: task.owner_id.clone(),
+								task_id: missed_task.task_id.clone(),
+								execution_time: missed_task.execution_time,
+							});
+							Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
+							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
+						},
+					};
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
@@ -1105,7 +1157,7 @@ pub mod pallet {
 			para_id: ParaId,
 			call: Vec<u8>,
 			weight_at_most: Weight,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		) -> Weight {
 			let destination = (1, Junction::Parachain(para_id.into()));
 			let message = Xcm(vec![Transact {
@@ -1133,7 +1185,7 @@ pub mod pallet {
 			collator: T::AccountId,
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			mut task: Task<T>,
 		) -> (Task<T>, Weight) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
@@ -1196,17 +1248,17 @@ pub mod pallet {
 		/// Decrements task executions left.
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
-		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
+		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: Task<T>) {
 			task.executions_left = task.executions_left.saturating_sub(1);
 			if task.executions_left <= 0 {
-				Tasks::<T>::remove(task_id);
+				AccountTasks::<T>::remove(task.owner_id, task_id);
 			} else {
-				Tasks::<T>::insert(task_id, task);
+				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
 			}
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		fn remove_task(task_id: T::Hash, task: Task<T>) {
+		fn remove_task(task_id: TaskId<T>, task: Task<T>) {
 			let mut found_task: bool = false;
 			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
 			let current_time_slot = match Self::get_current_time_slot() {
@@ -1226,9 +1278,9 @@ pub mod pallet {
 					if *execution_time == last_time_slot {
 						let mut task_queue = Self::get_task_queue();
 						for i in 0..task_queue.len() {
-							if task_queue[i] == task_id {
+							if task_queue[i].1 == task_id {
 								task_queue.remove(i);
-								TaskQueue::<T>::put(task_queue);
+								TaskQueue2::<T>::put(task_queue);
 								found_task = true;
 								break
 							}
@@ -1236,14 +1288,14 @@ pub mod pallet {
 						break
 					}
 					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
-						for i in 0..task_ids.len() {
-							if task_ids[i] == task_id {
-								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*execution_time);
+					if let Some(mut account_task_ids) = Self::get_scheduled_tasks(*execution_time) {
+						for i in 0..account_task_ids.len() {
+							if account_task_ids[i].1 == task_id {
+								if account_task_ids.len() == 1 {
+									ScheduledTasks2::<T>::remove(*execution_time);
 								} else {
-									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
+									account_task_ids.remove(i);
+									ScheduledTasks2::<T>::insert(*execution_time, account_task_ids);
 								}
 								found_task = true;
 								break
@@ -1254,14 +1306,14 @@ pub mod pallet {
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
 				for execution_time in task.execution_times.iter().rev() {
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
-						for i in 0..task_ids.len() {
-							if task_ids[i] == task_id {
-								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*execution_time);
+					if let Some(mut account_task_ids) = Self::get_scheduled_tasks(*execution_time) {
+						for i in 0..account_task_ids.len() {
+							if account_task_ids[i].1 == task_id {
+								if account_task_ids.len() == 1 {
+									ScheduledTasks2::<T>::remove(*execution_time);
 								} else {
-									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
+									account_task_ids.remove(i);
+									ScheduledTasks2::<T>::insert(*execution_time, account_task_ids);
 								}
 								found_task = true;
 								break
@@ -1275,7 +1327,7 @@ pub mod pallet {
 				Self::deposit_event(Event::TaskNotFound { task_id });
 			}
 
-			<Tasks<T>>::remove(task_id);
+			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
@@ -1284,46 +1336,48 @@ pub mod pallet {
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
-		) -> Result<T::Hash, Error<T>> {
+		) -> Result<TaskId<T>, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
 
-			if let Some(_) = Self::get_task(task_id) {
-				Err(Error::<T>::DuplicateTask)?
+			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
+				Err(Error::<T>::DuplicateTask)?;
 			}
 
 			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
 				let mut task_queue = Self::get_task_queue();
-				task_queue.push(task_id);
-				TaskQueue::<T>::put(task_queue);
+				task_queue.push((owner_id.clone(), task_id));
+				TaskQueue2::<T>::put(task_queue);
 
 				return Ok(task_id)
 			}
 
-			Self::insert_scheduled_tasks(task_id, execution_times)
+			Self::insert_scheduled_tasks(owner_id, task_id, execution_times)
 		}
 
-		/// Insert task id into scheduled tasks
+		/// Insert the account/task id into scheduled tasks
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
 		fn insert_scheduled_tasks(
-			task_id: T::Hash,
+			owner_id: T::AccountId,
+			task_id: TaskId<T>,
 			execution_times: Vec<UnixTime>,
-		) -> Result<T::Hash, Error<T>> {
-			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
+		) -> Result<TaskId<T>, Error<T>> {
+			with_transaction(|| -> storage::TransactionOutcome<Result<TaskId<T>, DispatchError>> {
+				let account_task_id: AccountTaskId<T> = (owner_id, task_id);
 				for time in execution_times.iter() {
 					match Self::get_scheduled_tasks(*time) {
 						None => {
-							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-								vec![task_id].try_into().unwrap();
-							<ScheduledTasks<T>>::insert(*time, task_ids);
+							let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
+								vec![account_task_id.clone()].try_into().unwrap();
+							ScheduledTasks2::<T>::insert(*time, account_task_ids);
 						},
-						Some(mut task_ids) => {
-							if let Err(_) = task_ids.try_push(task_id) {
+						Some(mut account_task_ids) => {
+							if let Err(_) = account_task_ids.try_push(account_task_id.clone()) {
 								return Rollback(Err(DispatchError::Other("time slot full")))
 							}
-							<ScheduledTasks<T>>::insert(*time, task_ids);
+							<ScheduledTasks2<T>>::insert(*time, account_task_ids);
 						},
 					}
 				}
@@ -1337,7 +1391,7 @@ pub mod pallet {
 		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
 			action: Action<T>,
-			who: T::AccountId,
+			owner_id: T::AccountId,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
@@ -1356,51 +1410,54 @@ pub mod pallet {
 
 			let fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
+			T::FeeHandler::can_pay_fee(&owner_id, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-			let task_id =
-				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
+			let task_id = Self::schedule_task(
+				owner_id.clone(),
+				provided_id.clone(),
+				execution_times.clone(),
+			)?;
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
 			let task: Task<T> = Task::<T> {
-				owner_id: who.clone(),
+				owner_id: owner_id.clone(),
 				provided_id,
 				execution_times: execution_times.try_into().unwrap(),
 				executions_left,
 				action,
 			};
-			<Tasks<T>>::insert(task_id, task);
+			AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&owner_id, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
 		}
 
 		/// Reschedules an existing task for a given number of execution times
 		fn reschedule_existing_task(
-			task_id: T::Hash,
-			who: T::AccountId,
+			task_id: TaskId<T>,
+			owner_id: T::AccountId,
 			action: &Action<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
 			let fee = Self::calculate_execution_fee(action, new_executions);
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
+			T::FeeHandler::can_pay_fee(&owner_id, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
+			Self::insert_scheduled_tasks(owner_id.clone(), task_id, execution_times.clone())?;
 
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&owner_id, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
 		}
 
-		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
+		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskId<T> {
 			let task_hash_input =
 				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
 			T::Hashing::hash_of(&task_hash_input)
