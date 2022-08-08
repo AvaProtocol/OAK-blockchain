@@ -1202,39 +1202,30 @@ impl_runtime_apis! {
 		}
 
 		fn fees(encoded_xt: Bytes) -> Balance {
-			use log::info;
-
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
-			let result = match extrinsic.clone().function {
-				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					provided_id, execution_times, para_id, call, weight_at_most
-				}) => Some((provided_id, execution_times, para_id, call, weight_at_most)),
-				_ => None,
-			};
+			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+				provided_id, execution_times, para_id, call, weight_at_most
+			}) = extrinsic.clone().function {
+				let len = encoded_xt.len() as u32;
 
-			let parsed_call = result.unwrap();
+				let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
+					u32::from(para_id),
+					CurrencyId::from(0), // from new extrinsic
+					weight_at_most,
+				).unwrap().0;
+				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
+					.inclusion_fee
+					.unwrap()
+					.base_fee;
+				let execution_fee = AutomationTime::calculate_execution_fee(
+					&(AutomationAction::XCMP.into()),
+					1,
+				);
 
-			let provided_id = parsed_call.0;
-			let execution_times = parsed_call.1;
-			let para_id = parsed_call.2;
-			let call = parsed_call.3;
-			let weight_at_most = parsed_call.4;
+				return xcm_fee + inclusion_fee + execution_fee
+			}
 
-			info!("{:?}, {:?}, {:?}, {:?}, {:?}", provided_id, execution_times, u32::from(para_id), call,
-				weight_at_most);
-
-			let len = encoded_xt.len() as u32;
-
-			let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
-				u32::from(para_id),
-				CurrencyId::from(0), // from new extrinsic
-				weight_at_most,
-			).unwrap().0;
-			let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len).inclusion_fee.unwrap().base_fee;
-			let execution_fee =
-				AutomationTime::calculate_execution_fee(&(AutomationAction::XCMP.into()), 1);
-
-			xcm_fee + inclusion_fee + execution_fee
+			panic!("unsupported extrinsic")
 		}
 	}
 
