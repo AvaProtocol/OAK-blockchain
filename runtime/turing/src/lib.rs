@@ -22,7 +22,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeLimit, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
@@ -1207,10 +1207,29 @@ impl_runtime_apis! {
 				CurrencyId::from(currency_id),
 				call_weight,
 			).unwrap().0;
+			use log::info;
+
+			// let xt = encoded_xt.clone().to_vec();
+			// let debug_extrinsic =
+			// 	UncheckedExtrinsic::decode_all_with_depth_limit(sp_api::MAX_EXTRINSIC_DEPTH, &mut &*xt).unwrap();
+			// info!("runtime d: {:?}", debug_extrinsic.function);
+			//
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
+			info!("runtime: {:?}", extrinsic);
+			let _ = match extrinsic.function {
+				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+					provided_id, execution_times, para_id, call, weight_at_most
+				}) => {
+					info!("id: {:?}", provided_id);
+					Some(1)
+				},
+				_ => {
+					info!("some other call");
+					None
+				},
+			};
 			let len = encoded_xt.len() as u32;
-			let inclusion_fee = TransactionPayment::query_fee_details(extrinsic,
-				len).inclusion_fee.unwrap().base_fee;
+			let inclusion_fee = 0; // TransactionPayment::query_fee_details(extrinsic, len).inclusion_fee.unwrap().base_fee;
 			let execution_fee =
 				AutomationTime::calculate_execution_fee(&(AutomationAction::XCMP.into()), 1);
 
