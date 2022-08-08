@@ -38,6 +38,9 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 ## Substrate Pallet Dependencies
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
+## Local
+pallet-valve = { path = "../valve", default-features = false }
+
 [dev-dependencies]
 serde = { version = "1.0.137" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
@@ -59,6 +62,7 @@ std = [
 	"frame-support/std",
 	"frame-system/std",
 	"pallet-timestamp/std",
+	"pallet-valve/std",
 	"pallet-xcm/std",
 	"polkadot-parachain/std",
 	"scale-info/std",

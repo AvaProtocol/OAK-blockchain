@@ -5263,6 +5263,7 @@ dependencies = [
  "log",
  "pallet-balances",
  "pallet-timestamp",
+ "pallet-valve",
  "pallet-xcm",
  "parity-scale-codec",
  "polkadot-parachain",

@@ -958,6 +958,7 @@ impl pallet_automation_price::Config for Runtime {
 	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
+	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 }
 
@@ -980,6 +981,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
+	type AutomationPrice = AutomationPrice;
 }
 
 impl pallet_vesting::Config for Runtime {
