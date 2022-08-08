@@ -28,6 +28,7 @@ use frame_system as system;
 use pallet_balances::NegativeImbalance;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
+use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -272,6 +273,27 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 }
 
+#[derive(
+	Encode,
+	Decode,
+	Deserialize,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Serialize,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+pub enum CurrencyId {
+	Native,
+	ROC,
+	UNIT,
+}
+
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
 impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
 where
@@ -297,6 +319,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
+	type CurrencyId = CurrencyId;
 	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
 	type Origin = Origin;
 	type XcmSender = TestSendXcm;
