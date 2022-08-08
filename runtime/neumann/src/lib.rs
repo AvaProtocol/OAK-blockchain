@@ -28,7 +28,7 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
@@ -1141,7 +1141,7 @@ impl_runtime_apis! {
 			ParachainInfo::parachain_id().into()
 		}
 
-		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance {
+		fn fees(_parachain_id: u32, _currency_id: u32, _call_weight: u64, _encoded_xt: Bytes) -> Balance {
 			10_000_000 as Balance
 		}
 	}

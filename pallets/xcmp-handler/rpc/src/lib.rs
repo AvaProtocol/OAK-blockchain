@@ -25,6 +25,7 @@ use jsonrpsee::{
 pub use pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi as XcmpHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
+use sp_core::Bytes;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
 use xcm::{
@@ -44,7 +45,13 @@ pub trait XcmpHandlerApi<Block, Balance> {
 	#[method(name = "xcmpHandler_crossChainAccount")]
 	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
 	#[method(name = "xcmpHandler_fees")]
-	fn fees(&self, parachain_id: u32, currency_id: u32, call_weight: u64) -> RpcResult<u64>;
+	fn fees(
+		&self,
+		parachain_id: u32,
+		currency_id: u32,
+		call_weight: u64,
+		encoded_xt: Bytes,
+	) -> RpcResult<u64>;
 }
 
 /// An implementation of XCMP-specific RPC methods on full client.
@@ -105,11 +112,17 @@ where
 		})
 	}
 
-	fn fees(&self, parachain_id: u32, currency_id: u32, call_weight: u64) -> RpcResult<u64> {
+	fn fees(
+		&self,
+		parachain_id: u32,
+		currency_id: u32,
+		call_weight: u64,
+		encoded_xt: Bytes,
+	) -> RpcResult<u64> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 		let runtime_api_result =
-			api.fees(&at, parachain_id, currency_id, call_weight).map_err(|e| {
+			api.fees(&at, parachain_id, currency_id, call_weight, encoded_xt).map_err(|e| {
 				CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
 					"Unable to get fees",

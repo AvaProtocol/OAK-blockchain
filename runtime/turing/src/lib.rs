@@ -29,7 +29,7 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
@@ -1201,13 +1201,16 @@ impl_runtime_apis! {
 			ParachainInfo::parachain_id().into()
 		}
 
-		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance {
+		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64, encoded_xt: Bytes) -> Balance {
 			let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
 				parachain_id,
 				CurrencyId::from(currency_id),
 				call_weight,
 			).unwrap().0;
-			let inclusion_fee = 0; // TransactionPayment::query_fee_details(extrinsic, length)
+			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
+			let len = encoded_xt.len() as u32;
+			let inclusion_fee = TransactionPayment::query_fee_details(extrinsic,
+				len).inclusion_fee.unwrap().base_fee;
 			let execution_fee =
 				AutomationTime::calculate_execution_fee(&(AutomationAction::XCMP.into()), 1);
 

@@ -18,12 +18,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Codec;
+use sp_core::Bytes;
 
 sp_api::decl_runtime_apis! {
 	pub trait XcmpHandlerApi<Balance> where
 		Balance: Codec,
 	{
 		fn parachain_id() -> u32;
-		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance;
+		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64, encoded_xt: Bytes) -> Balance;
 	}
 }

@@ -6250,6 +6250,7 @@ dependencies = [
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
+ "sp-core",
  "sp-runtime",
  "xcm",
  "xcm-builder",
@@ -6263,6 +6264,7 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-api",
+ "sp-core",
  "sp-std",
 ]
 
