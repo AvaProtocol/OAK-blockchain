@@ -601,8 +601,8 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 			para_id: ParaId,
 			currency_id: T::CurrencyId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 		) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 
