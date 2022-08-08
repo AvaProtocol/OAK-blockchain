@@ -22,12 +22,11 @@ use crate::{
 	Tasks, WeightInfo,
 };
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, error::BadOrigin, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
-use polkadot_parachain::primitives::Sibling;
 use sp_runtime::{
-	traits::{AccountIdConversion, BlakeTwo256, Hash},
+	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
 use xcm::latest::prelude::*;
@@ -240,72 +239,21 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
-		get_funds(Sibling::from(PARA_ID).into_account_truncating());
-		assert_ok!(AutomationTime::schedule_xcmp_task(
-			cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
-			vec![50],
-			vec![SCHEDULED_TIME],
-			PARA_ID.try_into().unwrap(),
-			call.clone(),
-			100_000,
-		));
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
-			None => {
-				panic!("A task should be scheduled")
-			},
-			Some(task_ids) => match AutomationTime::get_task(task_ids[0]) {
-				None => {
-					panic!("A task should exist if it was scheduled")
-				},
-				Some(task) => {
-					let expected_task = Task::<Test>::create_xcmp_task(
-						Sibling::from(PARA_ID).into_account_truncating(),
-						vec![50],
-						vec![SCHEDULED_TIME].try_into().unwrap(),
-						PARA_ID.try_into().unwrap(),
-						call.clone(),
-						100_000,
-					);
+		get_funds(alice.clone());
 
-					assert_eq!(task, expected_task);
-				},
-			},
-		}
-	})
-}
-
-#[test]
-fn schedule_xcmp_errors_para_id_mismatch() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let para_id_2: u32 = 2001;
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
-				cumulus_pallet_xcm::Origin::SiblingParachain(PARA_ID.try_into().unwrap()).into(),
-				vec![50],
-				vec![SCHEDULED_TIME],
-				para_id_2.try_into().unwrap(),
-				vec![3, 4, 5],
-				100_000,
-			),
-			Error::<Test>::ParaIdMismatch,
-		);
-	})
-}
-
-#[test]
-fn schedule_xcmp_errors_bad_origin() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_xcmp_task(
-				Origin::signed(AccountId32::new(ALICE)),
+				Origin::signed(alice.clone()),
 				vec![50],
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),
-				vec![3, 4, 5],
+				CurrencyId::Native,
+				call.clone(),
 				100_000,
 			),
-			BadOrigin,
+			Error::<Test>::TaskNotSupported,
 		);
 	})
 }
