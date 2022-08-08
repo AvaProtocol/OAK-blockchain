@@ -1141,7 +1141,7 @@ impl_runtime_apis! {
 			ParachainInfo::parachain_id().into()
 		}
 
-		fn fees(_parachain_id: u32, _currency_id: u32, _call_weight: u64, _encoded_xt: Bytes) -> Balance {
+		fn fees(_encoded_xt: Bytes) -> Balance {
 			10_000_000 as Balance
 		}
 	}

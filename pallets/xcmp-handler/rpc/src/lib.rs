@@ -45,13 +45,7 @@ pub trait XcmpHandlerApi<Block, Balance> {
 	#[method(name = "xcmpHandler_crossChainAccount")]
 	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
 	#[method(name = "xcmpHandler_fees")]
-	fn fees(
-		&self,
-		parachain_id: u32,
-		currency_id: u32,
-		call_weight: u64,
-		encoded_xt: Bytes,
-	) -> RpcResult<u64>;
+	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64>;
 }
 
 /// An implementation of XCMP-specific RPC methods on full client.
@@ -112,23 +106,16 @@ where
 		})
 	}
 
-	fn fees(
-		&self,
-		parachain_id: u32,
-		currency_id: u32,
-		call_weight: u64,
-		encoded_xt: Bytes,
-	) -> RpcResult<u64> {
+	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
-		let runtime_api_result =
-			api.fees(&at, parachain_id, currency_id, call_weight, encoded_xt).map_err(|e| {
-				CallError::Custom(ErrorObject::owned(
-					Error::RuntimeError.into(),
-					"Unable to get fees",
-					Some(e.to_string()),
-				))
-			})?;
+		let runtime_api_result = api.fees(&at, encoded_xt).map_err(|e| {
+			CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to get fees",
+				Some(e.to_string()),
+			))
+		})?;
 		runtime_api_result.try_into().map_err(|_| {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
