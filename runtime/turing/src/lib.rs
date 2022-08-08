@@ -22,7 +22,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use codec::{Decode, DecodeLimit, Encode, MaxEncodedLen};
+use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use scale_info::TypeInfo;
@@ -1202,34 +1202,35 @@ impl_runtime_apis! {
 		}
 
 		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64, encoded_xt: Bytes) -> Balance {
-			let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
-				parachain_id,
-				CurrencyId::from(currency_id),
-				call_weight,
-			).unwrap().0;
 			use log::info;
 
-			// let xt = encoded_xt.clone().to_vec();
-			// let debug_extrinsic =
-			// 	UncheckedExtrinsic::decode_all_with_depth_limit(sp_api::MAX_EXTRINSIC_DEPTH, &mut &*xt).unwrap();
-			// info!("runtime d: {:?}", debug_extrinsic.function);
-			//
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
-			info!("runtime: {:?}", extrinsic);
-			let _ = match extrinsic.function {
+			let result = match extrinsic.clone().function {
 				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
 					provided_id, execution_times, para_id, call, weight_at_most
-				}) => {
-					info!("id: {:?}", provided_id);
-					Some(1)
-				},
-				_ => {
-					info!("some other call");
-					None
-				},
+				}) => Some((provided_id, execution_times, para_id, call, weight_at_most)),
+				_ => None,
 			};
+
+			let parsed_call = result.unwrap();
+
+			let provided_id = parsed_call.0;
+			let execution_times = parsed_call.1;
+			let para_id = parsed_call.2;
+			let call = parsed_call.3;
+			let weight_at_most = parsed_call.4;
+
+			info!("{:?}, {:?}, {:?}, {:?}, {:?}", provided_id, execution_times, u32::from(para_id), call,
+				weight_at_most);
+
 			let len = encoded_xt.len() as u32;
-			let inclusion_fee = 0; // TransactionPayment::query_fee_details(extrinsic, len).inclusion_fee.unwrap().base_fee;
+
+			let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
+				u32::from(para_id),
+				CurrencyId::from(0), // from new extrinsic
+				weight_at_most,
+			).unwrap().0;
+			let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len).inclusion_fee.unwrap().base_fee;
 			let execution_fee =
 				AutomationTime::calculate_execution_fee(&(AutomationAction::XCMP.into()), 1);
 
