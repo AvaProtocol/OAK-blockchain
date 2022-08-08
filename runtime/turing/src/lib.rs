@@ -1202,11 +1202,16 @@ impl_runtime_apis! {
 		}
 
 		fn fees(parachain_id: u32, currency_id: u32, call_weight: u64) -> Balance {
-			XcmpHandler::calculate_xcm_fee_and_weight(
+			let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
 				parachain_id,
 				CurrencyId::from(currency_id),
 				call_weight,
-			).unwrap().0
+			).unwrap().0;
+			let inclusion_fee = 0; // TransactionPayment::query_fee_details(extrinsic, length)
+			let execution_fee =
+				AutomationTime::calculate_execution_fee(&(AutomationAction::XCMP.into()), 1);
+
+			xcm_fee + inclusion_fee + execution_fee
 		}
 	}
 
