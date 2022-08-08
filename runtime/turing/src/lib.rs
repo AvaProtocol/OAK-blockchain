@@ -1205,14 +1205,14 @@ impl_runtime_apis! {
 		fn fees(encoded_xt: Bytes) -> Balance {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				provided_id, execution_times, para_id, call, weight_at_most
+				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
 			}) = extrinsic.clone().function {
 				let len = encoded_xt.len() as u32;
 
 				let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
 					u32::from(para_id),
-					CurrencyId::from(0), // from new extrinsic
-					weight_at_most,
+					CurrencyId::from(currency_id),
+					encoded_call_weight,
 				).unwrap().0;
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
@@ -1220,7 +1220,7 @@ impl_runtime_apis! {
 					.base_fee;
 				let execution_fee = AutomationTime::calculate_execution_fee(
 					&(AutomationAction::XCMP.into()),
-					1,
+					execution_times.len() as u32,
 				);
 
 				return xcm_fee + inclusion_fee + execution_fee
