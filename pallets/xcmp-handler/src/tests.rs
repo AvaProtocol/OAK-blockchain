@@ -17,6 +17,8 @@
 use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
+use sp_runtime::traits::Convert;
+use xcm::latest::prelude::*;
 
 //*****************
 //Extrinsics
@@ -24,7 +26,7 @@ use frame_system::RawOrigin;
 
 // add_chain_currency_data
 #[test]
-fn can_add_new_data() {
+fn add_chain_currency_data_new_data() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -47,7 +49,7 @@ fn can_add_new_data() {
 }
 
 #[test]
-fn can_update_data() {
+fn add_chain_currency_data_update_data() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -71,7 +73,7 @@ fn can_update_data() {
 }
 
 #[test]
-fn can_only_use_native_currency() {
+fn add_chain_currency_data_can_only_use_native_currency() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::ROC;
 		let para_id: u32 = 1000;
@@ -93,7 +95,7 @@ fn can_only_use_native_currency() {
 
 // remove_chain_currency_data
 #[test]
-fn can_remove_data() {
+fn remove_chain_currency_data_remove_data() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -114,7 +116,7 @@ fn can_remove_data() {
 }
 
 #[test]
-fn errors_if_not_found() {
+fn remove_chain_currency_data_not_found() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -133,9 +135,9 @@ fn errors_if_not_found() {
 //Helper  functions
 //*****************
 
-// calculate_xcm_fee
+// calculate_xcm_fee_and_weight
 #[test]
-fn calculate_xcm_fee_works() {
+fn calculate_xcm_fee_and_weight_works() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -147,18 +149,22 @@ fn calculate_xcm_fee_works() {
 		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_fee = xcm_data.fee_per_second *
-			(transact_encoded_call_weight as u128 + xcm_data.instruction_weight as u128) /
-			(WEIGHT_PER_SECOND as u128);
+		let expected_weight = transact_encoded_call_weight + xcm_data.instruction_weight;
+		let expected_fee =
+			xcm_data.fee_per_second * (expected_weight as u128) / (WEIGHT_PER_SECOND as u128);
 		assert_ok!(
-			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
-			expected_fee,
+			XcmpHandler::calculate_xcm_fee_and_weight(
+				para_id,
+				currency_id,
+				transact_encoded_call_weight
+			),
+			(expected_fee, expected_weight),
 		);
 	});
 }
 
 #[test]
-fn calculate_xcm_fee_overflow() {
+fn calculate_xcm_fee_and_weight_fee_overflow() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -168,14 +174,18 @@ fn calculate_xcm_fee_overflow() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
 		assert_noop!(
-			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			XcmpHandler::calculate_xcm_fee_and_weight(
+				para_id,
+				currency_id,
+				transact_encoded_call_weight
+			),
 			Error::<Test>::FeeOverflow
 		);
 	});
 }
 
 #[test]
-fn calculate_xcm_weight_overflow() {
+fn calculate_xcm_fee_and_weight_weight_overflow() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -185,14 +195,18 @@ fn calculate_xcm_weight_overflow() {
 		let transact_encoded_call_weight: u64 = u64::MAX;
 
 		assert_noop!(
-			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			XcmpHandler::calculate_xcm_fee_and_weight(
+				para_id,
+				currency_id,
+				transact_encoded_call_weight
+			),
 			Error::<Test>::WeightOverflow
 		);
 	});
 }
 
 #[test]
-fn calculate_xcm_no_xcm_data() {
+fn calculate_xcm_fee_and_weight_no_xcm_data() {
 	new_test_ext().execute_with(|| {
 		let currency_id = CurrencyId::Native;
 		let para_id: u32 = 1000;
@@ -202,8 +216,106 @@ fn calculate_xcm_no_xcm_data() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::calculate_xcm_fee(para_id, currency_id, transact_encoded_call_weight),
+			XcmpHandler::calculate_xcm_fee_and_weight(
+				para_id,
+				currency_id,
+				transact_encoded_call_weight
+			),
 			Error::<Test>::CurrencyChainComboNotFound
 		);
+	});
+}
+
+// get_instruction_set
+#[test]
+fn get_instruction_set_only_support_local_currency() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::ROC;
+		let para_id: u32 = 1000;
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+
+		assert_noop!(
+			XcmpHandler::get_instruction_set(
+				para_id,
+				currency_id,
+				ALICE,
+				transact_encoded_call,
+				transact_encoded_call_weight
+			),
+			Error::<Test>::CurrencyChainComboNotSupported
+		);
+	});
+}
+
+#[test]
+fn get_instruction_set_local_currency_instructions() {
+	new_test_ext().execute_with(|| {
+		let currency_id = CurrencyId::Native;
+		let para_id: u32 = 1000;
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+		let xcm_data = XcmCurrencyData {
+			native: false,
+			fee_per_second: 100_000,
+			instruction_weight: 100_000_000,
+		};
+		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+		let (xcm_fee, xcm_weight) = XcmpHandler::calculate_xcm_fee_and_weight(
+			para_id,
+			currency_id,
+			transact_encoded_call_weight,
+		)
+		.unwrap();
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+		let expected_instructions = XcmpHandler::get_local_currency_instructions(
+			para_id,
+			descend_location,
+			transact_encoded_call.clone(),
+			transact_encoded_call_weight,
+			xcm_weight,
+			xcm_fee,
+		)
+		.unwrap();
+
+		assert_eq!(
+			XcmpHandler::get_instruction_set(
+				para_id,
+				currency_id,
+				ALICE,
+				transact_encoded_call,
+				transact_encoded_call_weight
+			)
+			.unwrap(),
+			expected_instructions
+		);
+	});
+}
+
+// get_local_currency_instructions
+// TODO: use xcm_simulator to test these instructions.
+#[test]
+fn get_local_currency_instructions_works() {
+	new_test_ext().execute_with(|| {
+		let para_id: u32 = 1000;
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
+		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+
+		let (local, target) = XcmpHandler::get_local_currency_instructions(
+			para_id,
+			descend_location,
+			transact_encoded_call,
+			transact_encoded_call_weight,
+			xcm_weight,
+			xcm_fee,
+		)
+		.unwrap();
+		assert_eq!(local.0.len(), 2);
+		assert_eq!(target.0.len(), 6);
 	});
 }

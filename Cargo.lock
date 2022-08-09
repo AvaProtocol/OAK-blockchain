@@ -5148,6 +5148,7 @@ dependencies = [
  "pallet-balances",
  "pallet-parachain-staking",
  "pallet-timestamp",
+ "pallet-valve",
  "pallet-xcm",
  "parity-scale-codec",
  "polkadot-parachain",
@@ -5945,25 +5946,16 @@ dependencies = [
 name = "pallet-valve"
 version = "0.2.0"
 dependencies = [
- "cumulus-pallet-xcm",
- "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
- "pallet-automation-time",
  "pallet-balances",
- "pallet-parachain-staking",
- "pallet-timestamp",
- "pallet-xcm",
  "parity-scale-codec",
  "scale-info",
  "sp-core",
  "sp-io",
  "sp-runtime",
  "sp-std",
- "xcm",
- "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]
@@ -6039,9 +6031,11 @@ dependencies = [
 name = "pallet-xcmp-handler"
 version = "0.1.0"
 dependencies = [
+ "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "parachain-info",
  "parity-scale-codec",
  "scale-info",
  "serde",
@@ -6049,6 +6043,9 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+ "xcm",
+ "xcm-builder",
+ "xcm-executor",
 ]
 
 [[package]]
