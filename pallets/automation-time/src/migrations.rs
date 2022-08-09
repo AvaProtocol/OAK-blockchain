@@ -84,11 +84,11 @@ pub mod v3 {
 		BoundedVec, Twox64Concat,
 	};
 	// Does not expose a hashmap
-	use sp_std::collections::btree_map;
+	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
 		AccountTaskId, AccountTasks, MissedQueue2, MissedTask, MissedTask2, Pallet,
-		ScheduledTasks2, Task, TaskId, TaskQueue2,
+		ScheduledTasks2, Task, TaskId, TaskQueue2, Vec,
 	};
 
 	use super::*;
@@ -99,11 +99,6 @@ pub mod v3 {
 
 		// Move all tasks from Tasks to AccountTasks
 		let old_tasks_prefix: &[u8] = b"Tasks";
-		// storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, old_tasks_prefix)
-		// 	.drain()
-		// 	.for_each(|(task_id, task)| {
-		// 		AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
-		// 	});
 		let old_tasks =
 			storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, old_tasks_prefix)
 				.drain()
@@ -126,7 +121,7 @@ pub mod v3 {
 					if let Some(task) = old_tasks.get(&task_id) {
 						Some((task.owner_id.clone(), task_id))
 					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {}", task_id);
+						log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
 						None
 					}
 				})
@@ -147,7 +142,7 @@ pub mod v3 {
 					if let Some(task) = old_tasks.get(&task_id) {
 						Some((task.owner_id.clone(), task_id))
 					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {}", task_id);
+						log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
 						None
 					}
 				})
@@ -168,7 +163,7 @@ pub mod v3 {
 							missed_task.execution_time,
 						))
 					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {}", missed_task.task_id);
+						log::debug!(target: "automation-time", "Unable to get task with id {:?}", missed_task.task_id);
 						None
 					}
 				})
@@ -177,6 +172,8 @@ pub mod v3 {
 
 		// Set new storage version and return weight
 		StorageVersion::new(3).put::<Pallet<T>>();
+
+		// TODO set this as something
 		T::DbWeight::get().reads_writes(4, 4)
 	}
 }
