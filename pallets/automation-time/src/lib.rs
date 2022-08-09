@@ -47,7 +47,7 @@ mod autocompounding;
 pub use autocompounding::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
+use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::DispatchErrorWithPostInfo,
@@ -65,10 +65,9 @@ use log::info;
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
-use polkadot_parachain::primitives::Sibling;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -309,6 +308,15 @@ pub mod pallet {
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
+		/// The currencyIds that our chain supports.
+		type CurrencyId: Parameter
+			+ Member
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ TypeInfo
+			+ MaxEncodedLen;
+
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
 
@@ -388,6 +396,8 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// ParaId provided does not match origin paraId.
 		ParaIdMismatch,
+		/// Task is currently not supported.
+		TaskNotSupported,
 	}
 
 	#[pallet::event]
@@ -590,17 +600,14 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 		) -> DispatchResult {
-			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
-			if para_id != origin_para_id {
-				Err(<Error<T>>::ParaIdMismatch)?
-			}
+			let _who = ensure_signed(origin)?;
 
-			let who = Sibling::from(para_id).into_account_truncating();
-			let action = Action::XCMP { para_id, call, weight_at_most };
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Err(Error::<T>::TaskNotSupported)?;
+
 			Ok(().into())
 		}
 
