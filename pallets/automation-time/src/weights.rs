@@ -157,7 +157,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegationScheduledRequests (r:1 w:0)
 	// Storage: ParachainStaking DelegatorReserveToLockMigrations (r:1 w:0)
-    // Storage: Balances Locks (r:1 w:1)
+	// Storage: Balances Locks (r:1 w:1)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
 	// Storage: ParachainStaking CandidateInfo (r:1 w:1)
 	// Storage: ParachainStaking TopDelegations (r:1 w:1)
