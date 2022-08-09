@@ -46,6 +46,7 @@ jsonrpsee = { version = "0.13.0", features = ["server"] }
 neumann-runtime = { path = "../runtime/neumann", optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
+pallet-xcmp-handler-rpc ={ path = "../pallets/xcmp-handler/rpc"}
 primitives = {path = "../primitives"}
 
 # Substrate Dependencies
@@ -110,7 +111,7 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" }
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" } 
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.23" }
 
 # Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.23" }

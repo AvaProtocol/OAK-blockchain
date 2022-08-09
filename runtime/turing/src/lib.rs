@@ -29,13 +29,19 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
 };
+use xcm::{
+	latest::{prelude::*, MultiLocation, NetworkId},
+	v1::Junction::Parachain,
+};
+use xcm_builder::Account32Hash;
+use xcm_executor::traits::Convert;
 
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
@@ -205,6 +211,10 @@ const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
 }
 
 parameter_types! {
@@ -497,6 +507,23 @@ pub enum CurrencyId {
 	SKSM,
 	PHA,
 	UNIT,
+}
+
+impl From<u32> for CurrencyId {
+	fn from(a: u32) -> Self {
+		match a {
+			0 => CurrencyId::Native,
+			1 => CurrencyId::KSM,
+			2 => CurrencyId::AUSD,
+			3 => CurrencyId::KAR,
+			4 => CurrencyId::LKSM,
+			5 => CurrencyId::HKO,
+			6 => CurrencyId::SKSM,
+			7 => CurrencyId::PHA,
+			8 => CurrencyId::UNIT,
+			_ => CurrencyId::Native,
+		}
+	}
 }
 
 impl TokenInfo for CurrencyId {
@@ -1177,6 +1204,51 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+	}
+
+
+	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
+		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
+			let parachain_id: u32 = ParachainInfo::parachain_id().into();
+
+			let multiloc = MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachain_id),
+					Junction::AccountId32 { network: Any, id: account_id.into() },
+				),
+			);
+
+			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
+				.map_err(|_| "unable to convert account".into())
+		}
+
+		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
+			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
+			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
+			}) = extrinsic.clone().function {
+				let len = encoded_xt.len() as u32;
+
+				let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
+					u32::from(para_id),
+					CurrencyId::from(currency_id),
+					encoded_call_weight,
+				).map_err(|_| "cannot get xcmp fee")?.0;
+				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
+					.inclusion_fee
+					.ok_or("cannot get inclusion fee")?
+					.base_fee;
+				let execution_fee = AutomationTime::calculate_execution_fee(
+					&(AutomationAction::XCMP.into()),
+					execution_times.len() as u32,
+				);
+
+				return Ok(xcm_fee + inclusion_fee + execution_fee)
+			}
+
+			Err("unsupported extrinsic".into())
 		}
 	}
 
