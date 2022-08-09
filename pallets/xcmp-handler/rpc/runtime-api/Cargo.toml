@@ -18,6 +18,7 @@ serde = { version = "1.0.136", features = ["derive"], optional = true }
 sp-api = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.23" }
 
 [features]
 default = ["std"]
@@ -27,5 +28,6 @@ std = [
 	"sp-api/std",
 	"sp-core/std",
 	"sp-runtime/std",
+	"sp-std/std",
 ]
 

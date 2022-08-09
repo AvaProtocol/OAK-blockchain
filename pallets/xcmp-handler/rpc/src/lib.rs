@@ -76,14 +76,17 @@ where
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
-
-		api.cross_chain_account(&at, account_id).map_err(|e| {
+		let runtime_api_result = api.cross_chain_account(&at, account_id);
+		let mapped_err = |message| -> JsonRpseeError {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to get cross chain AccountId",
-				Some(format!("{:?}", e)),
+				Some(message),
 			)))
-		})
+		};
+		runtime_api_result
+			.map_err(|e| mapped_err(format!("{:?}", e)))
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
 	}
 
 	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64> {

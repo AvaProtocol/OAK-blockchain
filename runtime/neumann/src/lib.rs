@@ -1148,7 +1148,7 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
-		fn cross_chain_account(account_id: AccountId32) -> AccountId32 {
+		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
 			let parachain_id: u32 = ParachainInfo::parachain_id().into();
 
 			let multiloc = MultiLocation::new(
@@ -1159,7 +1159,8 @@ impl_runtime_apis! {
 				),
 			);
 
-			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).unwrap()
+			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
+				.map_err(|_| "unable to convert account".into())
 		}
 
 		fn fees(_encoded_xt: Bytes) -> Balance {
