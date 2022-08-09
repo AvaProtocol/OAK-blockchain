@@ -33,13 +33,19 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
 };
 
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use xcm::{
+	latest::{prelude::*, MultiLocation, NetworkId},
+	v1::Junction::Parachain,
+};
+use xcm_builder::Account32Hash;
+use xcm_executor::traits::Convert;
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -204,6 +210,10 @@ pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
 }
 
 parameter_types! {
@@ -1138,8 +1148,18 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
-		fn parachain_id() -> u32 {
-			ParachainInfo::parachain_id().into()
+		fn cross_chain_account(account_id: AccountId32) -> AccountId32 {
+			let parachain_id: u32 = ParachainInfo::parachain_id().into();
+
+			let multiloc = MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachain_id),
+					Junction::AccountId32 { network: Any, id: account_id.into() },
+				),
+			);
+
+			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).unwrap()
 		}
 
 		fn fees(_encoded_xt: Bytes) -> Balance {

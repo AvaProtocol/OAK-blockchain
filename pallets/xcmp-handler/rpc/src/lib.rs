@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use codec::Codec;
-use frame_support::parameter_types;
 use jsonrpsee::{
 	core::{async_trait, Error as JsonRpseeError, RpcResult},
 	proc_macros::rpc,
@@ -28,16 +27,6 @@ use sp_blockchain::HeaderBackend;
 use sp_core::Bytes;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
-use xcm::{
-	latest::{prelude::*, MultiLocation, NetworkId},
-	v1::Junction::Parachain,
-};
-use xcm_builder::Account32Hash;
-use xcm_executor::traits::Convert;
-
-parameter_types! {
-	pub const RelayNetwork: NetworkId = NetworkId::Any;
-}
 
 /// An RPC endpoint to provide information about xcmp.
 #[rpc(client, server)]
@@ -88,16 +77,7 @@ where
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 
-		let parachain_id = api.parachain_id(&at).unwrap();
-
-		let multiloc = MultiLocation::new(
-			1,
-			X2(
-				Parachain(parachain_id),
-				Junction::AccountId32 { network: Any, id: account_id.into() },
-			),
-		);
-		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc).map_err(|e| {
+		api.cross_chain_account(&at, account_id).map_err(|e| {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"Unable to get cross chain AccountId",

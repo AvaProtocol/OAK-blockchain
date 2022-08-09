@@ -20,16 +20,5 @@ sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "pol
 sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
-frame-support= { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.23" }
-
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.23" }
 
 pallet-xcmp-handler-rpc-runtime-api = { path = "./runtime-api" }
-
-[features]
-default = ["std"]
-std = [
-	"xcm-executor/std",
-]

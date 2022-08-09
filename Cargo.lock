@@ -6243,7 +6243,6 @@ dependencies = [
 name = "pallet-xcmp-handler-rpc"
 version = "0.1.0"
 dependencies = [
- "frame-support",
  "jsonrpsee",
  "pallet-xcmp-handler-rpc-runtime-api",
  "parity-scale-codec",
@@ -6252,9 +6251,6 @@ dependencies = [
  "sp-blockchain",
  "sp-core",
  "sp-runtime",
- "xcm",
- "xcm-builder",
- "xcm-executor",
 ]
 
 [[package]]
@@ -6265,7 +6261,7 @@ dependencies = [
  "serde",
  "sp-api",
  "sp-core",
- "sp-std",
+ "sp-runtime",
 ]
 
 [[package]]

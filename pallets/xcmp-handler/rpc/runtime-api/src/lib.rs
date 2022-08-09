@@ -19,12 +19,13 @@
 
 use codec::Codec;
 use sp_core::Bytes;
+use sp_runtime::AccountId32;
 
 sp_api::decl_runtime_apis! {
 	pub trait XcmpHandlerApi<Balance> where
 		Balance: Codec,
 	{
-		fn parachain_id() -> u32;
+		fn cross_chain_account(account_id: AccountId32) -> AccountId32;
 		fn fees(encoded_xt: Bytes) -> Balance;
 	}
 }
