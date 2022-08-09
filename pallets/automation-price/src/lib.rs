@@ -505,7 +505,7 @@ pub mod pallet {
 			Ok(now.saturating_sub(diff_to_min))
 		}
 
-		pub fn delete_asset_tasks(asset: Vec<u8>) -> Weight {
+		pub fn delete_asset_tasks(asset: Vec<u8>) {
 			// delete scheduled tasks
 			ScheduledTasks::<T>::remove_prefix((asset.clone(), ), None);
 			// delete tasks from tasks table
@@ -519,7 +519,6 @@ pub mod pallet {
 				}
 			}
 			TaskQueue::<T>::put(updated_task_queue);
-			10_000
 		}
 
 		pub fn run_notify_task(message: Vec<u8>) -> Weight {
