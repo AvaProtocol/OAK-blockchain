@@ -16,22 +16,12 @@
 // limitations under the License.
 
 use crate::{
-	// migrations::{v1, v2},
-	mock::*,
-	AccountTasks,
-	Action,
-	Config,
-	Error,
-	LastTimeSlot,
-	MissedQueue2,
-	MissedTask2,
-	Task,
-	TaskHashInput,
-	TaskQueue2,
-	WeightInfo,
+	migrations::v3, mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedQueue,
+	MissedQueue2, MissedTask, MissedTask2, ScheduledTasks, Task, TaskHashInput, TaskId, TaskQueue,
+	TaskQueue2, Tasks, WeightInfo,
 };
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, traits::OnInitialize, BoundedVec};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
 use sp_runtime::{
@@ -1657,63 +1647,176 @@ fn on_init_shutdown() {
 	})
 }
 
-// #[test]
-// fn migration_v1() {
-// 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-// 		AutomationTime::on_initialize(1);
-// 		let new_timestamp = START_BLOCK_TIME + (3600 * 1_000);
-// 		Timestamp::set_timestamp(new_timestamp);
-// 		v1::migrate::<Test>();
-// 		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
-// 			AutomationTime::get_last_slot()
-// 		{
-// 			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
-// 			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
-// 		} else {
-// 			panic!("migration_v1 test did not have LastTimeSlot updated")
-// 		}
-// 	})
-// }
+#[test]
+fn migration_v3() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		// Add two entries to ScheduledTasks, TaskQueue, MissedQueue and the relevant tasks to Tasks
+		let owner_id = AccountId32::new(ALICE);
 
-// #[test]
-// fn migration_v2() {
-// 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-// 		add_task_to_task_queue(
-// 			ALICE,
-// 			vec![60],
-// 			vec![SCHEDULED_TIME],
-// 			Action::Notify { message: vec![50] },
-// 		);
-// 		add_task_to_missed_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
-// 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
-// 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		// ScheduledTasks
+		let time_one = SCHEDULED_TIME;
+		let time_two = SCHEDULED_TIME + 7200;
+		let execution_times = vec![time_one, time_two];
+		let scheduled_task_one = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![10],
+			execution_times.clone().try_into().unwrap(),
+			vec![100],
+		);
+		let scheduled_task_two = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![20],
+			execution_times.clone().try_into().unwrap(),
+			vec![100],
+		);
+		let scheduled_task_one_id = AutomationTime::generate_task_id(owner_id.clone(), vec![10]);
+		let scheduled_task_two_id = AutomationTime::generate_task_id(owner_id.clone(), vec![20]);
+		Tasks::<Test>::insert(scheduled_task_one_id, scheduled_task_one);
+		Tasks::<Test>::insert(scheduled_task_two_id, scheduled_task_two);
+		let schedule_task_ids: BoundedVec<TaskId<Test>, <Test as Config>::MaxTasksPerSlot> =
+			vec![scheduled_task_one_id, scheduled_task_two_id].try_into().unwrap();
+		ScheduledTasks::<Test>::insert(time_one, schedule_task_ids.clone());
+		ScheduledTasks::<Test>::insert(time_two, schedule_task_ids);
 
-// 		v2::migrate::<Test>();
-// 		Timestamp::set_timestamp(START_BLOCK_TIME + (3600 * 1_000));
-// 		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
-// 			AutomationTime::get_last_slot()
-// 		{
-// 			assert_eq!(updated_last_time_slot, LAST_BLOCK_TIME,);
-// 			assert_eq!(updated_last_missed_slot, LAST_BLOCK_TIME,);
-// 		} else {
-// 			panic!("migration_v2 test did not have LastTimeSlot updated")
-// 		}
-// 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
-// 			None => {},
-// 			Some(task_ids) => {
-// 				panic!("Has scheduled Tasks: {:?}", task_ids)
-// 			},
-// 		}
-// 		match AutomationTime::get_task(task_id) {
-// 			None => {},
-// 			Some(task_ids) => {
-// 				panic!("Has Tasks in Task Map: {:?}", task_ids)
-// 			},
-// 		}
-// 		assert_eq!(AutomationTime::get_task_queue(), []);
-// 		assert_eq!(AutomationTime::get_missed_queue(), []);
-// 	})
-// }
+		// TaskQueue
+		let task_queue_one = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![30],
+			vec![0].try_into().unwrap(),
+			vec![100],
+		);
+		let task_queue_two = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![40],
+			vec![0].try_into().unwrap(),
+			vec![100],
+		);
+		let task_queue_one_id = AutomationTime::generate_task_id(owner_id.clone(), vec![30]);
+		let task_queue_two_id = AutomationTime::generate_task_id(owner_id.clone(), vec![40]);
+		Tasks::<Test>::insert(task_queue_one_id, task_queue_one);
+		Tasks::<Test>::insert(task_queue_two_id, task_queue_two);
+		TaskQueue::<Test>::put(vec![task_queue_one_id, task_queue_two_id]);
+
+		// MissedQueue
+		let missed_queue_one = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![50],
+			vec![0].try_into().unwrap(),
+			vec![100],
+		);
+		let missed_queue_two = Task::<Test>::create_event_task(
+			owner_id.clone(),
+			vec![60],
+			vec![0].try_into().unwrap(),
+			vec![100],
+		);
+		let missed_queue_one_id = AutomationTime::generate_task_id(owner_id.clone(), vec![50]);
+		let missed_queue_two_id = AutomationTime::generate_task_id(owner_id.clone(), vec![60]);
+		Tasks::<Test>::insert(missed_queue_one_id, missed_queue_one);
+		Tasks::<Test>::insert(missed_queue_two_id, missed_queue_two);
+		let missed_task_one = MissedTask::<Test>::create_missed_task(missed_queue_one_id, 0);
+		let missed_task_two = MissedTask::<Test>::create_missed_task(missed_queue_two_id, 0);
+		MissedQueue::<Test>::put(vec![missed_task_one, missed_task_two]);
+
+		v3::migrate::<Test>();
+
+		// Check to see that the new storage contains the right items
+
+		// AccountTasks
+		let scheduled2_task_one =
+			AutomationTime::get_account_task(owner_id.clone(), scheduled_task_one_id).unwrap();
+		assert_eq!(
+			scheduled2_task_one,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![10],
+				execution_times.clone().try_into().unwrap(),
+				vec![100],
+			)
+		);
+		let scheduled2_task_two =
+			AutomationTime::get_account_task(owner_id.clone(), scheduled_task_two_id).unwrap();
+		assert_eq!(
+			scheduled2_task_two,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![20],
+				execution_times.clone().try_into().unwrap(),
+				vec![100],
+			)
+		);
+		let task2_queue_one =
+			AutomationTime::get_account_task(owner_id.clone(), task_queue_one_id).unwrap();
+		assert_eq!(
+			task2_queue_one,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![30],
+				vec![0].try_into().unwrap(),
+				vec![100],
+			)
+		);
+		let task2_queue_two =
+			AutomationTime::get_account_task(owner_id.clone(), task_queue_two_id).unwrap();
+		assert_eq!(
+			task2_queue_two,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![40],
+				vec![0].try_into().unwrap(),
+				vec![100],
+			)
+		);
+		let missed2_queue_one =
+			AutomationTime::get_account_task(owner_id.clone(), missed_queue_one_id).unwrap();
+		assert_eq!(
+			missed2_queue_one,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![50],
+				vec![0].try_into().unwrap(),
+				vec![100],
+			)
+		);
+		let missed2_queue_two =
+			AutomationTime::get_account_task(owner_id.clone(), missed_queue_two_id).unwrap();
+		assert_eq!(
+			missed2_queue_two,
+			Task::<Test>::create_event_task(
+				owner_id.clone(),
+				vec![60],
+				vec![0].try_into().unwrap(),
+				vec![100],
+			)
+		);
+
+		// ScheduledTasks2
+		let scheduled_tasks_one = AutomationTime::get_scheduled_tasks(time_one).unwrap();
+		assert_eq!(scheduled_tasks_one.len(), 2);
+		assert_eq!(scheduled_tasks_one[0], (owner_id.clone(), scheduled_task_one_id));
+		assert_eq!(scheduled_tasks_one[1], (owner_id.clone(), scheduled_task_two_id));
+		let scheduled_tasks_two = AutomationTime::get_scheduled_tasks(time_one).unwrap();
+		assert_eq!(scheduled_tasks_two.len(), 2);
+		assert_eq!(scheduled_tasks_one[0], (owner_id.clone(), scheduled_task_one_id));
+		assert_eq!(scheduled_tasks_one[1], (owner_id.clone(), scheduled_task_two_id));
+
+		// TaskQueue2
+		let task_queue = AutomationTime::get_task_queue();
+		assert_eq!(task_queue.len(), 2);
+		assert_eq!(task_queue[0], (owner_id.clone(), task_queue_one_id));
+		assert_eq!(task_queue[1], (owner_id.clone(), task_queue_two_id));
+
+		// MissedQueue2
+		let missed_queue = AutomationTime::get_missed_queue();
+		assert_eq!(missed_queue.len(), 2);
+		let missed2_task_one =
+			MissedTask2::<Test>::create_missed_task(owner_id.clone(), missed_queue_one_id, 0);
+		let missed2_task_two =
+			MissedTask2::<Test>::create_missed_task(owner_id.clone(), missed_queue_two_id, 0);
+		assert_eq!(missed_queue[0], missed2_task_one);
+		assert_eq!(missed_queue[1], missed2_task_two);
+	})
+}
 
 fn schedule_task(
 	owner: [u8; 32],

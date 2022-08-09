@@ -76,7 +76,7 @@ use xcm::latest::prelude::*;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
-const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
+const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -87,8 +87,8 @@ pub mod pallet {
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 	type Seconds = u64;
-	type TaskId<T> = <T as frame_system::Config>::Hash;
-	type AccountTaskId<T> = (<T as frame_system::Config>::AccountId, TaskId<T>);
+	pub type TaskId<T> = <T as frame_system::Config>::Hash;
+	pub type AccountTaskId<T> = (<T as frame_system::Config>::AccountId, TaskId<T>);
 
 	/// The enum that stores all action specific data.
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -143,19 +143,19 @@ pub mod pallet {
 		}
 	}
 
-	// /// The struct that stores data for a missed task.
-	// #[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	// #[scale_info(skip_type_params(T))]
-	// pub struct MissedTask<T: Config> {
-	// 	task_id: T::Hash,
-	// 	execution_time: UnixTime,
-	// }
+	/// The struct that stores data for a missed task.
+	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct MissedTask<T: Config> {
+		pub task_id: T::Hash,
+		pub execution_time: UnixTime,
+	}
 
-	// impl<T: Config> MissedTask<T> {
-	// 	pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
-	// 		MissedTask::<T> { task_id, execution_time }
-	// 	}
-	// }
+	impl<T: Config> MissedTask<T> {
+		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
+			MissedTask::<T> { task_id, execution_time }
+		}
+	}
 
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -180,8 +180,7 @@ pub mod pallet {
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
-		// TODO remove this field as the double map makes it extraneous.
-		owner_id: AccountOf<T>,
+		pub owner_id: AccountOf<T>,
 		provided_id: Vec<u8>,
 		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 		executions_left: u32,
@@ -356,36 +355,32 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_scheduled_tasks)]
-	// pub type ScheduledTasks<T: Config> =
-	// 	StorageMap<_, Twox64Concat, u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
+	#[pallet::storage]
+	pub type ScheduledTasks<T: Config> =
+		StorageMap<_, Twox64Concat, u64, BoundedVec<TaskId<T>, T::MaxTasksPerSlot>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasks2<T: Config> =
 		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_task)]
-	// pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+	#[pallet::storage]
+	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId<T>, Task<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task)]
 	pub type AccountTasks<T: Config> =
 		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, TaskId<T>, Task<T>>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_task_queue)]
-	// pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+	#[pallet::storage]
+	pub type TaskQueue<T: Config> = StorageValue<_, Vec<TaskId<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
 	pub type TaskQueue2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
 
-	// #[pallet::storage]
-	// #[pallet::getter(fn get_missed_queue)]
-	// pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
+	#[pallet::storage]
+	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
@@ -508,16 +503,16 @@ pub mod pallet {
 			Self::trigger_tasks(max_weight)
 		}
 
-		// fn on_runtime_upgrade() -> Weight {
-		// 	let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
-		// 	info!("on chain storage version, {:?}", on_chain_storage_version);
-		// 	if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-		// 		migrations::v2::migrate::<T>()
-		// 	} else {
-		// 		info!("migration already run before");
-		// 		0
-		// 	}
-		// }
+		fn on_runtime_upgrade() -> Weight {
+			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
+			info!("on chain storage version, {:?}", on_chain_storage_version);
+			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
+				migrations::v3::migrate::<T>()
+			} else {
+				info!("migration already run before");
+				0
+			}
+		}
 	}
 
 	#[pallet::call]
