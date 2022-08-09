@@ -268,7 +268,7 @@ pub mod pallet {
 
 			Ok(())
 		}
-		
+
 		/// Allow scheduled tasks to run again.
 		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
@@ -281,7 +281,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
 	}
 
 	#[derive(Default)]

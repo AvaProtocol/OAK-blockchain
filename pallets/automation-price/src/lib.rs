@@ -44,13 +44,13 @@ mod fees;
 pub use fees::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{Origin as CumulusOrigin};
+use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use frame_support::{
 	pallet_prelude::*, sp_runtime::traits::Hash, traits::Currency, transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use pallet_timestamp::{self as timestamp};
-use scale_info::{TypeInfo, prelude::format};
+use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
 	Perbill,
@@ -83,10 +83,10 @@ pub mod pallet {
 	impl<T: Config> PartialEq for Task<T> {
 		fn eq(&self, other: &Self) -> bool {
 			self.owner_id == other.owner_id &&
-			self.provided_id == other.provided_id &&
-			self.asset == other.asset &&
-			self.direction == other.direction &&
-			self.trigger_percentage == other.trigger_percentage
+				self.provided_id == other.provided_id &&
+				self.asset == other.asset &&
+				self.direction == other.direction &&
+				self.trigger_percentage == other.trigger_percentage
 		}
 	}
 
@@ -163,34 +163,38 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks<T: Config> =
-		StorageNMap<_, (
+	pub type ScheduledTasks<T: Config> = StorageNMap<
+		_,
+		(
 			NMapKey<Twox64Concat, Vec<u8>>, // asset name
-			NMapKey<Twox64Concat, u8>, // direction
-			NMapKey<Twox64Concat, u128>, // price
-		), BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
+			NMapKey<Twox64Concat, u8>,      // direction
+			NMapKey<Twox64Concat, u128>,    // price
+		),
+		BoundedVec<T::Hash, T::MaxTasksPerSlot>,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_asset_period_reset)]
-	pub type ScheduledAssetDeletion<T: Config> =
-		StorageMap<_, Twox64Concat, u64, Vec<Vec<u8>>>;
+	pub type ScheduledAssetDeletion<T: Config> = StorageMap<_, Twox64Concat, u64, Vec<Vec<u8>>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_target_price)]
-	pub type AssetTargetPrices<T: Config> =
-		StorageMap<_, Twox64Concat, Vec<u8>, u128>;
+	pub type AssetTargetPrices<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, u128>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_price)]
-	pub type AssetPrices<T: Config> =
-		StorageMap<_, Twox64Concat, Vec<u8>, u128>;
+	pub type AssetPrices<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, u128>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageNMap<_, (
-		NMapKey<Twox64Concat, Vec<u8>>, // asset name
-		NMapKey<Twox64Concat, T::Hash>, // task ID
-	), Task<T>>;
+	pub type Tasks<T: Config> = StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, Vec<u8>>, // asset name
+			NMapKey<Twox64Concat, T::Hash>, // task ID
+		),
+		Task<T>,
+	>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
@@ -285,7 +289,7 @@ pub mod pallet {
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `asset`: asset type
 		/// * `direction`: direction of trigger movement
-		/// * `trigger_percentage`: what percentage task should be triggered at 
+		/// * `trigger_percentage`: what percentage task should be triggered at
 		///
 		/// # Errors
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_swap_task_extrinsic())]
@@ -301,7 +305,13 @@ pub mod pallet {
 			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
 			T::FeeHandler::can_pay_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
-			Self::validate_and_schedule_task(who.clone(), provided_id, asset, direction, trigger_percentage)?;
+			Self::validate_and_schedule_task(
+				who.clone(),
+				provided_id,
+				asset,
+				direction,
+				trigger_percentage,
+			)?;
 			T::FeeHandler::withdraw_fee(&who, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 			Ok(().into())
@@ -343,7 +353,8 @@ pub mod pallet {
 					asset_sudo: asset_owner.clone(),
 				};
 				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-				let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
+				let new_time_slot =
+					Self::get_current_time_slot()?.saturating_add(expiration_period);
 				Self::update_asset_reset(asset.clone(), new_time_slot);
 				AssetPrices::<T>::insert(asset.clone(), target_price);
 				Self::deposit_event(Event::AssetCreated { asset });
@@ -362,11 +373,7 @@ pub mod pallet {
 		/// # Errors
 		#[pallet::weight(<T as Config>::WeightInfo::asset_update_extrinsic())]
 		#[transactional]
-		pub fn asset_update(
-			origin: OriginFor<T>,
-			asset: Vec<u8>,
-			value: u128,
-		) -> DispatchResult {
+		pub fn asset_update(origin: OriginFor<T>, asset: Vec<u8>, value: u128) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
 				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
@@ -382,13 +389,23 @@ pub mod pallet {
 					None => Err(Error::<T>::AssetNotSupported)?,
 					Some(asset_price) => asset_price,
 				};
-				let asset_update_percentage = Self::calculate_asset_percentage(value, asset_target_price)
-					.saturating_add(1);
+				let asset_update_percentage =
+					Self::calculate_asset_percentage(value, asset_target_price).saturating_add(1);
 				let asset_last_percentage = 0;
 				if value > last_asset_price {
-					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 1)?;
+					Self::move_scheduled_tasks(
+						asset.clone(),
+						asset_last_percentage,
+						asset_update_percentage,
+						1,
+					)?;
 				} else {
-					Self::move_scheduled_tasks(asset.clone(), asset_last_percentage, asset_update_percentage, 0)?;
+					Self::move_scheduled_tasks(
+						asset.clone(),
+						asset_last_percentage,
+						asset_update_percentage,
+						0,
+					)?;
 				}
 				AssetPrices::<T>::insert(asset.clone(), value);
 				T::FeeHandler::withdraw_fee(&who, fee.clone())
@@ -409,10 +426,7 @@ pub mod pallet {
 		/// # Errors
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
-		pub fn delete_asset(
-			origin: OriginFor<T>,
-			asset: Vec<u8>,
-		) -> DispatchResult {
+		pub fn delete_asset(origin: OriginFor<T>, asset: Vec<u8>) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
 			ensure_root(origin)?;
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
@@ -444,15 +458,19 @@ pub mod pallet {
 				Ok(time_slot) => time_slot,
 				Err(_) => return weight_left,
 			};
-			if let Some(scheduled_deletion_assets) = Self::get_scheduled_asset_period_reset(current_time_slot) {
+			if let Some(scheduled_deletion_assets) =
+				Self::get_scheduled_asset_period_reset(current_time_slot)
+			{
 				// delete assets' tasks
-				let asset_reset_weight = <T as Config>::WeightInfo::reset_asset(scheduled_deletion_assets.len().try_into().unwrap());
+				let asset_reset_weight = <T as Config>::WeightInfo::reset_asset(
+					scheduled_deletion_assets.len().try_into().unwrap(),
+				);
 				if weight_left < asset_reset_weight {
 					return weight_left
 				}
 				// TODO: this assumes that all assets that need to be reset in a period can all be done successfully in a block.
-				// 			 in the future, we need to make sure to be able to break out of for loop if out of weight and continue 
-				//       in the next block. Right now, we will not run out of weight - we will simply not execute anything if 
+				// 			 in the future, we need to make sure to be able to break out of for loop if out of weight and continue
+				//       in the next block. Right now, we will not run out of weight - we will simply not execute anything if
 				//       not all of the asset resets can be run at once. this may cause the asset reset triggers to not go off,
 				//       but at least it should not brick the chain.
 				for asset in scheduled_deletion_assets {
@@ -485,9 +503,14 @@ pub mod pallet {
 				// start new duration
 				// 1. schedule new deletion time
 				let new_time_slot = current_time_slot.saturating_add(expiration_period);
-				if let Some(mut future_scheduled_deletion_assets) = Self::get_scheduled_asset_period_reset(new_time_slot) {
+				if let Some(mut future_scheduled_deletion_assets) =
+					Self::get_scheduled_asset_period_reset(new_time_slot)
+				{
 					future_scheduled_deletion_assets.push(asset.clone());
-					<ScheduledAssetDeletion<T>>::insert(new_time_slot, future_scheduled_deletion_assets);
+					<ScheduledAssetDeletion<T>>::insert(
+						new_time_slot,
+						future_scheduled_deletion_assets,
+					);
 				} else {
 					let new_asset_list = vec![asset.clone()];
 					<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
@@ -507,9 +530,9 @@ pub mod pallet {
 
 		pub fn delete_asset_tasks(asset: Vec<u8>) {
 			// delete scheduled tasks
-			ScheduledTasks::<T>::remove_prefix((asset.clone(), ), None);
+			ScheduledTasks::<T>::remove_prefix((asset.clone(),), None);
 			// delete tasks from tasks table
-			Tasks::<T>::remove_prefix((asset.clone(), ), None);
+			Tasks::<T>::remove_prefix((asset.clone(),), None);
 			// delete tasks from task queue
 			let existing_task_queue: Vec<(Vec<u8>, T::Hash)> = Self::get_task_queue();
 			let mut updated_task_queue: Vec<(Vec<u8>, T::Hash)> = vec![];
@@ -542,7 +565,10 @@ pub mod pallet {
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
-						let message = format!("asset: {:?}, percentage: {}, direction: {}", task.asset, task.trigger_percentage, task.direction);
+						let message = format!(
+							"asset: {:?}, percentage: {}, direction: {}",
+							task.asset, task.trigger_percentage, task.direction
+						);
 						let task_action_weight = Self::run_notify_task(message.into());
 						Tasks::<T>::remove(task_id);
 						task_action_weight
@@ -588,14 +614,22 @@ pub mod pallet {
 			if let Some(_) = Self::get_task((asset.clone(), task_id.clone())) {
 				Err(Error::<T>::DuplicateTask)?
 			}
-			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage.clone())) {
+			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((
+				asset.clone(),
+				direction.clone(),
+				trigger_percentage.clone(),
+			)) {
 				if let Err(_) = asset_tasks.try_push(task_id.clone()) {
 					Err(Error::<T>::MaxTasksReached)?
 				}
 				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
 			} else {
-				let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> = vec![task_id.clone()].try_into().unwrap();
-				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), scheduled_tasks);
+				let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
+					vec![task_id.clone()].try_into().unwrap();
+				<ScheduledTasks<T>>::insert(
+					(asset, direction, trigger_percentage),
+					scheduled_tasks,
+				);
 			}
 			Ok(task_id)
 		}
@@ -621,19 +655,26 @@ pub mod pallet {
 				Some(asset_price) => asset_price,
 			};
 			if (direction == 0) & (last_asset_price < asset_target_price) {
-				let last_asset_percentage = Self::calculate_asset_percentage(last_asset_price, asset_target_price);
+				let last_asset_percentage =
+					Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 				if trigger_percentage > last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
 			if (direction == 1) & (last_asset_price > asset_target_price) {
-				let last_asset_percentage = Self::calculate_asset_percentage(last_asset_price, asset_target_price);
+				let last_asset_percentage =
+					Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 				if trigger_percentage < last_asset_percentage {
 					Err(Error::<T>::AssetNotInTriggerableRange)?
 				}
 			}
-			let task_id =
-				Self::schedule_task(who.clone(), provided_id.clone(), asset.clone(), direction, trigger_percentage)?;
+			let task_id = Self::schedule_task(
+				who.clone(),
+				provided_id.clone(),
+				asset.clone(),
+				direction,
+				trigger_percentage,
+			)?;
 			let task: Task<T> = Task::<T> {
 				owner_id: who.clone(),
 				provided_id,
@@ -661,7 +702,11 @@ pub mod pallet {
 			};
 			for percentage in lower..adjusted_higher {
 				// TODO: pull all and cycle through in memory
-				if let Some(asset_tasks) = Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage.clone())) {
+				if let Some(asset_tasks) = Self::get_scheduled_tasks((
+					asset.clone(),
+					direction.clone(),
+					percentage.clone(),
+				)) {
 					for task in asset_tasks {
 						existing_task_queue.push((asset.clone(), task));
 					}
@@ -678,9 +723,15 @@ pub mod pallet {
 		) -> u128 {
 			// TODO: fix 100 hardcode
 			if asset_target_price > asset_update_value {
-				asset_target_price.saturating_sub(asset_update_value).saturating_mul(100).saturating_div(asset_target_price)
+				asset_target_price
+					.saturating_sub(asset_update_value)
+					.saturating_mul(100)
+					.saturating_div(asset_target_price)
 			} else {
-				asset_update_value.saturating_sub(asset_target_price).saturating_mul(100).saturating_div(asset_target_price)
+				asset_update_value
+					.saturating_sub(asset_target_price)
+					.saturating_mul(100)
+					.saturating_div(asset_target_price)
 			}
 		}
 	}
