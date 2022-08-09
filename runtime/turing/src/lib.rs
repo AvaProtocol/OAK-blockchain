@@ -1235,10 +1235,10 @@ impl_runtime_apis! {
 					u32::from(para_id),
 					CurrencyId::from(currency_id),
 					encoded_call_weight,
-				).unwrap().0;
+				).map_err(|_| "cannot get xcmp fee")?.0;
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
-					.unwrap()
+					.ok_or("cannot get inclusion fee")?
 					.base_fee;
 				let execution_fee = AutomationTime::calculate_execution_fee(
 					&(AutomationAction::XCMP.into()),
