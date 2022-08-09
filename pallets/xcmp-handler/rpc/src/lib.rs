@@ -99,12 +99,22 @@ where
 				Some(e.to_string()),
 			))
 		})?;
-		runtime_api_result.try_into().map_err(|_| {
-			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"RPC value doesn't fit in u64 representation",
-				Some(format!("RPC value cannot be translated into u64 representation")),
-			)))
-		})
+		runtime_api_result
+			.map(|v| {
+				v.try_into().map_err(|_| {
+					JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+						Error::RuntimeError.into(),
+						"RPC value doesn't fit in u64 representation",
+						Some(format!("RPC value cannot be translated into u64 representation")),
+					)))
+				})
+			})
+			.map_err(|_| {
+				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"RPC value doesn't fit in u64 representation",
+					Some(format!("RPC value cannot be translated into u64 representation")),
+				)))
+			})?
 	}
 }

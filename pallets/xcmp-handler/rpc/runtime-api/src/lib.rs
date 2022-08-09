@@ -27,6 +27,6 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>>;
-		fn fees(encoded_xt: Bytes) -> Balance;
+		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>>;
 	}
 }

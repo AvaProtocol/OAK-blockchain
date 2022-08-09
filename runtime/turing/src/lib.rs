@@ -1224,7 +1224,7 @@ impl_runtime_apis! {
 				.map_err(|_| "unable to convert account".into())
 		}
 
-		fn fees(encoded_xt: Bytes) -> Balance {
+		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
 				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
@@ -1245,10 +1245,10 @@ impl_runtime_apis! {
 					execution_times.len() as u32,
 				);
 
-				return xcm_fee + inclusion_fee + execution_fee
+				return Ok(xcm_fee + inclusion_fee + execution_fee)
 			}
 
-			panic!("unsupported extrinsic")
+			Err("unsupported extrinsic".into())
 		}
 	}
 

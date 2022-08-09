@@ -1163,8 +1163,8 @@ impl_runtime_apis! {
 				.map_err(|_| "unable to convert account".into())
 		}
 
-		fn fees(_encoded_xt: Bytes) -> Balance {
-			10_000_000 as Balance
+		fn fees(_encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
+			Ok(10_000_000 as Balance)
 		}
 	}
 
