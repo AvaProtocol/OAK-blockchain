@@ -57,7 +57,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 			times.clone().try_into().unwrap(),
 			vec![4, 5, 6],
 		);
-		<Tasks<T>>::insert(task_id, task);
+		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
 }
@@ -82,7 +82,7 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 			recipient.clone(),
 			amount.clone(),
 		);
-		<Tasks<T>>::insert(task_id, task);
+		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
 }
@@ -109,7 +109,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			vec![4, 5, 6],
 			100_000,
 		);
-		<Tasks<T>>::insert(task_id, task);
+		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
 }
@@ -144,8 +144,8 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 			collator,
 			account_minimum,
 		);
-		Tasks::<T>::insert(task_id, task);
-		tasks.push((task_id, Pallet::<T>::get_task(task_id).unwrap()));
+		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
+		tasks.push((task_id, Pallet::<T>::get_account_task(owner.clone(), task_id).unwrap()));
 	}
 	tasks
 }
@@ -234,7 +234,7 @@ benchmarks! {
 		let time: u64 = 10800;
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), vec![time], 1);
-	}: force_cancel_task(RawOrigin::Root, task_id)
+	}: force_cancel_task(RawOrigin::Root, caller, task_id)
 
 	force_cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -246,7 +246,7 @@ benchmarks! {
 		}
 
 		let task_id: T::Hash = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
-	}: force_cancel_task(RawOrigin::Root, task_id)
+	}: force_cancel_task(RawOrigin::Root, caller, task_id)
 
 	run_notify_task {
 		let message = b"hello there".to_vec();
@@ -307,8 +307,8 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
-			let missed_task = MissedTask::<T>::create_missed_task(task_id, time.into());
-			<Tasks<T>>::insert(task_id, task);
+			let missed_task = MissedTask2::<T>::create_missed_task(caller.clone(), task_id, time.into());
+			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			missed_tasks.push(missed_task)
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
@@ -324,7 +324,7 @@ benchmarks! {
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			let missed_task = MissedTask::<T>::create_missed_task(task_id, time.into());
+			let missed_task = MissedTask2::<T>::create_missed_task(caller.clone(), task_id, time.into());
 			missed_tasks.push(missed_task)
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
@@ -350,8 +350,8 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 			let task = Task::<T>::create_native_transfer_task(caller.clone(), provided_id, vec![time].try_into().unwrap(), recipient.clone(), transfer_amount.clone());
-			<Tasks<T>>::insert(task_id, task);
-			task_ids.push(task_id)
+			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
+			task_ids.push((caller.clone(), task_id))
 		}
 	}: { AutomationTime::<T>::run_tasks(task_ids, weight_left) }
 
@@ -365,7 +365,7 @@ benchmarks! {
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			task_ids.push(task_id)
+			task_ids.push((caller.clone(), task_id))
 		}
 	}: { AutomationTime::<T>::run_tasks(task_ids, weight_left) }
 
@@ -395,7 +395,7 @@ benchmarks! {
 				let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
 				let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 				let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
-				<Tasks<T>>::insert(task_id, task);
+				<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			}
 		}
 	}: { AutomationTime::<T>::append_to_missed_tasks(current_time, last_time_slot, weight_left) }
@@ -409,7 +409,7 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![current_time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
-			<Tasks<T>>::insert(task_id, task);
+			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 		}
 	}: { AutomationTime::<T>::update_scheduled_task_queue(current_time, last_time_slot) }
 
