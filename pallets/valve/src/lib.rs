@@ -218,7 +218,7 @@ pub mod pallet {
 		pub fn open_pallet_gates(origin: OriginFor<T>) -> DispatchResult {
 			ensure_root(origin)?;
 
-			ClosedPallets::<T>::remove_all(Some(5));
+			let _ = ClosedPallets::<T>::clear(5, None);
 			let closed_pallet_count = Self::count_of_closed_gates();
 			let closed_pallet_count = closed_pallet_count.saturating_sub(5);
 			ClosedPalletCount::<T>::put(closed_pallet_count);

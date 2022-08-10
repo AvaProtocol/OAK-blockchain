@@ -60,17 +60,15 @@ pub trait WeightInfo {
 /// Weight functions for `pallet_automation_time`.
 pub struct AutomationWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_notify_task_empty() -> Weight {
 		(46_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		.saturating_add(T::DbWeight::get().reads(5 as Weight))
+		.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
@@ -78,23 +76,21 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	fn schedule_notify_task_full(v: u32, ) -> Weight {
 		(87_441_000 as Weight)
 			// Standard Error: 81_000
-			.saturating_add((48_028_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add((51_040_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_native_transfer_task_empty() -> Weight {
 		(43_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		.saturating_add(T::DbWeight::get().reads(5 as Weight))
+		.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
@@ -103,20 +99,19 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 		(39_693_000 as Weight)
 			// Standard Error: 59_000
 			.saturating_add((50_259_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		(100_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(5 as Weight))
+		.saturating_add(T::DbWeight::get().reads(5 as Weight))
+		.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
@@ -160,16 +155,18 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
+	// Storage: ParachainStaking DelegationScheduledRequests (r:1 w:0)
+	// Storage: ParachainStaking DelegatorReserveToLockMigrations (r:1 w:0)
+	// Storage: Balances Locks (r:1 w:1)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
 	// Storage: ParachainStaking CandidateInfo (r:1 w:1)
 	// Storage: ParachainStaking TopDelegations (r:1 w:1)
 	// Storage: ParachainStaking CandidatePool (r:1 w:1)
 	// Storage: ParachainStaking Total (r:1 w:1)
-	// Storage: unknown [0x3a7472616e73616374696f6e5f6c6576656c3a] (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		(74_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(9 as Weight))
+		(87_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(11 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:1)

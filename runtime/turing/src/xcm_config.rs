@@ -7,8 +7,9 @@ use super::{
 use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
-	traits::{Everything, Nothing},
+	traits::{ConstU32, Everything, Nothing},
 	weights::Weight,
+	WeakBoundedVec,
 };
 use frame_system::EnsureRoot;
 use sp_runtime::{traits::Convert, Percent};
@@ -150,7 +151,8 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 			return Err(()) // Deny
 		}
 
-		// allow reserve transfers to arrive from relay chain
+		// An unexpected reserve transfer has arrived from the Relay Chain. Generally, `IsReserve`
+		// should not allow this, but we just log it here.
 		if matches!(origin, MultiLocation { parents: 1, interior: Here }) &&
 			message.0.iter().any(|inst| matches!(inst, ReserveAssetDeposited { .. }))
 		{
@@ -220,7 +222,7 @@ parameter_types! {
 	pub KarPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
-			X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::KAR_KEY.to_vec())),
+			X2(Parachain(parachains::karura::ID), GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(parachains::karura::KAR_KEY.to_vec(), None))),
 		).into(),
 		//KAR:KSM 50:1
 		ksm_per_second() * 50
@@ -229,7 +231,7 @@ parameter_types! {
 	pub AusdPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
-			X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::AUSD_KEY.to_vec())),
+			X2(Parachain(parachains::karura::ID), GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(parachains::karura::AUSD_KEY.to_vec(), None))),
 		).into(),
 		// AUSD:KSM = 400:1
 		ksm_per_second() * 400
@@ -238,7 +240,7 @@ parameter_types! {
 	pub LksmPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
-			X2(Parachain(parachains::karura::ID), GeneralKey(parachains::karura::LKSM_KEY.to_vec())),
+			X2(Parachain(parachains::karura::ID), GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(parachains::karura::LKSM_KEY.to_vec(), None))),
 		).into(),
 		// LKSM:KSM = 10:1
 		ksm_per_second() * 10
@@ -247,7 +249,7 @@ parameter_types! {
 	pub HkoPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
-			X2(Parachain(parachains::heiko::ID), GeneralKey(parachains::heiko::HKO_KEY.to_vec())),
+			X2(Parachain(parachains::heiko::ID), GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(parachains::heiko::HKO_KEY.to_vec(), None))),
 		).into(),
 		// HKO:KSM = 30:1
 		ksm_per_second() * 30
@@ -256,7 +258,7 @@ parameter_types! {
 	pub SksmPerSecond: (AssetId, u128) = (
 		MultiLocation::new(
 			1,
-			X2(Parachain(parachains::heiko::ID), GeneralKey(parachains::heiko::SKSM_KEY.to_vec())),
+			X2(Parachain(parachains::heiko::ID), GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(parachains::heiko::SKSM_KEY.to_vec(), None))),
 		).into(),
 		// sKSM:KSM = 1:1
 		ksm_per_second()
@@ -484,35 +486,50 @@ impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
 				1,
 				X2(
 					Parachain(parachains::karura::ID),
-					GeneralKey(parachains::karura::AUSD_KEY.to_vec()),
+					GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(
+						parachains::karura::AUSD_KEY.to_vec(),
+						None,
+					)), // GeneralKey(parachains::karura::AUSD_KEY.to_vec()),
 				),
 			)),
 			CurrencyId::KAR => Some(MultiLocation::new(
 				1,
 				X2(
 					Parachain(parachains::karura::ID),
-					GeneralKey(parachains::karura::KAR_KEY.to_vec()),
+					GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(
+						parachains::karura::KAR_KEY.to_vec(),
+						None,
+					)),
 				),
 			)),
 			CurrencyId::LKSM => Some(MultiLocation::new(
 				1,
 				X2(
 					Parachain(parachains::karura::ID),
-					GeneralKey(parachains::karura::LKSM_KEY.to_vec()),
+					GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(
+						parachains::karura::LKSM_KEY.to_vec(),
+						None,
+					)),
 				),
 			)),
 			CurrencyId::HKO => Some(MultiLocation::new(
 				1,
 				X2(
 					Parachain(parachains::heiko::ID),
-					GeneralKey(parachains::heiko::HKO_KEY.to_vec()),
+					GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(
+						parachains::heiko::HKO_KEY.to_vec(),
+						None,
+					)),
 				),
 			)),
 			CurrencyId::SKSM => Some(MultiLocation::new(
 				1,
 				X2(
 					Parachain(parachains::heiko::ID),
-					GeneralKey(parachains::heiko::SKSM_KEY.to_vec()),
+					GeneralKey(WeakBoundedVec::<u8, ConstU32<32>>::force_from(
+						parachains::heiko::SKSM_KEY.to_vec(),
+						None,
+					)),
 				),
 			)),
 			CurrencyId::PHA => Some(MultiLocation::new(1, X1(Parachain(parachains::khala::ID)))),
