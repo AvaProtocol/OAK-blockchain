@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added base XCMP-handler pallet
 - Updated XCMP-handler pallet to store chain/currency information
 - Updated XCMP-handler pallet to create XCM instructions for a Transact with OAK tokens
-- RPC to get accountId for XCM descend + transact
+- RPC to get accountId for XCM Descend + Transact
 - RPC to get fees for scheduling an XCM task
 - Update auto-compounding to work with new parachain-staking locks
 - Removed tight coupling between valve and automation-time pallet
