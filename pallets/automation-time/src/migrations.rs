@@ -106,8 +106,10 @@ pub mod v3 {
 		old_tasks.iter().for_each(|(task_id, task)| {
 			AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task.clone());
 		});
+		let task_migrated = old_tasks.len() as u64;
 
 		// Move all tasks from ScheduledTasks to ScheduledTasks2
+		let mut times_migrated = 0u64;
 		let old_scheduled_prefix: &[u8] = b"ScheduledTasks";
 		storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(
 			pallet_prefix,
@@ -130,6 +132,7 @@ pub mod v3 {
 			let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
 				new_task_ids.try_into().unwrap();
 			ScheduledTasks2::<T>::insert(time, account_task_ids);
+			times_migrated += 1;
 		});
 
 		// Move all tasks from TaskQueue to TaskQueue2
@@ -173,7 +176,30 @@ pub mod v3 {
 		// Set new storage version and return weight
 		StorageVersion::new(3).put::<Pallet<T>>();
 
-		// TODO set this as something
-		T::DbWeight::get().reads_writes(4, 4)
+		// For each task there is
+		// 1 read to get it into memory from Tasks
+		// 1 write to remove it from Tasks
+		// 1 write to add it to AccountTasks
+		let weight = T::DbWeight::get().reads_writes(task_migrated, task_migrated * 2);
+
+		// For each time in scheduled tasks there is
+		// 1 read to get it into memory
+		// 1 write to remove it from the old scheduled tasks
+		// 1 write to add it to the new scheduled tasks
+		let weight = weight + T::DbWeight::get().reads_writes(times_migrated, times_migrated * 2);
+
+		// For the task queue there is
+		// 1 read to get it into memory
+		// 1 write to remove it from the old task queue
+		// 1 write to add it to the new task queue
+		let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+
+		// For the mised queue there is
+		// 1 read to get it into memory
+		// 1 write to remove it from the old task queue
+		// 1 write to add it to the new task queue
+		let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+
+		weight
 	}
 }
