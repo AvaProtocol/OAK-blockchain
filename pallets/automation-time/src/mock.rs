@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, IdentityLookup},
+	traits::{BlakeTwo256, CheckedSub, IdentityLookup},
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -178,8 +178,10 @@ impl pallet_timestamp::Config for Test {
 }
 
 pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
-impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
-	pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
+impl<
+		T: Config + pallet::Config<Currency = C>,
+		C: frame_support::traits::ReservableCurrency<T::AccountId>,
+	> pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
 	for MockDelegatorActions<T, C>
 {
 	fn delegator_bond_more(
@@ -190,6 +192,17 @@ impl<T: Config, C: frame_support::traits::ReservableCurrency<T::AccountId>>
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
 		Ok(().into())
+	}
+	fn delegator_bond_till_minimum(
+		delegator: &T::AccountId,
+		_: &T::AccountId,
+		account_minimum: BalanceOf<T>,
+	) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
+		let delegation = C::free_balance(&delegator)
+			.checked_sub(&account_minimum)
+			.ok_or(Error::<T>::InsufficientBalance)?;
+		C::reserve(delegator, delegation)?;
+		Ok(delegation)
 	}
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {

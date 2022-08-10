@@ -47,8 +47,8 @@ impl<T: frame_system::Config> WeightInfo for VestingWeight<T> {
 	// Storage: Vesting TotalUnvestedAllocation (r:1 w:1)
 	fn vest(v: u32, ) -> Weight {
 		(18_229_000 as Weight)
-			// Standard Error: 80_000
-			.saturating_add((19_210_000 as Weight).saturating_mul(v as Weight))
+			// Standard Error: 25_000
+			.saturating_add((23_793_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))

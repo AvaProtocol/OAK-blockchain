@@ -341,7 +341,7 @@ fn testnet_genesis(
 		tokens: Default::default(),
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
-			members: technical_memberships,
+			members: technical_memberships.try_into().unwrap(),
 			phantom: Default::default(),
 		},
 		parachain_system: Default::default(),
