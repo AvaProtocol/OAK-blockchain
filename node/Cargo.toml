@@ -46,6 +46,7 @@ jsonrpsee = { version = "0.14.0", features = ["server"] }
 neumann-runtime = { path = "../runtime/neumann", optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
+pallet-xcmp-handler-rpc ={ path = "../pallets/xcmp-handler/rpc"}
 primitives = {path = "../primitives"}
 
 # Substrate Dependencies
