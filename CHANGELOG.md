@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2022-08-10
+- Update to substrate 0.9.26
+- Added base XCMP-handler pallet
+- Updated XCMP-handler pallet to store chain/currency information
+- Updated XCMP-handler pallet to create XCM instructions for a Transact with OAK tokens
+- RPC to get accountId for XCM Descend + Transact
+- RPC to get fees for scheduling an XCM task
+- Update auto-compounding to work with new parachain-staking locks
+- Removed tight coupling between valve and automation-time pallet
 
 ## [1.5.0] - 2022-07-19
 - RPC to get execution fee for automation time
