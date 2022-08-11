@@ -111,7 +111,7 @@ where
 				)))
 			})?
 			.try_into()
-			.map_err(|e| {
+			.map_err(|_| {
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
 					"RPC value doesn't fit in u64 representation",
