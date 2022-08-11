@@ -604,6 +604,7 @@ pub mod pallet {
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 		) -> DispatchResult {
+			#![allow(unused_variables)]
 			let _who = ensure_signed(origin)?;
 
 			Err(Error::<T>::TaskNotSupported)?;
