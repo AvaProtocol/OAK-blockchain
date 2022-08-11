@@ -37,7 +37,6 @@ pub use pallet::*;
 // #[cfg(test)]
 // mod tests;
 
-mod benchmarking;
 pub mod weights;
 
 mod fees;
@@ -208,6 +207,10 @@ pub mod pallet {
 	#[pallet::getter(fn get_asset_metadata)]
 	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, Vec<u8>, AssetMetadatum<T>>;
 
+	#[pallet::storage]
+	#[pallet::getter(fn get_number_of_assets)]
+	pub type NumberOfAssets<T: Config> = StorageValue<_, u8>;
+
 	#[pallet::error]
 	pub enum Error<T> {
 		/// The provided_id cannot be empty
@@ -236,6 +239,8 @@ pub mod pallet {
 		InsufficientBalance,
 		/// Restrictions on Liquidity in Account
 		LiquidityRestrictions,
+		/// Too Many Assets Created
+		AssetLimitReached,
 	}
 
 	#[pallet::event]
@@ -344,20 +349,16 @@ pub mod pallet {
 			}
 			if let Some(_asset_target_price) = Self::get_asset_target_price(asset.clone()) {
 				Err(Error::<T>::AssetAlreadySupported)?
+			}
+			if let Some(number_of_assets) = Self::get_number_of_assets() {
+				// TODO: remove hardcoded 2 asset limit
+				if number_of_assets >= 2 {
+					Err(Error::<T>::AssetLimitReached)?
+				} else {
+					Self::create_new_asset(asset, target_price, upper_bound, lower_bound, asset_owner, expiration_period, number_of_assets);
+				}
 			} else {
-				AssetTargetPrices::<T>::insert(asset.clone(), target_price);
-				let asset_metadatum = AssetMetadatum::<T> {
-					upper_bound,
-					lower_bound,
-					expiration_period,
-					asset_sudo: asset_owner.clone(),
-				};
-				AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-				let new_time_slot =
-					Self::get_current_time_slot()?.saturating_add(expiration_period);
-				Self::update_asset_reset(asset.clone(), new_time_slot);
-				AssetPrices::<T>::insert(asset.clone(), target_price);
-				Self::deposit_event(Event::AssetCreated { asset });
+				Self::create_new_asset(asset, target_price, upper_bound, lower_bound, asset_owner, expiration_period, 0);
 			}
 			Ok(().into())
 		}
@@ -516,6 +517,33 @@ pub mod pallet {
 					<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
 				}
 			};
+		}
+
+		pub fn create_new_asset(
+			asset: Vec<u8>,
+			target_price: u128,
+			upper_bound: u16,
+			lower_bound: u8,
+			asset_owner: AccountOf<T>,
+			expiration_period: UnixTime,
+			number_of_assets: u8
+		) -> Result<(), DispatchError> {
+			AssetTargetPrices::<T>::insert(asset.clone(), target_price);
+			let asset_metadatum = AssetMetadatum::<T> {
+				upper_bound,
+				lower_bound,
+				expiration_period,
+				asset_sudo: asset_owner.clone(),
+			};
+			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
+			let new_time_slot =
+				Self::get_current_time_slot()?.saturating_add(expiration_period);
+			Self::update_asset_reset(asset.clone(), new_time_slot);
+			AssetPrices::<T>::insert(asset.clone(), target_price);
+			let new_number_of_assets = number_of_assets + 1;
+			NumberOfAssets::<T>::put(new_number_of_assets);
+			Self::deposit_event(Event::AssetCreated { asset });
+			Ok(())
 		}
 
 		pub fn get_current_time_slot() -> Result<UnixTime, Error<T>> {
