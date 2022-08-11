@@ -355,10 +355,26 @@ pub mod pallet {
 				if number_of_assets >= 2 {
 					Err(Error::<T>::AssetLimitReached)?
 				} else {
-					Self::create_new_asset(asset, target_price, upper_bound, lower_bound, asset_owner, expiration_period, number_of_assets);
+					Self::create_new_asset(
+						asset,
+						target_price,
+						upper_bound,
+						lower_bound,
+						asset_owner,
+						expiration_period,
+						number_of_assets,
+					);
 				}
 			} else {
-				Self::create_new_asset(asset, target_price, upper_bound, lower_bound, asset_owner, expiration_period, 0);
+				Self::create_new_asset(
+					asset,
+					target_price,
+					upper_bound,
+					lower_bound,
+					asset_owner,
+					expiration_period,
+					0,
+				);
 			}
 			Ok(().into())
 		}
@@ -526,7 +542,7 @@ pub mod pallet {
 			lower_bound: u8,
 			asset_owner: AccountOf<T>,
 			expiration_period: UnixTime,
-			number_of_assets: u8
+			number_of_assets: u8,
 		) -> Result<(), DispatchError> {
 			AssetTargetPrices::<T>::insert(asset.clone(), target_price);
 			let asset_metadatum = AssetMetadatum::<T> {
@@ -536,8 +552,7 @@ pub mod pallet {
 				asset_sudo: asset_owner.clone(),
 			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-			let new_time_slot =
-				Self::get_current_time_slot()?.saturating_add(expiration_period);
+			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
 			Self::update_asset_reset(asset.clone(), new_time_slot);
 			AssetPrices::<T>::insert(asset.clone(), target_price);
 			let new_number_of_assets = number_of_assets + 1;
