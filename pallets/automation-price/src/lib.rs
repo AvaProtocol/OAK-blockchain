@@ -553,7 +553,7 @@ pub mod pallet {
 			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
-			Self::update_asset_reset(asset.clone(), new_time_slot);
+			<ScheduledAssetDeletion<T>>::insert(new_time_slot, vec![asset.clone()]);
 			AssetPrices::<T>::insert(asset.clone(), target_price);
 			let new_number_of_assets = number_of_assets + 1;
 			NumberOfAssets::<T>::put(new_number_of_assets);
