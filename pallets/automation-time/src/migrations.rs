@@ -87,8 +87,8 @@ pub mod v3 {
 	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
-		AccountTaskId, AccountTasks, MissedQueue2, MissedTask, MissedTask2, Pallet,
-		ScheduledTasks2, Task, TaskId, TaskQueue2, Vec,
+		AccountTaskId, AccountTasks, MissedQueue, MissedQueue2, MissedTask, MissedTask2, Pallet,
+		ScheduledTasks2, Task, TaskId, TaskQueue, TaskQueue2, Vec,
 	};
 
 	use super::*;
@@ -151,6 +151,7 @@ pub mod v3 {
 				})
 				.collect::<Vec<_>>();
 		TaskQueue2::<T>::put(new_task_ids);
+		TaskQueue::<T>::kill();
 
 		// Move all tasks from MissedQueue to MissedQueue2, and convert from MissedTask to MissedTask2
 		let old_task_queue_prefix: &[u8] = b"MissedQueue";
@@ -172,6 +173,7 @@ pub mod v3 {
 				})
 				.collect::<Vec<_>>();
 		MissedQueue2::<T>::put(new_missed_tasks);
+		MissedQueue::<T>::kill();
 
 		// Set new storage version and return weight
 		StorageVersion::new(3).put::<Pallet<T>>();
@@ -180,13 +182,14 @@ pub mod v3 {
 		// 1 read to get it into memory from Tasks
 		// 1 write to remove it from Tasks
 		// 1 write to add it to AccountTasks
-		let weight = T::DbWeight::get().reads_writes(task_migrated, task_migrated * 2);
+		let weight = T::DbWeight::get().reads_writes(task_migrated + 1, task_migrated * 2);
 
 		// For each time in scheduled tasks there is
 		// 1 read to get it into memory
 		// 1 write to remove it from the old scheduled tasks
 		// 1 write to add it to the new scheduled tasks
-		let weight = weight + T::DbWeight::get().reads_writes(times_migrated, times_migrated * 2);
+		let weight =
+			weight + T::DbWeight::get().reads_writes(times_migrated + 1, times_migrated * 2);
 
 		// For the task queue there is
 		// 1 read to get it into memory
@@ -200,6 +203,10 @@ pub mod v3 {
 		// 1 write to add it to the new task queue
 		let weight = weight + T::DbWeight::get().reads_writes(1, 2);
 
-		weight
+		// For the new storage version
+		let weight = weight + T::DbWeight::get().writes(1);
+
+		// Adding a buffer for the rest of the code
+		weight + 100_000_000
 	}
 }
