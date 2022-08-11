@@ -109,11 +109,11 @@ where
 					)))
 				})
 			})
-			.map_err(|_| {
+			.map_err(|e| {
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
-					"RPC value doesn't fit in u64 representation",
-					Some(format!("RPC value cannot be translated into u64 representation")),
+					"Unable to get fees",
+					Some(String::from_utf8(e).unwrap_or(String::default())),
 				)))
 			})?
 	}
