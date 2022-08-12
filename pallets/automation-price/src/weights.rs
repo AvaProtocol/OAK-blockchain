@@ -35,14 +35,15 @@ use sp_std::marker::PhantomData;
 /// Weight functions needed for pallet_automation_time.
 pub trait WeightInfo {
 	fn emit_event() -> Weight;
+	fn run_native_transfer_task() -> Weight;
 	fn reset_asset(v: u32, ) -> Weight;
 	fn update_asset_reset() -> Weight;
 	fn delete_asset_tasks() -> Weight;
 	
 	fn delete_asset_extrinsic() -> Weight;
-	fn asset_update_extrinsic() -> Weight;
+	fn asset_price_update_extrinsic() -> Weight;
 	fn add_asset_extrinsic() -> Weight;
-	fn schedule_swap_task_extrinsic() -> Weight;
+	fn schedule_transfer_task_extrinsic() -> Weight;
 }
 
 /// Weight functions for `pallet_automation_time`.
@@ -50,6 +51,11 @@ pub struct AutomationWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	fn emit_event() -> Weight {
 		(20_000_000 as Weight)
+	}
+	fn run_native_transfer_task() -> Weight {
+		(230_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
 	fn reset_asset(v: u32, ) -> Weight {
 		(200_000_000 as Weight)
@@ -73,7 +79,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(6 as Weight))
 	}
-	fn asset_update_extrinsic() -> Weight{
+	fn asset_price_update_extrinsic() -> Weight{
 		(220_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
@@ -85,7 +91,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(3 as Weight))
 			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
-	fn schedule_swap_task_extrinsic() -> Weight{
+	fn schedule_transfer_task_extrinsic() -> Weight{
 		(200_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))

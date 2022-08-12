@@ -5163,7 +5163,7 @@ dependencies = [
 
 [[package]]
 name = "pallet-automation-price"
-version = "1.0.0"
+version = "0.1.0"
 dependencies = [
  "cumulus-pallet-xcm",
  "cumulus-primitives-core",
