@@ -39,7 +39,10 @@ pub use fees::*;
 use core::convert::TryInto;
 use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use frame_support::{
-	pallet_prelude::*, sp_runtime::traits::Hash, traits::{Currency, ExistenceRequirement}, transactional, BoundedVec,
+	pallet_prelude::*,
+	sp_runtime::traits::Hash,
+	traits::{Currency, ExistenceRequirement},
+	transactional, BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use pallet_timestamp::{self as timestamp};
@@ -69,11 +72,7 @@ pub mod pallet {
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub enum Action<T: Config> {
-		NativeTransfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		},
+		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
 	}
 
 	/// The struct that stores all information needed for a task.
@@ -187,7 +186,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_asset_period_reset)]
-	pub type ScheduledAssetDeletion<T: Config> = StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
+	pub type ScheduledAssetDeletion<T: Config> =
+		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_baseline_price)]
@@ -203,7 +203,7 @@ pub mod pallet {
 		_,
 		(
 			NMapKey<Twox64Concat, AssetName>, // asset name
-			NMapKey<Twox64Concat, T::Hash>, // task ID
+			NMapKey<Twox64Concat, T::Hash>,   // task ID
 		),
 		Task<T>,
 	>;
@@ -255,7 +255,7 @@ pub mod pallet {
 		/// Too Many Assets Created
 		AssetLimitReached,
 		/// Direction Not Supported
-		DirectionNotSupported
+		DirectionNotSupported,
 	}
 
 	#[pallet::event]
@@ -424,7 +424,11 @@ pub mod pallet {
 		/// # Errors
 		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic())]
 		#[transactional]
-		pub fn asset_price_update(origin: OriginFor<T>, asset: AssetName, value: AssetPrice) -> DispatchResult {
+		pub fn asset_price_update(
+			origin: OriginFor<T>,
+			asset: AssetName,
+			value: AssetPrice,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
 				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
@@ -442,11 +446,11 @@ pub mod pallet {
 				};
 				let asset_update_percentage =
 					Self::calculate_asset_percentage(value, asset_target_price).saturating_add(1);
-				// NOTE: this is temporarily set to 0 for ease of calculation. Ideally, we can perform 
-				// 			Self::calculate_asset_percentage(value, last_asset_price) and be able to compare the 
+				// NOTE: this is temporarily set to 0 for ease of calculation. Ideally, we can perform
+				// 			Self::calculate_asset_percentage(value, last_asset_price) and be able to compare the
 				// 			last percentage to the current one. However, calculate_asset_percentage does not return
 				// 			a direction. Therefore, let's say base price is 100. Last price is 95, current is 105.
-				// 			Since calculate_asset_percentage returns a u128, calculate_asset_percentage will return 5% 
+				// 			Since calculate_asset_percentage returns a u128, calculate_asset_percentage will return 5%
 				// 			for both, since there's no concept of positive/negative/direction (generic doesn't do just +/-).
 				// 			Therefore, this function will think 5% -> 5% means no change occurred, but instead we want to
 				// 			check 0% -> 5%. Therefore, we always check all the slots from 0% to x% where x is the updated
@@ -754,7 +758,8 @@ pub mod pallet {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
-			let asset_target_price: AssetPrice = match Self::get_asset_baseline_price(asset.clone()) {
+			let asset_target_price: AssetPrice = match Self::get_asset_baseline_price(asset.clone())
+			{
 				None => Err(Error::<T>::AssetNotSupported)?,
 				Some(asset_price) => asset_price,
 			};
@@ -763,26 +768,24 @@ pub mod pallet {
 				Some(asset_price) => asset_price,
 			};
 			match direction {
-				0 => {
+				0 =>
 					if last_asset_price < asset_target_price {
 						let last_asset_percentage =
 							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 						if trigger_percentage > last_asset_percentage {
 							Err(Error::<T>::AssetNotInTriggerableRange)?
 						}
-					}
-				},
-				1 => {
+					},
+				1 =>
 					if last_asset_price > asset_target_price {
 						let last_asset_percentage =
 							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
 						if trigger_percentage < last_asset_percentage {
 							Err(Error::<T>::AssetNotInTriggerableRange)?
 						}
-					}
-				},
+					},
 				// TODO: remove once we figure out more generic directions
-				_ => Err(Error::<T>::DirectionNotSupported)?
+				_ => Err(Error::<T>::DirectionNotSupported)?,
 			}
 			let task_id = Self::schedule_task(
 				who.clone(),
