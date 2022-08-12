@@ -78,7 +78,7 @@ use frame_support::traits::Get;
 // Use a double map for tasks (accountId, taskId)
 pub mod v3 {
 	use frame_support::{
-		migration::{get_storage_value, storage_key_iter},
+		migration::{storage_key_iter, take_storage_value},
 		traits::StorageVersion,
 		BoundedVec, Twox64Concat,
 	};
@@ -86,8 +86,8 @@ pub mod v3 {
 	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
-		AccountTaskId, AccountTasks, MissedQueue, MissedQueueV2, MissedTask, MissedTaskV2, Pallet,
-		ScheduledTasksV2, Task, TaskId, TaskQueue, TaskQueueV2, Vec,
+		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2, Pallet,
+		ScheduledTasksV2, Task, TaskId, TaskQueueV2, Vec,
 	};
 
 	use super::*;
@@ -137,7 +137,7 @@ pub mod v3 {
 		// Move all tasks from TaskQueue to TaskQueueV2
 		let old_task_queue_prefix: &[u8] = b"TaskQueue";
 		let new_task_ids =
-			get_storage_value::<Vec<TaskId<T>>>(pallet_prefix, old_task_queue_prefix, &[])
+			take_storage_value::<Vec<TaskId<T>>>(pallet_prefix, old_task_queue_prefix, &[])
 				.unwrap_or(vec![])
 				.into_iter()
 				.filter_map(|task_id| {
@@ -150,12 +150,11 @@ pub mod v3 {
 				})
 				.collect::<Vec<_>>();
 		TaskQueueV2::<T>::put(new_task_ids);
-		TaskQueue::<T>::kill();
 
 		// Move all tasks from MissedQueue to MissedQueueV2, and convert from MissedTask to MissedTaskV2
 		let old_task_queue_prefix: &[u8] = b"MissedQueue";
 		let new_missed_tasks =
-			get_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
+			take_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
 				.unwrap_or(vec![])
 				.into_iter()
 				.filter_map(|missed_task| {
@@ -172,7 +171,6 @@ pub mod v3 {
 				})
 				.collect::<Vec<_>>();
 		MissedQueueV2::<T>::put(new_missed_tasks);
-		MissedQueue::<T>::kill();
 
 		// Set new storage version and return weight
 		StorageVersion::new(3).put::<Pallet<T>>();
