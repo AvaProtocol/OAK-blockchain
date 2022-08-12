@@ -160,19 +160,19 @@ pub mod pallet {
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub struct MissedTask2<T: Config> {
-		owner_id: T::AccountId,
+	pub struct MissedTaskV2<T: Config> {
+		owner_id: AccountOf<T>,
 		task_id: TaskId<T>,
 		execution_time: UnixTime,
 	}
 
-	impl<T: Config> MissedTask2<T> {
+	impl<T: Config> MissedTaskV2<T> {
 		pub fn create_missed_task(
-			owner_id: T::AccountId,
+			owner_id: AccountOf<T>,
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
-		) -> MissedTask2<T> {
-			MissedTask2::<T> { owner_id, task_id, execution_time }
+		) -> MissedTaskV2<T> {
+			MissedTaskV2::<T> { owner_id, task_id, execution_time }
 		}
 	}
 
@@ -361,7 +361,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks2<T: Config> =
+	pub type ScheduledTasksV2<T: Config> =
 		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
 
 	#[pallet::storage]
@@ -370,21 +370,21 @@ pub mod pallet {
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task)]
 	pub type AccountTasks<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, T::AccountId, Twox64Concat, TaskId<T>, Task<T>>;
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId<T>, Task<T>>;
 
 	#[pallet::storage]
 	pub type TaskQueue<T: Config> = StorageValue<_, Vec<TaskId<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
+	pub type TaskQueueV2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
-	pub type MissedQueue2<T: Config> = StorageValue<_, Vec<MissedTask2<T>>, ValueQuery>;
+	pub type MissedQueueV2<T: Config> = StorageValue<_, Vec<MissedTaskV2<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
@@ -452,6 +452,7 @@ pub mod pallet {
 		},
 		/// A Task was not found.
 		TaskNotFound {
+			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
 		/// Successfully transferred funds
@@ -485,7 +486,7 @@ pub mod pallet {
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
-			who: T::AccountId,
+			who: AccountOf<T>,
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
 		},
@@ -585,7 +586,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
-			recipient_id: T::AccountId,
+			recipient_id: AccountOf<T>,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -665,7 +666,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			execution_time: UnixTime,
 			frequency: Seconds,
-			collator_id: T::AccountId,
+			collator_id: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -721,7 +722,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
 		pub fn force_cancel_task(
 			origin: OriginFor<T>,
-			owner_id: T::AccountId,
+			owner_id: AccountOf<T>,
 			task_id: TaskId<T>,
 		) -> DispatchResult {
 			ensure_root(origin)?;
@@ -820,7 +821,7 @@ pub mod pallet {
 			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-				TaskQueue2::<T>::put(tasks_left);
+				TaskQueueV2::<T>::put(tasks_left);
 				weight_left =
 					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
@@ -836,7 +837,7 @@ pub mod pallet {
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
-					MissedQueue2::<T>::put(tasks_left);
+					MissedQueueV2::<T>::put(tasks_left);
 					weight_left =
 						new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
@@ -900,22 +901,22 @@ pub mod pallet {
 			if current_time_slot != last_time_slot {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
-				for missed_task in missed_tasks {
-					let new_missed_task: MissedTask2<T> = MissedTask2::<T> {
-						owner_id: missed_task.0,
-						task_id: missed_task.1,
+				for (account_id, task_id) in missed_tasks {
+					let new_missed_task: MissedTaskV2<T> = MissedTaskV2::<T> {
+						owner_id: account_id,
+						task_id,
 						execution_time: last_time_slot,
 					};
 					missed_queue.push(new_missed_task);
 				}
-				MissedQueue2::<T>::put(missed_queue);
+				MissedQueueV2::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
 				if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
-					TaskQueue2::<T>::put(task_ids);
-					ScheduledTasks2::<T>::remove(current_time_slot);
+					TaskQueueV2::<T>::put(task_ids);
+					ScheduledTasksV2::<T>::remove(current_time_slot);
 				} else {
 					let empty_queue: Vec<AccountTaskId<T>> = vec![];
-					TaskQueue2::<T>::put(empty_queue);
+					TaskQueueV2::<T>::put(empty_queue);
 				}
 			}
 			let weight_used = <T as Config>::WeightInfo::update_scheduled_task_queue();
@@ -971,7 +972,7 @@ pub mod pallet {
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
 			missed_queue.append(&mut missed_tasks);
-			MissedQueue2::<T>::put(missed_queue);
+			MissedQueueV2::<T>::put(missed_queue);
 
 			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, diff)
@@ -984,17 +985,17 @@ pub mod pallet {
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
-		) -> Vec<MissedTask2<T>> {
+		) -> Vec<MissedTaskV2<T>> {
 			let mut tasks = vec![];
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
 			if let Some(account_task_ids) = Self::get_scheduled_tasks(new_time_slot) {
-				ScheduledTasks2::<T>::remove(new_time_slot);
-				for account_task_id in account_task_ids {
-					let new_missed_task: MissedTask2<T> = MissedTask2::<T> {
-						owner_id: account_task_id.0,
-						task_id: account_task_id.1,
+				ScheduledTasksV2::<T>::remove(new_time_slot);
+				for (account_id, task_id) in account_task_ids {
+					let new_missed_task: MissedTaskV2<T> = MissedTaskV2::<T> {
+						owner_id: account_id,
+						task_id,
 						execution_time: new_time_slot,
 					};
 					tasks.push(new_missed_task);
@@ -1011,58 +1012,48 @@ pub mod pallet {
 			mut weight_left: Weight,
 		) -> (Vec<AccountTaskId<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
-			for account_task_id in account_task_ids.iter() {
+			for (account_id, task_id) in account_task_ids.iter() {
 				consumed_task_index.saturating_inc();
-				let action_weight =
-					match AccountTasks::<T>::get(account_task_id.0.clone(), account_task_id.1) {
-						None => {
-							Self::deposit_event(Event::TaskNotFound {
-								task_id: account_task_id.1.clone(),
-							});
-							<T as Config>::WeightInfo::run_tasks_many_missing(1)
-						},
-						Some(mut task) => {
-							let task_action_weight = match task.action.clone() {
-								Action::Notify { message } => Self::run_notify_task(message),
-								Action::NativeTransfer { sender, recipient, amount } =>
-									Self::run_native_transfer_task(
-										sender,
-										recipient,
-										amount,
-										account_task_id.1,
-									),
-								Action::XCMP { para_id, call, weight_at_most } =>
-									Self::run_xcmp_task(
-										para_id,
-										call,
-										weight_at_most,
-										account_task_id.1,
-									),
-								Action::AutoCompoundDelegatedStake {
-									delegator,
-									collator,
-									account_minimum,
-									frequency,
-								} => {
-									let (mut_task, weight) =
-										Self::run_auto_compound_delegated_stake_task(
-											delegator,
-											collator,
-											account_minimum,
-											frequency,
-											account_task_id.1,
-											task,
-										);
-									task = mut_task;
-									weight
-								},
-							};
-							Self::decrement_task_and_remove_if_complete(account_task_id.1, task);
-							task_action_weight
-								.saturating_add(T::DbWeight::get().writes(1 as Weight))
-								.saturating_add(T::DbWeight::get().reads(1 as Weight))
-						},
-					};
+				let action_weight = match AccountTasks::<T>::get(account_id.clone(), task_id) {
+					None => {
+						Self::deposit_event(Event::TaskNotFound {
+							who: account_id.clone(),
+							task_id: task_id.clone(),
+						});
+						<T as Config>::WeightInfo::run_tasks_many_missing(1)
+					},
+					Some(mut task) => {
+						let task_action_weight = match task.action.clone() {
+							Action::Notify { message } => Self::run_notify_task(message),
+							Action::NativeTransfer { sender, recipient, amount } =>
+								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
+							Action::XCMP { para_id, call, weight_at_most } =>
+								Self::run_xcmp_task(para_id, call, weight_at_most, *task_id),
+							Action::AutoCompoundDelegatedStake {
+								delegator,
+								collator,
+								account_minimum,
+								frequency,
+							} => {
+								let (mut_task, weight) =
+									Self::run_auto_compound_delegated_stake_task(
+										delegator,
+										collator,
+										account_minimum,
+										frequency,
+										*task_id,
+										task,
+									);
+								task = mut_task;
+								weight
+							},
+						};
+						Self::decrement_task_and_remove_if_complete(*task_id, task);
+						task_action_weight
+							.saturating_add(T::DbWeight::get().writes(1 as Weight))
+							.saturating_add(T::DbWeight::get().reads(1 as Weight))
+					},
+				};
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
@@ -1082,9 +1073,9 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_missed_tasks(
-			mut missed_tasks: Vec<MissedTask2<T>>,
+			mut missed_tasks: Vec<MissedTaskV2<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<MissedTask2<T>>, Weight) {
+		) -> (Vec<MissedTaskV2<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for missed_task in missed_tasks.iter() {
 				consumed_task_index += 1;
@@ -1094,6 +1085,7 @@ pub mod pallet {
 					{
 						None => {
 							Self::deposit_event(Event::TaskNotFound {
+								who: missed_task.owner_id.clone(),
 								task_id: missed_task.task_id.clone(),
 							});
 							<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
@@ -1130,8 +1122,8 @@ pub mod pallet {
 		}
 
 		pub fn run_native_transfer_task(
-			sender: T::AccountId,
-			recipient: T::AccountId,
+			sender: AccountOf<T>,
+			recipient: AccountOf<T>,
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
@@ -1176,8 +1168,8 @@ pub mod pallet {
 
 		/// Executes auto compounding delegation and reschedules task on success
 		pub fn run_auto_compound_delegated_stake_task(
-			delegator: T::AccountId,
-			collator: T::AccountId,
+			delegator: AccountOf<T>,
+			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
 			task_id: TaskId<T>,
@@ -1246,7 +1238,7 @@ pub mod pallet {
 		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: Task<T>) {
 			task.executions_left = task.executions_left.saturating_sub(1);
 			if task.executions_left <= 0 {
-				AccountTasks::<T>::remove(task.owner_id, task_id);
+				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			} else {
 				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
 			}
@@ -1275,7 +1267,7 @@ pub mod pallet {
 						for i in 0..task_queue.len() {
 							if task_queue[i].1 == task_id {
 								task_queue.remove(i);
-								TaskQueue2::<T>::put(task_queue);
+								TaskQueueV2::<T>::put(task_queue);
 								found_task = true;
 								break
 							}
@@ -1287,10 +1279,13 @@ pub mod pallet {
 						for i in 0..account_task_ids.len() {
 							if account_task_ids[i].1 == task_id {
 								if account_task_ids.len() == 1 {
-									ScheduledTasks2::<T>::remove(*execution_time);
+									ScheduledTasksV2::<T>::remove(*execution_time);
 								} else {
 									account_task_ids.remove(i);
-									ScheduledTasks2::<T>::insert(*execution_time, account_task_ids);
+									ScheduledTasksV2::<T>::insert(
+										*execution_time,
+										account_task_ids,
+									);
 								}
 								found_task = true;
 								break
@@ -1305,10 +1300,13 @@ pub mod pallet {
 						for i in 0..account_task_ids.len() {
 							if account_task_ids[i].1 == task_id {
 								if account_task_ids.len() == 1 {
-									ScheduledTasks2::<T>::remove(*execution_time);
+									ScheduledTasksV2::<T>::remove(*execution_time);
 								} else {
 									account_task_ids.remove(i);
-									ScheduledTasks2::<T>::insert(*execution_time, account_task_ids);
+									ScheduledTasksV2::<T>::insert(
+										*execution_time,
+										account_task_ids,
+									);
 								}
 								found_task = true;
 								break
@@ -1319,7 +1317,7 @@ pub mod pallet {
 			}
 
 			if !found_task {
-				Self::deposit_event(Event::TaskNotFound { task_id });
+				Self::deposit_event(Event::TaskNotFound { who: task.owner_id.clone(), task_id });
 			}
 
 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
@@ -1343,7 +1341,7 @@ pub mod pallet {
 			if execution_times == vec![0] {
 				let mut task_queue = Self::get_task_queue();
 				task_queue.push((owner_id.clone(), task_id));
-				TaskQueue2::<T>::put(task_queue);
+				TaskQueueV2::<T>::put(task_queue);
 
 				return Ok(task_id)
 			}
@@ -1355,7 +1353,7 @@ pub mod pallet {
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
 		fn insert_scheduled_tasks(
-			owner_id: T::AccountId,
+			owner_id: AccountOf<T>,
 			task_id: TaskId<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<TaskId<T>, Error<T>> {
@@ -1366,13 +1364,13 @@ pub mod pallet {
 						None => {
 							let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
 								vec![account_task_id.clone()].try_into().unwrap();
-							ScheduledTasks2::<T>::insert(*time, account_task_ids);
+							ScheduledTasksV2::<T>::insert(*time, account_task_ids);
 						},
 						Some(mut account_task_ids) => {
 							if let Err(_) = account_task_ids.try_push(account_task_id.clone()) {
 								return Rollback(Err(DispatchError::Other("time slot full")))
 							}
-							<ScheduledTasks2<T>>::insert(*time, account_task_ids);
+							<ScheduledTasksV2<T>>::insert(*time, account_task_ids);
 						},
 					}
 				}
@@ -1386,7 +1384,7 @@ pub mod pallet {
 		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
 			action: Action<T>,
-			owner_id: T::AccountId,
+			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
@@ -1434,7 +1432,7 @@ pub mod pallet {
 		/// Reschedules an existing task for a given number of execution times
 		fn reschedule_existing_task(
 			task_id: TaskId<T>,
-			owner_id: T::AccountId,
+			owner_id: AccountOf<T>,
 			action: &Action<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {

@@ -1,6 +1,5 @@
 use crate::{Config, Weight};
 use frame_support::traits::Get;
-use log;
 
 // Migrating LastTimeSlot from a single time to a tuple.
 // NOTE: The 2 UnixTime stamps represent (last_time_slot, last_missed_slot).
@@ -87,8 +86,8 @@ pub mod v3 {
 	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
-		AccountTaskId, AccountTasks, MissedQueue, MissedQueue2, MissedTask, MissedTask2, Pallet,
-		ScheduledTasks2, Task, TaskId, TaskQueue, TaskQueue2, Vec,
+		AccountTaskId, AccountTasks, MissedQueue, MissedQueueV2, MissedTask, MissedTaskV2, Pallet,
+		ScheduledTasksV2, Task, TaskId, TaskQueue, TaskQueueV2, Vec,
 	};
 
 	use super::*;
@@ -108,7 +107,7 @@ pub mod v3 {
 		});
 		let task_migrated = old_tasks.len() as u64;
 
-		// Move all tasks from ScheduledTasks to ScheduledTasks2
+		// Move all tasks from ScheduledTasks to ScheduledTasksV2
 		let mut times_migrated = 0u64;
 		let old_scheduled_prefix: &[u8] = b"ScheduledTasks";
 		storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(
@@ -131,11 +130,11 @@ pub mod v3 {
 
 			let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
 				new_task_ids.try_into().unwrap();
-			ScheduledTasks2::<T>::insert(time, account_task_ids);
+			ScheduledTasksV2::<T>::insert(time, account_task_ids);
 			times_migrated += 1;
 		});
 
-		// Move all tasks from TaskQueue to TaskQueue2
+		// Move all tasks from TaskQueue to TaskQueueV2
 		let old_task_queue_prefix: &[u8] = b"TaskQueue";
 		let new_task_ids =
 			get_storage_value::<Vec<TaskId<T>>>(pallet_prefix, old_task_queue_prefix, &[])
@@ -150,10 +149,10 @@ pub mod v3 {
 					}
 				})
 				.collect::<Vec<_>>();
-		TaskQueue2::<T>::put(new_task_ids);
+		TaskQueueV2::<T>::put(new_task_ids);
 		TaskQueue::<T>::kill();
 
-		// Move all tasks from MissedQueue to MissedQueue2, and convert from MissedTask to MissedTask2
+		// Move all tasks from MissedQueue to MissedQueueV2, and convert from MissedTask to MissedTaskV2
 		let old_task_queue_prefix: &[u8] = b"MissedQueue";
 		let new_missed_tasks =
 			get_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
@@ -161,7 +160,7 @@ pub mod v3 {
 				.into_iter()
 				.filter_map(|missed_task| {
 					if let Some(task) = old_tasks.get(&missed_task.task_id) {
-						Some(MissedTask2::<T>::create_missed_task(
+						Some(MissedTaskV2::<T>::create_missed_task(
 							task.owner_id.clone(),
 							missed_task.task_id,
 							missed_task.execution_time,
@@ -172,7 +171,7 @@ pub mod v3 {
 					}
 				})
 				.collect::<Vec<_>>();
-		MissedQueue2::<T>::put(new_missed_tasks);
+		MissedQueueV2::<T>::put(new_missed_tasks);
 		MissedQueue::<T>::kill();
 
 		// Set new storage version and return weight

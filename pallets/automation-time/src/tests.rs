@@ -17,8 +17,8 @@
 
 use crate::{
 	migrations::v3, mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedQueue,
-	MissedQueue2, MissedTask, MissedTask2, ScheduledTasks, Task, TaskHashInput, TaskId, TaskQueue,
-	TaskQueue2, Tasks, WeightInfo,
+	MissedQueueV2, MissedTask, MissedTaskV2, ScheduledTasks, Task, TaskHashInput, TaskId,
+	TaskQueue, TaskQueueV2, Tasks, WeightInfo,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, BoundedVec};
@@ -675,7 +675,7 @@ fn cancel_task_not_found() {
 		assert_eq!(
 			events(),
 			[
-				Event::AutomationTime(crate::Event::TaskNotFound { task_id }),
+				Event::AutomationTime(crate::Event::TaskNotFound { who: owner.clone(), task_id }),
 				Event::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
 			]
 		);
@@ -743,7 +743,7 @@ fn trigger_tasks_updates_queues() {
 			vec![SCHEDULED_TIME - 3600],
 			Action::Notify { message: vec![40] },
 		);
-		let missed_task = MissedTask2::<Test>::create_missed_task(
+		let missed_task = MissedTaskV2::<Test>::create_missed_task(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
@@ -776,7 +776,7 @@ fn trigger_tasks_handles_missed_slots() {
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missed_task = MissedTask2::<Test>::create_missed_task(
+		let missed_task = MissedTaskV2::<Test>::create_missed_task(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
@@ -916,15 +916,18 @@ fn trigger_tasks_handles_nonexisting_tasks() {
 		let task_hash_input = TaskHashInput::<Test>::create_hash_input(owner.clone(), vec![20]);
 		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
 		let mut task_queue = AutomationTime::get_task_queue();
-		task_queue.push((owner, bad_task_id));
-		TaskQueue2::<Test>::put(task_queue);
+		task_queue.push((owner.clone(), bad_task_id));
+		TaskQueueV2::<Test>::put(task_queue);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::trigger_tasks(90_000);
 
 		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::TaskNotFound { task_id: bad_task_id }),]
+			[Event::AutomationTime(crate::Event::TaskNotFound {
+				who: owner,
+				task_id: bad_task_id
+			}),]
 		);
 		assert_eq!(0, AutomationTime::get_task_queue().len());
 	})
@@ -1090,7 +1093,7 @@ fn missed_tasks_removes_completed_tasks() {
 
 		let mut task_queue = AutomationTime::get_task_queue();
 		task_queue.push((owner.clone(), task_id01));
-		TaskQueue2::<Test>::put(task_queue);
+		TaskQueueV2::<Test>::put(task_queue);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
@@ -1790,7 +1793,7 @@ fn migration_v3() {
 			)
 		);
 
-		// ScheduledTasks2
+		// ScheduledTasksV2
 		let scheduled_tasks_one = AutomationTime::get_scheduled_tasks(time_one).unwrap();
 		assert_eq!(scheduled_tasks_one.len(), 2);
 		assert_eq!(scheduled_tasks_one[0], (owner_id.clone(), scheduled_task_one_id));
@@ -1800,19 +1803,19 @@ fn migration_v3() {
 		assert_eq!(scheduled_tasks_one[0], (owner_id.clone(), scheduled_task_one_id));
 		assert_eq!(scheduled_tasks_one[1], (owner_id.clone(), scheduled_task_two_id));
 
-		// TaskQueue2
+		// TaskQueueV2
 		let task_queue = AutomationTime::get_task_queue();
 		assert_eq!(task_queue.len(), 2);
 		assert_eq!(task_queue[0], (owner_id.clone(), task_queue_one_id));
 		assert_eq!(task_queue[1], (owner_id.clone(), task_queue_two_id));
 
-		// MissedQueue2
+		// MissedQueueV2
 		let missed_queue = AutomationTime::get_missed_queue();
 		assert_eq!(missed_queue.len(), 2);
 		let missed2_task_one =
-			MissedTask2::<Test>::create_missed_task(owner_id.clone(), missed_queue_one_id, 0);
+			MissedTaskV2::<Test>::create_missed_task(owner_id.clone(), missed_queue_one_id, 0);
 		let missed2_task_two =
-			MissedTask2::<Test>::create_missed_task(owner_id.clone(), missed_queue_two_id, 0);
+			MissedTaskV2::<Test>::create_missed_task(owner_id.clone(), missed_queue_two_id, 0);
 		assert_eq!(missed_queue[0], missed2_task_one);
 		assert_eq!(missed_queue[1], missed2_task_two);
 	})
@@ -1845,7 +1848,7 @@ fn add_task_to_task_queue(
 	let task_id = create_task(owner, provided_id, scheduled_times, action);
 	let mut task_queue = AutomationTime::get_task_queue();
 	task_queue.push((AccountId32::new(owner), task_id));
-	TaskQueue2::<Test>::put(task_queue);
+	TaskQueueV2::<Test>::put(task_queue);
 	task_id
 }
 
@@ -1856,14 +1859,14 @@ fn add_task_to_missed_queue(
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
-	let missed_task = MissedTask2::<Test>::create_missed_task(
+	let missed_task = MissedTaskV2::<Test>::create_missed_task(
 		AccountId32::new(owner),
 		task_id,
 		scheduled_times[0],
 	);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(missed_task);
-	MissedQueue2::<Test>::put(missed_queue);
+	MissedQueueV2::<Test>::put(missed_queue);
 	task_id
 }
 
