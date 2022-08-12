@@ -64,9 +64,15 @@ pub mod pallet {
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 	type UnixTime = u64;
 	type AssetName = Vec<u8>;
-	type AssetDirection = u8;
+	type AssetDirection = Direction;
 	type AssetPrice = u128;
 	type AssetPercentage = u128;
+
+	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+	pub enum Direction {
+		Up,
+		Down,
+	}
 
 	/// The enum that stores all action specific data.
 	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
@@ -128,11 +134,10 @@ pub mod pallet {
 
 	#[derive(Debug, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub struct AssetMetadatum<T: Config> {
+	pub struct AssetMetadatum {
 		upper_bound: u16,
 		lower_bound: u8,
 		expiration_period: UnixTime,
-		asset_sudo: AccountOf<T>,
 	}
 
 	#[pallet::config]
@@ -218,7 +223,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_metadata)]
-	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetMetadatum<T>>;
+	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetMetadatum>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_number_of_assets)]
@@ -394,7 +399,6 @@ pub mod pallet {
 						target_price,
 						upper_bound,
 						lower_bound,
-						asset_owner,
 						expiration_period,
 						number_of_assets,
 					)?;
@@ -405,7 +409,6 @@ pub mod pallet {
 					target_price,
 					upper_bound,
 					lower_bound,
-					asset_owner,
 					expiration_period,
 					0,
 				)?;
@@ -429,16 +432,7 @@ pub mod pallet {
 			asset: AssetName,
 			value: AssetPrice,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
-				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
-				if asset_sudo != who {
-					Err(Error::<T>::InvalidAssetSudo)?
-				}
-			}
-			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
-			T::FeeHandler::can_pay_fee(&who.clone(), fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			ensure_root(origin)?;
 			if let Some(asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
 				let last_asset_price: AssetPrice = match Self::get_asset_price(asset.clone()) {
 					None => Err(Error::<T>::AssetNotSupported)?,
@@ -462,19 +456,17 @@ pub mod pallet {
 						asset.clone(),
 						asset_last_percentage,
 						asset_update_percentage,
-						1,
+						Direction::Up,
 					)?;
 				} else {
 					Self::move_scheduled_tasks(
 						asset.clone(),
 						asset_last_percentage,
 						asset_update_percentage,
-						0,
+						Direction::Down,
 					)?;
 				}
 				AssetPrices::<T>::insert(asset.clone(), value);
-				T::FeeHandler::withdraw_fee(&who, fee.clone())
-					.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 				Self::deposit_event(Event::AssetUpdated { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
@@ -589,16 +581,14 @@ pub mod pallet {
 			target_price: AssetPrice,
 			upper_bound: u16,
 			lower_bound: u8,
-			asset_owner: AccountOf<T>,
 			expiration_period: UnixTime,
 			number_of_assets: u8,
 		) -> Result<(), DispatchError> {
 			AssetBaselinePrices::<T>::insert(asset.clone(), target_price);
-			let asset_metadatum = AssetMetadatum::<T> {
+			let asset_metadatum = AssetMetadatum {
 				upper_bound,
 				lower_bound,
 				expiration_period,
-				asset_sudo: asset_owner.clone(),
 			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
@@ -767,8 +757,8 @@ pub mod pallet {
 				None => Err(Error::<T>::AssetNotSupported)?,
 				Some(asset_price) => asset_price,
 			};
-			match direction {
-				0 =>
+			match direction.clone() {
+				Direction::Down =>
 					if last_asset_price < asset_target_price {
 						let last_asset_percentage =
 							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
@@ -776,7 +766,7 @@ pub mod pallet {
 							Err(Error::<T>::AssetNotInTriggerableRange)?
 						}
 					},
-				1 =>
+				Direction::Up =>
 					if last_asset_price > asset_target_price {
 						let last_asset_percentage =
 							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
@@ -791,7 +781,7 @@ pub mod pallet {
 				who.clone(),
 				provided_id.clone(),
 				asset.clone(),
-				direction,
+				direction.clone(),
 				trigger_percentage,
 			)?;
 			let action = Action::NativeTransfer { sender: who.clone(), recipient, amount };
@@ -831,7 +821,7 @@ pub mod pallet {
 					for task in asset_tasks {
 						existing_task_queue.push((asset.clone(), task));
 					}
-					<ScheduledTasks<T>>::remove((asset.clone(), direction, percentage));
+					<ScheduledTasks<T>>::remove((asset.clone(), direction.clone(), percentage));
 				}
 			}
 			TaskQueue::<T>::put(existing_task_queue);
