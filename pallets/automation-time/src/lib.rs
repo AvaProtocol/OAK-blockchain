@@ -61,7 +61,6 @@ use frame_support::{
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
-use log::info;
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
@@ -502,17 +501,6 @@ pub mod pallet {
 			let max_weight: Weight =
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
-		}
-
-		fn on_runtime_upgrade() -> Weight {
-			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
-			info!("on chain storage version, {:?}", on_chain_storage_version);
-			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v3::migrate::<T>()
-			} else {
-				info!("migration already run before");
-				0
-			}
 		}
 	}
 

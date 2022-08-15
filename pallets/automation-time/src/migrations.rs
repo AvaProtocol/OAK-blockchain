@@ -1,5 +1,8 @@
 use crate::{Config, Weight};
-use frame_support::traits::Get;
+use frame_support::{
+	pallet_prelude::PhantomData,
+	traits::{Get, OnRuntimeUpgrade},
+};
 
 // Migrating LastTimeSlot from a single time to a tuple.
 // NOTE: The 2 UnixTime stamps represent (last_time_slot, last_missed_slot).
@@ -75,8 +78,9 @@ use frame_support::traits::Get;
 // 	}
 // }
 
-// Use a double map for tasks (accountId, taskId)
 pub mod v3 {
+	use super::*;
+
 	use frame_support::{
 		migration::{storage_key_iter, take_storage_value},
 		traits::StorageVersion,
@@ -90,120 +94,178 @@ pub mod v3 {
 		ScheduledTasksV2, Task, TaskId, TaskQueueV2, Vec,
 	};
 
-	use super::*;
+	// Use a double map for tasks (accountId, taskId)
+	pub struct MigrateToV3<T>(PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<(), &'static str> {
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
 
-	pub fn migrate<T: Config>() -> Weight {
-		log::info!(target: "automation-time", "Migrating automation-time v3");
-		let pallet_prefix: &[u8] = b"AutomationTime";
+			assert!(StorageVersion::get::<Pallet<T>>() <= 2, "Storage version too high.");
 
-		// Move all tasks from Tasks to AccountTasks
-		let old_tasks_prefix: &[u8] = b"Tasks";
-		let old_tasks =
-			storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, old_tasks_prefix)
-				.drain()
-				.collect::<btree_map::BTreeMap<T::Hash, Task<T>>>();
-		old_tasks.iter().for_each(|(task_id, task)| {
-			AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task.clone());
-		});
-		let task_migrated = old_tasks.len() as u64;
+			let pallet_prefix: &[u8] = b"AutomationTime";
 
-		// Move all tasks from ScheduledTasks to ScheduledTasksV2
-		let mut times_migrated = 0u64;
-		let old_scheduled_prefix: &[u8] = b"ScheduledTasks";
-		storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(
-			pallet_prefix,
-			old_scheduled_prefix,
-		)
-		.drain()
-		.for_each(|(time, task_ids)| {
-			let new_task_ids = task_ids
-				.into_iter()
-				.filter_map(|task_id| {
-					if let Some(task) = old_tasks.get(&task_id) {
-						Some((task.owner_id.clone(), task_id))
-					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
-						None
-					}
-				})
-				.collect::<Vec<_>>();
+			// Get count of tasks
+			let tasks_prefix: &[u8] = b"Tasks";
+			let pre_task_count =
+				storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix)
+					.collect::<Vec<_>>()
+					.len() as u32;
+			Self::set_temp_storage::<u32>(pre_task_count, "pre_task_count");
 
-			let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
-				new_task_ids.try_into().unwrap();
-			ScheduledTasksV2::<T>::insert(time, account_task_ids);
-			times_migrated += 1;
-		});
+			// Get count per scheduled time
 
-		// Move all tasks from TaskQueue to TaskQueueV2
-		let old_task_queue_prefix: &[u8] = b"TaskQueue";
-		let new_task_ids =
-			take_storage_value::<Vec<TaskId<T>>>(pallet_prefix, old_task_queue_prefix, &[])
-				.unwrap_or(vec![])
-				.into_iter()
-				.filter_map(|task_id| {
-					if let Some(task) = old_tasks.get(&task_id) {
-						Some((task.owner_id.clone(), task_id))
-					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
-						None
-					}
-				})
-				.collect::<Vec<_>>();
-		TaskQueueV2::<T>::put(new_task_ids);
+			// Get count of tasks in task queue
 
-		// Move all tasks from MissedQueue to MissedQueueV2, and convert from MissedTask to MissedTaskV2
-		let old_task_queue_prefix: &[u8] = b"MissedQueue";
-		let new_missed_tasks =
-			take_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
-				.unwrap_or(vec![])
-				.into_iter()
-				.filter_map(|missed_task| {
-					if let Some(task) = old_tasks.get(&missed_task.task_id) {
-						Some(MissedTaskV2::<T>::create_missed_task(
-							task.owner_id.clone(),
-							missed_task.task_id,
-							missed_task.execution_time,
-						))
-					} else {
-						log::debug!(target: "automation-time", "Unable to get task with id {:?}", missed_task.task_id);
-						None
-					}
-				})
-				.collect::<Vec<_>>();
-		MissedQueueV2::<T>::put(new_missed_tasks);
+			// Get count of tasks in missed queue
 
-		// Set new storage version and return weight
-		StorageVersion::new(3).put::<Pallet<T>>();
+			log::debug!(
+				target: "automation-time",
+				"migration: AutomationTime storage version v3 PRE migration checks succesful!"
+			);
 
-		// For each task there is
-		// 1 read to get it into memory from Tasks
-		// 1 write to remove it from Tasks
-		// 1 write to add it to AccountTasks
-		let weight = T::DbWeight::get().reads_writes(task_migrated + 1, task_migrated * 2);
+			Ok(())
+		}
 
-		// For each time in scheduled tasks there is
-		// 1 read to get it into memory
-		// 1 write to remove it from the old scheduled tasks
-		// 1 write to add it to the new scheduled tasks
-		let weight =
-			weight + T::DbWeight::get().reads_writes(times_migrated + 1, times_migrated * 2);
+		fn on_runtime_upgrade() -> Weight {
+			log::info!(target: "automation-time", "Migrating automation-time v3");
+			let pallet_prefix: &[u8] = b"AutomationTime";
 
-		// For the task queue there is
-		// 1 read to get it into memory
-		// 1 write to remove it from the old task queue
-		// 1 write to add it to the new task queue
-		let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+			// Move all tasks from Tasks to AccountTasks
+			let old_tasks_prefix: &[u8] = b"Tasks";
+			let old_tasks =
+				storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, old_tasks_prefix)
+					.drain()
+					.collect::<btree_map::BTreeMap<T::Hash, Task<T>>>();
+			old_tasks.iter().for_each(|(task_id, task)| {
+				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task.clone());
+			});
+			let task_migrated = old_tasks.len() as u64;
 
-		// For the mised queue there is
-		// 1 read to get it into memory
-		// 1 write to remove it from the old task queue
-		// 1 write to add it to the new task queue
-		let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+			// Move all tasks from ScheduledTasks to ScheduledTasksV2
+			let mut times_migrated = 0u64;
+			let old_scheduled_prefix: &[u8] = b"ScheduledTasks";
+			storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(
+				pallet_prefix,
+				old_scheduled_prefix,
+			)
+			.drain()
+			.for_each(|(time, task_ids)| {
+				let new_task_ids = task_ids
+					.into_iter()
+					.filter_map(|task_id| {
+						if let Some(task) = old_tasks.get(&task_id) {
+							Some((task.owner_id.clone(), task_id))
+						} else {
+							log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
+							None
+						}
+					})
+					.collect::<Vec<_>>();
 
-		// For the new storage version
-		let weight = weight + T::DbWeight::get().writes(1);
+				let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
+					new_task_ids.try_into().unwrap();
+				ScheduledTasksV2::<T>::insert(time, account_task_ids);
+				times_migrated += 1;
+			});
 
-		// Adding a buffer for the rest of the code
-		weight + 100_000_000
+			// Move all tasks from TaskQueue to TaskQueueV2
+			let old_task_queue_prefix: &[u8] = b"TaskQueue";
+			let new_task_ids =
+				take_storage_value::<Vec<TaskId<T>>>(pallet_prefix, old_task_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.into_iter()
+					.filter_map(|task_id| {
+						if let Some(task) = old_tasks.get(&task_id) {
+							Some((task.owner_id.clone(), task_id))
+						} else {
+							log::debug!(target: "automation-time", "Unable to get task with id {:?}", task_id);
+							None
+						}
+					})
+					.collect::<Vec<_>>();
+			TaskQueueV2::<T>::put(new_task_ids);
+
+			// Move all tasks from MissedQueue to MissedQueueV2, and convert from MissedTask to MissedTaskV2
+			let old_task_queue_prefix: &[u8] = b"MissedQueue";
+			let new_missed_tasks =
+				take_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.into_iter()
+					.filter_map(|missed_task| {
+						if let Some(task) = old_tasks.get(&missed_task.task_id) {
+							Some(MissedTaskV2::<T>::create_missed_task(
+								task.owner_id.clone(),
+								missed_task.task_id,
+								missed_task.execution_time,
+							))
+						} else {
+							log::debug!(target: "automation-time", "Unable to get task with id {:?}", missed_task.task_id);
+							None
+						}
+					})
+					.collect::<Vec<_>>();
+			MissedQueueV2::<T>::put(new_missed_tasks);
+
+			// Set new storage version and return weight
+			StorageVersion::new(3).put::<Pallet<T>>();
+
+			// For each task there is
+			// 1 read to get it into memory from Tasks
+			// 1 write to remove it from Tasks
+			// 1 write to add it to AccountTasks
+			let weight = T::DbWeight::get().reads_writes(task_migrated + 1, task_migrated * 2);
+
+			// For each time in scheduled tasks there is
+			// 1 read to get it into memory
+			// 1 write to remove it from the old scheduled tasks
+			// 1 write to add it to the new scheduled tasks
+			let weight =
+				weight + T::DbWeight::get().reads_writes(times_migrated + 1, times_migrated * 2);
+
+			// For the task queue there is
+			// 1 read to get it into memory
+			// 1 write to remove it from the old task queue
+			// 1 write to add it to the new task queue
+			let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+
+			// For the mised queue there is
+			// 1 read to get it into memory
+			// 1 write to remove it from the old task queue
+			// 1 write to add it to the new task queue
+			let weight = weight + T::DbWeight::get().reads_writes(1, 2);
+
+			// For the new storage version
+			let weight = weight + T::DbWeight::get().writes(1);
+
+			// Adding a buffer for the rest of the code
+			weight + 100_000_000
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade() -> Result<(), &'static str> {
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+			assert!(StorageVersion::get::<Pallet<T>>() == 3, "Storage version not set properly.");
+
+			let pallet_prefix: &[u8] = b"AutomationTime";
+
+			// Task count should not have changed
+			let tasks_prefix: &[u8] = b"AccountTasks";
+			let post_task_count =
+				storage_key_iter::<T::Hash, Task<T>, Twox64Concat>(pallet_prefix, tasks_prefix)
+					.collect::<Vec<_>>()
+					.len() as u32;
+			let pre_task_count = Self::get_temp_storage::<u32>("pre_task_count").unwrap();
+			assert_eq!(pre_task_count, post_task_count);
+
+			// Tasks count per scheduled time should not have changed
+
+			// Number of tasks in task queue should not have changed
+
+			// Number of tasks in missed queue should not have changed
+
+			Ok(())
+		}
 	}
 }

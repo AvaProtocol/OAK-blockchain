@@ -21,7 +21,11 @@ use crate::{
 	TaskQueue, TaskQueueV2, Tasks, WeightInfo,
 };
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize, BoundedVec};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{OnInitialize, OnRuntimeUpgrade},
+	BoundedVec,
+};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
 use sp_runtime::{
@@ -1721,7 +1725,7 @@ fn migration_v3() {
 		let missed_task_two = MissedTask::<Test>::create_missed_task(missed_queue_two_id, 0);
 		MissedQueue::<Test>::put(vec![missed_task_one, missed_task_two]);
 
-		v3::migrate::<Test>();
+		v3::MigrateToV3::<Test>::on_runtime_upgrade();
 
 		// Check to see that the new storage contains the right items
 
