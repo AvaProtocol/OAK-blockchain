@@ -20,6 +20,7 @@ name = "oak-collator"
 path = "src/main.rs"
 
 [features]
+#default = ["try-runtime"]
 runtime-benchmarks = [
     "neumann-runtime/runtime-benchmarks",
     "turing-runtime/runtime-benchmarks",
@@ -28,6 +29,7 @@ runtime-benchmarks = [
 neumann-node = ["neumann-runtime"]
 turing-node = ["turing-runtime"]
 all-nodes = ["neumann-node", "turing-node"]
+try-runtime = ["try-runtime-cli", "turing-runtime/try-runtime"]
 
 [dependencies]
 async-trait = "0.1.48"
@@ -52,6 +54,7 @@ primitives = {path = "../primitives"}
 # Substrate Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", optional = true }
 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 
