@@ -138,7 +138,7 @@ pub mod pallet {
 		upper_bound: u16,
 		lower_bound: u8,
 		expiration_period: UnixTime,
-		asset_sudo: AccountOf<T>
+		asset_sudo: AccountOf<T>,
 	}
 
 	#[pallet::config]
@@ -600,7 +600,12 @@ pub mod pallet {
 			number_of_assets: u8,
 		) -> Result<(), DispatchError> {
 			AssetBaselinePrices::<T>::insert(asset.clone(), target_price);
-			let asset_metadatum = AssetMetadatum::<T> { upper_bound, lower_bound, expiration_period, asset_sudo: asset_owner.clone() };
+			let asset_metadatum = AssetMetadatum::<T> {
+				upper_bound,
+				lower_bound,
+				expiration_period,
+				asset_sudo: asset_owner.clone(),
+			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
 			<ScheduledAssetDeletion<T>>::insert(new_time_slot, vec![asset.clone()]);
