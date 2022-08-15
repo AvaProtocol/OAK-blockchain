@@ -72,4 +72,3 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 ]
-dev-queue = []
