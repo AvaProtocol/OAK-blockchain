@@ -1259,9 +1259,7 @@ impl_runtime_apis! {
 					encoded_call_weight,
 				).map_err(|e| {
 					match e {
-						DispatchError::Module(ModuleError{
-							message: Some("CurrencyChainComboNotFound"), ..
-						})=> "currency chain combination not supported",
+						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
 						_ => "cannot get xcmp fee"
 					}
 				})?.0;
