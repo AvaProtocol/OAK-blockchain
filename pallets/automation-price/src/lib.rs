@@ -134,10 +134,11 @@ pub mod pallet {
 
 	#[derive(Debug, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub struct AssetMetadatum {
+	pub struct AssetMetadatum<T: Config> {
 		upper_bound: u16,
 		lower_bound: u8,
 		expiration_period: UnixTime,
+		asset_sudo: AccountOf<T>,
 	}
 
 	#[pallet::config]
@@ -223,7 +224,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_asset_metadata)]
-	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetMetadatum>;
+	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetMetadatum<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_number_of_assets)]
@@ -399,6 +400,7 @@ pub mod pallet {
 						target_price,
 						upper_bound,
 						lower_bound,
+						asset_owner,
 						expiration_period,
 						number_of_assets,
 					)?;
@@ -409,6 +411,7 @@ pub mod pallet {
 					target_price,
 					upper_bound,
 					lower_bound,
+					asset_owner,
 					expiration_period,
 					0,
 				)?;
@@ -432,7 +435,16 @@ pub mod pallet {
 			asset: AssetName,
 			value: AssetPrice,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			let who = ensure_signed(origin)?;
+			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
+				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
+				if asset_sudo != who {
+					Err(Error::<T>::InvalidAssetSudo)?
+				}
+			}
+			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
+			T::FeeHandler::can_pay_fee(&who.clone(), fee.clone())
+				.map_err(|_| Error::<T>::InsufficientBalance)?;
 			if let Some(asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
 				let last_asset_price: AssetPrice = match Self::get_asset_price(asset.clone()) {
 					None => Err(Error::<T>::AssetNotSupported)?,
@@ -467,6 +479,8 @@ pub mod pallet {
 					)?;
 				}
 				AssetPrices::<T>::insert(asset.clone(), value);
+				T::FeeHandler::withdraw_fee(&who, fee.clone())
+					.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 				Self::deposit_event(Event::AssetUpdated { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
@@ -581,11 +595,17 @@ pub mod pallet {
 			target_price: AssetPrice,
 			upper_bound: u16,
 			lower_bound: u8,
+			asset_owner: AccountOf<T>,
 			expiration_period: UnixTime,
 			number_of_assets: u8,
 		) -> Result<(), DispatchError> {
 			AssetBaselinePrices::<T>::insert(asset.clone(), target_price);
-			let asset_metadatum = AssetMetadatum { upper_bound, lower_bound, expiration_period };
+			let asset_metadatum = AssetMetadatum::<T> {
+				upper_bound,
+				lower_bound,
+				expiration_period,
+				asset_sudo: asset_owner.clone(),
+			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
 			<ScheduledAssetDeletion<T>>::insert(new_time_slot, vec![asset.clone()]);
