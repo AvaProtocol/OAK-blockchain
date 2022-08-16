@@ -474,7 +474,8 @@ pub mod pallet {
 			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
 			info!("on chain storage version, {:?}", on_chain_storage_version);
 			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v2::migrate::<T>()
+				// migrations::v2::migrate::<T>()
+				0
 			} else {
 				info!("migration already run before");
 				0
