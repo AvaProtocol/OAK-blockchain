@@ -28,24 +28,30 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
 };
 
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
+use xcm::{
+	latest::{prelude::*, MultiLocation, NetworkId},
+	v1::Junction::Parachain,
+};
+use xcm_builder::Account32Hash;
+use xcm_executor::traits::Convert;
 
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EnsureOneOf, Imbalance, InstanceFilter,
-		OnUnbalanced, PrivilegeCmp,
+		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, Imbalance,
+		InstanceFilter, OnUnbalanced, PrivilegeCmp,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -66,6 +72,9 @@ pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
+// Cumulus Imports
+use cumulus_pallet_parachain_system::RelayNumberStrictlyIncreases;
+
 // Polkadot Imports
 use polkadot_runtime_common::BlockHashCount;
 
@@ -82,6 +91,7 @@ use primitives::{
 };
 
 // Custom pallet imports
+pub use pallet_automation_price;
 pub use pallet_automation_time;
 
 /// Block type as expected by this runtime.
@@ -147,10 +157,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("neumann"),
 	impl_name: create_runtime_str!("neumann"),
 	authoring_version: 1,
-	spec_version: 284,
+	spec_version: 285,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 10,
+	transaction_version: 11,
 	state_version: 0,
 };
 
@@ -204,6 +214,10 @@ pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
 #[cfg(feature = "std")]
 pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
+}
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Any;
 }
 
 parameter_types! {
@@ -332,11 +346,11 @@ parameter_types! {
 	pub const SubAccountDeposit:  Balance = 1 * DOLLAR; // 53 bytes on-chain
 }
 
-type ForceOrigin = EnsureOneOf<
+type ForceOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 >;
-type RegistrarOrigin = EnsureOneOf<
+type RegistrarOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 >;
@@ -559,6 +573,7 @@ where
 }
 
 impl pallet_transaction_payment::Config for Runtime {
+	type Event = Event;
 	type OnChargeTransaction =
 		pallet_transaction_payment::CurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
@@ -576,11 +591,12 @@ impl cumulus_pallet_parachain_system::Config for Runtime {
 	type Event = Event;
 	type OnSystemEvent = ();
 	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type OutboundXcmpMessageSource = XcmpQueue;
 	type DmpMessageHandler = DmpQueue;
 	type ReservedDmpWeight = ReservedDmpWeight;
-	type OutboundXcmpMessageSource = XcmpQueue;
 	type XcmpMessageHandler = XcmpQueue;
 	type ReservedXcmpWeight = ReservedXcmpWeight;
+	type CheckAssociatedRelayNumber = RelayNumberStrictlyIncreases;
 }
 
 impl parachain_info::Config for Runtime {}
@@ -712,7 +728,7 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
 }
 
-type MoreThanHalfCouncil = EnsureOneOf<
+type MoreThanHalfCouncil = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 >;
@@ -758,11 +774,11 @@ parameter_types! {
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type ApproveOrigin = EnsureOneOf<
+	type ApproveOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 5>,
 	>;
-	type RejectOrigin = EnsureOneOf<
+	type RejectOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
 	>;
@@ -777,6 +793,7 @@ impl pallet_treasury::Config for Runtime {
 	type SpendFunds = Bounties;
 	type WeightInfo = pallet_treasury::weights::SubstrateWeight<Runtime>;
 	type MaxApprovals = ConstU32<100>;
+	type SpendOrigin = frame_support::traits::NeverEnsureOrigin<Balance>; // Same as Polkadot
 }
 
 parameter_types! {
@@ -800,7 +817,7 @@ parameter_types! {
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
-type ScheduleOrigin = EnsureOneOf<
+type ScheduleOrigin = EitherOfDiverse<
 	EnsureRoot<AccountId>,
 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
 >;
@@ -881,14 +898,14 @@ impl pallet_democracy::Config for Runtime {
 	type InstantAllowed = InstantAllowed;
 	type FastTrackVotingPeriod = FastTrackVotingPeriod;
 	// To cancel a proposal which has been passed, 2/3 of the council must agree to it.
-	type CancellationOrigin = EnsureOneOf<
+	type CancellationOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 2, 3>,
 	>;
 	type BlacklistOrigin = EnsureRoot<AccountId>;
 	// To cancel a proposal before it has been passed, the technical committee must be unanimous or
 	// Root must agree.
-	type CancelProposalOrigin = EnsureOneOf<
+	type CancelProposalOrigin = EitherOfDiverse<
 		EnsureRoot<AccountId>,
 		pallet_collective::EnsureProportionAtLeast<AccountId, TechnicalCollective, 1, 1>,
 	>;
@@ -943,10 +960,23 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
+	type CurrencyId = CurrencyId;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type Origin = Origin;
 	type XcmSender = xcm_config::XcmRouter;
 	type DelegatorActions = ParachainStaking;
+}
+
+impl pallet_automation_price::Config for Runtime {
+	type Event = Event;
+	type MaxTasksPerSlot = ConstU32<1>;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
+	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type Currency = Balances;
+	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
 }
 
 pub struct ClosedCallFilter;
@@ -968,6 +998,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
+	type AutomationPrice = AutomationPrice;
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -995,7 +1026,7 @@ construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
 		Currencies: orml_currencies::{Pallet, Call} = 12,
-		TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 13,
+		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 13,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -1032,6 +1063,7 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>} = 62,
+		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
 
@@ -1133,6 +1165,27 @@ impl_runtime_apis! {
 			len: u32,
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
+		}
+	}
+
+	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
+		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
+			let parachain_id: u32 = ParachainInfo::parachain_id().into();
+
+			let multiloc = MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachain_id),
+					Junction::AccountId32 { network: Any, id: account_id.into() },
+				),
+			);
+
+			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
+				.map_err(|_| "unable to convert account".into())
+		}
+
+		fn fees(_encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
+			Ok(10_000_000 as Balance)
 		}
 	}
 
