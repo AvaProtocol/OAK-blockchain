@@ -63,6 +63,9 @@ pub mod pallet {
 
 		/// The AutomationTime pallet.
 		type AutomationTime: Shutdown;
+
+		/// The AutomationTime pallet.
+		type AutomationPrice: Shutdown;
 	}
 
 	#[pallet::event]
@@ -248,6 +251,32 @@ pub mod pallet {
 			ensure!(T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyRunnung);
 
 			T::AutomationTime::restart();
+			Self::deposit_event(Event::ScheduledTasksResumed);
+
+			Ok(())
+		}
+
+		/// Stop all scheduled tasks from running.
+		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
+		pub fn stop_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(!T::AutomationPrice::is_shutdown(), Error::<T>::ScheduledTasksAlreadyStopped);
+
+			T::AutomationPrice::shutdown();
+			Self::deposit_event(Event::ScheduledTasksStopped);
+
+			Ok(())
+		}
+
+		/// Allow scheduled tasks to run again.
+		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
+		pub fn start_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
+			ensure_root(origin)?;
+
+			ensure!(T::AutomationPrice::is_shutdown(), Error::<T>::ScheduledTasksAlreadyRunnung);
+
+			T::AutomationPrice::restart();
 			Self::deposit_event(Event::ScheduledTasksResumed);
 
 			Ok(())

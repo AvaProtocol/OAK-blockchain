@@ -34,7 +34,8 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, DispatchError, FixedPointNumber, ModuleError, Percent,
+	RuntimeDebug,
 };
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
@@ -92,6 +93,7 @@ use primitives::{
 };
 
 // Custom pallet imports
+pub use pallet_automation_price;
 pub use pallet_automation_time;
 
 /// Block type as expected by this runtime.
@@ -1025,6 +1027,18 @@ impl pallet_automation_time::Config for Runtime {
 	type DelegatorActions = ParachainStaking;
 }
 
+impl pallet_automation_price::Config for Runtime {
+	type Event = Event;
+	type MaxTasksPerSlot = ConstU32<1>;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
+	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type Currency = Balances;
+	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+}
+
 pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
@@ -1044,6 +1058,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
+	type AutomationPrice = AutomationPrice;
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -1109,6 +1124,7 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>} = 62,
+		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
 
@@ -1233,7 +1249,7 @@ impl_runtime_apis! {
 		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
+				execution_times, para_id, currency_id, encoded_call_weight, ..
 			}) = extrinsic.clone().function {
 				let len = encoded_xt.len() as u32;
 
@@ -1241,7 +1257,12 @@ impl_runtime_apis! {
 					u32::from(para_id),
 					CurrencyId::from(currency_id),
 					encoded_call_weight,
-				).map_err(|_| "cannot get xcmp fee")?.0 * execution_times.len() as u128;
+				).map_err(|e| {
+					match e {
+						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
+						_ => "cannot get xcmp fee"
+					}
+				})?.0 * execution_times.len() as u128;
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
 					.ok_or("cannot get inclusion fee")?
