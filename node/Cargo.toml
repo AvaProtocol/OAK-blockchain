@@ -20,7 +20,6 @@ name = "oak-collator"
 path = "src/main.rs"
 
 [features]
-#default = ["try-runtime"]
 runtime-benchmarks = [
     "neumann-runtime/runtime-benchmarks",
     "turing-runtime/runtime-benchmarks",
