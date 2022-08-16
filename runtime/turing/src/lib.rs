@@ -1045,8 +1045,11 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
+			Call::Currencies(_) => false,
 			Call::ParachainStaking(_) => false,
+			Call::PolkadotXcm(_) => false,
 			Call::Treasury(_) => false,
+			Call::XTokens(_) => false,
 			_ => true,
 		}
 	}
