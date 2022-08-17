@@ -1047,6 +1047,7 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::Bounties(_) => false,
 			Call::ParachainStaking(_) => false,
 			Call::Treasury(_) => false,
+			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -1248,7 +1249,7 @@ impl_runtime_apis! {
 		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
+				provided_id: _provided_id, execution_times, para_id, currency_id, encoded_call: _encoded_call, encoded_call_weight
 			}) = extrinsic.clone().function {
 				let len = encoded_xt.len() as u32;
 
