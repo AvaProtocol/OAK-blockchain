@@ -263,7 +263,6 @@ parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
 	pub const BaseXcmWeight: Weight = 100_000_000;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
-
 }
 
 impl pallet_xcmp_handler::Config for Test {
