@@ -81,7 +81,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	}
 	fn asset_price_update_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().reads(21 as Weight))
 			.saturating_add(T::DbWeight::get().writes(21 as Weight))
