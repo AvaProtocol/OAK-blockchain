@@ -328,10 +328,9 @@ fn transact_in_local_chain_works() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
 		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
-		let asset =
-			MultiAsset {
-				id: Concrete(MultiLocation { parents: 0, interior: Here }),
-				fun: Fungible(xcm_fee),
+		let asset = MultiAsset {
+			id: Concrete(MultiLocation { parents: 0, interior: Here }),
+			fun: Fungible(xcm_fee),
 		};
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
@@ -346,22 +345,23 @@ fn transact_in_local_chain_works() {
 		)
 		.unwrap();
 
-		assert_ok!(
-			XcmpHandler::transact_in_local_chain(local_instructions)
-		);
+		assert_ok!(XcmpHandler::transact_in_local_chain(local_instructions));
 		assert_eq!(
 			transact_asset(),
 			vec![
 				// Withdrawing asset
-				(asset.clone().into(), MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
+				(
+					asset.clone().into(),
+					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
+				),
 				// Depositing asset
-				(asset.clone().into(), MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }),
+				(
+					asset.clone().into(),
+					MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+				),
 			]
 		);
-		assert_eq!(
-			events(),
-			[Event::XcmpHandler(crate::Event::XcmTransactedLocally)]
-		);
+		assert_eq!(events(), [Event::XcmpHandler(crate::Event::XcmTransactedLocally)]);
 	});
 }
 
@@ -373,10 +373,9 @@ fn transact_in_target_chain_works() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
 		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
-		let asset =
-			MultiAsset {
-				id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
-				fun: Fungible(xcm_fee),
+		let asset = MultiAsset {
+			id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
+			fun: Fungible(xcm_fee),
 		};
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
@@ -391,9 +390,7 @@ fn transact_in_target_chain_works() {
 		)
 		.unwrap();
 
-		assert_ok!(
-			XcmpHandler::transact_in_target_chain(para_id, target_instructions)
-		);
+		assert_ok!(XcmpHandler::transact_in_target_chain(para_id, target_instructions));
 		assert_eq!(
 			sent_xcm(),
 			vec![(
@@ -401,15 +398,16 @@ fn transact_in_target_chain_works() {
 				Xcm([
 					ReserveAssetDeposited(asset.into()),
 					BuyExecution {
-						fees: MultiAsset { 
-							id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
+						fees: MultiAsset {
+							id: Concrete(MultiLocation {
+								parents: 1,
+								interior: X1(Parachain(LOCAL_PARA_ID))
+							}),
 							fun: Fungible(xcm_fee),
-						}, 
+						},
 						weight_limit: Limited(xcm_weight),
-					}, 
-					DescendOrigin(
-						X1(AccountId32 { network: Any, id: ALICE.into() }),
-					), 
+					},
+					DescendOrigin(X1(AccountId32 { network: Any, id: ALICE.into() }),),
 					Transact {
 						origin_type: OriginKind::SovereignAccount,
 						require_weight_at_most: transact_encoded_call_weight,
@@ -419,16 +417,16 @@ fn transact_in_target_chain_works() {
 					DepositAsset {
 						assets: Wild(All),
 						max_assets: 1,
-						beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)),
+						beneficiary: MultiLocation {
+							parents: 1,
+							interior: X1(Parachain(LOCAL_PARA_ID)),
 						},
 					},
-				].to_vec()),
+				]
+				.to_vec()),
 			)]
 		);
-		assert_eq!(
-			events(),
-			[Event::XcmpHandler(crate::Event::XcmSent { para_id: 1000 })]
-		);
+		assert_eq!(events(), [Event::XcmpHandler(crate::Event::XcmSent { para_id: 1000 })]);
 	});
 }
 

@@ -244,7 +244,10 @@ pub mod pallet {
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
-		) -> Result<(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>), DispatchError> {
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
 			if currency_id != T::GetNativeCurrencyId::get() {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			}
@@ -291,7 +294,10 @@ pub mod pallet {
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
 			fee: u128,
-		) -> Result<(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>), DispatchError> {
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
 			// XCM for local chain
 			let local_asset = MultiAsset {
 				id: Concrete(MultiLocation::new(0, Here)),
@@ -339,14 +345,12 @@ pub mod pallet {
 		}
 
 		/// Transact XCM instructions on local chain
-		/// 
+		///
 		pub fn transact_in_local_chain(
 			internal_instructions: xcm::v2::Xcm<<T as pallet::Config>::Call>,
 		) -> Result<(), DispatchError> {
-			let local_sovereign_account = MultiLocation::new(
-				1,
-				X1(Parachain(T::SelfParaId::get().into())),
-			);
+			let local_sovereign_account =
+				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
 				.map_or(Weight::max_value(), |w| T::BaseXcmWeight::get().saturating_add(w));
 
@@ -356,7 +360,9 @@ pub mod pallet {
 				internal_instructions.into(),
 				weight,
 				weight,
-			).ensure_complete().map_err(|_| Error::<T>::ErrorTransactingXcmLocally)?;
+			)
+			.ensure_complete()
+			.map_err(|_| Error::<T>::ErrorTransactingXcmLocally)?;
 			Self::deposit_event(Event::XcmTransactedLocally);
 
 			Ok(().into())
@@ -369,10 +375,8 @@ pub mod pallet {
 			target_instructions: xcm::v2::Xcm<()>,
 		) -> Result<(), DispatchError> {
 			// Send to target chain
-			T::XcmSender::send_xcm(
-				(1, Junction::Parachain(para_id.into())),
-				target_instructions,
-			).map_err(|_| Error::<T>::ErrorSendingXcmToTarget)?;
+			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
+				.map_err(|_| Error::<T>::ErrorSendingXcmToTarget)?;
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())
