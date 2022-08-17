@@ -92,29 +92,31 @@ where
 	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
-		let runtime_api_result = api.fees(&at, encoded_xt).map_err(|e| {
-			CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"Unable to get fees",
-				Some(e.to_string()),
-			))
-		})?;
-		runtime_api_result
-			.map(|v| {
-				v.try_into().map_err(|_| {
-					JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-						Error::RuntimeError.into(),
-						"RPC value doesn't fit in u64 representation",
-						Some(format!("RPC value cannot be translated into u64 representation")),
-					)))
-				})
-			})
+
+		api.fees(&at, encoded_xt)
+			.map_err(|e| {
+				// panic errors
+				CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to get fees",
+					Some(e.to_string()),
+				))
+			})?
+			.map_err(|e| {
+				// our named errors
+				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to get fees",
+					Some(String::from_utf8(e).unwrap_or(String::default())),
+				)))
+			})?
+			.try_into()
 			.map_err(|_| {
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
 					"RPC value doesn't fit in u64 representation",
 					Some(format!("RPC value cannot be translated into u64 representation")),
 				)))
-			})?
+			})
 	}
 }
