@@ -61,8 +61,8 @@ frame_support::construct_runtime!(
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
 		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
-		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin} = 51,
-		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin} = 52,
+		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin},
 	}
 );
 
