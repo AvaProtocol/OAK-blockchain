@@ -34,7 +34,8 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, FixedPointNumber, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, DispatchError, FixedPointNumber, ModuleError, Percent,
+	RuntimeDebug,
 };
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
@@ -1045,8 +1046,12 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
+			Call::Currencies(_) => false,
 			Call::ParachainStaking(_) => false,
+			Call::PolkadotXcm(_) => false,
 			Call::Treasury(_) => false,
+			Call::XTokens(_) => false,
+			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -1248,7 +1253,7 @@ impl_runtime_apis! {
 		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				provided_id, execution_times, para_id, currency_id, encoded_call, encoded_call_weight
+				execution_times, para_id, currency_id, encoded_call_weight, ..
 			}) = extrinsic.clone().function {
 				let len = encoded_xt.len() as u32;
 
@@ -1256,7 +1261,12 @@ impl_runtime_apis! {
 					u32::from(para_id),
 					CurrencyId::from(currency_id),
 					encoded_call_weight,
-				).map_err(|_| "cannot get xcmp fee")?.0;
+				).map_err(|e| {
+					match e {
+						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
+						_ => "cannot get xcmp fee"
+					}
+				})?.0;
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
 					.ok_or("cannot get inclusion fee")?
@@ -1342,6 +1352,18 @@ impl_runtime_apis! {
 		}
 	}
 
+	#[cfg(feature = "try-runtime")]
+	impl frame_try_runtime::TryRuntime<Block> for Runtime {
+		fn on_runtime_upgrade() -> (Weight, Weight) {
+			log::info!("try-runtime::on_runtime_upgrade turing.");
+			let weight = Executive::try_runtime_upgrade().unwrap();
+			(weight, RuntimeBlockWeights::get().max_block)
+		}
+
+		fn execute_block_no_check(block: Block) -> Weight {
+			Executive::execute_block_no_check(block)
+		}
+	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {

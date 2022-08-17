@@ -469,17 +469,6 @@ pub mod pallet {
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
 		}
-
-		fn on_runtime_upgrade() -> Weight {
-			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
-			info!("on chain storage version, {:?}", on_chain_storage_version);
-			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v2::migrate::<T>()
-			} else {
-				info!("migration already run before");
-				0
-			}
-		}
 	}
 
 	#[pallet::call]

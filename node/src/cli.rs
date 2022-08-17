@@ -33,6 +33,10 @@ pub enum Subcommand {
 	/// The custom benchmark subcommmand benchmarking runtime pallets.
 	#[clap(subcommand)]
 	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+
+	/// Try some testing command against a specified runtime state.
+	#[cfg(feature = "try-runtime")]
+	TryRuntime(try_runtime_cli::TryRuntimeCmd),
 }
 
 #[derive(Debug, clap::Parser)]
