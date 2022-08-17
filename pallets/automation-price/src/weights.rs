@@ -60,14 +60,14 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	fn reset_asset(v: u32, ) -> Weight {
 		(200_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-			.saturating_add((9_000_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((6 as Weight).saturating_mul(v as Weight)))
+			.saturating_add((20_000_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads((4 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes((5 as Weight).saturating_mul(v as Weight)))
 	}
 	fn update_asset_reset() -> Weight{
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
 	fn delete_asset_tasks() -> Weight{
 		(200_000_000 as Weight)
@@ -76,24 +76,24 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	}
 	fn delete_asset_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(6 as Weight))
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(7 as Weight))
 	}
 	fn asset_price_update_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 			.saturating_add(T::DbWeight::get().reads(21 as Weight))
 			.saturating_add(T::DbWeight::get().writes(21 as Weight))
 	}
 	fn add_asset_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+			.saturating_add(T::DbWeight::get().writes(5 as Weight))
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight{
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(T::DbWeight::get().reads(6 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 }

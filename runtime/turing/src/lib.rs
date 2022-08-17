@@ -1051,6 +1051,7 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::PolkadotXcm(_) => false,
 			Call::Treasury(_) => false,
 			Call::XTokens(_) => false,
+			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
