@@ -29,7 +29,7 @@
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{traits::Get, weights::Weight};
+use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_automation_time.
@@ -46,54 +46,52 @@ pub trait WeightInfo {
 	fn schedule_transfer_task_extrinsic() -> Weight;
 }
 
-/// Weight functions for `pallet_automation_time`.
-pub struct AutomationWeight<T>(PhantomData<T>);
-impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
+impl WeightInfo for () {
 	fn emit_event() -> Weight {
 		(20_000_000 as Weight)
 	}
 	fn run_native_transfer_task() -> Weight {
 		(230_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
 	fn reset_asset(v: u32, ) -> Weight {
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
 			.saturating_add((9_000_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((6 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(RocksDbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(RocksDbWeight::get().writes((6 as Weight).saturating_mul(v as Weight)))
 	}
 	fn update_asset_reset() -> Weight{
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
 	fn delete_asset_tasks() -> Weight{
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	fn delete_asset_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(6 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(6 as Weight))
 	}
 	fn asset_price_update_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-			.saturating_add(T::DbWeight::get().reads(21 as Weight))
-			.saturating_add(T::DbWeight::get().writes(21 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(21 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(21 as Weight))
 	}
 	fn add_asset_extrinsic() -> Weight{
 		(220_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight{
 		(200_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
 	}
 }
