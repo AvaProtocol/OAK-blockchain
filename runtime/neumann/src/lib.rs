@@ -91,6 +91,7 @@ use primitives::{
 };
 
 // Custom pallet imports
+pub use pallet_automation_price;
 pub use pallet_automation_time;
 
 /// Block type as expected by this runtime.
@@ -966,6 +967,18 @@ impl pallet_automation_time::Config for Runtime {
 	type DelegatorActions = ParachainStaking;
 }
 
+impl pallet_automation_price::Config for Runtime {
+	type Event = Event;
+	type MaxTasksPerSlot = ConstU32<1>;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
+	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type Currency = Balances;
+	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
+	type Origin = Origin;
+}
+
 pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
@@ -985,6 +998,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
+	type AutomationPrice = AutomationPrice;
 }
 
 impl pallet_vesting::Config for Runtime {
@@ -1049,6 +1063,7 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>} = 62,
+		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
 

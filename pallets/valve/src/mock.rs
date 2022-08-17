@@ -111,11 +111,33 @@ impl Shutdown for MockAutomationTime {
 	}
 }
 
+pub struct MockAutomationPrice;
+impl Shutdown for MockAutomationPrice {
+	fn is_shutdown() -> bool {
+		MOCK_AUTOMATION_TIME_STORE.with(|s| *s.borrow())
+	}
+	fn shutdown() {
+		MOCK_AUTOMATION_TIME_STORE.with(|l| {
+			let r = *l.borrow();
+			*l.borrow_mut() = true;
+			r
+		});
+	}
+	fn restart() {
+		MOCK_AUTOMATION_TIME_STORE.with(|l| {
+			let r = *l.borrow();
+			*l.borrow_mut() = false;
+			r
+		});
+	}
+}
+
 impl Config for Test {
 	type Event = Event;
 	type WeightInfo = pallet_valve::weights::ValveWeight<Test>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
+	type AutomationPrice = MockAutomationPrice;
 }
 
 /// Externality builder for pallet maintenance mode's mock runtime
