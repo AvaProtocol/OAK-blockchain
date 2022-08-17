@@ -57,7 +57,7 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement, StorageVersion},
+	traits::{Currency, ExistenceRequirement},
 	BoundedVec,
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
@@ -73,10 +73,6 @@ use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::latest::prelude::*;
 
-// NOTE: this is the current storage version for the code.
-// On migration, you will need to increment this.
-const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -84,7 +80,7 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-	type UnixTime = u64;
+	pub type UnixTime = u64;
 	type Seconds = u64;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (<T as frame_system::Config>::AccountId, TaskId<T>);

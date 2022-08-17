@@ -1,3 +1,4 @@
+use super::*;
 use crate::{Config, Weight};
 use frame_support::{
 	pallet_prelude::PhantomData,
@@ -82,8 +83,7 @@ pub mod v3 {
 	use super::*;
 
 	use frame_support::{
-		migration::{storage_key_iter, take_storage_value},
-		traits::StorageVersion,
+		migration::{get_storage_value, storage_key_iter, take_storage_value},
 		BoundedVec, Twox64Concat,
 	};
 	// Does not expose a hashmap
@@ -91,7 +91,7 @@ pub mod v3 {
 
 	use crate::{
 		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2, Pallet,
-		ScheduledTasksV2, Task, TaskId, TaskQueueV2, Vec,
+		ScheduledTasksV2, Task, TaskId, TaskQueueV2, UnixTime, Vec,
 	};
 
 	// Use a double map for tasks (accountId, taskId)
@@ -100,9 +100,6 @@ pub mod v3 {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<(), &'static str> {
 			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
-
-			assert!(StorageVersion::get::<Pallet<T>>() <= 2, "Storage version too high.");
-
 			let pallet_prefix: &[u8] = b"AutomationTime";
 
 			// Get count of tasks
@@ -114,12 +111,37 @@ pub mod v3 {
 			Self::set_temp_storage::<u32>(pre_task_count, "pre_task_count");
 
 			// Get count per scheduled time
+			let scheduled_prefix: &[u8] = b"ScheduledTasks";
+			let mut pre_scheduled_count: Vec<(UnixTime, u32)> = vec![];
+			storage_key_iter::<u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>, Twox64Concat>(
+				pallet_prefix,
+				scheduled_prefix,
+			)
+			.for_each(|(time, task_ids)| {
+				pre_scheduled_count.push((time, task_ids.len() as u32));
+			});
+			Self::set_temp_storage::<Vec<(UnixTime, u32)>>(
+				pre_scheduled_count,
+				"pre_scheduled_count",
+			);
 
 			// Get count of tasks in task queue
+			let task_queue_prefix: &[u8] = b"TaskQueue";
+			let pre_task_queue_count =
+				get_storage_value::<Vec<TaskId<T>>>(pallet_prefix, task_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.len() as u32;
+			Self::set_temp_storage::<u32>(pre_task_queue_count, "pre_task_queue_count");
 
 			// Get count of tasks in missed queue
+			let missed_queue_prefix: &[u8] = b"MissedQueue";
+			let pre_missed_queue_count =
+				get_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, missed_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.len() as u32;
+			Self::set_temp_storage::<u32>(pre_missed_queue_count, "pre_missed_queue_count");
 
-			log::debug!(
+			log::info!(
 				target: "automation-time",
 				"migration: AutomationTime storage version v3 PRE migration checks succesful!"
 			);
@@ -187,24 +209,27 @@ pub mod v3 {
 			TaskQueueV2::<T>::put(new_task_ids);
 
 			// Move all tasks from MissedQueue to MissedQueueV2, and convert from MissedTask to MissedTaskV2
-			let old_task_queue_prefix: &[u8] = b"MissedQueue";
-			let new_missed_tasks =
-				take_storage_value::<Vec<MissedTask<T>>>(pallet_prefix, old_task_queue_prefix, &[])
-					.unwrap_or(vec![])
-					.into_iter()
-					.filter_map(|missed_task| {
-						if let Some(task) = old_tasks.get(&missed_task.task_id) {
-							Some(MissedTaskV2::<T>::create_missed_task(
-								task.owner_id.clone(),
-								missed_task.task_id,
-								missed_task.execution_time,
-							))
-						} else {
-							log::debug!(target: "automation-time", "Unable to get task with id {:?}", missed_task.task_id);
-							None
-						}
-					})
-					.collect::<Vec<_>>();
+			let old_missed_queue_prefix: &[u8] = b"MissedQueue";
+			let new_missed_tasks = take_storage_value::<Vec<MissedTask<T>>>(
+				pallet_prefix,
+				old_missed_queue_prefix,
+				&[],
+			)
+			.unwrap_or(vec![])
+			.into_iter()
+			.filter_map(|missed_task| {
+				if let Some(task) = old_tasks.get(&missed_task.task_id) {
+					Some(MissedTaskV2::<T>::create_missed_task(
+						task.owner_id.clone(),
+						missed_task.task_id,
+						missed_task.execution_time,
+					))
+				} else {
+					log::debug!(target: "automation-time", "Unable to get task with id {:?}", missed_task.task_id);
+					None
+				}
+			})
+			.collect::<Vec<_>>();
 			MissedQueueV2::<T>::put(new_missed_tasks);
 
 			// Set new storage version and return weight
@@ -246,8 +271,6 @@ pub mod v3 {
 		fn post_upgrade() -> Result<(), &'static str> {
 			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
 
-			assert!(StorageVersion::get::<Pallet<T>>() == 3, "Storage version not set properly.");
-
 			let pallet_prefix: &[u8] = b"AutomationTime";
 
 			// Task count should not have changed
@@ -260,10 +283,43 @@ pub mod v3 {
 			assert_eq!(pre_task_count, post_task_count);
 
 			// Tasks count per scheduled time should not have changed
+			let scheduled_prefix: &[u8] = b"ScheduledTasksV2";
+			let mut post_scheduled_count: Vec<(UnixTime, u32)> = vec![];
+			storage_key_iter::<u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>, Twox64Concat>(
+				pallet_prefix,
+				scheduled_prefix,
+			).for_each(|(time, task_ids)| {
+				post_scheduled_count.push((time, task_ids.len() as u32));
+			});
+			let pre_scheduled_count =
+				Self::get_temp_storage::<Vec<(UnixTime, u32)>>("pre_scheduled_count").unwrap();
+			assert_eq!(post_scheduled_count, pre_scheduled_count);
 
 			// Number of tasks in task queue should not have changed
+			let task_queue_prefix: &[u8] = b"TaskQueueV2";
+			let post_task_queue_count =
+				get_storage_value::<Vec<TaskId<T>>>(pallet_prefix, task_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.len() as u32;
+			let pre_task_queue_count =
+				Self::get_temp_storage::<u32>("pre_task_queue_count").unwrap();
+			assert_eq!(post_task_queue_count, pre_task_queue_count);
 
 			// Number of tasks in missed queue should not have changed
+			let missed_queue_prefix: &[u8] = b"MissedQueueV2";
+			let post_missed_queue_count =
+				get_storage_value::<Vec<MissedTaskV2<T>>>(pallet_prefix, missed_queue_prefix, &[])
+					.unwrap_or(vec![])
+					.len() as u32;
+			let pre_missed_queue_count =
+				Self::get_temp_storage::<u32>("pre_missed_queue_count").unwrap();
+			assert_eq!(post_missed_queue_count, pre_missed_queue_count);
+
+			log::info!(
+				target: "automation-time",
+				"migration: AutomationTime storage version v3 POST migration checks succesful! Migrated {} tasks.",
+				post_task_count
+			);
 
 			Ok(())
 		}
