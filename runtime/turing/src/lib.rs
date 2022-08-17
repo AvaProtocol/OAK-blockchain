@@ -1048,6 +1048,7 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::Bounties(_) => false,
 			Call::ParachainStaking(_) => false,
 			Call::Treasury(_) => false,
+			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
