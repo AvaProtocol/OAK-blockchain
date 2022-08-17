@@ -384,7 +384,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
 			ensure_root(origin)?;
-			if expiration_period % 60 != 0 {
+			if expiration_period % 86400 != 0 {
 				Err(Error::<T>::InvalidAssetExpirationWindow)?
 			}
 			if let Some(_asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
