@@ -204,7 +204,7 @@ impl TransactAsset for DummyAssetTransactor {
 	fn withdraw_asset(what: &MultiAsset, who: &MultiLocation) -> Result<Assets, XcmError> {
 		let asset = what.clone();
 		let location = who.clone();
-		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset, location)));
+		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset.clone(), location)));
 		Ok(asset.into())
 	}
 }
