@@ -45,6 +45,7 @@ use xcm_executor::{
 	Assets, XcmExecutor,
 };
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
+pub const LOCAL_PARA_ID: u32 = 2114;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
@@ -132,10 +133,15 @@ impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
 
 thread_local! {
 	pub static SENT_XCM: RefCell<Vec<(MultiLocation,Xcm<()>)>>  = RefCell::new(Vec::new());
+	pub static TRANSACT_ASSET: RefCell<Vec<(MultiAsset,MultiLocation)>>  = RefCell::new(Vec::new());
 }
 
 pub(crate) fn sent_xcm() -> Vec<(MultiLocation, Xcm<()>)> {
 	SENT_XCM.with(|q| (*q.borrow()).clone())
+}
+
+pub(crate) fn transact_asset() -> Vec<(MultiAsset, MultiLocation)> {
+	TRANSACT_ASSET.with(|q| (*q.borrow()).clone())
 }
 
 pub type LocationToAccountId = (
@@ -188,12 +194,17 @@ impl WeightTrader for DummyWeightTrader {
 }
 pub struct DummyAssetTransactor;
 impl TransactAsset for DummyAssetTransactor {
-	fn deposit_asset(_what: &MultiAsset, _who: &MultiLocation) -> XcmResult {
+	fn deposit_asset(what: &MultiAsset, who: &MultiLocation) -> XcmResult {
+		let asset = what.clone();
+		let location = who.clone();
+		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset, location)));
 		Ok(())
 	}
 
-	fn withdraw_asset(_what: &MultiAsset, _who: &MultiLocation) -> Result<Assets, XcmError> {
-		let asset: MultiAsset = (Parent, 100_000).into();
+	fn withdraw_asset(what: &MultiAsset, who: &MultiLocation) -> Result<Assets, XcmError> {
+		let asset = what.clone();
+		let location = who.clone();
+		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset, location)));
 		Ok(asset.into())
 	}
 }
@@ -276,7 +287,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		.expect("Frame system builds valid default genesis config");
 
 	GenesisBuild::<Test>::assimilate_storage(
-		&parachain_info::GenesisConfig { parachain_id: 2114u32.into() },
+		&parachain_info::GenesisConfig { parachain_id: LOCAL_PARA_ID.into() },
 		&mut t,
 	)
 	.expect("Pallet Parachain info can be assimilated");
