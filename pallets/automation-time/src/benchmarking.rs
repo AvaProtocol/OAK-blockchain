@@ -19,6 +19,7 @@
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
+use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::RawOrigin;
 use pallet_timestamp;
 use sp_runtime::traits::Saturating;
@@ -489,5 +490,5 @@ benchmarks! {
 		let missed_task_two = MissedTask::<T>::create_missed_task(missed_queue_two_id, 0);
 		MissedQueue::<T>::put(vec![missed_task_one, missed_task_two]);
 
-	}: { migrations::v3::migrate::<T>() }
+	}: { migrations::v3::MigrateToV3::<T>::on_runtime_upgrade() }
 }

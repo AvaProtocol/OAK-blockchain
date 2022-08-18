@@ -90,7 +90,7 @@ pub mod v3 {
 	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
-		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2, Pallet,
+		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2,
 		ScheduledTasksV2, Task, TaskId, TaskQueueV2, UnixTime, Vec,
 	};
 
@@ -232,9 +232,6 @@ pub mod v3 {
 			.collect::<Vec<_>>();
 			MissedQueueV2::<T>::put(new_missed_tasks);
 
-			// Set new storage version and return weight
-			StorageVersion::new(3).put::<Pallet<T>>();
-
 			// For each task there is
 			// 1 read to get it into memory from Tasks
 			// 1 write to remove it from Tasks
@@ -259,9 +256,6 @@ pub mod v3 {
 			// 1 write to remove it from the old task queue
 			// 1 write to add it to the new task queue
 			let weight = weight + T::DbWeight::get().reads_writes(1, 2);
-
-			// For the new storage version
-			let weight = weight + T::DbWeight::get().writes(1);
 
 			// Adding a buffer for the rest of the code
 			weight + 100_000_000
