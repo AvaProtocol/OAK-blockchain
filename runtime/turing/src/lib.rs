@@ -129,6 +129,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	pallet_automation_time::migrations::v3::MigrateToV3<Runtime>,
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -1341,7 +1342,7 @@ impl_runtime_apis! {
 					AutomationTime::generate_task_id(account_id.clone(), provided_id)
 				})
 				.filter(|task_id| {
-					AutomationTime::get_task(task_id).is_some()
+					AutomationTime::get_account_task(account_id.clone(), task_id).is_some()
 				}).collect()
 		}
 	}

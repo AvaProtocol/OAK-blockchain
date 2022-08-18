@@ -1247,7 +1247,7 @@ impl_runtime_apis! {
 					AutomationTime::generate_task_id(account_id.clone(), provided_id)
 				})
 				.filter(|task_id| {
-					AutomationTime::get_task(task_id).is_some()
+					AutomationTime::get_account_task(account_id.clone(), task_id).is_some()
 				}).collect()
 		}
 	}

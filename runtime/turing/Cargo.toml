@@ -225,6 +225,8 @@ try-runtime = [
 
 	"orml-currencies/try-runtime",
 	"orml-tokens/try-runtime",
+
+	"pallet-automation-time/try-runtime",
 ]
 
 dev-queue = ["pallet-automation-time/dev-queue"]

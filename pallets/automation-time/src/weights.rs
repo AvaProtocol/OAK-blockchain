@@ -254,4 +254,17 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
+	// Storage: AutomationTime Tasks (r:7 w:6)
+	// Storage: AutomationTime ScheduledTasks (r:3 w:2)
+	// Storage: AutomationTime TaskQueue (r:1 w:1)
+	// Storage: AutomationTime MissedQueue (r:1 w:1)
+	// Storage: AutomationTime AccountTasks (r:0 w:6)
+	// Storage: AutomationTime ScheduledTasksV2 (r:0 w:2)
+	// Storage: AutomationTime MissedQueueV2 (r:0 w:1)
+	// Storage: AutomationTime TaskQueueV2 (r:0 w:1)
+	// fn migration_v3() -> Weight {
+	// 	(95_000_000 as Weight)
+	// 		.saturating_add(T::DbWeight::get().reads(12 as Weight))
+	// 		.saturating_add(T::DbWeight::get().writes(20 as Weight))
+	// }
 }
