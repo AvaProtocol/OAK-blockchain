@@ -3,7 +3,6 @@
 staging_uri=wss://rpc.turing-staging.oak.tech:443
 prod_uri=wss://rpc.turing.oak.tech:443
 
-
 PS3="Select environment: "
 select env in staging production
 do
@@ -15,7 +14,6 @@ do
     break
 done
 
-# Run command
 RUST_LOG=runtime=trace,try-runtime::cli=trace,executor=trace \
 cargo run \
 --release \
