@@ -1,8 +1,7 @@
 #!/bin/bash
 
-read -p 'Pallet name: ' pallet
-
-pallet_name=$(echo "$pallet" | tr '-' '_')
+PS3="Pallet name: "
+select pallet_name in $(ls pallets | tr '-' '_'); do break; done 
 
 cargo run \
 --release \
