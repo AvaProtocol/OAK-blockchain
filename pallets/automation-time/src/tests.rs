@@ -261,7 +261,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
 		// Funds not including XCM fees
-		get_funds(alice.clone());
+		get_minimum_funds(alice.clone(), 1);
 
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
@@ -1756,6 +1756,13 @@ fn get_funds(account: AccountId) {
 	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+}
+
+fn get_minimum_funds(account: AccountId, executions: u32) {
+	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 

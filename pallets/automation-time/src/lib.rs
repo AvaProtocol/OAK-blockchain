@@ -1374,6 +1374,7 @@ pub mod pallet {
 				_ => 0u32.into(),
 			};
 
+			// Note: will need to account for fees in non-native tokens once we start accepting them
 			T::FeeHandler::can_pay_fee(
 				&who,
 				fee.clone().saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
