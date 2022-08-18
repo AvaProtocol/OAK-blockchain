@@ -1,0 +1,60 @@
+name: Benchmark
+
+on:
+  pull_request:
+  # workflow_dispatch:
+
+
+jobs:
+  build-binary:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Setup Rust
+        run: rustup show
+      - name: Build
+        run: |
+          cargo build --release --features runtime-benchmarks,turing-node
+          mkdir -p artifacts/
+          cp target/release/oak-collator artifacts/
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: oak-collator
+          path: artifacts/
+  run-benchmarks:
+    name: Run Benchmarks
+    runs-on: self-hosted
+    strategy:
+      matrix:
+        pallet:
+          - automation_time
+          - vesting
+          - valve
+          - xcmp_handler
+    steps:
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: oak-collator
+      - name: Execute pallet benchmark
+        run: |
+          ./target/release/oak-collator
+            benchmark \
+            pallet \
+            --chain turing-dev \
+            --execution wasm \
+            --wasm-execution compiled \
+            --pallet pallet_${{ matrix.pallet }} \
+            --extrinsic '*' \
+            --repeat 20 \
+            --steps 50 \
+            --output ./${{ matrix.pallet }}-raw-weights.rs
+      - name: Upload raw weights
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.pallet }}
+          path: ${{ matrix.pallet }}-raw-weights.rs
