@@ -17,7 +17,8 @@
 use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
-use sp_runtime::traits::Convert;
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::traits::{AccountIdConversion, Convert};
 use xcm::latest::prelude::*;
 
 //*****************
@@ -427,6 +428,38 @@ fn transact_in_target_chain_works() {
 			)]
 		);
 		assert_eq!(events(), [Event::XcmpHandler(crate::Event::XcmSent { para_id: 1000 })]);
+	});
+}
+
+#[test]
+fn pay_xcm_fee_works() {
+	new_test_ext().execute_with(|| {
+		let local_sovereign_account: AccountId =
+			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
+		let fee = 3_500_000;
+		let alice_balance = 8_000_000;
+
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+
+		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
+		assert_eq!(Balances::free_balance(local_sovereign_account), fee);
+	});
+}
+
+#[test]
+fn pay_xcm_fee_keeps_wallet_alive() {
+	new_test_ext().execute_with(|| {
+		let local_sovereign_account: AccountId =
+			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
+		let fee = 3_500_000;
+		let alice_balance = fee;
+
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+
+		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_eq!(Balances::free_balance(ALICE), alice_balance);
+		assert_eq!(Balances::free_balance(local_sovereign_account), 0);
 	});
 }
 
