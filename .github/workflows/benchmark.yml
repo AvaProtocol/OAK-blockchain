@@ -4,6 +4,9 @@ on:
   pull_request:
   # workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-binary:
@@ -28,6 +31,7 @@ jobs:
   run-benchmarks:
     name: Run Benchmarks
     runs-on: self-hosted
+    needs: build-binary
     strategy:
       matrix:
         pallet:
