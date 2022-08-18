@@ -46,6 +46,7 @@ jobs:
           name: oak-collator
       - name: Execute pallet benchmark
         run: |
+          chmod +x oak-collator
           ./oak-collator
             benchmark \
             pallet \
