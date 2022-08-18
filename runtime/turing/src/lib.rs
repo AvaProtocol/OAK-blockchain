@@ -1071,6 +1071,13 @@ impl pallet_vesting::Config for Runtime {
 	type Currency = Balances;
 }
 
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1103,6 +1110,7 @@ construct_runtime!(
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 32,
+		Utility: pallet_utility::{Pallet, Call, Event} = 33,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
