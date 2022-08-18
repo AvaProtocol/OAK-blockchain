@@ -16,10 +16,10 @@ done
 
 RUST_LOG=runtime=trace,try-runtime::cli=trace,executor=trace \
 cargo run \
---release \
---features=turing-node,try-runtime \
-try-runtime \
---chain turing-dev \
-on-runtime-upgrade \
-live \
---uri=$uri
+    --release \
+    --features=turing-node,try-runtime \
+    try-runtime \
+    --chain turing-dev \
+    on-runtime-upgrade \
+    live \
+    --uri=$uri
