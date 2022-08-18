@@ -29,7 +29,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
-use xcm::latest::prelude::*;
 
 const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
@@ -241,7 +240,28 @@ fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
-		get_funds(alice.clone());
+		// Funds including XCM fees
+		get_xcmp_funds(alice.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task(
+			Origin::signed(alice.clone()),
+			vec![50],
+			vec![SCHEDULED_TIME],
+			PARA_ID.try_into().unwrap(),
+			CurrencyId::Native,
+			call.clone(),
+			100_000,
+		));
+	})
+}
+
+#[test]
+fn schedule_xcmp_fails_if_not_enough_funds() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let alice = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		// Funds not including XCM fees
+		get_minimum_funds(alice.clone(), 1);
 
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
@@ -253,7 +273,7 @@ fn schedule_xcmp_works() {
 				call.clone(),
 				100_000,
 			),
-			Error::<Test>::TaskNotSupported,
+			Error::<Test>::InsufficientBalance,
 		);
 	})
 }
@@ -1167,14 +1187,16 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 #[test]
 fn trigger_tasks_completes_some_xcmp_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = add_task_to_task_queue(
+		let para_id = PARA_ID.try_into().unwrap();
+		let task_id = add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
-				para_id: PARA_ID.try_into().unwrap(),
-				call: vec![3, 4, 5],
-				weight_at_most: 100_000,
+				para_id,
+				currency_id: CurrencyId::Native,
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: 100_000,
 			},
 		);
 
@@ -1184,53 +1206,11 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		AutomationTime::trigger_tasks(120_000);
 
 		assert_eq!(
-			sent_xcm(),
-			vec![(
-				(1, Junction::Parachain(PARA_ID.into())).into(),
-				Xcm(vec![Transact {
-					origin_type: OriginKind::Native,
-					require_weight_at_most: 100_000,
-					call: vec![3, 4, 5].into(),
-				}]),
-			)]
-		);
-		assert_eq!(
 			events(),
-			[Event::AutomationTime(crate::Event::SuccessfullySentXCMP {
+			[Event::AutomationTime(crate::Event::XcmpTaskSucceeded {
 				para_id: PARA_ID.try_into().unwrap(),
-				task_id: task_id1
-			}),]
-		);
-	})
-}
-
-#[test]
-fn trigger_tasks_xcmp_sends_error_event() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = add_task_to_task_queue(
-			ALICE,
-			vec![40],
-			vec![SCHEDULED_TIME],
-			Action::XCMP {
-				para_id: PARA_ID.try_into().unwrap(),
-				call: vec![9, 1, 1], // mocked send_xcm will throw an error if call equals vec![9,1,1]
-				weight_at_most: 100_000,
-			},
-		);
-
-		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
-		System::reset_events();
-
-		AutomationTime::trigger_tasks(120_000);
-
-		assert_eq!(sent_xcm(), [],);
-		assert_eq!(
-			events(),
-			[Event::AutomationTime(crate::Event::FailedToSendXCMP {
-				para_id: PARA_ID.try_into().unwrap(),
-				task_id: task_id1,
-				error: SendError::Transport(""),
-			}),]
+				task_id,
+			})]
 		);
 	})
 }
@@ -1777,4 +1757,19 @@ fn get_funds(account: AccountId) {
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+}
+
+fn get_minimum_funds(account: AccountId, executions: u32) {
+	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(executions);
+	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+}
+
+fn get_xcmp_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_xcmp_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	let with_xcm_fees = max_execution_fee + XmpFee::get();
+	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
 }

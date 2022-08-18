@@ -439,6 +439,7 @@ parameter_types! {
 impl pallet_xcmp_handler::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
+	type Currency = pallet_balances::Pallet<Runtime>;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Runtime>;

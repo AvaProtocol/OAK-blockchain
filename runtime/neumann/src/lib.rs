@@ -961,9 +961,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
-	type Origin = Origin;
-	type XcmSender = xcm_config::XcmRouter;
 	type DelegatorActions = ParachainStaking;
 }
 

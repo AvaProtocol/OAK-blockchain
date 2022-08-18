@@ -47,7 +47,6 @@ mod autocompounding;
 pub use autocompounding::*;
 
 use core::convert::TryInto;
-use cumulus_pallet_xcm::Origin as CumulusOrigin;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::DispatchErrorWithPostInfo,
@@ -60,11 +59,11 @@ use frame_support::{
 	traits::{Currency, ExistenceRequirement, StorageVersion},
 	BoundedVec,
 };
-use frame_system::{pallet_prelude::*, Config as SystemConfig};
-use log::info;
+use frame_system::pallet_prelude::*;
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
+use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{CheckedConversion, SaturatedConversion, Saturating},
@@ -72,7 +71,6 @@ use sp_runtime::{
 };
 use sp_std::{vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::latest::prelude::*;
 
 // NOTE: this is the current storage version for the code.
 // On migration, you will need to increment this.
@@ -102,8 +100,9 @@ pub mod pallet {
 		},
 		XCMP {
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 		},
 		AutoCompoundDelegatedStake {
 			delegator: AccountOf<T>,
@@ -127,8 +126,9 @@ pub mod pallet {
 				},
 				AutomationAction::XCMP => Action::XCMP {
 					para_id: ParaId::from(2114 as u32),
-					call: vec![0],
-					weight_at_most: 0,
+					currency_id: T::GetNativeCurrencyId::get(),
+					encoded_call: vec![0],
+					encoded_call_weight: 0,
 				},
 				AutomationAction::AutoCompoundDelegatedStake =>
 					Action::AutoCompoundDelegatedStake {
@@ -220,10 +220,11 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 		) -> Task<T> {
-			let action = Action::XCMP { para_id, call, weight_at_most };
+			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
 			Self::create_task(owner_id, provided_id, execution_times, action)
 		}
 
@@ -317,14 +318,15 @@ pub mod pallet {
 			+ TypeInfo
 			+ MaxEncodedLen;
 
+		/// Utility for sending XCM messages
+		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// The currencyId for the native currency.
+		#[pallet::constant]
+		type GetNativeCurrencyId: Get<Self::CurrencyId>;
+
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
-
-		/// Utility for sending XCM messages
-		type XcmSender: SendXcm;
-
-		type Origin: From<<Self as SystemConfig>::Origin>
-			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
 
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
 	}
@@ -396,8 +398,6 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// ParaId provided does not match origin paraId.
 		ParaIdMismatch,
-		/// Task is currently not supported.
-		TaskNotSupported,
 	}
 
 	#[pallet::event]
@@ -426,15 +426,15 @@ pub mod pallet {
 			task_id: T::Hash,
 		},
 		/// Successfully sent XCMP
-		SuccessfullySentXCMP {
+		XcmpTaskSucceeded {
 			task_id: T::Hash,
 			para_id: ParaId,
 		},
 		/// Failed to send XCMP
-		FailedToSendXCMP {
+		XcmpTaskFailed {
 			task_id: T::Hash,
 			para_id: ParaId,
-			error: SendError,
+			error: DispatchError,
 		},
 		/// Transfer Failed
 		TransferFailed {
@@ -572,8 +572,9 @@ pub mod pallet {
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
-		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the provided call will take.
+		/// * `currency_id`: The currency in which fees will be paid.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
@@ -583,7 +584,7 @@ pub mod pallet {
 		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
 		///
 		/// TODO: Create benchmark for schedule_xcmp_task
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -593,12 +594,10 @@ pub mod pallet {
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 		) -> DispatchResult {
-			// Remove below directive when implemented
-			#![allow(unused_variables)]
-			let _who = ensure_signed(origin)?;
+			let who = ensure_signed(origin)?;
+			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
 
-			Err(Error::<T>::TaskNotSupported)?;
-
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
 
@@ -982,8 +981,19 @@ pub mod pallet {
 									amount,
 									task_id.clone(),
 								),
-							Action::XCMP { para_id, call, weight_at_most } =>
-								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
+							Action::XCMP {
+								para_id,
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+							} => Self::run_xcmp_task(
+								para_id,
+								task.owner_id.clone(),
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+								task_id.clone(),
+							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
 								collator,
@@ -1094,27 +1104,31 @@ pub mod pallet {
 
 		pub fn run_xcmp_task(
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			caller: T::AccountId,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 			task_id: T::Hash,
 		) -> Weight {
-			let destination = (1, Junction::Parachain(para_id.into()));
-			let message = Xcm(vec![Transact {
-				origin_type: OriginKind::Native,
-				require_weight_at_most: weight_at_most,
-				call: call.into(),
-			}]);
-			match T::XcmSender::send_xcm(destination, message) {
+			match T::XcmpTransactor::transact_xcm(
+				para_id.into(),
+				currency_id,
+				caller,
+				encoded_call,
+				encoded_call_weight,
+			) {
 				Ok(()) => {
-					Self::deposit_event(Event::SuccessfullySentXCMP { task_id, para_id });
+					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, para_id });
 				},
 				Err(e) => {
-					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
+					Self::deposit_event(Event::XcmpTaskFailed { task_id, para_id, error: e });
 				},
 			}
-			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+
+			// Adding 2 DB write and 1 read that doesn't get accounted for in the benchmarks to run an xcmp task
 			T::DbWeight::get()
-				.writes(1)
+				.writes(2)
+				.saturating_add(T::DbWeight::get().reads(1))
 				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
 		}
 
@@ -1324,6 +1338,7 @@ pub mod pallet {
 			.map_err(|_| Error::<T>::TimeSlotFull)
 		}
 
+		/// TODO ENG-538: Refactor validate_and_schedule_task function
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
@@ -1345,10 +1360,30 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee =
+			// Execution fee
+			let exeuction_fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+
+			// XCMP fee
+			let xcmp_fee: u128 = match action {
+				Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
+					T::XcmpTransactor::get_xcm_fee(
+						u32::from(para_id),
+						currency_id,
+						encoded_call_weight.clone(),
+					)?
+					.saturating_mul(execution_times.len().try_into().unwrap()),
+				_ => 0u32.into(),
+			};
+
+			// Note: will need to account for fees in non-native tokens once we start accepting them
+			T::FeeHandler::can_pay_fee(
+				&who,
+				exeuction_fee
+					.clone()
+					.saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
+			)
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 			let task_id =
 				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
@@ -1358,13 +1393,20 @@ pub mod pallet {
 				provided_id,
 				execution_times: execution_times.try_into().unwrap(),
 				executions_left,
-				action,
+				action: action.clone(),
 			};
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, exeuction_fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
+
+			// Pay XCMP fees
+			match action {
+				Action::XCMP { .. } =>
+					T::XcmpTransactor::pay_xcm_fee(who.clone(), xcmp_fee).unwrap(),
+				_ => (),
+			};
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
 			Ok(())
