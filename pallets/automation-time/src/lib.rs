@@ -572,6 +572,7 @@ pub mod pallet {
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
+		/// * `currency_id`: The currency in which fees will be paid.
 		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
 		/// * `encoded_call_weight`: Required weight at most the provided call will take.
 		///
@@ -1124,6 +1125,7 @@ pub mod pallet {
 				},
 			}
 
+			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
 			T::DbWeight::get()
 				.writes(1)
 				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
@@ -1358,7 +1360,7 @@ pub mod pallet {
 			}
 
 			// Execution fee
-			let fee =
+			let exeuction_fee =
 				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
 
 			// XCMP fee
@@ -1368,8 +1370,7 @@ pub mod pallet {
 						u32::from(para_id),
 						currency_id,
 						encoded_call_weight.clone(),
-					)
-					.unwrap()
+					)?
 					.saturating_mul(execution_times.len().try_into().unwrap()),
 				_ => 0u32.into(),
 			};
@@ -1377,7 +1378,9 @@ pub mod pallet {
 			// Note: will need to account for fees in non-native tokens once we start accepting them
 			T::FeeHandler::can_pay_fee(
 				&who,
-				fee.clone().saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
+				exeuction_fee
+					.clone()
+					.saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
 			)
 			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1394,7 +1397,7 @@ pub mod pallet {
 			<Tasks<T>>::insert(task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, exeuction_fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
 			// Pay XCMP fees

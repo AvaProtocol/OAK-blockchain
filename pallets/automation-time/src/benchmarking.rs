@@ -89,7 +89,10 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 
 fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-	T::Currency::deposit_creating(&owner, transfer_amount.clone());
+	T::Currency::deposit_creating(
+		&owner,
+		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+	);
 	let para_id: u32 = 2001;
 	let time_moment: u32 = times[0].saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());

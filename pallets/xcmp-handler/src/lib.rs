@@ -415,22 +415,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Get total XCMP fees for all executions of an encoded call.
-		///
-		pub fn get_xcm_fee(
-			para_id: ParachainId,
-			currency_id: T::CurrencyId,
-			transact_encoded_call_weight: u64,
-		) -> Result<u128, DispatchError> {
-			let (fee, _weight) = Self::calculate_xcm_fee_and_weight(
-				para_id,
-				currency_id,
-				transact_encoded_call_weight,
-			)?;
-
-			Ok(fee)
-		}
-
 		/// Pay for XCMP fees.
 		/// Transfers fee from payer account to the local chain sovereign account.
 		///
@@ -508,7 +492,8 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		currency_id: T::CurrencyId,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
-		let fee = Self::get_xcm_fee(para_id, currency_id, transact_encoded_call_weight)?;
+		let (fee, _weight) =
+			Self::calculate_xcm_fee_and_weight(para_id, currency_id, transact_encoded_call_weight)?;
 
 		Ok(fee)
 	}
