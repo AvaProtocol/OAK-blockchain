@@ -1022,9 +1022,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
-	type Origin = Origin;
-	type XcmSender = xcm_config::XcmRouter;
 	type DelegatorActions = ParachainStaking;
 }
 
@@ -1267,7 +1267,7 @@ impl_runtime_apis! {
 						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
 						_ => "cannot get xcmp fee"
 					}
-				})?.0;
+				})?.0.saturating_mul(execution_times.len() as u128);
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
 					.ok_or("cannot get inclusion fee")?
@@ -1277,7 +1277,7 @@ impl_runtime_apis! {
 					execution_times.len() as u32,
 				);
 
-				return Ok(xcm_fee + inclusion_fee + execution_fee)
+				return Ok(xcm_fee.saturating_add(inclusion_fee).saturating_add(execution_fee))
 			}
 
 			Err("unsupported extrinsic".into())
