@@ -39,6 +39,7 @@ pub trait WeightInfo {
 	fn schedule_notify_task_full(v: u32, ) -> Weight;
 	fn schedule_native_transfer_task_empty() -> Weight;
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight;
+	fn schedule_xcmp_task_full(v: u32, ) -> Weight;
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight;
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
@@ -65,21 +66,38 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_notify_task_empty() -> Weight {
-		(46_000_000 as Weight)
-		.saturating_add(T::DbWeight::get().reads(5 as Weight))
-		.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		(60_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	/// The range of component `v` is `[1, 24]`.
 	fn schedule_notify_task_full(v: u32, ) -> Weight {
-		(87_441_000 as Weight)
-			// Standard Error: 81_000
-			.saturating_add((51_040_000 as Weight).saturating_mul(v as Weight))
+		(72_025_000 as Weight)
+			// Standard Error: 98_000
+			.saturating_add((52_701_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+	}
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
+	// Storage: System Account (r:3 w:3)
+	// Storage: AutomationTime Tasks (r:1 w:1)
+	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	// Storage: ParachainInfo ParachainId (r:1 w:0)
+	/// The range of component `v` is `[1, 24]`.
+	fn schedule_xcmp_task_full(v: u32, ) -> Weight {
+		(122_408_000 as Weight)
+			// Standard Error: 140_000
+			.saturating_add((51_350_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads(7 as Weight))
+			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
@@ -87,18 +105,19 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn schedule_native_transfer_task_empty() -> Weight {
-		(43_000_000 as Weight)
-		.saturating_add(T::DbWeight::get().reads(5 as Weight))
-		.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		(65_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight))
+			.saturating_add(T::DbWeight::get().writes(4 as Weight))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	/// The range of component `v` is `[1, 24]`.
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		(39_693_000 as Weight)
-			// Standard Error: 59_000
-			.saturating_add((50_259_000 as Weight).saturating_mul(v as Weight))
+		(68_175_000 as Weight)
+			// Standard Error: 110_000
+			.saturating_add((52_169_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(3 as Weight))
@@ -127,7 +146,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn force_cancel_scheduled_task() -> Weight {
-		(18_000_000 as Weight)
+		(29_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
@@ -141,31 +160,34 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(25 as Weight))
 	}
 	fn run_notify_task() -> Weight {
-		(7_000_000 as Weight)
+		(10_000_000 as Weight)
 	}
 	// Storage: System Account (r:2 w:2)
 	fn run_native_transfer_task() -> Weight {
-		(29_000_000 as Weight)
+		(37_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(2 as Weight))
 			.saturating_add(T::DbWeight::get().writes(2 as Weight))
 	}
-	// Storage: ParachainSystem RelevantMessagingState (r:1 w:0)
+	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
+	// Storage: ParachainInfo ParachainId (r:1 w:0)
+	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
+	// Storage: System Account (r:1 w:0)
 	fn run_xcmp_task() -> Weight {
-		(9_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		(41_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(4 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
+	// Storage: ParachainStaking DelegatorState (r:1 w:1)
 	// Storage: ParachainStaking DelegationScheduledRequests (r:1 w:0)
 	// Storage: ParachainStaking DelegatorReserveToLockMigrations (r:1 w:0)
 	// Storage: Balances Locks (r:1 w:1)
-	// Storage: ParachainStaking DelegatorState (r:1 w:1)
 	// Storage: ParachainStaking CandidateInfo (r:1 w:1)
 	// Storage: ParachainStaking TopDelegations (r:1 w:1)
 	// Storage: ParachainStaking CandidatePool (r:1 w:1)
 	// Storage: ParachainStaking Total (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		(87_000_000 as Weight)
+		(109_000_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(11 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
@@ -194,10 +216,11 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: AutomationTime Tasks (r:1 w:0)
+	/// The range of component `v` is `[0, 1]`.
 	fn run_tasks_many_missing(v: u32, ) -> Weight {
-		(0 as Weight)
-			// Standard Error: 0
-			.saturating_add((9_000_000 as Weight).saturating_mul(v as Weight))
+		(63_000 as Weight)
+			// Standard Error: 135_000
+			.saturating_add((12_250_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
@@ -207,10 +230,11 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	}
 	// Storage: AutomationTime MissedQueue (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasks (r:1 w:1)
+	/// The range of component `v` is `[0, 2]`.
 	fn append_to_missed_tasks(v: u32, ) -> Weight {
-		(1_380_000 as Weight)
-			// Standard Error: 114_000
-			.saturating_add((1_953_000 as Weight).saturating_mul(v as Weight))
+		(2_240_000 as Weight)
+			// Standard Error: 185_000
+			.saturating_add((2_156_000 as Weight).saturating_mul(v as Weight))
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))

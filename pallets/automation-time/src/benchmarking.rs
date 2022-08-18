@@ -21,7 +21,8 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use pallet_timestamp;
-use sp_runtime::traits::Saturating;
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::traits::{AccountIdConversion, Saturating};
 
 use crate::Pallet as AutomationTime;
 
@@ -89,7 +90,10 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 
 fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> T::Hash {
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-	T::Currency::deposit_creating(&owner, transfer_amount.clone());
+	T::Currency::deposit_creating(
+		&owner,
+		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+	);
 	let para_id: u32 = 2001;
 	let time_moment: u32 = times[0].saturated_into();
 	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
@@ -106,8 +110,9 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			provided_id,
 			times.clone().try_into().unwrap(),
 			para_id.clone().try_into().unwrap(),
+			T::GetNativeCurrencyId::get(),
 			vec![4, 5, 6],
-			100_000,
+			5_000,
 		);
 		<Tasks<T>>::insert(task_id, task);
 	}
@@ -177,6 +182,28 @@ benchmarks! {
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_notify_task(RawOrigin::Signed(caller), provided_id, times, vec![4, 5])
+
+	schedule_xcmp_task_full {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let time: u64 = 7200;
+		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
+		let para_id: u32 = 2001;
+		let call = vec![4,5,6];
+
+		let mut times: Vec<u64> = vec![];
+		for i in 0..v {
+			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
+			times.push(hour);
+		}
+
+		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
+		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
+		let provided_id: Vec<u8> = vec![(T::MaxTasksPerSlot::get()/256).try_into().unwrap(), (T::MaxTasksPerSlot::get()%256).try_into().unwrap()];
+		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.into(), currency_id, call, 1_000)
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -272,11 +299,21 @@ benchmarks! {
 
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
+		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
 		let time: u64 = 10800;
-		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.try_into().unwrap(), call, 100_000, task_id) }
+
+		let local_para_id: u32 = 2114;
+		let local_sovereign_account: T::AccountId = Sibling::from(local_para_id).into_account_truncating();
+		T::Currency::deposit_creating(
+			&local_sovereign_account,
+			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		);
+
+		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
+		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, currency_id, call, 100_000, task_id.clone()) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);

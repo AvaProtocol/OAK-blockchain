@@ -46,22 +46,29 @@ pub mod pallet {
 	use codec::Decode;
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{
-		dispatch::DispatchResultWithPostInfo, pallet_prelude::*,
+		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
 		weights::constants::WEIGHT_PER_SECOND,
 	};
 	use frame_system::pallet_prelude::*;
-	use sp_runtime::traits::Convert;
+	use polkadot_parachain::primitives::Sibling;
+	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
 	use xcm::latest::prelude::*;
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
 
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		type Call: From<Call<Self>> + Encode;
+
+		/// The Currency type for interacting with balances
+		type Currency: Currency<Self::AccountId>;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
@@ -114,6 +121,10 @@ pub mod pallet {
 		XcmSent { para_id: ParachainId },
 		/// XCM transacted in local chain.
 		XcmTransactedLocally,
+		/// XCM fees successfully paid.
+		XcmFeesPaid { source: T::AccountId, dest: T::AccountId },
+		/// XCM fees failed to transfer.
+		XcmFeesFailed { source: T::AccountId, dest: T::AccountId, error: DispatchError },
 	}
 
 	#[pallet::error]
@@ -132,8 +143,8 @@ pub mod pallet {
 		CannotReanchor,
 		/// Failed to send XCM to target.
 		ErrorSendingXcmToTarget,
-		/// Failed to transact XCM in local chain.
-		ErrorTransactingXcmLocally,
+		/// Failed to execute XCM in local chain.
+		XcmExecutionFailed,
 		/// Failed to get weight of call.
 		ErrorGettingCallWeight,
 	}
@@ -357,7 +368,10 @@ pub mod pallet {
 				weight,
 			)
 			.ensure_complete()
-			.map_err(|_| Error::<T>::ErrorTransactingXcmLocally)?;
+			.map_err(|error| {
+				log::error!("Failed execute in credit with {:?}", error);
+				Error::<T>::XcmExecutionFailed
+			})?;
 			Self::deposit_event(Event::XcmTransactedLocally);
 
 			Ok(().into())
@@ -371,7 +385,10 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Send to target chain
 			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
-				.map_err(|_| Error::<T>::ErrorSendingXcmToTarget)?;
+				.map_err(|error| {
+				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+				Error::<T>::ErrorSendingXcmToTarget
+			})?;
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())
@@ -403,5 +420,110 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		/// Pay for XCMP fees.
+		/// Transfers fee from payer account to the local chain sovereign account.
+		///
+		pub fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), DispatchError> {
+			let local_sovereign_account =
+				Sibling::from(T::SelfParaId::get()).into_account_truncating();
+
+			match T::Currency::transfer(
+				&source,
+				&local_sovereign_account,
+				<BalanceOf<T>>::saturated_from(fee),
+				frame_support::traits::ExistenceRequirement::KeepAlive,
+			) {
+				Ok(_number) => Self::deposit_event(Event::XcmFeesPaid {
+					source,
+					dest: local_sovereign_account,
+				}),
+				Err(e) => Self::deposit_event(Event::XcmFeesFailed {
+					source,
+					dest: local_sovereign_account,
+					error: e,
+				}),
+			};
+
+			Ok(().into())
+		}
+	}
+}
+
+pub trait XcmpTransactor<AccountId, CurrencyId> {
+	fn transact_xcm(
+		para_id: u32,
+		currency_id: CurrencyId,
+		caller: AccountId,
+		transact_encoded_call: sp_std::vec::Vec<u8>,
+		transact_encoded_call_weight: u64,
+	) -> Result<(), sp_runtime::DispatchError>;
+
+	fn get_xcm_fee(
+		para_id: u32,
+		currency_id: CurrencyId,
+		transact_encoded_call_weight: u64,
+	) -> Result<u128, sp_runtime::DispatchError>;
+
+	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_chain_currency_data(
+		para_id: u32,
+		currency_id: CurrencyId,
+	) -> Result<(), sp_runtime::DispatchError>;
+}
+
+impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
+	fn transact_xcm(
+		para_id: u32,
+		currency_id: T::CurrencyId,
+		caller: T::AccountId,
+		transact_encoded_call: sp_std::vec::Vec<u8>,
+		transact_encoded_call_weight: u64,
+	) -> Result<(), sp_runtime::DispatchError> {
+		Self::transact_xcm(
+			para_id.into(),
+			currency_id,
+			caller,
+			transact_encoded_call,
+			transact_encoded_call_weight,
+		)?;
+
+		Ok(()).into()
+	}
+
+	fn get_xcm_fee(
+		para_id: u32,
+		currency_id: T::CurrencyId,
+		transact_encoded_call_weight: u64,
+	) -> Result<u128, sp_runtime::DispatchError> {
+		let (fee, _weight) =
+			Self::calculate_xcm_fee_and_weight(para_id, currency_id, transact_encoded_call_weight)?;
+
+		Ok(fee)
+	}
+
+	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
+		Self::pay_xcm_fee(source, fee)?;
+
+		Ok(()).into()
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_chain_currency_data(
+		para_id: u32,
+		currency_id: T::CurrencyId,
+	) -> Result<(), sp_runtime::DispatchError> {
+		let xcm_data = XcmCurrencyData {
+			native: false,
+			fee_per_second: 416_000_000_000,
+			instruction_weight: 600_000_000,
+		};
+
+		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
+		Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
+
+		Ok(().into())
 	}
 }
