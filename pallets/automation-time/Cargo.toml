@@ -57,7 +57,7 @@ xcm-builder = { git = 'https://github.com/paritytech/polkadot', default-features
 xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = 'release-v0.9.26' }
 
 [features]
-default = ["std", "runtime-benchmarks"]
+default = ["std"]
 runtime-benchmarks = [
 	"frame-benchmarking",
 	"pallet-parachain-staking/runtime-benchmarks",

@@ -477,6 +477,7 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
 
+	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_currency_data(
 		para_id: u32,
 		currency_id: CurrencyId,
@@ -518,6 +519,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Ok(()).into()
 	}
 
+	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_currency_data(
 		para_id: u32,
 		currency_id: T::CurrencyId,

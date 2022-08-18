@@ -24,12 +24,11 @@ use frame_support::{
 };
 use frame_system as system;
 use pallet_balances::NegativeImbalance;
-use polkadot_parachain::primitives::Sibling;
 use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, IdentityLookup},
+	traits::{BlakeTwo256, CheckedSub, IdentityLookup},
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -286,22 +285,7 @@ where
 		Ok(XmpFee::get())
 	}
 
-	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
-		let local_sovereign_account = Sibling::from(PARA_ID).into_account_truncating();
-
-		match T::Currency::transfer(
-			&source,
-			&local_sovereign_account,
-			<BalanceOf<T>>::saturated_from(fee),
-			frame_support::traits::ExistenceRequirement::KeepAlive,
-		) {
-			Ok(_number) => (),
-			Err(e) => return Err(e),
-		};
-		Ok(().into())
-	}
-
-	fn setup_chain_currency_data(_: u32, _: CurrencyId) -> Result<(), sp_runtime::DispatchError> {
+	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 }
