@@ -375,11 +375,15 @@ parameter_types! {
 
 impl pallet_xcmp_handler::Config for Runtime {
 	type Event = Event;
+	type Call = Call;
 	type CurrencyId = CurrencyId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type LocationInverter = LocationInverter<Ancestry>;
+	type XcmSender = XcmRouter;
+	type XcmExecutor = XcmExecutor<XcmConfig>;
+	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
 }
 

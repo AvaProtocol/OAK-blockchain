@@ -6087,12 +6087,15 @@ dependencies = [
 name = "pallet-xcmp-handler"
 version = "0.1.0"
 dependencies = [
+ "cumulus-pallet-xcm",
  "cumulus-primitives-core",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "pallet-xcm",
  "parachain-info",
  "parity-scale-codec",
+ "polkadot-parachain",
  "scale-info",
  "serde",
  "sp-core",

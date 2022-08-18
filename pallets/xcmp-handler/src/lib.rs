@@ -53,13 +53,15 @@ pub mod pallet {
 	use sp_runtime::traits::Convert;
 	use sp_std::prelude::*;
 	use xcm::latest::prelude::*;
-	use xcm_executor::traits::InvertLocation;
+	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+		type Call: From<Call<Self>> + Encode;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
@@ -85,6 +87,15 @@ pub mod pallet {
 
 		/// Weight information for extrinsics in this module.
 		type WeightInfo: WeightInfo;
+
+		/// Utility for sending XCM messages.
+		type XcmSender: SendXcm;
+
+		/// Utility for executing XCM instructions.
+		type XcmExecutor: ExecuteXcm<<Self as pallet::Config>::Call>;
+
+		/// Utility for determining XCM instruction weights.
+		type Weigher: WeightBounds<<Self as pallet::Config>::Call>;
 	}
 
 	#[pallet::pallet]
@@ -99,6 +110,10 @@ pub mod pallet {
 		XcmDataAdded { para_id: ParachainId, currency_id: T::CurrencyId },
 		/// XCM data was removed for a chain/currency pair.
 		XcmDataRemoved { para_id: ParachainId, currency_id: T::CurrencyId },
+		/// XCM sent to target chain.
+		XcmSent { para_id: ParachainId },
+		/// XCM transacted in local chain.
+		XcmTransactedLocally,
 	}
 
 	#[pallet::error]
@@ -115,6 +130,12 @@ pub mod pallet {
 		FailedMultiLocationToJunction,
 		/// Unable to reanchor the asset.
 		CannotReanchor,
+		/// Failed to send XCM to target.
+		ErrorSendingXcmToTarget,
+		/// Failed to transact XCM in local chain.
+		ErrorTransactingXcmLocally,
+		/// Failed to get weight of call.
+		ErrorGettingCallWeight,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -218,7 +239,10 @@ pub mod pallet {
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
-		) -> Result<(xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>), DispatchError> {
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
 			if currency_id != T::GetNativeCurrencyId::get() {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			}
@@ -265,7 +289,10 @@ pub mod pallet {
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
 			fee: u128,
-		) -> Result<(xcm::latest::Xcm<T::Call>, xcm::latest::Xcm<()>), DispatchError> {
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
 			// XCM for local chain
 			let local_asset = MultiAsset {
 				id: Concrete(MultiLocation::new(0, Here)),
@@ -273,8 +300,8 @@ pub mod pallet {
 			};
 
 			let local_xcm = Xcm(vec![
-				WithdrawAsset::<T::Call>(local_asset.clone().into()),
-				DepositAsset::<T::Call> {
+				WithdrawAsset::<<T as pallet::Config>::Call>(local_asset.clone().into()),
+				DepositAsset::<<T as pallet::Config>::Call> {
 					assets: Wild(All),
 					max_assets: 1,
 					beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
@@ -310,6 +337,71 @@ pub mod pallet {
 			]);
 
 			Ok((local_xcm, target_xcm))
+		}
+
+		/// Transact XCM instructions on local chain
+		///
+		pub fn transact_in_local_chain(
+			internal_instructions: xcm::v2::Xcm<<T as pallet::Config>::Call>,
+		) -> Result<(), DispatchError> {
+			let local_sovereign_account =
+				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
+			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
+				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
+
+			// Execute instruction on local chain
+			T::XcmExecutor::execute_xcm_in_credit(
+				local_sovereign_account,
+				internal_instructions.into(),
+				weight,
+				weight,
+			)
+			.ensure_complete()
+			.map_err(|_| Error::<T>::ErrorTransactingXcmLocally)?;
+			Self::deposit_event(Event::XcmTransactedLocally);
+
+			Ok(().into())
+		}
+
+		/// Send XCM instructions to parachain.
+		///
+		pub fn transact_in_target_chain(
+			para_id: ParachainId,
+			target_instructions: xcm::v2::Xcm<()>,
+		) -> Result<(), DispatchError> {
+			// Send to target chain
+			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
+				.map_err(|_| Error::<T>::ErrorSendingXcmToTarget)?;
+			Self::deposit_event(Event::XcmSent { para_id });
+
+			Ok(().into())
+		}
+
+		/// Create and transact instructions.
+		/// Currently we only support if the currency is the local chain's.
+		///
+		/// Get the instructions for a transact xcm.
+		/// Execute local transact instructions.
+		/// Send target transact instructions.
+		pub fn transact_xcm(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			caller: T::AccountId,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+		) -> Result<(), DispatchError> {
+			let (local_instructions, target_instructions) = Self::get_instruction_set(
+				para_id,
+				currency_id,
+				caller,
+				transact_encoded_call,
+				transact_encoded_call_weight,
+			)?;
+
+			Self::transact_in_local_chain(local_instructions)?;
+			Self::transact_in_target_chain(para_id, target_instructions)?;
+
+			Ok(().into())
 		}
 	}
 }
