@@ -961,9 +961,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
-	type Origin = Origin;
-	type XcmSender = xcm_config::XcmRouter;
 	type DelegatorActions = ParachainStaking;
 }
 
@@ -1007,6 +1007,13 @@ impl pallet_vesting::Config for Runtime {
 	type Currency = Balances;
 }
 
+impl pallet_utility::Config for Runtime {
+	type Event = Event;
+	type Call = Call;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub enum Runtime where
@@ -1039,6 +1046,7 @@ construct_runtime!(
 		Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
 		Identity: pallet_identity::{Pallet, Call, Storage, Event<T>} = 31,
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>} = 32,
+		Utility: pallet_utility::{Pallet, Call, Event} = 33,
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
@@ -1247,7 +1255,7 @@ impl_runtime_apis! {
 					AutomationTime::generate_task_id(account_id.clone(), provided_id)
 				})
 				.filter(|task_id| {
-					AutomationTime::get_task(task_id).is_some()
+					AutomationTime::get_account_task(account_id.clone(), task_id).is_some()
 				}).collect()
 		}
 	}
