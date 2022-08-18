@@ -143,8 +143,8 @@ pub mod pallet {
 		CannotReanchor,
 		/// Failed to send XCM to target.
 		ErrorSendingXcmToTarget,
-		/// Failed to transact XCM in local chain.
-		ErrorTransactingXcmLocally,
+		/// Failed to execute XCM in local chain.
+		XcmExecutionFailed,
 		/// Failed to get weight of call.
 		ErrorGettingCallWeight,
 	}
@@ -368,7 +368,10 @@ pub mod pallet {
 				weight,
 			)
 			.ensure_complete()
-			.map_err(|_| Error::<T>::ErrorTransactingXcmLocally)?;
+			.map_err(|error| {
+				log::error!("Failed execute in credit with {:?}", error);
+				Error::<T>::XcmExecutionFailed
+			})?;
 			Self::deposit_event(Event::XcmTransactedLocally);
 
 			Ok(().into())
@@ -382,7 +385,10 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Send to target chain
 			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
-				.map_err(|_| Error::<T>::ErrorSendingXcmToTarget)?;
+			.map_err(|error| {
+				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+				Error::<T>::ErrorSendingXcmToTarget
+			})?;
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())

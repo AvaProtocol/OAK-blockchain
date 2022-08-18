@@ -6093,6 +6093,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "pallet-balances",
  "pallet-xcm",
  "parachain-info",

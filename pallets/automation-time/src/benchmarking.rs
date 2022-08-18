@@ -21,7 +21,8 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use pallet_timestamp;
-use sp_runtime::traits::Saturating;
+use polkadot_parachain::primitives::Sibling;
+use sp_runtime::traits::{AccountIdConversion, Saturating};
 
 use crate::Pallet as AutomationTime;
 
@@ -302,6 +303,13 @@ benchmarks! {
 		let time: u64 = 10800;
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
+
+		let local_para_id: u32 = 2114;
+		let local_sovereign_account: T::AccountId = Sibling::from(local_para_id).into_account_truncating();
+		T::Currency::deposit_creating(
+			&local_sovereign_account,
+			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		);
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
 		let task_id: T::Hash = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
