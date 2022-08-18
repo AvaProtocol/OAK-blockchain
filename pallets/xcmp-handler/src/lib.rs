@@ -385,7 +385,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			// Send to target chain
 			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
-			.map_err(|error| {
+				.map_err(|error| {
 				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
 				Error::<T>::ErrorSendingXcmToTarget
 			})?;
