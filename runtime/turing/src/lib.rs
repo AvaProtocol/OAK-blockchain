@@ -1046,8 +1046,12 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
+			Call::Currencies(_) => false,
 			Call::ParachainStaking(_) => false,
+			Call::PolkadotXcm(_) => false,
 			Call::Treasury(_) => false,
+			Call::XTokens(_) => false,
+			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -1348,6 +1352,18 @@ impl_runtime_apis! {
 		}
 	}
 
+	#[cfg(feature = "try-runtime")]
+	impl frame_try_runtime::TryRuntime<Block> for Runtime {
+		fn on_runtime_upgrade() -> (Weight, Weight) {
+			log::info!("try-runtime::on_runtime_upgrade turing.");
+			let weight = Executive::try_runtime_upgrade().unwrap();
+			(weight, RuntimeBlockWeights::get().max_block)
+		}
+
+		fn execute_block_no_check(block: Block) -> Weight {
+			Executive::execute_block_no_check(block)
+		}
+	}
 
 	#[cfg(feature = "runtime-benchmarks")]
 	impl frame_benchmarking::Benchmark<Block> for Runtime {

@@ -28,6 +28,7 @@ runtime-benchmarks = [
 neumann-node = ["neumann-runtime"]
 turing-node = ["turing-runtime"]
 all-nodes = ["neumann-node", "turing-node"]
+try-runtime = ["try-runtime-cli", "turing-runtime/try-runtime"]
 
 [dependencies]
 async-trait = "0.1.48"
@@ -38,6 +39,8 @@ codec = { package = "parity-scale-codec", version = "3.0.0" }
 serde = { version = "1.0.137", features = ["derive"] }
 serde_json = "1.0.68"
 hex-literal = "0.3.1"
+# TODO: try to remove when upgrading to 0.9.28 
+tracing-core = "=0.1.26"
 
 # RPC related Dependencies
 jsonrpsee = { version = "0.14.0", features = ["server"] }
@@ -52,6 +55,7 @@ primitives = {path = "../primitives"}
 # Substrate Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
+try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26", optional = true }
 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 
@@ -111,7 +115,7 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = 
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" } 
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 
 # Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.26" }
