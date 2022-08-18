@@ -47,7 +47,7 @@ jobs:
       - name: Execute pallet benchmark
         run: |
           chmod +x oak-collator
-          ./oak-collator
+          ./target/release/oak-collator \
             benchmark \
             pallet \
             --chain turing-dev \
