@@ -90,8 +90,8 @@ pub mod v3 {
 	use sp_std::{collections::btree_map, prelude::*};
 
 	use crate::{
-		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2,
-		ScheduledTasksV2, Task, TaskId, TaskQueueV2, UnixTime, Vec,
+		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2, ScheduledTasksV2,
+		Task, TaskId, TaskQueueV2, UnixTime, Vec,
 	};
 
 	// Use a double map for tasks (accountId, taskId)
