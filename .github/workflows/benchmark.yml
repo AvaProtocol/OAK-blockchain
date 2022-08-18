@@ -46,7 +46,7 @@ jobs:
           name: oak-collator
       - name: Execute pallet benchmark
         run: |
-          ./target/release/oak-collator
+          ./oak-collator
             benchmark \
             pallet \
             --chain turing-dev \
