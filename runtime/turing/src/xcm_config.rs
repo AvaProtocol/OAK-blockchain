@@ -446,7 +446,6 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type BaseXcmWeight = BaseXcmWeight;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
 }

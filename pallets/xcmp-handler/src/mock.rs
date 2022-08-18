@@ -261,7 +261,6 @@ impl cumulus_pallet_xcm::Config for Test {
 
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
-	pub const BaseXcmWeight: Weight = 100_000_000;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
@@ -275,7 +274,6 @@ impl pallet_xcmp_handler::Config for Test {
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmSender = TestSendXcm;
-	type BaseXcmWeight = BaseXcmWeight;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
 }

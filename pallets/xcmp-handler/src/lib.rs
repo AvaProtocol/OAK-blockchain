@@ -79,13 +79,6 @@ pub mod pallet {
 		//The paraId of this chain.
 		type SelfParaId: Get<ParaId>;
 
-		/// Base XCM weight.
-		///
-		/// The actual weight for an XCM message is `T::BaseXcmWeight +
-		/// T::Weigher::weight(&msg)`.
-		#[pallet::constant]
-		type BaseXcmWeight: Get<Weight>;
-
 		/// Convert an accountId to a multilocation.
 		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
 
@@ -141,6 +134,8 @@ pub mod pallet {
 		ErrorSendingXcmToTarget,
 		/// Failed to transact XCM in local chain.
 		ErrorTransactingXcmLocally,
+		/// Failed to get weight of call.
+		ErrorGettingCallWeight,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -352,7 +347,7 @@ pub mod pallet {
 			let local_sovereign_account =
 				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
-				.map_or(Weight::max_value(), |w| T::BaseXcmWeight::get().saturating_add(w));
+				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
 
 			// Execute instruction on local chain
 			T::XcmExecutor::execute_xcm_in_credit(
