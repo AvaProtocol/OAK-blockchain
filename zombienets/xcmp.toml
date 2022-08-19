@@ -21,6 +21,7 @@ chain = "turing-dev"
   name = "collator2114"
   command = "./target/release/oak-collator"
   ws_port = 9946
+  rpc_port = 8855
 
 [[parachains]]
 id = 1999
@@ -29,8 +30,9 @@ chain = "local"
 
   [parachains.collator]
   name = "collator1999"
-  command = "../substrate-parachain-template/target/release/parachain-collator"
+  command = "../substrate-parachain-template/target/release/parachain-template-node"
   ws_port = 9947
+  rpc_port = 8866
 
 [[hrmpChannels]]
 sender = 2114
