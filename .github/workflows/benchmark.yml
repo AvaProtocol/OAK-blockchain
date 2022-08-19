@@ -71,6 +71,7 @@ jobs:
   generate-pull-request:
     name: Generate pull request
     needs: run-benchmarks
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
