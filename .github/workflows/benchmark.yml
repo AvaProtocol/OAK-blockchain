@@ -59,8 +59,30 @@ jobs:
             --repeat 20 \
             --steps 50 \
             --output ./${{ matrix.pallet }}-raw-weights.rs
+      - name: Delete binary artifact
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: oak-collator
       - name: Upload raw weights
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.pallet }}
           path: ${{ matrix.pallet }}-raw-weights.rs
+  generate-pull-request:
+    name: Generate pull request
+    needs: run-benchmarks
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download benchmark files
+        uses: actions/download-artifact@v2
+      - name: Move benchmark files to correct place
+        run: |
+          ls \
+            | grep raw-weights.rs \
+            | xargs -I{} sh -c 'mv "$1" "pallets/${1%%-*}/src/weights.rs"' -- {}
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Update pallet weights
+          draft: true
