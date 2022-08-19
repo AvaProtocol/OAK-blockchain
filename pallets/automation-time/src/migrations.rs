@@ -83,7 +83,7 @@ pub mod v3 {
 	use super::*;
 
 	use frame_support::{
-		migration::{get_storage_value, storage_key_iter, take_storage_value},
+		migration::{storage_key_iter, take_storage_value},
 		BoundedVec, Twox64Concat,
 	};
 	// Does not expose a hashmap
@@ -91,7 +91,7 @@ pub mod v3 {
 
 	use crate::{
 		AccountTaskId, AccountTasks, MissedQueueV2, MissedTask, MissedTaskV2, ScheduledTasksV2,
-		Task, TaskId, TaskQueueV2, UnixTime, Vec,
+		Task, TaskId, TaskQueueV2, Vec,
 	};
 
 	// Use a double map for tasks (accountId, taskId)
@@ -99,7 +99,8 @@ pub mod v3 {
 	impl<T: Config> OnRuntimeUpgrade for MigrateToV3<T> {
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<(), &'static str> {
-			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+			use frame_support::{migration::get_storage_value, traits::OnRuntimeUpgradeHelpersExt};
+
 			let pallet_prefix: &[u8] = b"AutomationTime";
 
 			// Get count of tasks
@@ -263,7 +264,7 @@ pub mod v3 {
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade() -> Result<(), &'static str> {
-			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+			use frame_support::{migration::get_storage_value, traits::OnRuntimeUpgradeHelpersExt};
 
 			let pallet_prefix: &[u8] = b"AutomationTime";
 
