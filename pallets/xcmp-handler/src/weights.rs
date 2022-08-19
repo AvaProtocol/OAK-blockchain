@@ -20,7 +20,9 @@
 // --extrinsic
 // *
 // --repeat
-// 12
+// 20
+// --steps
+// 50
 // --output
 // ./pallets/xcmp-handler/src/raw-weights.rs
 

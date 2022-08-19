@@ -20,9 +20,9 @@
 // --extrinsic
 // "*"
 // --repeat
-// 64
+// 20
 // --steps
-// 100
+// 50
 // --output
 // ./pallets/automation-time/src/weights.rs
 

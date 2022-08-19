@@ -19,9 +19,9 @@
 // --extrinsic
 // *
 // --repeat
-// 64
-// --steps
 // 20
+// --steps
+// 50
 // --output
 // ./pallets/valve/src/raw-weights.rs
 

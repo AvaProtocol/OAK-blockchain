@@ -5,26 +5,6 @@
 //! DATE: 2022-05-26, STEPS: `1`, REPEAT: 20, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
-// Executed Command:
-// ./target/release/neumann-collator
-// benchmark pallet
-// --chain
-// dev
-// --execution
-// wasm
-// --wasm-execution
-// compiled
-// --pallet
-// pallet_automation_time
-// --extrinsic
-// "*"
-// --repeat
-// 64
-// --steps
-// 100
-// --output
-// ./pallets/automation-time/src/weights.rs
-
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]

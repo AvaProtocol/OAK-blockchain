@@ -20,9 +20,9 @@
 // --extrinsic
 // *
 // --repeat
-// 64
-// --steps
 // 20
+// --steps
+// 50
 // --output
 // ./pallets/vesting/src/raw-weights.rs
 
