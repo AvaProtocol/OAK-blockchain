@@ -38,7 +38,26 @@ pub trait WeightInfo {
 	fn vest(v: u32, ) -> Weight;
 }
 
-/// Weight functions for `pallet_vesting`.
+/// Weights for pallet_vesting using the Substrate node and recommended hardware.
+pub struct SubstrateWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	// Storage: Timestamp Now (r:1 w:0)
+	// Storage: Vesting VestingSchedule (r:1 w:1)
+	// Storage: System Account (r:1 w:1)
+	// Storage: Vesting TotalUnvestedAllocation (r:1 w:1)
+	/// The range of component `v` is `[0, 20]`.
+	fn vest(v: u32, ) -> Weight {
+		(14_917_000 as Weight)
+			// Standard Error: 29_000
+			.saturating_add((20_808_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+	}
+}
+
+// For backwards compatibility and tests
 impl WeightInfo for () {
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: Vesting VestingSchedule (r:1 w:1)

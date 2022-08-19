@@ -38,6 +38,23 @@ pub trait WeightInfo {
 	fn remove_chain_currency_data() -> Weight;
 }
 
+/// Weights for pallet_xcmp_handler using the Substrate node and recommended hardware.
+pub struct SubstrateWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
+	fn add_chain_currency_data() -> Weight {
+		(14_446_000 as Weight)
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
+	fn remove_chain_currency_data() -> Weight {
+		(16_174_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+}
+
+// For backwards compatibility and tests
 impl WeightInfo for () {
  	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
 	fn add_chain_currency_data() -> Weight {

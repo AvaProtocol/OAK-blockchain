@@ -1059,7 +1059,7 @@ impl Contains<Call> for ClosedCallFilter {
 
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = ();
+	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
 	type AutomationPrice = AutomationPrice;
@@ -1067,7 +1067,7 @@ impl pallet_valve::Config for Runtime {
 
 impl pallet_vesting::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = ();
+	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 	type Currency = Balances;
 }
 

@@ -44,7 +44,67 @@ pub trait WeightInfo {
 	fn start_scheduled_tasks() -> Weight;
 }
 
-/// Weight functions for `pallet_valve`.
+/// Weights for pallet_valve using the Substrate node and recommended hardware.
+pub struct SubstrateWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	// Storage: Valve ValveClosed (r:1 w:1)
+	fn close_valve() -> Weight {
+		(14_566_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	// Storage: Valve ValveClosed (r:1 w:1)
+	fn open_valve() -> Weight {
+		(15_296_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	// Storage: Valve ValveClosed (r:1 w:0)
+	// Storage: Valve ClosedPallets (r:1 w:1)
+	// Storage: Valve ClosedPalletCount (r:1 w:1)
+	fn close_pallet_gate_new() -> Weight {
+		(19_966_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Valve ValveClosed (r:1 w:0)
+	// Storage: Valve ClosedPallets (r:1 w:1)
+	fn close_pallet_gate_existing() -> Weight {
+		(8_111_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	// Storage: Valve ValveClosed (r:1 w:0)
+	// Storage: Valve ClosedPallets (r:1 w:1)
+	// Storage: Valve ClosedPalletCount (r:1 w:1)
+	fn open_pallet_gate() -> Weight {
+		(20_384_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(3 as Weight))
+			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+	}
+	// Storage: Valve ClosedPalletCount (r:1 w:1)
+	// Storage: Valve ClosedPallets (r:0 w:5)
+	fn open_pallet_gates() -> Weight {
+		(21_242_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(6 as Weight))
+	}
+	// Storage: AutomationTime Shutdown (r:1 w:1)
+	fn stop_scheduled_tasks() -> Weight {
+		(14_542_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	// Storage: AutomationTime Shutdown (r:1 w:1)
+	fn start_scheduled_tasks() -> Weight {
+		(15_020_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+}
+
+
+// For backwards compatibility and tests
 impl WeightInfo for () {
 	// Storage: Valve ValveClosed (r:1 w:1)
 	fn close_valve() -> Weight {

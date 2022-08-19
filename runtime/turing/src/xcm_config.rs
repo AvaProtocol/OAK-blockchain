@@ -443,7 +443,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type LocationInverter = LocationInverter<Ancestry>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
 
 pub mod parachains {
