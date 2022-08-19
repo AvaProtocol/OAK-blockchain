@@ -28,6 +28,7 @@ jobs:
         with:
           name: oak-collator
           path: artifacts/
+          retention-days: 1
   run-benchmarks:
     name: Run Benchmarks
     runs-on: self-hosted
