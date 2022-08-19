@@ -59,10 +59,6 @@ jobs:
             --repeat 20 \
             --steps 50 \
             --output ./${{ matrix.pallet }}-raw-weights.rs
-      - name: Delete binary artifact
-        uses: geekyeggo/delete-artifact@v1
-        with:
-          name: oak-collator
       - name: Upload raw weights
         uses: actions/upload-artifact@v2
         with:
@@ -73,6 +69,10 @@ jobs:
     needs: run-benchmarks
     runs-on: ubuntu-latest
     steps:
+      - name: Delete binary artifact
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: oak-collator
       - name: Checkout
         uses: actions/checkout@v2
       - name: Download benchmark files
