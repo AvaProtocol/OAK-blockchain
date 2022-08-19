@@ -1,0 +1,24 @@
+[settings]
+provider = "native"
+timeout = 1000
+
+[relaychain]
+default_command = "../polkadot/target/release/polkadot"
+chain = "rococo-local"
+
+  [[relaychain.nodes]]
+  name = "alice"
+
+  [[relaychain.nodes]]
+  name = "bob"
+
+[[parachains]]
+id = 2114
+cumulus_based = true
+chain = "turing-dev"
+
+  [parachains.collator]
+  name = "collator01"
+  command = "./target/release/oak-collator"
+  ws_port = 9946
+  rpc_port = 8855
