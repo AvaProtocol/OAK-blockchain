@@ -46,7 +46,7 @@ use frame_support::{
 };
 use frame_system::{pallet_prelude::*, Config as SystemConfig};
 use pallet_timestamp::{self as timestamp};
-use scale_info::{prelude::format, TypeInfo};
+use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{SaturatedConversion, Saturating},
 	Perbill,
@@ -505,6 +505,10 @@ pub mod pallet {
 				AssetPrices::<T>::remove(asset.clone());
 				AssetMetadata::<T>::remove(asset.clone());
 				Self::delete_asset_tasks(asset.clone());
+				if let Some(number_of_assets) = Self::get_number_of_assets() {
+					let new_number_of_assets = number_of_assets - 1;
+					NumberOfAssets::<T>::put(new_number_of_assets);
+				}
 				Self::deposit_event(Event::AssetDeleted { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
@@ -545,12 +549,12 @@ pub mod pallet {
 				//       not all of the asset resets can be run at once. this may cause the asset reset triggers to not go off,
 				//       but at least it should not brick the chain.
 				for asset in scheduled_deletion_assets {
-					Self::delete_asset_tasks(asset.clone());
-					Self::update_asset_reset(asset.clone(), current_time_slot);
 					if let Some(last_asset_price) = Self::get_asset_price(asset.clone()) {
 						AssetBaselinePrices::<T>::insert(asset.clone(), last_asset_price);
+						Self::delete_asset_tasks(asset.clone());
+						Self::update_asset_reset(asset.clone(), current_time_slot);
+						Self::deposit_event(Event::AssetPeriodReset { asset });
 					};
-					Self::deposit_event(Event::AssetPeriodReset { asset });
 				}
 				ScheduledAssetDeletion::<T>::remove(current_time_slot);
 				weight_left = weight_left - asset_reset_weight;
@@ -564,6 +568,7 @@ pub mod pallet {
 				.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
+				weight_left = new_weight_left;
 				TaskQueue::<T>::put(tasks_left);
 			}
 			weight_left
@@ -608,7 +613,18 @@ pub mod pallet {
 			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
-			<ScheduledAssetDeletion<T>>::insert(new_time_slot, vec![asset.clone()]);
+			if let Some(mut future_scheduled_deletion_assets) =
+				Self::get_scheduled_asset_period_reset(new_time_slot)
+			{
+				future_scheduled_deletion_assets.push(asset.clone());
+				<ScheduledAssetDeletion<T>>::insert(
+					new_time_slot,
+					future_scheduled_deletion_assets,
+				);
+			} else {
+				let new_asset_list = vec![asset.clone()];
+				<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
+			}
 			AssetPrices::<T>::insert(asset.clone(), target_price);
 			let new_number_of_assets = number_of_assets + 1;
 			NumberOfAssets::<T>::put(new_number_of_assets);
@@ -628,9 +644,9 @@ pub mod pallet {
 
 		pub fn delete_asset_tasks(asset: AssetName) {
 			// delete scheduled tasks
-			ScheduledTasks::<T>::remove_prefix((asset.clone(),), None);
+			let _ = ScheduledTasks::<T>::clear_prefix((asset.clone(),), u32::MAX, None);
 			// delete tasks from tasks table
-			Tasks::<T>::remove_prefix((asset.clone(),), None);
+			let _ = Tasks::<T>::clear_prefix((asset.clone(),), u32::MAX, None);
 			// delete tasks from task queue
 			let existing_task_queue: Vec<(AssetName, T::Hash)> = Self::get_task_queue();
 			let mut updated_task_queue: Vec<(AssetName, T::Hash)> = vec![];
@@ -790,8 +806,6 @@ pub mod pallet {
 							Err(Error::<T>::AssetNotInTriggerableRange)?
 						}
 					},
-				// TODO: remove once we figure out more generic directions
-				_ => Err(Error::<T>::DirectionNotSupported)?,
 			}
 			let task_id = Self::schedule_task(
 				who.clone(),
