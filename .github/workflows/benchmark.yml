@@ -81,11 +81,10 @@ jobs:
           path: weight-artifacts
       - name: Move benchmark files to correct place
         run: |
-          find ./weight-artifacts -type f -exec mv -i -- {} . \;
-          rm -r ./weight-artifacts
-          ls \
-            | grep raw-weights.rs \
-            | xargs -I{} sh -c 'mv "$1" "pallets/${1%%-*}/src/weights.rs"' -- {}
+          for file in $(find ./weight-artifacts -type f); do
+            pallet=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
+            mv $file pallets/$pallet/src/weights.rs
+          done
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v4
         with:
