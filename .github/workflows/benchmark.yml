@@ -76,9 +76,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Download benchmark files
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
+        with:
+          path: weight-artifacts
       - name: Move benchmark files to correct place
         run: |
+          find ./weight-artifacts -type f -exec mv -i -- {} . \;
+          rm -r ./weight-artifacts
           ls \
             | grep raw-weights.rs \
             | xargs -I{} sh -c 'mv "$1" "pallets/${1%%-*}/src/weights.rs"' -- {}
