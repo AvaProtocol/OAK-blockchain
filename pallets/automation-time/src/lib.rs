@@ -142,20 +142,6 @@ pub mod pallet {
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
-	pub struct MissedTask<T: Config> {
-		pub task_id: T::Hash,
-		pub execution_time: UnixTime,
-	}
-
-	impl<T: Config> MissedTask<T> {
-		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
-			MissedTask::<T> { task_id, execution_time }
-		}
-	}
-
-	/// The struct that stores data for a missed task.
-	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
 	pub struct MissedTaskV2<T: Config> {
 		owner_id: AccountOf<T>,
 		task_id: TaskId<T>,
@@ -354,16 +340,9 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	pub type ScheduledTasks<T: Config> =
-		StorageMap<_, Twox64Concat, u64, BoundedVec<TaskId<T>, T::MaxTasksPerSlot>>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasksV2<T: Config> =
 		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
-
-	#[pallet::storage]
-	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId<T>, Task<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task)]
@@ -371,14 +350,8 @@ pub mod pallet {
 		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId<T>, Task<T>>;
 
 	#[pallet::storage]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<TaskId<T>>, ValueQuery>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
 	pub type TaskQueueV2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
-
-	#[pallet::storage]
-	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
