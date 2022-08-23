@@ -394,8 +394,6 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
-		/// ParaId provided does not match origin paraId.
-		ParaIdMismatch,
 	}
 
 	#[pallet::event]
@@ -580,7 +578,6 @@ pub mod pallet {
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
 		///
 		/// TODO: Create benchmark for schedule_xcmp_task
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
