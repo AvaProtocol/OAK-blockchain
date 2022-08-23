@@ -479,6 +479,7 @@ pub mod pallet {
 		/// * `PastTime`: Time must be in the future.
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_notify_task(
@@ -520,10 +521,10 @@ pub mod pallet {
 		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
-		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
@@ -553,8 +554,8 @@ pub mod pallet {
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
-		/// * The para_id is that of the sender
 		/// * The times are valid
+		/// * The chain/currency pair is supported
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
@@ -568,7 +569,9 @@ pub mod pallet {
 		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		///
 		///
 		/// TODO: Create benchmark for schedule_xcmp_task
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
