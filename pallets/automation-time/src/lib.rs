@@ -143,9 +143,9 @@ pub mod pallet {
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct MissedTaskV2<T: Config> {
-		pub owner_id: AccountOf<T>,
-		pub task_id: TaskId<T>,
-		pub execution_time: UnixTime,
+		owner_id: AccountOf<T>,
+		task_id: TaskId<T>,
+		execution_time: UnixTime,
 	}
 
 	impl<T: Config> MissedTaskV2<T> {
@@ -571,9 +571,6 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		///
-		///
-		/// TODO: Create benchmark for schedule_xcmp_task
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
