@@ -302,10 +302,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type UpdateQueueRatio: Get<Perbill>;
 
-		/// The time each block takes.
-		#[pallet::constant]
-		type SecondsPerBlock: Get<u64>;
-
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 

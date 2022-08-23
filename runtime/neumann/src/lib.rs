@@ -928,7 +928,6 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const SecondsPerBlock: u64 = MILLISECS_PER_BLOCK / 1000;
 	pub const ExecutionWeightFee: Balance = 12;
 }
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
@@ -956,7 +955,6 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type UpdateQueueRatio = UpdateQueueRatio;
-	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
