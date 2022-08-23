@@ -143,18 +143,14 @@ pub mod pallet {
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
 	pub struct MissedTaskV2<T: Config> {
-		owner_id: AccountOf<T>,
-		task_id: TaskId<T>,
-		execution_time: UnixTime,
+		pub owner_id: AccountOf<T>,
+		pub task_id: TaskId<T>,
+		pub execution_time: UnixTime,
 	}
 
 	impl<T: Config> MissedTaskV2<T> {
-		pub fn create_missed_task(
-			owner_id: AccountOf<T>,
-			task_id: TaskId<T>,
-			execution_time: UnixTime,
-		) -> MissedTaskV2<T> {
-			MissedTaskV2::<T> { owner_id, task_id, execution_time }
+		pub fn new(owner_id: AccountOf<T>, task_id: TaskId<T>, execution_time: UnixTime) -> Self {
+			Self { owner_id, task_id, execution_time }
 		}
 	}
 
@@ -183,14 +179,14 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Task<T> {
-		pub fn create_task(
+		pub fn new(
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
 			action: Action<T>,
-		) -> Task<T> {
+		) -> Self {
 			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
+			Self { owner_id, provided_id, execution_times, executions_left, action }
 		}
 
 		pub fn create_event_task(
@@ -200,7 +196,7 @@ pub mod pallet {
 			message: Vec<u8>,
 		) -> Task<T> {
 			let action = Action::Notify { message };
-			Self::create_task(owner_id, provided_id, execution_times, action)
+			Self::new(owner_id, provided_id, execution_times, action)
 		}
 
 		pub fn create_native_transfer_task(
@@ -215,7 +211,7 @@ pub mod pallet {
 				recipient: recipient_id,
 				amount,
 			};
-			Self::create_task(owner_id, provided_id, execution_times, action)
+			Self::new(owner_id, provided_id, execution_times, action)
 		}
 
 		pub fn create_xcmp_task(
@@ -228,7 +224,7 @@ pub mod pallet {
 			encoded_call_weight: Weight,
 		) -> Task<T> {
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
-			Self::create_task(owner_id, provided_id, execution_times, action)
+			Self::new(owner_id, provided_id, execution_times, action)
 		}
 
 		pub fn create_auto_compound_delegated_stake_task(
@@ -245,12 +241,7 @@ pub mod pallet {
 				account_minimum,
 				frequency,
 			};
-			Self::create_task(
-				owner_id,
-				provided_id,
-				vec![execution_time].try_into().unwrap(),
-				action,
-			)
+			Self::new(owner_id, provided_id, vec![execution_time].try_into().unwrap(), action)
 		}
 
 		pub fn get_executions_left(&self) -> u32 {
@@ -266,8 +257,8 @@ pub mod pallet {
 	}
 
 	impl<T: Config> TaskHashInput<T> {
-		pub fn create_hash_input(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskHashInput<T> {
-			TaskHashInput::<T> { owner_id, provided_id }
+		pub fn new(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> Self {
+			Self { owner_id, provided_id }
 		}
 	}
 
@@ -854,11 +845,8 @@ pub mod pallet {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
 				for (account_id, task_id) in missed_tasks {
-					let new_missed_task: MissedTaskV2<T> = MissedTaskV2::<T> {
-						owner_id: account_id,
-						task_id,
-						execution_time: last_time_slot,
-					};
+					let new_missed_task: MissedTaskV2<T> =
+						MissedTaskV2::<T>::new(account_id, task_id, last_time_slot);
 					missed_queue.push(new_missed_task);
 				}
 				MissedQueueV2::<T>::put(missed_queue);
@@ -945,11 +933,8 @@ pub mod pallet {
 			if let Some(account_task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 				ScheduledTasksV2::<T>::remove(new_time_slot);
 				for (account_id, task_id) in account_task_ids {
-					let new_missed_task: MissedTaskV2<T> = MissedTaskV2::<T> {
-						owner_id: account_id,
-						task_id,
-						execution_time: new_time_slot,
-					};
+					let new_missed_task: MissedTaskV2<T> =
+						MissedTaskV2::<T>::new(account_id, task_id, new_time_slot);
 					tasks.push(new_missed_task);
 				}
 			}
