@@ -46,6 +46,9 @@ pub use fees::*;
 mod autocompounding;
 pub use autocompounding::*;
 
+mod types;
+pub use types::*;
+
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
@@ -249,18 +252,18 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Debug, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct TaskHashInput<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
-	}
+	// #[derive(Debug, Encode, Decode, TypeInfo)]
+	// #[scale_info(skip_type_params(T))]
+	// pub struct TaskHashInput<T: Config> {
+	// 	owner_id: AccountOf<T>,
+	// 	provided_id: Vec<u8>,
+	// }
 
-	impl<T: Config> TaskHashInput<T> {
-		pub fn new(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> Self {
-			Self { owner_id, provided_id }
-		}
-	}
+	// impl<T: Config> TaskHashInput<T> {
+	// 	pub fn new(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> Self {
+	// 		Self { owner_id, provided_id }
+	// 	}
+	// }
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -1431,8 +1434,7 @@ pub mod pallet {
 		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskId<T> {
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+			let task_hash_input = TaskHashInput::new(owner_id, provided_id);
 			T::Hashing::hash_of(&task_hash_input)
 		}
 

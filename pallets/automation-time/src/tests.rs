@@ -932,7 +932,7 @@ fn trigger_tasks_completes_all_tasks() {
 fn trigger_tasks_handles_nonexisting_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_hash_input = TaskHashInput::<Test>::new(owner.clone(), vec![20]);
+		let task_hash_input = TaskHashInput::new(owner.clone(), vec![20]);
 		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
 		let mut task_queue = AutomationTime::get_task_queue();
 		task_queue.push((owner.clone(), bad_task_id));
@@ -1636,7 +1636,7 @@ fn schedule_task(
 	message: Vec<u8>,
 ) -> sp_core::H256 {
 	get_funds(AccountId32::new(owner));
-	let task_hash_input = TaskHashInput::<Test>::new(AccountId32::new(owner), provided_id.clone());
+	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
 		Origin::signed(AccountId32::new(owner)),
 		provided_id,
@@ -1680,7 +1680,7 @@ fn create_task(
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_hash_input = TaskHashInput::<Test>::new(AccountId32::new(owner), provided_id.clone());
+	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
 	let task =
 		Task::<Test>::new(owner.into(), provided_id, scheduled_times.try_into().unwrap(), action);
