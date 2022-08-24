@@ -304,6 +304,7 @@ pub mod pallet {
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::error]
+	#[derive(PartialEq)]
 	pub enum Error<T> {
 		/// Time must end in a whole hour.
 		InvalidTime,

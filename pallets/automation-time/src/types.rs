@@ -104,3 +104,49 @@ impl<T: Config> ScheduledTasks<T> {
 		Ok(self)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::mock::*;
+
+	mod scheduled_tasks {
+		use super::*;
+		use frame_support::assert_err;
+		use sp_runtime::AccountId32;
+
+		#[test]
+		fn try_push_errors_when_slot_is_full() {
+			new_test_ext(0).execute_with(|| {
+				let task = Task::<Test>::create_event_task(
+					AccountId32::new(ALICE),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				assert_err!(
+					ScheduledTasks::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
+						.try_push(TaskId::<Test>::default(), &task),
+					Error::<Test>::TimeSlotFull
+				);
+			})
+		}
+
+		#[test]
+		fn try_push_works_when_slot_is_not_full() {
+			new_test_ext(0).execute_with(|| {
+				let task = Task::<Test>::create_event_task(
+					AccountId32::new(ALICE),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				let task_id = TaskId::<Test>::default();
+				let mut scheduled_tasks = ScheduledTasks::<Test>::default();
+				scheduled_tasks.try_push(task_id, &task).expect("slot is not full");
+				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
+				assert_eq!(scheduled_tasks.weight, 20_000);
+			})
+		}
+	}
+}
