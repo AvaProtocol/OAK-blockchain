@@ -159,6 +159,7 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
+	pub const MaxWeightPerSlot: Weight = 40_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
 }
@@ -299,6 +300,7 @@ impl pallet_automation_time::Config for Test {
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
+	type MaxWeightPerSlot = MaxWeightPerSlot;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
 	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
