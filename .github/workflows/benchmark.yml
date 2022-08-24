@@ -92,3 +92,6 @@ jobs:
           title: Update pallet weights
           draft: true
           base: master
+          branch: update-weights
+          branch-suffix: short-commit-hash
+          body:

@@ -27,6 +27,11 @@
 // {{arg}}
 {{/each}}
 
+// Summary:
+{{#each benchmarks as |benchmark|}}
+//:{{benchmark.name}} {{underscore benchmark.base_weight}}
+{{/each}}
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
