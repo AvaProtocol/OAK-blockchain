@@ -46,8 +46,8 @@ pub use fees::*;
 mod autocompounding;
 pub use autocompounding::*;
 
-mod scheduled_tasks;
-pub use scheduled_tasks::*;
+mod types;
+pub use types::*;
 
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
