@@ -79,69 +79,6 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 
-	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
-	pub type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-	pub type UnixTime = u64;
-	type Seconds = u64;
-	pub type TaskId<T> = <T as frame_system::Config>::Hash;
-	pub type AccountTaskId<T> = (<T as frame_system::Config>::AccountId, TaskId<T>);
-
-	/// The enum that stores all action specific data.
-	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub enum Action<T: Config> {
-		Notify {
-			message: Vec<u8>,
-		},
-		NativeTransfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		},
-		XCMP {
-			para_id: ParaId,
-			currency_id: T::CurrencyId,
-			encoded_call: Vec<u8>,
-			encoded_call_weight: Weight,
-		},
-		AutoCompoundDelegatedStake {
-			delegator: AccountOf<T>,
-			collator: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
-		},
-	}
-
-	impl<T: Config> From<AutomationAction> for Action<T> {
-		fn from(a: AutomationAction) -> Self {
-			let default_account =
-				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-					.expect("always valid");
-			match a {
-				AutomationAction::Notify => Action::Notify { message: "default".into() },
-				AutomationAction::NativeTransfer => Action::NativeTransfer {
-					sender: default_account.clone(),
-					recipient: default_account,
-					amount: 0u32.into(),
-				},
-				AutomationAction::XCMP => Action::XCMP {
-					para_id: ParaId::from(2114 as u32),
-					currency_id: T::GetNativeCurrencyId::get(),
-					encoded_call: vec![0],
-					encoded_call_weight: 0,
-				},
-				AutomationAction::AutoCompoundDelegatedStake =>
-					Action::AutoCompoundDelegatedStake {
-						delegator: default_account.clone(),
-						collator: default_account,
-						account_minimum: 0u32.into(),
-						frequency: 0,
-					},
-			}
-		}
-	}
-
 	/// The struct that stores data for a missed task.
 	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 	#[scale_info(skip_type_params(T))]
@@ -1250,9 +1187,8 @@ pub mod pallet {
 										*execution_time,
 										ScheduledTasks {
 											tasks: account_task_ids,
-											weight: weight.saturating_sub(Self::execution_weight(
-												&task.action,
-											)),
+											weight: weight
+												.saturating_sub(task.action.execution_weight()),
 										},
 									);
 								}
@@ -1278,9 +1214,8 @@ pub mod pallet {
 										*execution_time,
 										ScheduledTasks {
 											tasks: account_task_ids,
-											weight: weight.saturating_sub(Self::execution_weight(
-												&task.action,
-											)),
+											weight: weight
+												.saturating_sub(task.action.execution_weight()),
 										},
 									);
 								}
@@ -1462,26 +1397,10 @@ pub mod pallet {
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
 		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
-			let action_weight = Self::execution_weight(action);
-
-			let total_weight = action_weight.saturating_mul(executions.into());
+			let total_weight = action.execution_weight().saturating_mul(executions.into());
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
 			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
-		}
-
-		pub fn execution_weight(action: &Action<T>) -> Weight {
-			match action {
-				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { .. } =>
-					<T as Config>::WeightInfo::run_native_transfer_task(),
-				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { .. } => T::DbWeight::get()
-					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
-				Action::AutoCompoundDelegatedStake { .. } =>
-					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-			}
 		}
 	}
 
