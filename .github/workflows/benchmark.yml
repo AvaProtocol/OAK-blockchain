@@ -58,7 +58,8 @@ jobs:
             --extrinsic '*' \
             --repeat 20 \
             --steps 50 \
-            --output ./${{ matrix.pallet }}-raw-weights.rs
+            --output ./${{ matrix.pallet }}-raw-weights.rs \
+            --template ./.maintain/frame-weight-template.hbs
       - name: Upload raw weights
         uses: actions/upload-artifact@v2
         with:
