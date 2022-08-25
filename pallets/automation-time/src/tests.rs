@@ -16,8 +16,8 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedQueueV2, MissedTaskV2, Task,
-	TaskHashInput, TaskQueueV2, WeightInfo,
+	mock::*, AccountTasks, Action, ActionOf, Config, Error, LastTimeSlot, MissedQueueV2,
+	MissedTaskV2Of, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
@@ -27,11 +27,6 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
-
-type ActionOf<T> = Action<AccountId, Balance, <T as Config>::CurrencyId>;
-type TaskOf<T> =
-	Task<AccountId, Balance, <T as Config>::CurrencyId, <T as Config>::MaxExecutionTimes>;
-type MissedTaskV2Of = MissedTaskV2<AccountId, sp_core::H256>;
 
 const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
@@ -767,8 +762,11 @@ fn trigger_tasks_updates_queues() {
 			vec![SCHEDULED_TIME - 3600],
 			Action::Notify { message: vec![40] },
 		);
-		let missed_task =
-			MissedTaskV2Of::new(AccountId32::new(ALICE), missed_task_id, SCHEDULED_TIME - 3600);
+		let missed_task = MissedTaskV2Of::<Test>::new(
+			AccountId32::new(ALICE),
+			missed_task_id,
+			SCHEDULED_TIME - 3600,
+		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -797,8 +795,11 @@ fn trigger_tasks_handles_missed_slots() {
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missed_task =
-			MissedTaskV2Of::new(AccountId32::new(ALICE), missed_task_id, SCHEDULED_TIME - 3600);
+		let missed_task = MissedTaskV2Of::<Test>::new(
+			AccountId32::new(ALICE),
+			missed_task_id,
+			SCHEDULED_TIME - 3600,
+		);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -1665,7 +1666,8 @@ fn add_task_to_missed_queue(
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
 	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
-	let missed_task = MissedTaskV2Of::new(AccountId32::new(owner), task_id, scheduled_times[0]);
+	let missed_task =
+		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(missed_task);
 	MissedQueueV2::<Test>::put(missed_queue);
