@@ -1,6 +1,6 @@
 use crate::{
-	AutomationAction, Config, Currency, Decode, Encode, Error, Get, ParaId, Task, TypeInfo, Weight,
-	WeightInfo,
+	vec, AutomationAction, Config, Currency, Decode, Encode, Error, Get, ParaId, Task, TypeInfo,
+	Vec, Weight, WeightInfo,
 };
 
 pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
