@@ -24,16 +24,7 @@ use pallet_timestamp;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 
-use crate::Pallet as AutomationTime;
-
-type TaskOf<T> = Task<
-	<T as frame_system::Config>::AccountId,
-	<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance,
-	<T as Config>::CurrencyId,
-	<T as Config>::MaxExecutionTimes,
->;
-type MissedTaskV2Of<T> =
-	MissedTaskV2<<T as frame_system::Config>::AccountId, <T as frame_system::Config>::Hash>;
+use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 
 const SEED: u32 = 0;
 // existential deposit multiplier
