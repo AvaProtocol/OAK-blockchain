@@ -25,6 +25,16 @@
 // --output
 // ./pallets/valve/src/raw-weights.rs
 
+// Summary:
+//:close_pallet_gate_existing 8_111_000
+//:close_pallet_gate_new 19_966_000
+//:close_valve 14_566_000
+//:open_pallet_gate 20_384_000
+//:open_pallet_gates 21_242_000
+//:open_valve 15_296_000
+//:start_scheduled_tasks 15_020_000
+//:stop_scheduled_tasks 14_542_000
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]

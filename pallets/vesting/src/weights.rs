@@ -26,6 +26,9 @@
 // --output
 // ./pallets/vesting/src/raw-weights.rs
 
+// Summary:
+//:vest 14_917_000
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]

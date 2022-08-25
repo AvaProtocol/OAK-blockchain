@@ -5,6 +5,11 @@
 //! DATE: 2022-05-26, STEPS: `1`, REPEAT: 20, LOW RANGE: `[]`, HIGH RANGE: `[]`
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
+// Summary:
+//:emit_event 20_000_000
+//:reset_asset 200_000_000
+//:run_native_transfer_task 230_000_000
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]

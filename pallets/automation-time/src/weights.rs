@@ -26,6 +26,29 @@
 // --output
 // ./pallets/automation-time/src/weights.rs
 
+// Summary:
+//:append_to_missed_tasks 1_943_000
+//:cancel_scheduled_task_full 859_475_000
+//:force_cancel_scheduled_task 27_236_000
+//:force_cancel_scheduled_task_full 826_320_000
+//:run_auto_compound_delegated_stake_task 101_751_000
+//:run_missed_tasks_many_found 169_000
+//:run_missed_tasks_many_missing 186_000
+//:run_native_transfer_task 33_877_000
+//:run_notify_task 8_589_000
+//:run_tasks_many_found 203_000
+//:run_tasks_many_missing 182_000
+//:run_xcmp_task 79_666_000
+//:schedule_auto_compound_delegated_stake_task_full 112_631_000
+//:schedule_native_transfer_task_empty 57_630_000
+//:schedule_native_transfer_task_full 80_207_000
+//:schedule_notify_task_empty 57_667_000
+//:schedule_notify_task_full 70_014_000
+//:schedule_xcmp_task_full 107_673_000
+//:shift_missed_tasks 29_323_000
+//:update_scheduled_task_queue 48_984_000
+//:update_task_queue_overhead 1_938_000
+
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
