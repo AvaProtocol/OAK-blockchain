@@ -94,7 +94,7 @@ jobs:
                 | column -t >> body.md
             echo "\`\`\`" >> body.md
           done
-          echo "::set-output name=md::$(cat body.md)"
+          echo ::set-output name=md::$(cat body.md)
       - name: Move benchmark files to correct place
         run: |
           for file in $(find ./weight-artifacts -type f); do
@@ -110,3 +110,4 @@ jobs:
           branch: update-weights
           branch-suffix: short-commit-hash
           body: ${{ steps.body.outputs.md }}
+          add-paths: pallets/**/weights.rs
