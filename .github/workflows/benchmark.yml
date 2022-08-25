@@ -94,7 +94,11 @@ jobs:
                 | column -t >> body.md
             echo "\`\`\`" >> body.md
           done
-          echo ::set-output name=md::$(cat body.md)
+          body=$(cat body.md)
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo ::set-output name=md::$body
       - name: Move benchmark files to correct place
         run: |
           for file in $(find ./weight-artifacts -type f); do
