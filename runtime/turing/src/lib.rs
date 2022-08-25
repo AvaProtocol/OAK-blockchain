@@ -546,6 +546,13 @@ impl TokenInfo for CurrencyId {
 		}
 	}
 }
+
+impl Default for CurrencyId {
+	fn default() -> Self {
+		Self::Native
+	}
+}
+
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
