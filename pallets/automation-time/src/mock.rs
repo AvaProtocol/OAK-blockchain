@@ -228,9 +228,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		20_000
 	}
-	fn migration_v3() -> Weight {
-		0
-	}
 }
 
 #[derive(
