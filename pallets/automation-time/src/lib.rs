@@ -271,11 +271,6 @@ pub mod pallet {
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_tasks_v2)]
-	pub type ScheduledTasksV2<T: Config> =
-		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasksV3<T: Config> = StorageMap<_, Twox64Concat, UnixTime, ScheduledTasks<T>>;
 
