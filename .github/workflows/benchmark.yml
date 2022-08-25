@@ -109,3 +109,4 @@ jobs:
           base: master
           branch: update-weights
           branch-suffix: short-commit-hash
+          body: ${{ steps.body.outputs.md }}
