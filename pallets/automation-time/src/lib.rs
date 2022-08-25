@@ -231,7 +231,7 @@ pub mod pallet {
 
 		/// The maximum supported execution weight per automation slot
 		#[pallet::constant]
-		type MaxWeightPerSlot: Get<Weight>;
+		type MaxWeightPerSlot: Get<u128>;
 
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
@@ -1183,8 +1183,9 @@ pub mod pallet {
 										*execution_time,
 										ScheduledTasks {
 											tasks: account_task_ids,
-											weight: weight
-												.saturating_sub(task.action.execution_weight()),
+											weight: weight.saturating_sub(
+												task.action.execution_weight() as u128,
+											),
 										},
 									);
 								}
@@ -1210,8 +1211,9 @@ pub mod pallet {
 										*execution_time,
 										ScheduledTasks {
 											tasks: account_task_ids,
-											weight: weight
-												.saturating_sub(task.action.execution_weight()),
+											weight: weight.saturating_sub(
+												task.action.execution_weight() as u128,
+											),
 										},
 									);
 								}

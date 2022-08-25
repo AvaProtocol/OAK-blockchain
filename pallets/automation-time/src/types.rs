@@ -82,7 +82,7 @@ impl<T: Config> Action<T> {
 #[scale_info(skip_type_params(T))]
 pub struct ScheduledTasks<T: Config> {
 	pub tasks: Vec<AccountTaskId<T>>,
-	pub weight: Weight,
+	pub weight: u128,
 }
 impl<T: Config> Default for ScheduledTasks<T> {
 	fn default() -> Self {
@@ -93,7 +93,7 @@ impl<T: Config> ScheduledTasks<T> {
 	pub fn try_push(&mut self, task_id: TaskId<T>, task: &Task<T>) -> Result<&mut Self, Error<T>> {
 		let weight = self
 			.weight
-			.checked_add(task.action.execution_weight())
+			.checked_add(task.action.execution_weight() as u128)
 			.ok_or(Error::<T>::TimeSlotFull)?;
 		if weight > T::MaxWeightPerSlot::get() {
 			Err(Error::<T>::TimeSlotFull)?

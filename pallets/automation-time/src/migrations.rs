@@ -376,7 +376,7 @@ pub mod v4 {
 					.filter_map(|(account_id, task_id)| {
                             task_count += 1;
 						if let Some(task) = Pallet::<T>::get_account_task(account_id.clone(), task_id) {
-							Some(task.action.execution_weight())
+							Some(task.action.execution_weight() as u128)
 						} else {
 							log::warn!(target: "automation-time", "Unable to get task with id {:?} for account {:?}", task_id, account_id);
 							None

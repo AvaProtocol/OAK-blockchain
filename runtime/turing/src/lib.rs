@@ -52,7 +52,7 @@ use sp_version::RuntimeVersion;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU64, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, Imbalance,
+		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, Imbalance,
 		InstanceFilter, OnUnbalanced, PrivilegeCmp,
 	},
 	weights::{
@@ -1015,7 +1015,9 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
-	type MaxWeightPerSlot = ConstU64<100_000>;
+	// Roughly 1.25% of parachain block weight per hour
+	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .0125
+	type MaxWeightPerSlot = ConstU128<1_500_000_000_000>;
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
