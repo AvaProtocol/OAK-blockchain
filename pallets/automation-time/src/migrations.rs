@@ -406,14 +406,14 @@ pub mod v4 {
 
 			// Tasks count per scheduled time should not have changed
 			let mut post_scheduled_count: Vec<(UnixTime, u32)> = vec![];
-			storage_key_iter::<UnixTime, Vec<ScheduledTasks<T>>, Twox64Concat>(
+			storage_key_iter::<UnixTime, ScheduledTasks<T>, Twox64Concat>(
 				PALLET_PREFIX,
 				NEW_STORAGE_PREFIX,
 			)
 			.for_each(|(time, ScheduledTasks { tasks: task_ids, weight })| {
 				post_scheduled_count.push((time, task_ids.len() as u32));
 				assert!(weight > 0);
-				if (weight > T::MaxWeightPerSlot) {
+				if weight > T::MaxWeightPerSlot::get() {
 					log::info!(
 						target: "automation-time",
 						"ScheduledTasks at {} are over the weight limit.",
@@ -428,7 +428,7 @@ pub mod v4 {
 			log::info!(
 				target: "automation-time",
 				"migration: AutomationTime storage version v4 POST migration checks succesful! Migrated {} tasks.",
-				post_scheduled_count.map(|_, count| count).sum()
+				post_scheduled_count.iter().map(|(_, count)| count).sum::<u32>()
 			);
 
 			Ok(())

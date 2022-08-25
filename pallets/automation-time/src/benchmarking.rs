@@ -49,15 +49,13 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	for i in 0..count {
 		let provided_id: Vec<u8> =
 			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
-		task_id =
-			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone())
-				.unwrap();
 		let task = Task::<T>::create_event_task(
 			owner.clone(),
-			provided_id,
+			provided_id.clone(),
 			times.clone().try_into().unwrap(),
 			vec![4, 5, 6],
 		);
+		task_id = AutomationTime::<T>::schedule_task(&task, provided_id, times.clone()).unwrap();
 		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
@@ -73,16 +71,14 @@ fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32
 	for i in 0..count {
 		let provided_id: Vec<u8> =
 			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
-		task_id =
-			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), vec![time])
-				.unwrap();
 		let task = Task::<T>::create_native_transfer_task(
 			owner.clone(),
-			provided_id,
+			provided_id.clone(),
 			vec![time].try_into().unwrap(),
 			recipient.clone(),
 			amount.clone(),
 		);
+		task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![time]).unwrap();
 		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
@@ -102,18 +98,16 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 	for i in 0..count {
 		let provided_id: Vec<u8> =
 			vec![(i / 256).try_into().unwrap(), (i % 256).try_into().unwrap()];
-		task_id =
-			AutomationTime::<T>::schedule_task(owner.clone(), provided_id.clone(), times.clone())
-				.unwrap();
 		let task = Task::<T>::create_xcmp_task(
 			owner.clone(),
-			provided_id,
+			provided_id.clone(),
 			times.clone().try_into().unwrap(),
 			para_id.clone().try_into().unwrap(),
 			T::GetNativeCurrencyId::get(),
 			vec![4, 5, 6],
 			5_000,
 		);
+		task_id = AutomationTime::<T>::schedule_task(&task, provided_id, times.clone()).unwrap();
 		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 	}
 	task_id
@@ -133,22 +127,17 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 		let provided_id = AutomationTime::<T>::generate_auto_compound_delegated_stake_provided_id(
 			&owner, &collator,
 		);
-		let task_id = AutomationTime::<T>::schedule_task(
-			owner.clone(),
-			provided_id.clone(),
-			vec![time.clone()],
-		)
-		.unwrap();
 		let frequency = 3600;
 		let account_minimum = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let task = Task::<T>::create_auto_compound_delegated_stake_task(
 			owner.clone(),
-			provided_id,
+			provided_id.clone(),
 			time,
 			frequency,
 			collator,
 			account_minimum,
 		);
+		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![time]).unwrap();
 		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
 		tasks.push((task_id, Pallet::<T>::get_account_task(owner.clone(), task_id).unwrap()));
 	}
@@ -342,8 +331,8 @@ benchmarks! {
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
+			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
+			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![time.into()]).unwrap();
 			let missed_task = MissedTaskV2::<T>::new(caller.clone(), task_id, time.into());
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			missed_tasks.push(missed_task)
@@ -385,8 +374,8 @@ benchmarks! {
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
-			let task = Task::<T>::create_native_transfer_task(caller.clone(), provided_id, vec![time].try_into().unwrap(), recipient.clone(), transfer_amount.clone());
+			let task = Task::<T>::create_native_transfer_task(caller.clone(), provided_id.clone(), vec![time].try_into().unwrap(), recipient.clone(), transfer_amount.clone());
+			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![time.into()]).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			task_ids.push((caller.clone(), task_id))
 		}
@@ -430,8 +419,8 @@ benchmarks! {
 			for j in 0..1 {
 				let time = time.saturating_add(3600);
 				let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
-				let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
-				let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
+				let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
+				let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![time.into()]).unwrap();
 				<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			}
 		}
@@ -444,8 +433,8 @@ benchmarks! {
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			let provided_id: Vec<u8> = vec![(i/256).try_into().unwrap(), (i%256).try_into().unwrap()];
-			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![current_time.into()]).unwrap();
-			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
+			let task = Task::<T>::create_event_task(caller.clone(), provided_id.clone(), vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
+			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![current_time.into()]).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 		}
 	}: { AutomationTime::<T>::update_scheduled_task_queue(current_time, last_time_slot) }
