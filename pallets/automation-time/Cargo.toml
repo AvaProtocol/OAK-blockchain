@@ -61,6 +61,7 @@ default = ["std"]
 runtime-benchmarks = [
 	"frame-benchmarking",
 	"pallet-parachain-staking/runtime-benchmarks",
+	"pallet-xcmp-handler/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
 std = [
