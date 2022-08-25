@@ -794,7 +794,7 @@ pub mod pallet {
 					if last_asset_price < asset_target_price {
 						let last_asset_percentage =
 							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
-						if trigger_percentage > last_asset_percentage {
+						if trigger_percentage < last_asset_percentage {
 							Err(Error::<T>::AssetNotInTriggerableRange)?
 						}
 					},
