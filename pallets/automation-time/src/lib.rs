@@ -90,6 +90,7 @@ pub mod pallet {
 		<T as Config>::CurrencyId,
 		<T as Config>::MaxExecutionTimes,
 	>;
+	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -171,8 +172,7 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
-	pub type MissedQueueV2<T: Config> =
-		StorageValue<_, Vec<MissedTaskV2<AccountOf<T>, TaskId<T>>>, ValueQuery>;
+	pub type MissedQueueV2<T: Config> = StorageValue<_, Vec<MissedTaskV2Of<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
@@ -675,11 +675,8 @@ pub mod pallet {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
 				for (account_id, task_id) in missed_tasks {
-					let new_missed_task = MissedTaskV2::<AccountOf<T>, TaskId<T>>::new(
-						account_id,
-						task_id,
-						last_time_slot,
-					);
+					let new_missed_task =
+						MissedTaskV2Of::<T>::new(account_id, task_id, last_time_slot);
 					missed_queue.push(new_missed_task);
 				}
 				MissedQueueV2::<T>::put(missed_queue);
@@ -758,7 +755,7 @@ pub mod pallet {
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
-		) -> Vec<MissedTaskV2<AccountOf<T>, TaskId<T>>> {
+		) -> Vec<MissedTaskV2Of<T>> {
 			let mut tasks = vec![];
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
@@ -766,11 +763,8 @@ pub mod pallet {
 			if let Some(account_task_ids) = Self::get_scheduled_tasks(new_time_slot) {
 				ScheduledTasksV2::<T>::remove(new_time_slot);
 				for (account_id, task_id) in account_task_ids {
-					let new_missed_task = MissedTaskV2::<AccountOf<T>, TaskId<T>>::new(
-						account_id,
-						task_id,
-						new_time_slot,
-					);
+					let new_missed_task =
+						MissedTaskV2Of::<T>::new(account_id, task_id, new_time_slot);
 					tasks.push(new_missed_task);
 				}
 			}
@@ -857,9 +851,9 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_missed_tasks(
-			mut missed_tasks: Vec<MissedTaskV2<AccountOf<T>, TaskId<T>>>,
+			mut missed_tasks: Vec<MissedTaskV2Of<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<MissedTaskV2<AccountOf<T>, TaskId<T>>>, Weight) {
+		) -> (Vec<MissedTaskV2Of<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for missed_task in missed_tasks.iter() {
 				consumed_task_index += 1;
