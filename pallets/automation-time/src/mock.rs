@@ -287,6 +287,14 @@ where
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn setup_chain_currency_data(
+		_para_id: u32,
+		_currency_id: CurrencyId,
+	) -> Result<(), sp_runtime::DispatchError> {
+		Ok(().into())
+	}
 }
 
 impl pallet_automation_time::Config for Test {
