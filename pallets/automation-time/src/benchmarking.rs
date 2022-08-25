@@ -19,7 +19,6 @@
 
 use super::*;
 use frame_benchmarking::{account, benchmarks};
-use frame_support::traits::OnRuntimeUpgrade;
 use frame_system::RawOrigin;
 use pallet_timestamp;
 use polkadot_parachain::primitives::Sibling;
@@ -345,7 +344,7 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
-			let missed_task = MissedTaskV2::<T>::create_missed_task(caller.clone(), task_id, time.into());
+			let missed_task = MissedTaskV2::<T>::new(caller.clone(), task_id, time.into());
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			missed_tasks.push(missed_task)
 		}
@@ -362,7 +361,7 @@ benchmarks! {
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			let missed_task = MissedTaskV2::<T>::create_missed_task(caller.clone(), task_id, time.into());
+			let missed_task = MissedTaskV2::<T>::new(caller.clone(), task_id, time.into());
 			missed_tasks.push(missed_task)
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
@@ -460,72 +459,4 @@ benchmarks! {
 
 		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
-
-	migration_v3 {
-		let owner_id: T::AccountId = account("callerName", 0, SEED);
-		let time_one: u64 = 10800;
-		let time_two = time_one + 7200;
-		let execution_times = vec![time_one, time_two];
-		let scheduled_task_one = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![10],
-			execution_times.clone().try_into().unwrap(),
-			vec![100],
-		);
-		let scheduled_task_two = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![20],
-			execution_times.clone().try_into().unwrap(),
-			vec![100],
-		);
-		let scheduled_task_one_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![10]);
-		let scheduled_task_two_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![20]);
-		Tasks::<T>::insert(scheduled_task_one_id, scheduled_task_one);
-		Tasks::<T>::insert(scheduled_task_two_id, scheduled_task_two);
-		let schedule_task_ids: BoundedVec<TaskId<T>, <T as Config>::MaxTasksPerSlot> =
-			vec![scheduled_task_one_id, scheduled_task_two_id].try_into().unwrap();
-		ScheduledTasks::<T>::insert(time_one, schedule_task_ids.clone());
-		ScheduledTasks::<T>::insert(time_two, schedule_task_ids);
-
-		// TaskQueue
-		let task_queue_one = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![30],
-			vec![0].try_into().unwrap(),
-			vec![100],
-		);
-		let task_queue_two = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![40],
-			vec![0].try_into().unwrap(),
-			vec![100],
-		);
-		let task_queue_one_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![30]);
-		let task_queue_two_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![40]);
-		Tasks::<T>::insert(task_queue_one_id, task_queue_one);
-		Tasks::<T>::insert(task_queue_two_id, task_queue_two);
-		TaskQueue::<T>::put(vec![task_queue_one_id, task_queue_two_id]);
-
-		// MissedQueue
-		let missed_queue_one = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![50],
-			vec![0].try_into().unwrap(),
-			vec![100],
-		);
-		let missed_queue_two = Task::<T>::create_event_task(
-			owner_id.clone(),
-			vec![60],
-			vec![0].try_into().unwrap(),
-			vec![100],
-		);
-		let missed_queue_one_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![50]);
-		let missed_queue_two_id = AutomationTime::<T>::generate_task_id(owner_id.clone(), vec![60]);
-		Tasks::<T>::insert(missed_queue_one_id, missed_queue_one);
-		Tasks::<T>::insert(missed_queue_two_id, missed_queue_two);
-		let missed_task_one = MissedTask::<T>::create_missed_task(missed_queue_one_id, 0);
-		let missed_task_two = MissedTask::<T>::create_missed_task(missed_queue_two_id, 0);
-		MissedQueue::<T>::put(vec![missed_task_one, missed_task_two]);
-
-	}: { migrations::v3::MigrateToV3::<T>::on_runtime_upgrade() }
 }

@@ -448,7 +448,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
 
 pub mod parachains {

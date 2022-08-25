@@ -158,7 +158,6 @@ parameter_types! {
 	pub const MaxBlockWeight: Weight = 1_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const SecondsPerBlock: u64 = 12;
 	pub const ExecutionWeightFee: Balance = 12;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
@@ -298,7 +297,6 @@ impl pallet_automation_time::Config for Test {
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type UpdateQueueRatio = UpdateQueueRatio;
-	type SecondsPerBlock = SecondsPerBlock;
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
