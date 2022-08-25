@@ -134,7 +134,7 @@ impl Shutdown for MockAutomationPrice {
 
 impl Config for Test {
 	type Event = Event;
-	type WeightInfo = pallet_valve::weights::ValveWeight<Test>;
+	type WeightInfo = ();
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
 	type AutomationPrice = MockAutomationPrice;

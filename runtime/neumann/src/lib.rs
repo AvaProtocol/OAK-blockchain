@@ -310,7 +310,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = ();
 	type MinimumPeriod = MinimumPeriod;
-	type WeightInfo = ();
+	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_authorship::Config for Runtime {
@@ -617,7 +617,7 @@ impl pallet_session::Config for Runtime {
 	// Essentially just Aura, but lets be pedantic.
 	type SessionHandler = <SessionKeys as sp_runtime::traits::OpaqueKeys>::KeyTypeIdProviders;
 	type Keys = SessionKeys;
-	type WeightInfo = ();
+	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_aura::Config for Runtime {
@@ -955,7 +955,7 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type UpdateQueueRatio = UpdateQueueRatio;
-	type WeightInfo = pallet_automation_time::weights::AutomationWeight<Runtime>;
+	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
@@ -970,7 +970,7 @@ impl pallet_automation_price::Config for Runtime {
 	type MaxTasksPerSlot = ConstU32<1>;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
-	type WeightInfo = pallet_automation_price::weights::AutomationWeight<Runtime>;
+	type WeightInfo = ();
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
 	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
@@ -993,7 +993,7 @@ impl Contains<Call> for ClosedCallFilter {
 
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = pallet_valve::weights::ValveWeight<Runtime>;
+	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
 	type AutomationPrice = AutomationPrice;
@@ -1001,7 +1001,7 @@ impl pallet_valve::Config for Runtime {
 
 impl pallet_vesting::Config for Runtime {
 	type Event = Event;
-	type WeightInfo = pallet_vesting::weights::VestingWeight<Runtime>;
+	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
 	type Currency = Balances;
 }
 

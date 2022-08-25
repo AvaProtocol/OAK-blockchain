@@ -71,9 +71,9 @@ fn genesis() {
 fn on_initialize_with_default() {
 	ExtBuilder::default().build().execute_with(|| {
 		Timestamp::set_timestamp(FIRST_VEST_TIME * 1_000);
-		let weight_used = Vesting::on_initialize(1);
 
-		assert_eq!(weight_used, 1_000);
+		assert_eq!(None, Vesting::get_scheduled_vest(FIRST_VEST_TIME));
+		Vesting::on_initialize(1);
 	})
 }
 
@@ -82,9 +82,8 @@ fn on_initialize_no_time_set() {
 	let scheduled_vests = get_schedule();
 
 	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {
-		let weight_used = Vesting::on_initialize(1);
+		Vesting::on_initialize(1);
 
-		assert_eq!(weight_used, 1_000);
 		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		assert_eq!(first_vest.unwrap().len(), 2);
@@ -103,9 +102,8 @@ fn on_initialize() {
 
 		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
 		let vest_events = vest_to_events(first_vest.unwrap());
-		let weight_used = Vesting::on_initialize(1);
+		Vesting::on_initialize(1);
 
-		assert_eq!(weight_used, 3_000);
 		let first_vest = Vesting::get_scheduled_vest(FIRST_VEST_TIME);
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		assert_eq!(first_vest, None);
@@ -118,9 +116,8 @@ fn on_initialize() {
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		let vest_events = vest_to_events(second_vest.unwrap());
 		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
-		let weight_used = Vesting::on_initialize(2);
+		Vesting::on_initialize(2);
 
-		assert_eq!(weight_used, 3_000);
 		let second_vest = Vesting::get_scheduled_vest(SECOND_VEST_TIME);
 		assert_eq!(second_vest, None);
 		assert_eq!(events(), vest_events);
@@ -129,8 +126,7 @@ fn on_initialize() {
 		assert_eq!(Vesting::total_unvested_allocation(), 0);
 
 		Timestamp::set_timestamp(SECOND_VEST_TIME * 1_000);
-		let weight_used = Vesting::on_initialize(2);
-		assert_eq!(weight_used, 1_000);
+		Vesting::on_initialize(2);
 	})
 }
 
