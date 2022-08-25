@@ -1,9 +1,11 @@
-// use super::*;
-// use crate::{Config, Weight};
-// use frame_support::{
-// 	pallet_prelude::PhantomData,
-// 	traits::{Get, OnRuntimeUpgrade},
-// };
+use super::*;
+use crate::{Config, Weight};
+use frame_support::{
+	pallet_prelude::PhantomData,
+	traits::{Get, OnRuntimeUpgrade},
+};
+
+const PALLET_PREFIX: &[u8] = b"AutomationTime";
 
 // Migrating LastTimeSlot from a single time to a tuple.
 // NOTE: The 2 UnixTime stamps represent (last_time_slot, last_missed_slot).
@@ -320,3 +322,168 @@
 // 		}
 // 	}
 // }
+
+pub mod v4 {
+	use super::*;
+	use crate::{AccountTaskId, ScheduledTasks};
+	use frame_support::{migration::storage_key_iter, BoundedVec, Twox64Concat};
+
+	pub const OLD_STORAGE_PREFIX: &[u8] = b"ScheduledTasksV2";
+	pub const NEW_STORAGE_PREFIX: &[u8] = b"ScheduledTasksV3";
+
+	// Use weight to determine when scheduled task slot is full
+	pub struct MigrateToV4<T>(PhantomData<T>);
+	impl<T: Config> OnRuntimeUpgrade for MigrateToV4<T> {
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<(), &'static str> {
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+			// Get count per scheduled time
+			let mut pre_scheduled_count: Vec<(UnixTime, u32)> = vec![];
+			storage_key_iter::<u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>, Twox64Concat>(
+				PALLET_PREFIX,
+				OLD_STORAGE_PREFIX,
+			)
+			.for_each(|(time, task_ids)| {
+				pre_scheduled_count.push((time, task_ids.len() as u32));
+			});
+			Self::set_temp_storage::<Vec<(UnixTime, u32)>>(
+				pre_scheduled_count,
+				"pre_scheduled_count",
+			);
+
+			log::info!(
+				target: "automation-time",
+				"migration: AutomationTime storage version v4 PRE migration checks succesful!"
+			);
+
+			Ok(())
+		}
+
+		fn on_runtime_upgrade() -> Weight {
+			log::info!(target: "automation-time", "Migrating automation-time v4");
+
+			// Move all tasks from ScheduledTasksV2 to ScheduledTasksV3
+			let mut task_count = 0u64;
+			let migrated_keys_count = storage_key_iter::<UnixTime, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>, Twox64Concat>(
+				PALLET_PREFIX,
+				OLD_STORAGE_PREFIX,
+			)
+			.drain()
+			.map(|(time, task_ids)| {
+				let weight = task_ids.clone()
+					.into_iter()
+					.filter_map(|(account_id, task_id)| {
+                            task_count += 1;
+						if let Some(task) = Pallet::<T>::get_account_task(account_id.clone(), task_id) {
+							Some(task.action.execution_weight())
+						} else {
+							log::warn!(target: "automation-time", "Unable to get task with id {:?} for account {:?}", task_id, account_id);
+							None
+						}
+					})
+					.sum();
+
+				// Insert all tasks without checking MaxWeightPerSlot to allow existing tasks to be run
+				ScheduledTasksV3::<T>::insert(time, ScheduledTasks{ tasks: task_ids.to_vec(), weight });
+			}).count() as u64;
+
+			// For each time in scheduled tasks there is
+			// 1 read to get it into memory
+			// n reads to get the associated tasks into memory
+			// 1 write to remove it from the old scheduled tasks
+			// 1 write to add it to the new scheduled tasks
+			let weight = T::DbWeight::get()
+				.reads_writes(migrated_keys_count + task_count, migrated_keys_count * 2);
+
+			// Adding a buffer for the rest of the code
+			weight + 50_000_000
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade() -> Result<(), &'static str> {
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+			// Tasks count per scheduled time should not have changed
+			let mut post_scheduled_count: Vec<(UnixTime, u32)> = vec![];
+			storage_key_iter::<UnixTime, Vec<ScheduledTasks<T>>, Twox64Concat>(
+				PALLET_PREFIX,
+				NEW_STORAGE_PREFIX,
+			)
+			.for_each(|(time, ScheduledTasks { tasks: task_ids, weight })| {
+				post_scheduled_count.push((time, task_ids.len() as u32));
+				assert!(weight > 0);
+				if (weight > T::MaxWeightPerSlot) {
+					log::info!(
+						target: "automation-time",
+						"ScheduledTasks at {} are over the weight limit.",
+						time
+					);
+				}
+			});
+			let pre_scheduled_count =
+				Self::get_temp_storage::<Vec<(UnixTime, u32)>>("pre_scheduled_count").unwrap();
+			assert_eq!(post_scheduled_count, pre_scheduled_count);
+
+			log::info!(
+				target: "automation-time",
+				"migration: AutomationTime storage version v4 POST migration checks succesful! Migrated {} tasks.",
+				post_scheduled_count.map(|_, count| count).sum()
+			);
+
+			Ok(())
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::mock::*;
+
+	mod migrations_v4 {
+		use super::*;
+		use frame_support::{
+			migration::{put_storage_value, storage_key_iter},
+			Hashable,
+		};
+		use sp_runtime::AccountId32;
+
+		#[test]
+		fn on_runtime_upgrade() {
+			new_test_ext(0).execute_with(|| {
+				let task_id = TaskId::<Test>::default();
+				let account_id = AccountId32::new(ALICE);
+				let task = Task::<Test>::create_event_task(
+					account_id.clone(),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				AccountTasks::<Test>::insert(account_id.clone(), task_id, task);
+				let tasks: BoundedVec<_, MaxTasksPerSlot> =
+					vec![(account_id.clone(), task_id)].try_into().unwrap();
+				put_storage_value(
+					PALLET_PREFIX,
+					v4::OLD_STORAGE_PREFIX,
+					&0u64.twox_64_concat(),
+					tasks,
+				);
+				v4::MigrateToV4::<Test>::on_runtime_upgrade();
+				assert_eq!(
+					None,
+					storage_key_iter::<
+						UnixTime,
+						BoundedVec<AccountTaskId<Test>, MaxTasksPerSlot>,
+						Twox64Concat,
+					>(PALLET_PREFIX, v4::OLD_STORAGE_PREFIX,)
+					.next()
+				);
+				assert_eq!(
+					Pallet::<Test>::get_scheduled_tasks(0).unwrap(),
+					ScheduledTasks { tasks: vec![(account_id, task_id)], weight: 20_000 }
+				);
+			})
+		}
+	}
+}
