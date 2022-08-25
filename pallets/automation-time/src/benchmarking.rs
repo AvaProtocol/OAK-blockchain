@@ -344,7 +344,7 @@ benchmarks! {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::schedule_task(caller.clone(), provided_id.clone(), vec![time.into()]).unwrap();
 			let task = Task::<T>::create_event_task(caller.clone(), provided_id, vec![time.into()].try_into().unwrap(), vec![4, 5, 6]);
-			let missed_task = MissedTaskV2::<T>::create_missed_task(caller.clone(), task_id, time.into());
+			let missed_task = MissedTaskV2::<T>::new(caller.clone(), task_id, time.into());
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			missed_tasks.push(missed_task)
 		}
@@ -361,7 +361,7 @@ benchmarks! {
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
 			let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), provided_id);
-			let missed_task = MissedTaskV2::<T>::create_missed_task(caller.clone(), task_id, time.into());
+			let missed_task = MissedTaskV2::<T>::new(caller.clone(), task_id, time.into());
 			missed_tasks.push(missed_task)
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }

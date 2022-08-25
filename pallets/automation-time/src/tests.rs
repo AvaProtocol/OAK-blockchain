@@ -762,7 +762,7 @@ fn trigger_tasks_updates_queues() {
 			vec![SCHEDULED_TIME - 3600],
 			Action::Notify { message: vec![40] },
 		);
-		let missed_task = MissedTaskV2::<Test>::create_missed_task(
+		let missed_task = MissedTaskV2::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
@@ -795,7 +795,7 @@ fn trigger_tasks_handles_missed_slots() {
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
-		let missed_task = MissedTaskV2::<Test>::create_missed_task(
+		let missed_task = MissedTaskV2::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
@@ -932,7 +932,7 @@ fn trigger_tasks_completes_all_tasks() {
 fn trigger_tasks_handles_nonexisting_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_hash_input = TaskHashInput::<Test>::create_hash_input(owner.clone(), vec![20]);
+		let task_hash_input = TaskHashInput::<Test>::new(owner.clone(), vec![20]);
 		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
 		let mut task_queue = AutomationTime::get_task_queue();
 		task_queue.push((owner.clone(), bad_task_id));
@@ -1636,8 +1636,7 @@ fn schedule_task(
 	message: Vec<u8>,
 ) -> sp_core::H256 {
 	get_funds(AccountId32::new(owner));
-	let task_hash_input =
-		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
+	let task_hash_input = TaskHashInput::<Test>::new(AccountId32::new(owner), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
 		Origin::signed(AccountId32::new(owner)),
 		provided_id,
@@ -1667,11 +1666,8 @@ fn add_task_to_missed_queue(
 	action: Action<Test>,
 ) -> sp_core::H256 {
 	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
-	let missed_task = MissedTaskV2::<Test>::create_missed_task(
-		AccountId32::new(owner),
-		task_id,
-		scheduled_times[0],
-	);
+	let missed_task =
+		MissedTaskV2::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(missed_task);
 	MissedQueueV2::<Test>::put(missed_queue);
@@ -1684,15 +1680,10 @@ fn create_task(
 	scheduled_times: Vec<u64>,
 	action: Action<Test>,
 ) -> sp_core::H256 {
-	let task_hash_input =
-		TaskHashInput::<Test>::create_hash_input(AccountId32::new(owner), provided_id.clone());
+	let task_hash_input = TaskHashInput::<Test>::new(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task = Task::<Test>::create_task(
-		owner.into(),
-		provided_id,
-		scheduled_times.try_into().unwrap(),
-		action,
-	);
+	let task =
+		Task::<Test>::new(owner.into(), provided_id, scheduled_times.try_into().unwrap(), action);
 	AccountTasks::<Test>::insert(AccountId::new(owner), task_id, task);
 	task_id
 }
