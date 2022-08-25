@@ -1,0 +1,116 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-binary:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Setup Rust
+        run: rustup show
+      - name: Build
+        run: |
+          cargo build --release --features runtime-benchmarks,turing-node
+          mkdir -p artifacts/
+          cp target/release/oak-collator artifacts/
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: oak-collator
+          path: artifacts/
+          retention-days: 1
+  run-benchmarks:
+    name: Run Benchmarks
+    runs-on: self-hosted
+    needs: build-binary
+    strategy:
+      matrix:
+        pallet:
+          - automation_time
+          - vesting
+          - valve
+          - xcmp_handler
+    steps:
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: oak-collator
+      - name: Execute pallet benchmark
+        run: |
+          chmod +x oak-collator
+          ./oak-collator \
+            benchmark \
+            pallet \
+            --chain turing-dev \
+            --execution wasm \
+            --wasm-execution compiled \
+            --pallet pallet_${{ matrix.pallet }} \
+            --extrinsic '*' \
+            --repeat 20 \
+            --steps 50 \
+            --output ./${{ matrix.pallet }}-raw-weights.rs \
+            --template ./.maintain/frame-weight-template.hbs
+      - name: Upload raw weights
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.pallet }}
+          path: ${{ matrix.pallet }}-raw-weights.rs
+  generate-pull-request:
+    name: Generate pull request
+    needs: run-benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete binary artifact
+        uses: geekyeggo/delete-artifact@v1
+        with:
+          name: oak-collator
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download benchmark files
+        uses: actions/download-artifact@v3
+        with:
+          path: weight-artifacts
+      - name: Generate PR body
+        id: body
+        run: |
+          echo > body.md
+          for file in $(find ./weight-artifacts -type f); do
+            pallet=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
+            echo "## $pallet" >> body.md
+            echo "\`\`\`" >> body.md
+            join -o auto -e "-" -a 1 -a 2 \
+              <(echo "$(grep '//:' pallets/$pallet/src/weights.rs | cut -c 4- | sort)") \
+              <(echo "$(grep '//:' $file | cut -c 4- | sort)") \
+                | column -t >> body.md
+            echo "\`\`\`" >> body.md
+          done
+          body=$(cat body.md)
+          body="${body//'%'/'%25'}"
+          body="${body//$'\n'/'%0A'}"
+          body="${body//$'\r'/'%0D'}"
+          echo "::set-output name=md::$body"
+      - name: Move benchmark files to correct place
+        run: |
+          for file in $(find ./weight-artifacts -type f); do
+            pallet=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
+            mv $file pallets/$pallet/src/weights.rs
+          done
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Update pallet weights
+          draft: true
+          base: master
+          branch: update-weights
+          branch-suffix: short-commit-hash
+          body: ${{ steps.body.outputs.md }}
+          add-paths: pallets/**/weights.rs
