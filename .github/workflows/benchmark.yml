@@ -80,6 +80,21 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: weight-artifacts
+      - name: Generate PR body
+        id: body
+        run: |
+          echo > body.md
+          for file in $(find ./weight-artifacts -type f); do
+            pallet_dir=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
+            echo "## $pallet" >> body.md
+            echo "\`\`\`" >> body.md
+            echo join -o auto -e "-" -a 1 -a 2 \
+              <(echo "$(grep '//:' pallets/$pallet/src/weight.rs | cut -c 4- | sort)") \
+              <(echo "$(grep '//:' $file | cut -c 4- | sort)") \
+                | column -t >> body.md
+            echo "\`\`\`" >> body.md
+          done
+          echo "::set-output name=md::$(cat body.md)"
       - name: Move benchmark files to correct place
         run: |
           for file in $(find ./weight-artifacts -type f); do
@@ -94,4 +109,4 @@ jobs:
           base: master
           branch: update-weights
           branch-suffix: short-commit-hash
-          body:
+          body: {{ steps.body.outputs.md }}
