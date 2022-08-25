@@ -89,7 +89,7 @@ jobs:
             echo "## $pallet" >> body.md
             echo "\`\`\`" >> body.md
             join -o auto -e "-" -a 1 -a 2 \
-              <(echo "$(grep '//:' pallets/$pallet/src/weight.rs | cut -c 4- | sort)") \
+              <(echo "$(grep '//:' pallets/$pallet/src/weights.rs | cut -c 4- | sort)") \
               <(echo "$(grep '//:' $file | cut -c 4- | sort)") \
                 | column -t >> body.md
             echo "\`\`\`" >> body.md
