@@ -9,30 +9,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-binary:
-    runs-on: self-hosted
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.tag }}
-      - name: Setup Rust
-        run: rustup show
-      - name: Build
-        run: |
-          cargo build --release --features runtime-benchmarks,turing-node
-          mkdir -p artifacts/
-          cp target/release/oak-collator artifacts/
-      - name: Upload binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: oak-collator
-          path: artifacts/
-          retention-days: 1
+  # build-binary:
+  #   runs-on: self-hosted
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+  #       with:
+  #         ref: ${{ github.event.inputs.tag }}
+  #     - name: Setup Rust
+  #       run: rustup show
+  #     - name: Build
+  #       run: |
+  #         cargo build --release --features runtime-benchmarks,turing-node
+  #         mkdir -p artifacts/
+  #         cp target/release/oak-collator artifacts/
+  #     - name: Upload binary
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: oak-collator
+  #         path: artifacts/
+  #         retention-days: 1
   run-benchmarks:
     name: Run Benchmarks
     runs-on: self-hosted
-    needs: build-binary
+    # needs: build-binary
     strategy:
       matrix:
         pallet:
@@ -41,14 +41,14 @@ jobs:
           - valve
           - xcmp_handler
     steps:
-      - name: Download binary
-        uses: actions/download-artifact@v2
-        with:
-          name: oak-collator
+      # - name: Download binary
+      #   uses: actions/download-artifact@v2
+      #   with:
+      #     name: oak-collator
       - name: Execute pallet benchmark
         run: |
           chmod +x oak-collator
-          ./oak-collator \
+          ./target/release/oak-collator \
             benchmark \
             pallet \
             --chain turing-dev \
@@ -70,10 +70,10 @@ jobs:
     needs: run-benchmarks
     runs-on: ubuntu-latest
     steps:
-      - name: Delete binary artifact
-        uses: geekyeggo/delete-artifact@v1
-        with:
-          name: oak-collator
+      # - name: Delete binary artifact
+      #   uses: geekyeggo/delete-artifact@v1
+      #   with:
+      #     name: oak-collator
       - name: Checkout
         uses: actions/checkout@v2
       - name: Download benchmark files
@@ -85,10 +85,10 @@ jobs:
         run: |
           echo > body.md
           for file in $(find ./weight-artifacts -type f); do
-            pallet_dir=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
+            pallet=$(basename $file | cut -d '-' -f 1 | tr '_' '-')
             echo "## $pallet" >> body.md
             echo "\`\`\`" >> body.md
-            echo join -o auto -e "-" -a 1 -a 2 \
+            join -o auto -e "-" -a 1 -a 2 \
               <(echo "$(grep '//:' pallets/$pallet/src/weight.rs | cut -c 4- | sort)") \
               <(echo "$(grep '//:' $file | cut -c 4- | sort)") \
                 | column -t >> body.md
