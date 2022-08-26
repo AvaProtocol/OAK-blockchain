@@ -376,7 +376,7 @@ pub mod v4 {
 					.filter_map(|(account_id, task_id)| {
                             task_count += 1;
 						if let Some(task) = Pallet::<T>::get_account_task(account_id.clone(), task_id) {
-							Some(task.action.execution_weight() as u128)
+							Some(task.action.execution_weight::<T>() as u128)
 						} else {
 							log::warn!(target: "automation-time", "Unable to get task with id {:?} for account {:?}", task_id, account_id);
 							None
@@ -406,7 +406,7 @@ pub mod v4 {
 
 			// Tasks count per scheduled time should not have changed
 			let mut post_scheduled_count: Vec<(UnixTime, u32)> = vec![];
-			storage_key_iter::<UnixTime, ScheduledTasks<T>, Twox64Concat>(
+			storage_key_iter::<UnixTime, ScheduledTasksOf<T>, Twox64Concat>(
 				PALLET_PREFIX,
 				NEW_STORAGE_PREFIX,
 			)
@@ -454,7 +454,7 @@ mod tests {
 			new_test_ext(0).execute_with(|| {
 				let task_id = TaskId::<Test>::default();
 				let account_id = AccountId32::new(ALICE);
-				let task = Task::<Test>::create_event_task(
+				let task = TaskOf::<Test>::create_event_task(
 					account_id.clone(),
 					vec![0],
 					vec![0].try_into().unwrap(),
