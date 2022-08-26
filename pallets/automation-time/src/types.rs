@@ -33,7 +33,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		account_minimum: Balance,
 		frequency: Seconds,
 	},
-	DyanamicDispatch {
+	DynamicDispatch {
 		encoded_call: Vec<u8>,
 	},
 }

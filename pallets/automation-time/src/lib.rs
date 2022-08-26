@@ -848,7 +848,7 @@ pub mod pallet {
 								task = mut_task;
 								weight
 							},
-							Action::DyanamicDispatch { encoded_call } =>
+							Action::DynamicDispatch { encoded_call } =>
 								Self::run_dynamic_dispatch_action(
 									task.owner_id.clone(),
 									encoded_call,
@@ -1360,7 +1360,7 @@ pub mod pallet {
 					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 				Action::AutoCompoundDelegatedStake { .. } =>
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-				Action::DyanamicDispatch { encoded_call } => {
+				Action::DynamicDispatch { encoded_call } => {
 					let scheduled_call: <T as Config>::Call = Decode::decode(&mut &**encoded_call)
 						.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
 					scheduled_call.get_dispatch_info().weight
