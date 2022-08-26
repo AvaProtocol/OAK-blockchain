@@ -33,6 +33,9 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		account_minimum: Balance,
 		frequency: Seconds,
 	},
+	Generic {
+		encoded_call: Vec<u8>,
+	},
 }
 
 impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Default>
