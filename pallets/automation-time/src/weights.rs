@@ -49,6 +49,7 @@
 //:shift_missed_tasks 29_323_000
 //:update_scheduled_task_queue 48_984_000
 //:update_task_queue_overhead 1_938_000
+//:deposit_event_weigher 12_000_000
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]

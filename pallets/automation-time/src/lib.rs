@@ -1068,7 +1068,6 @@ pub mod pallet {
 						result,
 					});
 
-					// TODO add event weight
 					maybe_actual_call_weight
 						.unwrap_or(call_weight)
 						.saturating_add(<T as Config>::WeightInfo::deposit_event_weigher())
@@ -1077,7 +1076,6 @@ pub mod pallet {
 					// TODO: If the call cannot be decoded then cancel the task.
 
 					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
-					// TODO: fix weight
 					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
 				},
 			}
