@@ -129,11 +129,15 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			let dispatch_weight = call.get_dispatch_info().weight;
+			let encoded_call = call.encode();
+			let decoded_call: <T as Config>::ECall =
+			Decode::decode(&mut &*encoded_call).map_err(|_| Error::<T>::BadEncodedCall)?;
+
+			let dispatch_weight = decoded_call.get_dispatch_info().weight;
 			Self::deposit_event(Event::CallWeight { weight: dispatch_weight });
 
 			let signed_who: T::Origin = frame_system::RawOrigin::Signed(who).into();
-			let e = call.dispatch(signed_who);
+			let e = decoded_call.dispatch(signed_who);
 			Self::deposit_event(Event::DispatchResult {
 				result: e.map(|_| ()).map_err(|e| e.error),
 			});
