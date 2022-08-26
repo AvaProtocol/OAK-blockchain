@@ -327,6 +327,15 @@ benchmarks! {
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
    }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
 
+	   run_dynamic_dispatch_action_fail_decode {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), vec![1]);
+		let bad_encoded_call: Vec<u8> = vec![1];
+	   }: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id) }
+	verify {
+		assert_last_event::<T>(Event::CallCannotBeDecoded{ who: caller, task_id }.into())
+	}
+
 	/*
 	* This section is to test run_missed_tasks.
 	* run_missed_tasks_many_found: measuring many existing tasks for linear progression
@@ -459,4 +468,11 @@ benchmarks! {
 
 		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
+
+	deposit_event_weigher {
+
+	}: { AutomationTime::<T>::deposit_event_weigher() }
+	verify {
+		assert_last_event::<T>(Event::Notify{ message: b"benchmark".to_vec() }.into())
+	}
 }

@@ -49,17 +49,19 @@ pub use autocompounding::*;
 mod types;
 pub use types::*;
 
+use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::DispatchErrorWithPostInfo,
+	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement},
+	traits::{Currency, ExistenceRequirement, IsSubType},
+	weights::GetDispatchInfo,
 	BoundedVec,
 };
 use frame_system::pallet_prelude::*;
@@ -68,7 +70,7 @@ use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{vec, vec::Vec};
@@ -149,6 +151,14 @@ pub mod pallet {
 		type FeeHandler: HandleFees<Self>;
 
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
+
+		/// The overarching call type.
+		type Call: Parameter
+			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+			+ GetDispatchInfo
+			+ From<frame_system::Call<Self>>
+			+ IsSubType<Call<Self>>
+			+ IsType<<Self as frame_system::Config>::Call>;
 	}
 
 	#[pallet::pallet]
@@ -215,6 +225,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		/// The call can no longer be decoded.
+		CallCannotBeDecoded,
 	}
 
 	#[pallet::event]
@@ -273,6 +285,17 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
+		},
+		/// The result of the DynamicDispatch action.
+		DynamicDispatchResult {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			result: DispatchResult,
+		},
+		/// The call for the DynamicDispatch action can no longer be decoded.
+		CallCannotBeDecoded {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
 		},
 	}
 
@@ -825,6 +848,12 @@ pub mod pallet {
 								task = mut_task;
 								weight
 							},
+							Action::DyanamicDispatch { encoded_call } =>
+								Self::run_dynamic_dispatch_action(
+									task.owner_id.clone(),
+									encoded_call,
+									*task_id,
+								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -958,8 +987,8 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 		) -> (TaskOf<T>, Weight) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds =
-				account_minimum.saturating_add(Self::calculate_execution_fee(&task.action, 1));
+			let reserved_funds = account_minimum
+				.saturating_add(Self::calculate_execution_fee(&task.action, 1).unwrap());
 			match T::DelegatorActions::delegator_bond_till_minimum(
 				&delegator,
 				&collator,
@@ -1012,6 +1041,46 @@ pub mod pallet {
 			});
 
 			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
+		}
+
+		/// Attempt to decode and run the call.
+		pub fn run_dynamic_dispatch_action(
+			caller: AccountOf<T>,
+			encoded_call: Vec<u8>,
+			task_id: TaskId<T>,
+		) -> Weight {
+			match <T as Config>::Call::decode(&mut &*encoded_call) {
+				Ok(scheduled_call) => {
+					let dispatch_origin: T::Origin =
+						frame_system::RawOrigin::Signed(caller.clone()).into();
+
+					let call_weight = scheduled_call.get_dispatch_info().weight;
+					let (maybe_actual_call_weight, result) =
+						match scheduled_call.dispatch(dispatch_origin) {
+							Ok(post_info) => (post_info.actual_weight, Ok(())),
+							Err(error_and_info) =>
+								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
+						};
+
+					Self::deposit_event(Event::DynamicDispatchResult {
+						who: caller,
+						task_id,
+						result,
+					});
+
+					// TODO add event weight
+					maybe_actual_call_weight
+						.unwrap_or(call_weight)
+						.saturating_add(<T as Config>::WeightInfo::deposit_event_weigher())
+				},
+				Err(_) => {
+					// TODO: If the call cannot be decoded then cancel the task.
+
+					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
+					// TODO: fix weight
+					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+				},
+			}
 		}
 
 		/// Decrements task executions left.
@@ -1186,7 +1255,7 @@ pub mod pallet {
 
 			// Execution fee
 			let exeuction_fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 
 			// XCMP fee
 			let xcmp_fee: u128 = match action {
@@ -1245,7 +1314,7 @@ pub mod pallet {
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions);
+			let fee = Self::calculate_execution_fee(action, new_executions)?;
 			T::FeeHandler::can_pay_fee(&owner_id, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
@@ -1277,7 +1346,10 @@ pub mod pallet {
 		///
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(action: &ActionOf<T>, executions: u32) -> BalanceOf<T> {
+		pub fn calculate_execution_fee(
+			action: &ActionOf<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
 			let action_weight = match action {
 				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 				Action::NativeTransfer { .. } =>
@@ -1288,12 +1360,22 @@ pub mod pallet {
 					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 				Action::AutoCompoundDelegatedStake { .. } =>
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+				Action::DyanamicDispatch { encoded_call } => {
+					let scheduled_call: <T as Config>::Call = Decode::decode(&mut &**encoded_call)
+						.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
+					scheduled_call.get_dispatch_info().weight
+				},
 			};
 
 			let total_weight = action_weight.saturating_mul(executions.into());
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
+		}
+
+		/// Function to get the weight for sending an event.
+		pub fn deposit_event_weigher() {
+			Self::deposit_event(Event::<T>::Notify { message: b"benchmark".to_vec() });
 		}
 	}
 

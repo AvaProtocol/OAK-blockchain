@@ -32,6 +32,7 @@
 //:force_cancel_scheduled_task 27_236_000
 //:force_cancel_scheduled_task_full 826_320_000
 //:run_auto_compound_delegated_stake_task 101_751_000
+//:run_dynamic_dispatch_action_fail_decode 13_000_000
 //:run_missed_tasks_many_found 169_000
 //:run_missed_tasks_many_missing 186_000
 //:run_native_transfer_task 33_877_000
@@ -71,6 +72,7 @@ pub trait WeightInfo {
 	fn run_native_transfer_task() -> Weight;
 	fn run_xcmp_task() -> Weight;
 	fn run_auto_compound_delegated_stake_task() -> Weight;
+	fn run_dynamic_dispatch_action_fail_decode() -> Weight;
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight;
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight;
 	fn run_tasks_many_found(v: u32, ) -> Weight;
@@ -79,6 +81,7 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
+	fn deposit_event_weigher() -> Weight;
 }
 
 /// Weights for pallet_vesting using the Substrate node and recommended hardware.
@@ -216,6 +219,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(11 as Weight))
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
+	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
+		(13_000_000 as Weight)
+	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
@@ -281,6 +287,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 		(29_323_000 as Weight)
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+	}
+	fn deposit_event_weigher() -> Weight {
+		(12_000_000 as Weight)
 	}
 }
 
@@ -417,6 +426,9 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(RocksDbWeight::get().reads(11 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
 	}
+	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
+		(13_000_000 as Weight)
+	}
 	// Storage: AutomationTime Tasks (r:1 w:1)
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
 		(0 as Weight)
@@ -479,5 +491,8 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 		(19_000_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	fn deposit_event_weigher() -> Weight {
+		(12_000_000 as Weight)
 	}
 }
