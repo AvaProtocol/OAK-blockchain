@@ -686,10 +686,10 @@ pub mod pallet {
 				}
 				MissedQueueV2::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
-				if let Some(ScheduledTasksOf::<T> { tasks: task_ids, .. }) =
+				if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =
 					Self::get_scheduled_tasks(current_time_slot)
 				{
-					TaskQueueV2::<T>::put(task_ids);
+					TaskQueueV2::<T>::put(account_task_ids);
 					ScheduledTasksV3::<T>::remove(current_time_slot);
 				} else {
 					let empty_queue: Vec<AccountTaskId<T>> = vec![];
