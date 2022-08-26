@@ -1,0 +1,5 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory `/Users/rhuttman/Documents/Code/OAK-blockchain'
+RUST_LOG=runtime=trace,try-runtime::cli=trace,executor=trace cargo run --release --features=turing-node,try-runtime try-runtime --chain turing-dev on-runtime-upgrade live --uri=wss://rpc.turing-staging.oak.tech:443
+make: Leaving directory `/Users/rhuttman/Documents/Code/OAK-blockchain'
+ 

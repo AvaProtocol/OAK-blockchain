@@ -33,6 +33,9 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		account_minimum: Balance,
 		frequency: Seconds,
 	},
+	Generic {
+		encoded_call: Vec<u8>,
+	}
 }
 
 impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Default>
@@ -63,6 +66,19 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			},
 		}
 	}
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+pub enum Schedule {
+	Finite {
+		specifity: TimeSpecificity,
+		execution_times: Vec<UnixTime>,
+	},
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+pub enum TimeSpecificity {
+	Hour,
 }
 
 /// The struct that stores all information needed for a task.
