@@ -1021,9 +1021,9 @@ impl pallet_automation_time::Config for Runtime {
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
-	// Roughly 1.25% of parachain block weight per hour
-	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .0125
-	type MaxWeightPerSlot = ConstU128<1_500_000_000_000>;
+	// Roughly .125% of parachain block weight per hour
+	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .00125
+	type MaxWeightPerSlot = ConstU128<150_000_000_000>;
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
