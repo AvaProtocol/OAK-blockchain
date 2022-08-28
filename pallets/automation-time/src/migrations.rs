@@ -340,7 +340,7 @@ pub mod v4 {
 
 			// Get count per scheduled time
 			let mut pre_scheduled_count: Vec<(UnixTime, u32)> = vec![];
-			storage_key_iter::<u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>, Twox64Concat>(
+			storage_key_iter::<u64, BoundedVec<AccountTaskId<T>, ConstU32<256>>, Twox64Concat>(
 				PALLET_PREFIX,
 				OLD_STORAGE_PREFIX,
 			)
@@ -365,7 +365,7 @@ pub mod v4 {
 
 			// Move all tasks from ScheduledTasksV2 to ScheduledTasksV3
 			let mut task_count = 0u64;
-			let migrated_keys_count = storage_key_iter::<UnixTime, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>, Twox64Concat>(
+			let migrated_keys_count = storage_key_iter::<UnixTime, BoundedVec<AccountTaskId<T>, ConstU32<256>>, Twox64Concat>(
 				PALLET_PREFIX,
 				OLD_STORAGE_PREFIX,
 			)
@@ -461,7 +461,7 @@ mod tests {
 					vec![0],
 				);
 				AccountTasks::<Test>::insert(account_id.clone(), task_id, task);
-				let tasks: BoundedVec<_, MaxTasksPerSlot> =
+				let tasks: BoundedVec<_, ConstU32<256>> =
 					vec![(account_id.clone(), task_id)].try_into().unwrap();
 				put_storage_value(
 					PALLET_PREFIX,
@@ -474,7 +474,7 @@ mod tests {
 					None,
 					storage_key_iter::<
 						UnixTime,
-						BoundedVec<AccountTaskId<Test>, MaxTasksPerSlot>,
+						BoundedVec<AccountTaskId<Test>, ConstU32<256>>,
 						Twox64Concat,
 					>(PALLET_PREFIX, v4::OLD_STORAGE_PREFIX,)
 					.next()

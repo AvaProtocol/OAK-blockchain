@@ -99,10 +99,6 @@ pub mod pallet {
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
 
-		/// The maximum number of tasks that can be scheduled for a time slot.
-		#[pallet::constant]
-		type MaxTasksPerSlot: Get<u32>;
-
 		/// The maximum number of times that a task can be scheduled for.
 		#[pallet::constant]
 		type MaxExecutionTimes: Get<u32>;
