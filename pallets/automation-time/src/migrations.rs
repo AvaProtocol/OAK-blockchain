@@ -5,7 +5,7 @@ use frame_support::{
 	traits::{Get, OnRuntimeUpgrade},
 };
 
-const PALLET_PREFIX: &[u8] = b"AutomationTime";
+pub const PALLET_PREFIX: &[u8] = b"AutomationTime";
 
 // Migrating LastTimeSlot from a single time to a tuple.
 // NOTE: The 2 UnixTime stamps represent (last_time_slot, last_missed_slot).
@@ -365,28 +365,29 @@ pub mod v4 {
 
 			// Move all tasks from ScheduledTasksV2 to ScheduledTasksV3
 			let mut task_count = 0u64;
-			let migrated_keys_count = storage_key_iter::<UnixTime, BoundedVec<AccountTaskId<T>, ConstU32<256>>, Twox64Concat>(
+			let mut migrated_keys_count = 0u64;
+			storage_key_iter::<UnixTime, BoundedVec<AccountTaskId<T>, ConstU32<256>>, Twox64Concat>(
 				PALLET_PREFIX,
 				OLD_STORAGE_PREFIX,
 			)
 			.drain()
-			.map(|(time, task_ids)| {
+			.for_each(|(time, task_ids)| {
+				migrated_keys_count += 1;
 				let weight = task_ids.clone()
 					.into_iter()
-					.filter_map(|(account_id, task_id)| {
-                            task_count += 1;
+					.fold(0u128, |acc, (account_id, task_id)| {
+						task_count += 1;
 						if let Some(task) = Pallet::<T>::get_account_task(account_id.clone(), task_id) {
-							Some(task.action.execution_weight::<T>() as u128)
+							acc + task.action.execution_weight::<T>() as u128
 						} else {
 							log::warn!(target: "automation-time", "Unable to get task with id {:?} for account {:?}", task_id, account_id);
-							None
+							acc
 						}
-					})
-					.sum();
+					});
 
 				// Insert all tasks without checking MaxWeightPerSlot to allow existing tasks to be run
 				ScheduledTasksV3::<T>::insert(time, ScheduledTasks{ tasks: task_ids.to_vec(), weight });
-			}).count() as u64;
+			});
 
 			// For each time in scheduled tasks there is
 			// 1 read to get it into memory
@@ -452,22 +453,40 @@ mod tests {
 		#[test]
 		fn on_runtime_upgrade() {
 			new_test_ext(0).execute_with(|| {
-				let task_id = TaskId::<Test>::default();
 				let account_id = AccountId32::new(ALICE);
-				let task = TaskOf::<Test>::create_event_task(
+				let task_id_1 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
+				let task_id_2 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![2]);
+				let task_1 = TaskOf::<Test>::create_event_task(
 					account_id.clone(),
-					vec![0],
-					vec![0].try_into().unwrap(),
-					vec![0],
+					vec![1],
+					vec![1].try_into().unwrap(),
+					vec![1],
 				);
-				AccountTasks::<Test>::insert(account_id.clone(), task_id, task);
-				let tasks: BoundedVec<_, ConstU32<256>> =
-					vec![(account_id.clone(), task_id)].try_into().unwrap();
+				let task_2 = TaskOf::<Test>::create_event_task(
+					account_id.clone(),
+					vec![2],
+					vec![2].try_into().unwrap(),
+					vec![2],
+				);
+				AccountTasks::<Test>::insert(account_id.clone(), task_id_1, task_1);
+				AccountTasks::<Test>::insert(account_id.clone(), task_id_2, task_2);
+				let partial_tasks: BoundedVec<_, ConstU32<256>> =
+					vec![(account_id.clone(), task_id_1)].try_into().unwrap();
+				let all_tasks: BoundedVec<_, ConstU32<256>> =
+					vec![(account_id.clone(), task_id_1), (account_id.clone(), task_id_2)]
+						.try_into()
+						.unwrap();
 				put_storage_value(
 					PALLET_PREFIX,
 					v4::OLD_STORAGE_PREFIX,
 					&0u64.twox_64_concat(),
-					tasks,
+					partial_tasks,
+				);
+				put_storage_value(
+					PALLET_PREFIX,
+					v4::OLD_STORAGE_PREFIX,
+					&1u64.twox_64_concat(),
+					all_tasks,
 				);
 				v4::MigrateToV4::<Test>::on_runtime_upgrade();
 				assert_eq!(
@@ -481,7 +500,17 @@ mod tests {
 				);
 				assert_eq!(
 					Pallet::<Test>::get_scheduled_tasks(0).unwrap(),
-					ScheduledTasks { tasks: vec![(account_id, task_id)], weight: 20_000 }
+					ScheduledTasks { tasks: vec![(account_id.clone(), task_id_1)], weight: 20_000 }
+				);
+				assert_eq!(
+					Pallet::<Test>::get_scheduled_tasks(1).unwrap(),
+					ScheduledTasks {
+						tasks: vec![
+							(account_id.clone(), task_id_1),
+							(account_id.clone(), task_id_2)
+						],
+						weight: 40_000
+					}
 				);
 			})
 		}

@@ -202,7 +202,13 @@ benchmarks! {
 		}
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task() as u128;
+		let weight_per_task = ActionOf::<T>::XCMP {
+			para_id: ParaId::default(),
+			currency_id: T::GetNativeCurrencyId::get(),
+			encoded_call: vec![0],
+			encoded_call_weight: 0
+		}.execution_weight::<T>() as u128;
+		let max_tasks_per_slot = T::MaxWeightPerSlot::get() /  weight_per_task;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), (max_tasks_per_slot - 1).try_into().unwrap());
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -455,12 +461,13 @@ benchmarks! {
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let last_time_slot: u64 = 7200;
 		let current_time = 10800;
+		let mut provided_id = vec![0u8];
 
 		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
 		for i in 0..max_tasks_per_slot {
-			let provided_id: Vec<u8> = vec![(i / max_tasks_per_slot).try_into().unwrap(), (i % max_tasks_per_slot).try_into().unwrap()];
+			provided_id = increment_provided_id(provided_id);
 			let task = TaskOf::<T>::create_event_task(caller.clone(), provided_id.clone(), vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
-			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id, vec![current_time.into()]).unwrap();
+			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone(), vec![current_time.into()]).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 		}
 	}: { AutomationTime::<T>::update_scheduled_task_queue(current_time, last_time_slot) }
