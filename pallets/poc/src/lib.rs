@@ -7,7 +7,7 @@ pub mod pallet {
 	use codec::Decode;
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{
-		dispatch::DispatchResultWithPostInfo,
+		dispatch::{DispatchResultWithPostInfo, PostDispatchInfo},
 		pallet_prelude::*,
 		traits::IsSubType,
 		weights::{GetDispatchInfo, Weight},
@@ -23,7 +23,7 @@ pub mod pallet {
 
 		/// The overarching call type.
 		type ECall: Parameter
-			+ Dispatchable<Origin = Self::Origin>
+			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
@@ -133,14 +133,32 @@ pub mod pallet {
 			let decoded_call: <T as Config>::ECall =
 			Decode::decode(&mut &*encoded_call).map_err(|_| Error::<T>::BadEncodedCall)?;
 
-			let dispatch_weight = decoded_call.get_dispatch_info().weight;
-			Self::deposit_event(Event::CallWeight { weight: dispatch_weight });
+			// let dispatch_weight = decoded_call.get_dispatch_info().weight;
+			// Self::deposit_event(Event::CallWeight { weight: dispatch_weight });
 
-			let signed_who: T::Origin = frame_system::RawOrigin::Signed(who).into();
-			let e = decoded_call.dispatch(signed_who);
+			// let signed_who: T::Origin = frame_system::RawOrigin::Signed(who).into();
+			// let e = decoded_call.dispatch(signed_who);
+			// Self::deposit_event(Event::DispatchResult {
+			// 	result: e.map(|_| ()).map_err(|e| e.error),
+			// });
+
+
+			let dispatch_origin: T::Origin = frame_system::RawOrigin::Signed(who).into();
+			let call_weight = decoded_call.get_dispatch_info().weight;
+			let (maybe_actual_call_weight, result) =
+				match decoded_call.dispatch(dispatch_origin) {
+					Ok(post_info) => (post_info.actual_weight, Ok(())),
+					Err(error_and_info) =>
+						(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
+				};
+
 			Self::deposit_event(Event::DispatchResult {
-				result: e.map(|_| ()).map_err(|e| e.error),
+				result,
 			});
+
+			let dispatched_weight = maybe_actual_call_weight.unwrap_or(call_weight);
+			Self::deposit_event(Event::CallWeight { weight: dispatched_weight });
+
 
 			Ok(().into())
 		}
