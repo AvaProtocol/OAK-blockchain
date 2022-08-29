@@ -389,16 +389,17 @@ pub mod v4 {
 				ScheduledTasksV3::<T>::insert(time, ScheduledTasks{ tasks: task_ids.to_vec(), weight });
 			});
 
-			// For each time in scheduled tasks there is
+			// 1 read to load iterator
+			// task_count reads to load tasks
+			// For each time (migrated_key_count) in scheduled tasks there is
 			// 1 read to get it into memory
-			// n reads to get the associated tasks into memory
 			// 1 write to remove it from the old scheduled tasks
 			// 1 write to add it to the new scheduled tasks
 			let weight = T::DbWeight::get()
-				.reads_writes(migrated_keys_count + task_count, migrated_keys_count * 2);
+				.reads_writes(migrated_keys_count + task_count + 1, migrated_keys_count * 2);
 
 			// Adding a buffer for the rest of the code
-			weight + 50_000_000
+			weight + 10_000_000 + (migrated_keys_count * 15_000_000)
 		}
 
 		#[cfg(feature = "try-runtime")]
