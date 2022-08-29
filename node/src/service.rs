@@ -39,6 +39,9 @@ pub const NEUMANN_RUNTIME_NOT_AVAILABLE: &str =
 #[allow(dead_code)]
 pub const TURING_RUNTIME_NOT_AVAILABLE: &str =
 	"Turing runtime is not available. Please compile the node with `--features turing-node` to enable it.";
+#[allow(dead_code)]
+pub const OAK_RUNTIME_NOT_AVAILABLE: &str =
+	"OAK runtime is not available. Please compile the node with `--features oak-node` to enable it.";
 
 #[cfg(feature = "neumann-node")]
 mod neumann_executor {
@@ -76,8 +79,28 @@ mod turing_executor {
 	}
 }
 
+#[cfg(feature = "oak-node")]
+mod oak_executor {
+	pub use oak_runtime;
+
+	pub struct OakExecutor;
+	impl sc_executor::NativeExecutionDispatch for OakExecutor {
+		type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+
+		fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
+			oak_runtime::api::dispatch(method, data)
+		}
+
+		fn native_version() -> sc_executor::NativeVersion {
+			oak_runtime::native_version()
+		}
+	}
+}
+
 #[cfg(feature = "neumann-node")]
 pub use neumann_executor::*;
+#[cfg(feature = "oak-node")]
+pub use oak_executor::*;
 #[cfg(feature = "turing-node")]
 pub use turing_executor::*;
 

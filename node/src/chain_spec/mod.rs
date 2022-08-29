@@ -14,6 +14,8 @@ use primitives::{AccountId, AuraId, Balance, Signature};
 
 #[cfg(feature = "neumann-node")]
 pub mod neumann;
+#[cfg(feature = "oak-node")]
+pub mod oak;
 #[cfg(feature = "turing-node")]
 pub mod turing;
 
@@ -28,6 +30,9 @@ pub trait IdentifyVariant {
 
 	/// Returns `true` if this is a configuration for the `Turing` network.
 	fn is_turing(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for the `OAK` network.
+	fn is_oak(&self) -> bool;
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
@@ -37,6 +42,10 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 
 	fn is_turing(&self) -> bool {
 		self.id().starts_with("turing")
+	}
+
+	fn is_oak(&self) -> bool {
+		self.id().starts_with("oak")
 	}
 }
 
