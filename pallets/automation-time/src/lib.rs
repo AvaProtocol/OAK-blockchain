@@ -988,7 +988,7 @@ pub mod pallet {
 		) -> (TaskOf<T>, Weight) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum
-				.saturating_add(Self::calculate_execution_fee(&task.action, 1).unwrap());
+				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
 			match T::DelegatorActions::delegator_bond_till_minimum(
 				&delegator,
 				&collator,

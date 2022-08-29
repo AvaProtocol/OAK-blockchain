@@ -325,9 +325,9 @@ benchmarks! {
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
-   }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
+	   }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
 
-	   run_dynamic_dispatch_action_fail_decode {
+	run_dynamic_dispatch_action_fail_decode {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), vec![1]);
 		let bad_encoded_call: Vec<u8> = vec![1];
