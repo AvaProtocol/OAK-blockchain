@@ -1,13 +1,16 @@
+use hex_literal::hex;
+
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 use sp_core::sr25519;
 
+use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation, Extensions,
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, DOLLAR, TOKEN_DECIMALS,
+	VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
