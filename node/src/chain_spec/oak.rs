@@ -6,7 +6,8 @@ use sp_core::sr25519;
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation,
+	Extensions,
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
