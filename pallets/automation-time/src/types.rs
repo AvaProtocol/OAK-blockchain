@@ -227,7 +227,9 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 			.weight
 			.checked_add(task.action.execution_weight::<T>() as u128)
 			.ok_or(Error::<T>::TimeSlotFull)?;
-		if weight > T::MaxWeightPerSlot::get() {
+		if self.tasks.len() as u32 >= T::MaxTasksPerSlot::get() ||
+			weight > T::MaxWeightPerSlot::get()
+		{
 			Err(Error::<T>::TimeSlotFull)?
 		}
 
@@ -244,12 +246,12 @@ mod tests {
 
 	mod scheduled_tasks {
 		use super::*;
-		use crate::{BalanceOf, ScheduledTasksOf, TaskId, TaskOf};
+		use crate::{AccountTaskId, BalanceOf, ScheduledTasksOf, TaskId, TaskOf};
 		use frame_support::assert_err;
 		use sp_runtime::AccountId32;
 
 		#[test]
-		fn try_push_errors_when_slot_is_full() {
+		fn try_push_errors_when_slot_is_full_by_weight() {
 			new_test_ext(0).execute_with(|| {
 				let task = TaskOf::<Test>::create_event_task(
 					AccountId32::new(ALICE),
@@ -259,6 +261,32 @@ mod tests {
 				);
 				assert_err!(
 					ScheduledTasksOf::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
+						.try_push(TaskId::<Test>::default(), &task),
+					Error::<Test>::TimeSlotFull
+				);
+			})
+		}
+
+		#[test]
+		fn try_push_errors_when_slot_is_full_by_task_count() {
+			new_test_ext(0).execute_with(|| {
+				let alice = AccountId32::new(ALICE);
+				let id = (alice.clone(), TaskId::<Test>::default());
+				let task = TaskOf::<Test>::create_event_task(
+					alice.clone(),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				let tasks = (0..MaxTasksPerSlot::get()).fold::<Vec<AccountTaskId<Test>>, _>(
+					vec![],
+					|mut tasks, _| {
+						tasks.push(id.clone());
+						tasks
+					},
+				);
+				assert_err!(
+					ScheduledTasksOf::<Test> { tasks, weight: 0 }
 						.try_push(TaskId::<Test>::default(), &task),
 					Error::<Test>::TimeSlotFull
 				);

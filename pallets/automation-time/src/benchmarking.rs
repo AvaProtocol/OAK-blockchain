@@ -179,8 +179,7 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
-		let mut provided_id = schedule_notify_tasks::<T>(caller.clone(), times.clone(), (max_tasks_per_slot - 1).try_into().unwrap());
+		let mut provided_id = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
@@ -208,8 +207,7 @@ benchmarks! {
 			encoded_call: vec![0],
 			encoded_call_weight: 0
 		}.execution_weight::<T>() as u128;
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() /  weight_per_task;
-		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), (max_tasks_per_slot - 1).try_into().unwrap());
+		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
@@ -239,22 +237,23 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let almost_max_tasks_per_slot = (T::MaxWeightPerSlot::get() - <T as Config>::WeightInfo::run_native_transfer_task() as u128) / <T as Config>::WeightInfo::run_notify_task() as u128;
-		let mut provided_id = schedule_notify_tasks::<T>(caller.clone(), times.clone(), almost_max_tasks_per_slot.try_into().unwrap());
+		let mut provided_id = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		provided_id = increment_provided_id(provided_id);
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
 	schedule_auto_compound_delegated_stake_task_full {
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task() as u128;
+		let max_tasks_per_slot: u32 = (
+			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task() as u128
+		).try_into().unwrap();
 
 		let delegator: T::AccountId = account("delegator", 0, SEED);
-		let collator: T::AccountId = account("collator", 0, max_tasks_per_slot.try_into().unwrap());
+		let collator: T::AccountId = account("collator", 0, max_tasks_per_slot);
 		let account_minimum = T::Currency::minimum_balance();
 		let starting_balance = account_minimum.saturating_mul(ED_MULTIPLIER.into());
 		let time: u64 = 3600;
 
 		T::Currency::deposit_creating(&delegator, starting_balance);
-		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), (max_tasks_per_slot - 1).try_into().unwrap());
+		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), max_tasks_per_slot - 1);
 	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), time, 3600 , collator, account_minimum)
 
 	cancel_scheduled_task_full {
@@ -266,8 +265,7 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
-		let provided_id = schedule_notify_tasks::<T>(caller.clone(), times, max_tasks_per_slot.try_into().unwrap());
+		let provided_id = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
 	}: cancel_task(RawOrigin::Signed(caller), task_id)
 
@@ -288,8 +286,7 @@ benchmarks! {
 			times.push(hour);
 		}
 
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
-		let provided_id = schedule_notify_tasks::<T>(caller.clone(), times, max_tasks_per_slot.try_into().unwrap());
+		let provided_id = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
 	}: force_cancel_task(RawOrigin::Root, caller, task_id)
 
@@ -463,8 +460,7 @@ benchmarks! {
 		let current_time = 10800;
 		let mut provided_id = vec![0u8];
 
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
-		for i in 0..max_tasks_per_slot {
+		for i in 0..T::MaxTasksPerSlot::get() {
 			provided_id = increment_provided_id(provided_id);
 			let task = TaskOf::<T>::create_event_task(caller.clone(), provided_id.clone(), vec![current_time.into()].try_into().unwrap(), vec![4, 5, 6]);
 			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone(), vec![current_time.into()]).unwrap();
@@ -479,8 +475,7 @@ benchmarks! {
 		let new_time_slot: u64 = 14400;
 		let diff = 1;
 
-		let max_tasks_per_slot = T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_notify_task() as u128;
-		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], max_tasks_per_slot.try_into().unwrap());
+		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 
 	migration_v4_2_slots {
