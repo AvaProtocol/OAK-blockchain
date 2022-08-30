@@ -1,0 +1,32 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    DOCKERHUB_PASS: "dockerhub/credentials:password"
+    DOCKERHUB_USERNAME: "dockerhub/credentials:username"
+
+phases:
+  pre_build:
+    commands:
+      - echo Build started on `date`
+  build:
+    commands:
+      - echo Logging in to Docker hub...
+      - docker login --username $DOCKERHUB_USERNAME --password $DOCKERHUB_PASS
+      - echo Building the Docker image...
+      - docker build -f ./docker/oak/Dockerfile -t oaknetwork/oak:$IMAGE_TAG .
+      - echo Building artifacts...
+      - mkdir oak-dev oak-staging oak-live
+      - docker run oaknetwork/oak:$IMAGE_TAG export-genesis-state --chain=oak-dev > oak-dev/genesis-state
+      - docker run oaknetwork/oak:$IMAGE_TAG export-genesis-wasm --chain=oak-dev > oak-dev/genesis-wasm
+      - echo Pushing the Docker image...
+      - docker push oaknetwork/oak:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+artifacts:
+  files:
+    - oak-dev/*
+    - oak-staging/*
+    - oak-live/*
+  name: oak-genesis-$IMAGE_TAG
