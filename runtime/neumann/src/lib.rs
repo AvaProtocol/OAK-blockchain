@@ -955,6 +955,7 @@ where
 
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
+	type MaxTasksPerSlot = ConstU32<576>;
 	type MaxExecutionTimes = ConstU32<24>;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;

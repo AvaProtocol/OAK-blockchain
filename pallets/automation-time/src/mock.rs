@@ -151,6 +151,7 @@ impl<
 }
 
 parameter_types! {
+	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
 	pub const MaxExecutionTimes: u32 = 3;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
@@ -299,6 +300,7 @@ where
 
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
+	type MaxTasksPerSlot = MaxTasksPerSlot;
 	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
