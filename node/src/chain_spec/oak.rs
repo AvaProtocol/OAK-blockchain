@@ -106,7 +106,8 @@ pub fn oak_staging() -> ChainSpec {
 		"oak",
 		ChainType::Live,
 		move || {
-			let allocation_json = &include_bytes!("../../../distribution/oak_staging_alloc.json")[..];
+			let allocation_json =
+				&include_bytes!("../../../distribution/oak_staging_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
