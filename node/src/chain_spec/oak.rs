@@ -13,8 +13,11 @@ use primitives::{AccountId, AuraId, Balance};
 
 const TOKEN_SYMBOL: &str = "OAK";
 const SS_58_FORMAT: u32 = 51;
+const STAGING_SS_58_FORMAT: u32 = 52;
 static RELAY_CHAIN: &str = "rococo-local";
+static STAGING_RELAY_CHAIN: &str = "rococo";
 const REGISTERED_PARA_ID: u32 = 2114;
+const REGISTERED_STAGING_PARA_ID: u32 = 2115;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -85,6 +88,81 @@ pub fn oak_development_config() -> ChainSpec {
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: REGISTERED_PARA_ID,
+		},
+	)
+}
+
+pub fn oak_staging() -> ChainSpec {
+	// Give your base currency a unit name and decimal places
+	let mut properties = sc_chain_spec::Properties::new();
+	properties.insert("tokenSymbol".into(), TOKEN_SYMBOL.into());
+	properties.insert("tokenDecimals".into(), TOKEN_DECIMALS.into());
+	properties.insert("ss58Format".into(), STAGING_SS_58_FORMAT.into());
+
+	ChainSpec::from_genesis(
+		// Name
+		"Oak Staging",
+		// ID
+		"oak",
+		ChainType::Live,
+		move || {
+			let allocation_json = &include_bytes!("../../../distribution/oak_staging_alloc.json")[..];
+			let initial_allocation: Vec<(AccountId, Balance)> =
+				serde_json::from_slice(allocation_json).unwrap();
+			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
+
+			testnet_genesis(
+				// initial collators.
+				vec![
+					(
+						// SS58 prefix substrate: 5EvKT4iWQ5gDnRhkS3d254RVCfaQJSyXHj5mA4kQTsCjWchW
+						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+							.into(),
+						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+							.unchecked_into(),
+					),
+					(
+						// SS58 prefix substrate: 5F4Dx9TD16awU7FeGD3Me5VDrEsL5MDPEcbNBvUgLQFawxyW
+						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+							.into(),
+						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+							.unchecked_into(),
+					),
+				],
+				// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+				hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
+				initial_allocation,
+				REGISTERED_STAGING_PARA_ID.into(),
+				vec![],
+				vec![],
+				vec![
+					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
+				],
+				vec![
+					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
+					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
+				],
+			)
+		},
+		// Bootnodes
+		Vec::new(),
+		// Telemetry
+		TelemetryEndpoints::new(vec![(TELEMETRY_URL.into(), 0)]).ok(),
+		// Protocol ID
+		Some("oak"),
+		None,
+		// Properties
+		Some(properties),
+		// Extensions
+		Extensions {
+			relay_chain: STAGING_RELAY_CHAIN.into(), // You MUST set this to the correct network!
+			para_id: REGISTERED_STAGING_PARA_ID,
 		},
 	)
 }
