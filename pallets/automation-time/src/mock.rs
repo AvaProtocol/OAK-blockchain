@@ -204,6 +204,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_auto_compound_delegated_stake_task() -> Weight {
 		20_000
 	}
+	fn run_dynamic_dispatch_action() -> Weight {
+		20_000
+	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
 		20_000
 	}
@@ -229,9 +232,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		20_000
 	}
 	fn shift_missed_tasks() -> Weight {
-		20_000
-	}
-	fn deposit_event_weigher() -> Weight {
 		20_000
 	}
 }

@@ -853,6 +853,7 @@ pub mod pallet {
 									task.owner_id.clone(),
 									encoded_call,
 									*task_id,
+									false,
 								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
@@ -1048,6 +1049,7 @@ pub mod pallet {
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
 			task_id: TaskId<T>,
+			benchmarking: bool,
 		) -> Weight {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
@@ -1055,12 +1057,14 @@ pub mod pallet {
 						frame_system::RawOrigin::Signed(caller.clone()).into();
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
-					let (maybe_actual_call_weight, result) =
-						match scheduled_call.dispatch(dispatch_origin) {
+					let (maybe_actual_call_weight, result) = match benchmarking {
+						true => (None, Ok(())),
+						false => match scheduled_call.dispatch(dispatch_origin) {
 							Ok(post_info) => (post_info.actual_weight, Ok(())),
 							Err(error_and_info) =>
 								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
-						};
+						},
+					};
 
 					Self::deposit_event(Event::DynamicDispatchResult {
 						who: caller,
@@ -1070,7 +1074,7 @@ pub mod pallet {
 
 					maybe_actual_call_weight
 						.unwrap_or(call_weight)
-						.saturating_add(<T as Config>::WeightInfo::deposit_event_weigher())
+						.saturating_add(<T as Config>::WeightInfo::run_dynamic_dispatch_action())
 				},
 				Err(_) => {
 					// TODO: If the call cannot be decoded then cancel the task.
@@ -1369,11 +1373,6 @@ pub mod pallet {
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
 			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
-		}
-
-		/// Function to get the weight for sending an event.
-		pub fn deposit_event_weigher() {
-			Self::deposit_event(Event::<T>::Notify { message: b"benchmark".to_vec() });
 		}
 	}
 
