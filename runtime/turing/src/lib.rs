@@ -69,7 +69,6 @@ pub use sp_runtime::BuildStorage;
 
 // Polkadot Imports
 use polkadot_runtime_common::BlockHashCount;
-use xcm_executor::XcmExecutor;
 
 // XCM configurations.
 pub mod xcm_config;
@@ -1018,13 +1017,21 @@ impl pallet_vesting::Config for Runtime {
 	type Currency = Balances;
 }
 
+pub struct ScheduledAllowList;
+impl Contains<Call> for ScheduledAllowList {
+	fn contains(c: &Call) -> bool {
+		match c {
+			Call::System(_) => true,
+			_ => false,
+		}
+	}
+}
+
 impl poc::Config for Runtime {
 	type Event = Event;
-	type ECall = Call;
-	type SelfParaId = parachain_info::Pallet<Runtime>;
-	type AccountIdToMultiLocation = xcm_config::AccountIdToMultiLocation;
-	type XcmSender = xcm_config::XcmRouter;
-	type XcmExecutor = XcmExecutor<xcm_config::XcmConfig>;
+	type Call = Call;
+	type ScheduledAllowListPallet = ScheduledAllowList;
+	type ScheduledAllowListFrame = ScheduledAllowList;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
