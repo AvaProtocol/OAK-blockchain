@@ -1157,7 +1157,7 @@ pub mod pallet {
 			with_transaction(|| -> storage::TransactionOutcome<Result<TaskId<T>, DispatchError>> {
 				for time in execution_times.iter() {
 					let mut scheduled_tasks = Self::get_scheduled_tasks(*time).unwrap_or_default();
-					if let Err(_) = scheduled_tasks.try_push::<T>(task_id, task) {
+					if let Err(_) = scheduled_tasks.try_push::<T, BalanceOf<T>>(task_id, task) {
 						return Rollback(Err(DispatchError::Other("time slot full")))
 					}
 					<ScheduledTasksV3<T>>::insert(*time, scheduled_tasks);

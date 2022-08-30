@@ -1,4 +1,4 @@
-use crate::{weights::WeightInfo, BalanceOf, Config, Error};
+use crate::{weights::WeightInfo, Config, Error};
 
 use frame_support::{pallet_prelude::*, traits::Get};
 
@@ -215,10 +215,10 @@ impl<A, B> Default for ScheduledTasks<A, B> {
 	}
 }
 impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
-	pub fn try_push<T: Config>(
+	pub fn try_push<T: Config, Balance: AtLeast32BitUnsigned>(
 		&mut self,
 		task_id: TaskId,
-		task: &Task<AccountId, BalanceOf<T>, T::CurrencyId, T::MaxExecutionTimes>,
+		task: &Task<AccountId, Balance, T::CurrencyId, T::MaxExecutionTimes>,
 	) -> Result<&mut Self, Error<T>>
 	where
 		AccountId: Clone,
@@ -244,7 +244,7 @@ mod tests {
 
 	mod scheduled_tasks {
 		use super::*;
-		use crate::{ScheduledTasksOf, TaskId, TaskOf};
+		use crate::{BalanceOf, ScheduledTasksOf, TaskId, TaskOf};
 		use frame_support::assert_err;
 		use sp_runtime::AccountId32;
 
@@ -276,7 +276,9 @@ mod tests {
 				);
 				let task_id = TaskId::<Test>::default();
 				let mut scheduled_tasks = ScheduledTasksOf::<Test>::default();
-				scheduled_tasks.try_push::<Test>(task_id, &task).expect("slot is not full");
+				scheduled_tasks
+					.try_push::<Test, BalanceOf<Test>>(task_id, &task)
+					.expect("slot is not full");
 				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
 				assert_eq!(scheduled_tasks.weight, 20_000);
 			})
