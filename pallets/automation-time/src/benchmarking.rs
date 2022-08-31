@@ -201,12 +201,6 @@ benchmarks! {
 		}
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
-		let weight_per_task = ActionOf::<T>::XCMP {
-			para_id: ParaId::default(),
-			currency_id: T::GetNativeCurrencyId::get(),
-			encoded_call: vec![0],
-			encoded_call_weight: 0
-		}.execution_weight::<T>() as u128;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());

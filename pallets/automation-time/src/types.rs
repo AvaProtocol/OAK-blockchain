@@ -227,6 +227,9 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 			.weight
 			.checked_add(task.action.execution_weight::<T>() as u128)
 			.ok_or(Error::<T>::TimeSlotFull)?;
+		// A hard limit on tasks/slot prevents unforseen performance consequences
+		// that could occur when scheduling a huge number of lightweight tasks.
+		// Also allows us to make reasonable assumptions for worst case benchmarks.
 		if self.tasks.len() as u32 >= T::MaxTasksPerSlot::get() ||
 			weight > T::MaxWeightPerSlot::get()
 		{
