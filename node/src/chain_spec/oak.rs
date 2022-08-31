@@ -2,7 +2,8 @@ use hex_literal::hex;
 
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
-use sp_core::sr25519;
+use sc_telemetry::TelemetryEndpoints;
+use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
@@ -10,7 +11,7 @@ use crate::chain_spec::{
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	VestingConfig, DOLLAR, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
