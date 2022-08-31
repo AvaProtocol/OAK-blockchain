@@ -20,7 +20,7 @@ const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo";
 const REGISTERED_PARA_ID: u32 = 2114;
-const REGISTERED_STAGING_PARA_ID: u32 = 2115;
+const REGISTERED_STAGING_PARA_ID: u32 = 4103;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
