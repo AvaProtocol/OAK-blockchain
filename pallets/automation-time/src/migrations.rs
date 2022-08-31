@@ -399,7 +399,7 @@ pub mod v4 {
 				.reads_writes(migrated_keys_count + task_count + 1, migrated_keys_count * 2);
 
 			// Adding a buffer for the rest of the code
-			weight + 5_000_000 + (migrated_keys_count * 15_000_000)
+			weight + 10_000_000 + (migrated_keys_count * 15_000_000)
 		}
 
 		#[cfg(feature = "try-runtime")]
