@@ -35,25 +35,38 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		"turing-staging" => Box::new(chain_spec::turing::turing_staging()?),
 		#[cfg(feature = "turing-node")]
 		"turing" => Box::new(chain_spec::turing::turing_live()?),
+		#[cfg(feature = "oak-node")]
+		"oak-dev" => Box::new(chain_spec::oak::oak_development_config()),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
 				as Box<dyn sc_service::ChainSpec>;
 
-			if chain_spec.is_turing() {
-				#[cfg(feature = "turing-node")]
-				{
-					Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
-				}
-				#[cfg(not(feature = "turing-node"))]
-				return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into())
-			} else {
-				#[cfg(feature = "neumann-node")]
-				{
-					Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
-				}
-				#[cfg(not(feature = "neumann-node"))]
-				return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into())
+			match chain_spec {
+				chain_spec if chain_spec.is_turing() => {
+					#[cfg(feature = "turing-node")]
+					{
+						Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "turing-node"))]
+					return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into())
+				},
+				chain_spec if chain_spec.is_oak() => {
+					#[cfg(feature = "oak-node")]
+					{
+						Box::new(chain_spec::oak::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "oak-node"))]
+					return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into())
+				},
+				_ => {
+					#[cfg(feature = "neumann-node")]
+					{
+						Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "neumann-node"))]
+					return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into())
+				},
 			}
 		},
 	})
@@ -104,6 +117,13 @@ impl SubstrateCli for Cli {
 
 				#[cfg(feature = "turing-node")]
 				return &service::turing_runtime::VERSION
+			},
+			chain_spec if chain_spec.is_oak() => {
+				#[cfg(not(feature = "oak-node"))]
+				panic!("{}", service::OAK_RUNTIME_NOT_AVAILABLE);
+
+				#[cfg(feature = "oak-node")]
+				return &service::oak_runtime::VERSION
 			},
 			_ => {
 				#[cfg(not(feature = "neumann-node"))]
@@ -191,24 +211,37 @@ macro_rules! construct_async_run {
 
 macro_rules! with_runtime_or_err {
 	($chain_spec:expr, { $( $code:tt )* }) => {
-		if $chain_spec.is_turing() {
-			#[cfg(feature = "turing-node")]
-			#[allow(unused_imports)]
-			use service::{turing_runtime::{Block, RuntimeApi}, TuringExecutor as Executor};
-			#[cfg(feature = "turing-node")]
-			$( $code )*
+		match $chain_spec {
+			chain_spec if chain_spec.is_turing() => {
+				#[cfg(feature = "turing-node")]
+				#[allow(unused_imports)]
+				use service::{turing_runtime::{Block, RuntimeApi}, TuringExecutor as Executor};
+				#[cfg(feature = "turing-node")]
+				$( $code )*
 
-			#[cfg(not(feature = "turing-node"))]
-			return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into());
-		} else {
-			#[cfg(feature = "neumann-node")]
-			#[allow(unused_imports)]
-			use service::{neumann_runtime::{Block, RuntimeApi}, NeumannExecutor as Executor};
-			#[cfg(feature = "neumann-node")]
-			$( $code )*
+				#[cfg(not(feature = "turing-node"))]
+				return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into());
+			},
+			chain_spec if chain_spec.is_oak() => {
+				#[cfg(feature = "oak-node")]
+				#[allow(unused_imports)]
+				use service::{oak_runtime::{Block, RuntimeApi}, OakExecutor as Executor};
+				#[cfg(feature = "oak-node")]
+				$( $code )*
 
-			#[cfg(not(feature = "neumann-node"))]
-			return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into());
+				#[cfg(not(feature = "oak-node"))]
+				return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into());
+			},
+			_ => {
+				#[cfg(feature = "neumann-node")]
+				#[allow(unused_imports)]
+				use service::{neumann_runtime::{Block, RuntimeApi}, NeumannExecutor as Executor};
+				#[cfg(feature = "neumann-node")]
+				$( $code )*
+
+				#[cfg(not(feature = "neumann-node"))]
+				return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into());
+			},
 		}
 	}
 }

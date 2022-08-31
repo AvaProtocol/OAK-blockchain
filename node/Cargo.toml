@@ -22,13 +22,15 @@ path = "src/main.rs"
 [features]
 runtime-benchmarks = [
     "neumann-runtime/runtime-benchmarks",
+	"oak-runtime/runtime-benchmarks",
     "turing-runtime/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
 ]
 neumann-node = ["neumann-runtime"]
+oak-node = ["oak-runtime"]
 turing-node = ["turing-runtime"]
-all-nodes = ["neumann-node", "turing-node"]
-try-runtime = ["try-runtime-cli", "turing-runtime/try-runtime"]
+all-nodes = ["neumann-node", "turing-node", "oak-node"]
+try-runtime = ["try-runtime-cli", "turing-runtime/try-runtime", "oak-runtime/try-runtime"]
 
 [dependencies]
 async-trait = "0.1.48"
@@ -47,6 +49,7 @@ jsonrpsee = { version = "0.14.0", features = ["server"] }
 
 # Local Dependencies
 neumann-runtime = { path = "../runtime/neumann", optional = true}
+oak-runtime = { path ='../runtime/oak', optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}
 pallet-automation-time-rpc ={ path = "../pallets/automation-time/rpc"}
 pallet-xcmp-handler-rpc ={ path = "../pallets/xcmp-handler/rpc"}
