@@ -6,8 +6,7 @@ use sp_core::sr25519;
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, validate_allocation,
-	Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, Extensions,
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
@@ -114,11 +113,6 @@ pub fn oak_staging() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
-			validate_allocation(
-				initial_allocation.clone(),
-				ALLOC_TOKENS_TOTAL,
-				EXISTENTIAL_DEPOSIT,
-			);
 
 			testnet_genesis(
 				// initial collators.
