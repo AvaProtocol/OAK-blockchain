@@ -106,7 +106,7 @@ pub fn oak_staging() -> ChainSpec {
 		// Name
 		"Oak Staging",
 		// ID
-		"oak",
+		"oak-staging",
 		ChainType::Live,
 		move || {
 			let allocation_json =
