@@ -215,7 +215,7 @@ impl<A, B> Default for ScheduledTasks<A, B> {
 	}
 }
 impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
-	pub fn try_push<T: Config, Balance: AtLeast32BitUnsigned>(
+	pub fn try_push<T: Config, Balance>(
 		&mut self,
 		task_id: TaskId,
 		task: &Task<AccountId, Balance, T::CurrencyId, T::MaxExecutionTimes>,
