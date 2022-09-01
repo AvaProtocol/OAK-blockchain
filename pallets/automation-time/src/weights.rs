@@ -32,7 +32,7 @@
 //:force_cancel_scheduled_task 27_236_000
 //:force_cancel_scheduled_task_full 826_320_000
 //:run_auto_compound_delegated_stake_task 101_751_000
-//:run_dynamic_dispatch_action 14_000_000
+//:run_dynamic_dispatch_action 20_000_000
 //:run_dynamic_dispatch_action_fail_decode 13_000_000
 //:run_missed_tasks_many_found 169_000
 //:run_missed_tasks_many_missing 186_000
@@ -221,7 +221,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(9 as Weight))
 	}
 	fn run_dynamic_dispatch_action() -> Weight {
-		(14_000_000 as Weight)
+		(20_000_000 as Weight)
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
 		(13_000_000 as Weight)
@@ -428,7 +428,7 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
 	}
 	fn run_dynamic_dispatch_action() -> Weight {
-		(14_000_000 as Weight)
+		(20_000_000 as Weight)
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
 		(13_000_000 as Weight)

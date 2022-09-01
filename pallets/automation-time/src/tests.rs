@@ -739,7 +739,6 @@ mod run_dynamic_dispatch_action {
 				account_id.clone(),
 				bad_encoded_call,
 				task_id,
-				false,
 			);
 
 			assert_eq!(
@@ -764,12 +763,7 @@ mod run_dynamic_dispatch_action {
 			let call: Call = frame_system::Call::set_code { code: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				encoded_call,
-				task_id,
-				false,
-			);
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
 
 			assert_eq!(
 				events(),
@@ -790,12 +784,7 @@ mod run_dynamic_dispatch_action {
 			let call: Call = frame_system::Call::remark { remark: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				encoded_call,
-				task_id,
-				false,
-			);
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
 
 			assert_eq!(
 				events(),

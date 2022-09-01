@@ -853,7 +853,6 @@ pub mod pallet {
 									task.owner_id.clone(),
 									encoded_call,
 									*task_id,
-									false,
 								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
@@ -1049,7 +1048,6 @@ pub mod pallet {
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
 			task_id: TaskId<T>,
-			benchmarking: bool,
 		) -> Weight {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
@@ -1057,14 +1055,12 @@ pub mod pallet {
 						frame_system::RawOrigin::Signed(caller.clone()).into();
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
-					let (maybe_actual_call_weight, result) = match benchmarking {
-						true => (None, Ok(())),
-						false => match scheduled_call.dispatch(dispatch_origin) {
+					let (maybe_actual_call_weight, result) =
+						match scheduled_call.dispatch(dispatch_origin) {
 							Ok(post_info) => (post_info.actual_weight, Ok(())),
 							Err(error_and_info) =>
 								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
-						},
-					};
+						};
 
 					Self::deposit_event(Event::DynamicDispatchResult {
 						who: caller,
