@@ -1,3 +1,5 @@
+use crate::{weights::WeightInfo, Config, Error};
+
 use frame_support::{pallet_prelude::*, traits::Get};
 
 use sp_runtime::traits::AtLeast32BitUnsigned;
@@ -33,6 +35,21 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		account_minimum: Balance,
 		frequency: Seconds,
 	},
+}
+
+impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
+	pub fn execution_weight<T: Config>(&self) -> Weight {
+		match self {
+			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
+			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
+			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
+			Action::XCMP { .. } => T::DbWeight::get()
+				.writes(1)
+				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+			Action::AutoCompoundDelegatedStake { .. } =>
+				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+		}
+	}
 }
 
 impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Default>
@@ -183,5 +200,119 @@ pub struct TaskHashInput<AccountId> {
 impl<AccountId> TaskHashInput<AccountId> {
 	pub fn new(owner_id: AccountId, provided_id: Vec<u8>) -> Self {
 		Self { owner_id, provided_id }
+	}
+}
+
+#[derive(Debug, Decode, Eq, Encode, PartialEq, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub struct ScheduledTasks<AccountId, TaskId> {
+	pub tasks: Vec<(AccountId, TaskId)>,
+	pub weight: u128,
+}
+impl<A, B> Default for ScheduledTasks<A, B> {
+	fn default() -> Self {
+		Self { tasks: vec![], weight: 0 }
+	}
+}
+impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
+	pub fn try_push<T: Config, Balance>(
+		&mut self,
+		task_id: TaskId,
+		task: &Task<AccountId, Balance, T::CurrencyId, T::MaxExecutionTimes>,
+	) -> Result<&mut Self, Error<T>>
+	where
+		AccountId: Clone,
+	{
+		let weight = self
+			.weight
+			.checked_add(task.action.execution_weight::<T>() as u128)
+			.ok_or(Error::<T>::TimeSlotFull)?;
+		// A hard limit on tasks/slot prevents unforseen performance consequences
+		// that could occur when scheduling a huge number of lightweight tasks.
+		// Also allows us to make reasonable assumptions for worst case benchmarks.
+		if self.tasks.len() as u32 >= T::MaxTasksPerSlot::get() ||
+			weight > T::MaxWeightPerSlot::get()
+		{
+			Err(Error::<T>::TimeSlotFull)?
+		}
+
+		self.weight = weight;
+		self.tasks.push((task.owner_id.clone(), task_id));
+		Ok(self)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::mock::*;
+
+	mod scheduled_tasks {
+		use super::*;
+		use crate::{AccountTaskId, BalanceOf, ScheduledTasksOf, TaskId, TaskOf};
+		use frame_support::assert_err;
+		use sp_runtime::AccountId32;
+
+		#[test]
+		fn try_push_errors_when_slot_is_full_by_weight() {
+			new_test_ext(0).execute_with(|| {
+				let task = TaskOf::<Test>::create_event_task(
+					AccountId32::new(ALICE),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				assert_err!(
+					ScheduledTasksOf::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
+						.try_push(TaskId::<Test>::default(), &task),
+					Error::<Test>::TimeSlotFull
+				);
+			})
+		}
+
+		#[test]
+		fn try_push_errors_when_slot_is_full_by_task_count() {
+			new_test_ext(0).execute_with(|| {
+				let alice = AccountId32::new(ALICE);
+				let id = (alice.clone(), TaskId::<Test>::default());
+				let task = TaskOf::<Test>::create_event_task(
+					alice.clone(),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				let tasks = (0..MaxTasksPerSlot::get()).fold::<Vec<AccountTaskId<Test>>, _>(
+					vec![],
+					|mut tasks, _| {
+						tasks.push(id.clone());
+						tasks
+					},
+				);
+				assert_err!(
+					ScheduledTasksOf::<Test> { tasks, weight: 0 }
+						.try_push(TaskId::<Test>::default(), &task),
+					Error::<Test>::TimeSlotFull
+				);
+			})
+		}
+
+		#[test]
+		fn try_push_works_when_slot_is_not_full() {
+			new_test_ext(0).execute_with(|| {
+				let task = TaskOf::<Test>::create_event_task(
+					AccountId32::new(ALICE),
+					vec![0],
+					vec![0].try_into().unwrap(),
+					vec![0],
+				);
+				let task_id = TaskId::<Test>::default();
+				let mut scheduled_tasks = ScheduledTasksOf::<Test>::default();
+				scheduled_tasks
+					.try_push::<Test, BalanceOf<Test>>(task_id, &task)
+					.expect("slot is not full");
+				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
+				assert_eq!(scheduled_tasks.weight, 20_000);
+			})
+		}
 	}
 }
