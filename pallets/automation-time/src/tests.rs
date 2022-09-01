@@ -17,7 +17,7 @@
 
 use crate::{
 	mock::*, AccountTasks, Action, ActionOf, Config, Error, LastTimeSlot, MissedQueueV2,
-	MissedTaskV2Of, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	MissedTaskV2Of, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
 use core::convert::TryInto;
@@ -148,24 +148,25 @@ fn schedule_notify_works() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => match AutomationTime::get_account_task(
-				account_task_ids[0].0.clone(),
-				account_task_ids[0].1,
-			) {
-				None => {
-					panic!("A task should exist if it was scheduled")
-				},
-				Some(task) => {
-					let expected_task = TaskOf::<Test>::create_event_task(
-						AccountId32::new(ALICE),
-						vec![50],
-						vec![SCHEDULED_TIME].try_into().unwrap(),
-						message,
-					);
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
+				match AutomationTime::get_account_task(
+					account_task_ids[0].0.clone(),
+					account_task_ids[0].1,
+				) {
+					None => {
+						panic!("A task should exist if it was scheduled")
+					},
+					Some(task) => {
+						let expected_task = TaskOf::<Test>::create_event_task(
+							AccountId32::new(ALICE),
+							vec![50],
+							vec![SCHEDULED_TIME].try_into().unwrap(),
+							message,
+						);
 
-					assert_eq!(task, expected_task);
+						assert_eq!(task, expected_task);
+					},
 				},
-			},
 		}
 	})
 }
@@ -217,25 +218,26 @@ fn schedule_native_transfer_works() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => match AutomationTime::get_account_task(
-				account_task_ids[0].0.clone(),
-				account_task_ids[0].1,
-			) {
-				None => {
-					panic!("A task should exist if it was scheduled")
-				},
-				Some(task) => {
-					let expected_task = TaskOf::<Test>::create_native_transfer_task(
-						AccountId32::new(ALICE),
-						vec![50],
-						vec![SCHEDULED_TIME].try_into().unwrap(),
-						AccountId32::new(BOB),
-						1,
-					);
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
+				match AutomationTime::get_account_task(
+					account_task_ids[0].0.clone(),
+					account_task_ids[0].1,
+				) {
+					None => {
+						panic!("A task should exist if it was scheduled")
+					},
+					Some(task) => {
+						let expected_task = TaskOf::<Test>::create_native_transfer_task(
+							AccountId32::new(ALICE),
+							vec![50],
+							vec![SCHEDULED_TIME].try_into().unwrap(),
+							AccountId32::new(BOB),
+							1,
+						);
 
-					assert_eq!(task, expected_task);
+						assert_eq!(task, expected_task);
+					},
 				},
-			},
 		}
 	})
 }
@@ -297,7 +299,8 @@ fn schedule_auto_compound_delegated_stake() {
 			1_000_000_000,
 		));
 		let account_task_id = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME)
-			.expect("Task should be scheduled")[0]
+			.expect("Task should be scheduled")
+			.tasks[0]
 			.clone();
 		assert_eq!(
 			AutomationTime::get_account_task(account_task_id.0.clone(), account_task_id.1),
@@ -489,7 +492,7 @@ fn schedule_time_slot_full_rolls_back() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 2);
 				assert_eq!(account_task_ids[0].1, task_id1);
 				assert_eq!(account_task_ids[1].1, task_id2);
@@ -583,7 +586,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -592,7 +595,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -614,7 +617,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -952,7 +955,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id2);
 			},
@@ -961,7 +964,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id1);
 			},
@@ -1377,6 +1380,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
 			.expect("Task should have been rescheduled")
+			.tasks
 			.into_iter()
 			.find(|t| *t == (AccountId32::new(ALICE), task_id))
 			.expect("Task should have been rescheduled");
@@ -1475,7 +1479,9 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 			})
 			.expect("AutoCompound failure event should have been emitted");
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
-			.filter(|tasks| { tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id)) })
+			.filter(|scheduled| {
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
+			})
 			.is_none());
 		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
 	})
