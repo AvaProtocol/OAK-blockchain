@@ -7,11 +7,11 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, Extensions,
+	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, test::validate_allocation, test::validate_vesting, Extensions,
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, DOLLAR, TOKEN_DECIMALS,
+	VestingConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
 use primitives::{AccountId, AuraId, Balance};
 
@@ -114,6 +114,26 @@ pub fn oak_staging() -> ChainSpec {
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			validate_allocation(
+				initial_allocation.clone(),
+				ALLOC_TOKENS_TOTAL,
+				EXISTENTIAL_DEPOSIT,
+			);
+
+			let vesting_json = &include_bytes!("../../../distribution/oak_vesting.json")[..];
+			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+				serde_json::from_slice(vesting_json).unwrap();
+
+			let vested_tokens = 9_419_999_999_999_999_919;
+			let vest_starting_time: u64 = 1651431600;
+			let vest_ending_time: u64 = 1743534000;
+			validate_vesting(
+				initial_vesting.clone(),
+				vested_tokens,
+				EXISTENTIAL_DEPOSIT,
+				vest_starting_time,
+				vest_ending_time,
+			);
 
 			testnet_genesis(
 				// initial collators.
@@ -138,7 +158,7 @@ pub fn oak_staging() -> ChainSpec {
 				initial_allocation,
 				REGISTERED_STAGING_PARA_ID.into(),
 				vec![],
-				vec![],
+				initial_vesting,
 				vec![
 					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
 					hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),

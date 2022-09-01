@@ -112,8 +112,7 @@ pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	}
 }
 
-#[cfg(test)]
-mod test {
+pub mod test {
 	use super::*;
 	use sp_runtime::traits::Zero;
 
