@@ -16,7 +16,10 @@
 // limitations under the License.
 
 use crate::{
-	mock::{events, Call as OuterCall, ExtBuilder, Origin, Test, Valve},
+	mock::{
+		events, Call as OuterCall, ExtBuilder, Origin, Test, Valve, COLLECTIVE_MEMBER,
+		NON_COLLECTIVE_MEMBER,
+	},
 	Call, Error, Event,
 };
 use frame_support::{assert_noop, assert_ok, dispatch::Dispatchable};
@@ -234,4 +237,32 @@ fn start_scheduled_tasks_not_stopped() {
 		let call: OuterCall = Call::start_scheduled_tasks {}.into();
 		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ScheduledTasksAlreadyRunnung);
 	})
+}
+
+mod ensure_allowed {
+	use super::*;
+
+	#[test]
+	fn allows_root() {
+		ExtBuilder::default().build().execute_with(|| {
+			let root = Origin::root();
+			assert_ok!(Valve::ensure_allowed(root));
+		})
+	}
+
+	#[test]
+	fn allows_collective_member() {
+		ExtBuilder::default().build().execute_with(|| {
+			let origin = Origin::signed(AccountId32::new(COLLECTIVE_MEMBER));
+			assert_ok!(Valve::ensure_allowed(origin));
+		})
+	}
+
+	#[test]
+	fn disallows_non_collective_member() {
+		ExtBuilder::default().build().execute_with(|| {
+			let origin = Origin::signed(AccountId32::new(NON_COLLECTIVE_MEMBER));
+			assert_noop!(Valve::ensure_allowed(origin), Error::<Test>::NotAllowed);
+		})
+	}
 }

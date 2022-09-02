@@ -36,6 +36,9 @@ pub type Balance = u128;
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 
+pub const COLLECTIVE_MEMBER: [u8; 32] = [1u8; 32];
+pub const NON_COLLECTIVE_MEMBER: [u8; 32] = [2u8; 32];
+
 // Configure a mock runtime to test the pallet.
 construct_runtime!(
 	pub enum Test where
@@ -84,6 +87,17 @@ pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(_: &Call) -> bool {
 		false
+	}
+}
+
+pub struct TechCollective;
+impl Contains<AccountId> for TechCollective {
+	fn contains(account_id: &AccountId) -> bool {
+		if account_id == &AccountId32::new(COLLECTIVE_MEMBER) {
+			true
+		} else {
+			false
+		}
 	}
 }
 
@@ -138,6 +152,7 @@ impl Config for Test {
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
 	type AutomationPrice = MockAutomationPrice;
+	type CallAccessFilter = TechCollective;
 }
 
 /// Externality builder for pallet maintenance mode's mock runtime

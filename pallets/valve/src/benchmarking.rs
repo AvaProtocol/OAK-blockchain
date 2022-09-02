@@ -18,12 +18,12 @@
 #![cfg(feature = "runtime-benchmarks")]
 
 use super::*;
-use frame_benchmarking::benchmarks;
+use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 
 benchmarks! {
 	close_valve {
-
+		let account_id = account::<T::AccountId>("old member", 0, SEED);
 	}: _(RawOrigin::Root)
 
 	open_valve {
