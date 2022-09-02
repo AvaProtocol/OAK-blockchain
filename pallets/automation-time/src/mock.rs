@@ -205,6 +205,12 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_auto_compound_delegated_stake_task() -> Weight {
 		20_000
 	}
+	fn run_dynamic_dispatch_action() -> Weight {
+		20_000
+	}
+	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
+		20_000
+	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
@@ -324,6 +330,7 @@ impl pallet_automation_time::Config for Test {
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type Call = Call;
 }
 
 // Build genesis storage according to the mock runtime.

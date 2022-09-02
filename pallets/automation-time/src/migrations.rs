@@ -378,7 +378,7 @@ pub mod v4 {
 					.fold(0u128, |acc, (account_id, task_id)| {
 						task_count += 1;
 						if let Some(task) = Pallet::<T>::get_account_task(account_id.clone(), task_id) {
-							acc + task.action.execution_weight::<T>() as u128
+							acc + task.action.execution_weight::<T>().unwrap_or(<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()) as u128
 						} else {
 							log::warn!(target: "automation-time", "Unable to get task with id {:?} for account {:?}", task_id, account_id);
 							acc

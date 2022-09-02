@@ -19,6 +19,7 @@ use crate::{
 	mock::*, AccountTasks, Action, ActionOf, Config, Error, LastTimeSlot, MissedQueueV2,
 	MissedTaskV2Of, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
+use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
 use frame_system::RawOrigin;
@@ -724,6 +725,80 @@ fn force_cancel_task_works() {
 			}),]
 		);
 	})
+}
+
+mod run_dynamic_dispatch_action {
+	use super::*;
+	use sp_runtime::DispatchError;
+
+	#[test]
+	fn cannot_decode() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let bad_encoded_call: Vec<u8> = vec![1];
+
+			let weight = AutomationTime::run_dynamic_dispatch_action(
+				account_id.clone(),
+				bad_encoded_call,
+				task_id,
+			);
+
+			assert_eq!(
+				weight,
+				<Test as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+			);
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::CallCannotBeDecoded {
+					who: account_id,
+					task_id,
+				}),]
+			);
+		})
+	}
+
+	#[test]
+	fn call_errors() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = frame_system::Call::set_code { code: vec![] }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Err(DispatchError::BadOrigin),
+				}),]
+			);
+		})
+	}
+
+	#[test]
+	fn call_works() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = frame_system::Call::remark { remark: vec![] }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Ok(()),
+				}),]
+			);
+		})
+	}
 }
 
 // Weights to use for tests below

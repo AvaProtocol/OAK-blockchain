@@ -1,6 +1,6 @@
 use crate::{weights::WeightInfo, Config, Error};
 
-use frame_support::{pallet_prelude::*, traits::Get};
+use frame_support::{pallet_prelude::*, traits::Get, weights::GetDispatchInfo};
 
 use sp_runtime::traits::AtLeast32BitUnsigned;
 use sp_std::prelude::*;
@@ -35,11 +35,14 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		account_minimum: Balance,
 		frequency: Seconds,
 	},
+	DynamicDispatch {
+		encoded_call: Vec<u8>,
+	},
 }
 
 impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
-	pub fn execution_weight<T: Config>(&self) -> Weight {
-		match self {
+	pub fn execution_weight<T: Config>(&self) -> Result<Weight, DispatchError> {
+		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
 			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
@@ -48,7 +51,13 @@ impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
 				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-		}
+			Action::DynamicDispatch { encoded_call } => {
+				let scheduled_call: <T as Config>::Call = Decode::decode(&mut &**encoded_call)
+					.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
+				scheduled_call.get_dispatch_info().weight
+			},
+		};
+		Ok(weight)
 	}
 }
 
@@ -219,14 +228,13 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 		&mut self,
 		task_id: TaskId,
 		task: &Task<AccountId, Balance, T::CurrencyId, T::MaxExecutionTimes>,
-	) -> Result<&mut Self, Error<T>>
+	) -> Result<&mut Self, DispatchError>
 	where
 		AccountId: Clone,
 	{
-		let weight = self
-			.weight
-			.checked_add(task.action.execution_weight::<T>() as u128)
-			.ok_or(Error::<T>::TimeSlotFull)?;
+		let action_weight = task.action.execution_weight::<T>()?;
+		let weight =
+			self.weight.checked_add(action_weight as u128).ok_or(Error::<T>::TimeSlotFull)?;
 		// A hard limit on tasks/slot prevents unforseen performance consequences
 		// that could occur when scheduling a huge number of lightweight tasks.
 		// Also allows us to make reasonable assumptions for worst case benchmarks.
@@ -262,9 +270,10 @@ mod tests {
 					vec![0].try_into().unwrap(),
 					vec![0],
 				);
+				let task_id = TaskId::<Test>::default();
 				assert_err!(
 					ScheduledTasksOf::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
-						.try_push(TaskId::<Test>::default(), &task),
+						.try_push::<Test, BalanceOf<Test>>(task_id, &task),
 					Error::<Test>::TimeSlotFull
 				);
 			})
@@ -288,9 +297,10 @@ mod tests {
 						tasks
 					},
 				);
+				let task_id = TaskId::<Test>::default();
 				assert_err!(
 					ScheduledTasksOf::<Test> { tasks, weight: 0 }
-						.try_push(TaskId::<Test>::default(), &task),
+						.try_push::<Test, BalanceOf<Test>>(task_id, &task),
 					Error::<Test>::TimeSlotFull
 				);
 			})

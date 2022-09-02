@@ -972,6 +972,7 @@ impl pallet_automation_time::Config for Runtime {
 	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type DelegatorActions = ParachainStaking;
+	type Call = Call;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -1221,7 +1222,7 @@ impl_runtime_apis! {
 			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
-			AutomationTime::calculate_execution_fee(&(action.into()), executions)
+			AutomationTime::calculate_execution_fee(&(action.into()), executions).expect("Can only fail for DynamicDispatch which is not an option here")
 		}
 
 		fn calculate_optimal_autostaking(
@@ -1233,7 +1234,7 @@ impl_runtime_apis! {
 
 			let collator_stake =
 				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1) as i128;
+			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
 
 			let duration = 90;
 			let total_collators = ParachainStaking::total_selected();

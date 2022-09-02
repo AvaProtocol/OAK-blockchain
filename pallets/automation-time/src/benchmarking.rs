@@ -336,7 +336,26 @@ benchmarks! {
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
-   }: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
+	}: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, 3600, task_id, task) }
+
+	run_dynamic_dispatch_action {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), vec![1]);
+		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let encoded_call = call.encode();
+	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id) }
+	verify {
+		assert_last_event::<T>(Event::DynamicDispatchResult{ who: caller, task_id, result: Ok(()) }.into())
+	}
+
+	run_dynamic_dispatch_action_fail_decode {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let task_id = AutomationTime::<T>::generate_task_id(caller.clone(), vec![1]);
+		let bad_encoded_call: Vec<u8> = vec![1];
+	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id) }
+	verify {
+		assert_last_event::<T>(Event::CallCannotBeDecoded{ who: caller, task_id }.into())
+	}
 
 	/*
 	* This section is to test run_missed_tasks.
