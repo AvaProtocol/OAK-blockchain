@@ -19,7 +19,7 @@ use super::*;
 use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild},
+	traits::{Contains, GenesisBuild, SortedMembers},
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -91,13 +91,17 @@ impl Contains<Call> for ClosedCallFilter {
 }
 
 pub struct TechCollective;
-impl Contains<AccountId> for TechCollective {
+impl SortedMembers<AccountId> for TechCollective {
 	fn contains(account_id: &AccountId) -> bool {
 		if account_id == &AccountId32::new(COLLECTIVE_MEMBER) {
 			true
 		} else {
 			false
 		}
+	}
+
+	fn sorted_members() -> Vec<AccountId> {
+		vec![]
 	}
 }
 

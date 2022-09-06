@@ -46,7 +46,7 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::{CallMetadata, GetCallMetadata},
 		pallet_prelude::{DispatchResult, *},
-		traits::{Contains, PalletInfoAccess},
+		traits::{Contains, PalletInfoAccess, SortedMembers},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -68,7 +68,7 @@ pub mod pallet {
 		type AutomationPrice: Shutdown;
 
 		/// The filter for who can call this pallet's extrinsics besides sudo.
-		type CallAccessFilter: Contains<<Self as frame_system::Config>::AccountId>;
+		type CallAccessFilter: SortedMembers<<Self as frame_system::Config>::AccountId>;
 	}
 
 	#[pallet::event]
