@@ -8,8 +8,8 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, DOLLAR, TOKEN_DECIMALS,
+	CouncilConfig, CurrencyId, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig,
+	TokensConfig, ValveConfig, VestingConfig, DOLLAR, TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -56,7 +56,23 @@ pub fn turing_development_config() -> ChainSpec {
 			let initial_balance: u128 = ALLOC_TOKENS_TOTAL / accounts.len() as u128;
 			let endowed_accounts: Vec<(AccountId, Balance)> =
 				accounts.iter().cloned().map(|k| (k, initial_balance)).collect();
-
+			// Create endowed Tokens accounts starting with index 1.  Index 0 is Native and Native tokens get stored in Balances Pallet.
+			// 0 => Native,
+			// 1 => KSM,
+			// 2 => AUSD,
+			// 3 => KAR,
+			// 4 => LKSM,
+			// 5 => HKO,
+			// 6 => SKSM,
+			// 7 => PHA,
+			// 8 => UNIT,
+			let tokens_endowed_accounts: Vec<(AccountId, CurrencyId, Balance)> = accounts
+				.iter()
+				.cloned()
+				.flat_map(|k| {
+					(1..9).map(|i| (k.clone(), CurrencyId::from(i), initial_balance)).collect::<Vec<(AccountId, CurrencyId, Balance)>>()
+				})
+				.collect::<Vec<(AccountId, CurrencyId, Balance)>>();
 			testnet_genesis(
 				// initial collators.
 				vec![
@@ -71,6 +87,7 @@ pub fn turing_development_config() -> ChainSpec {
 				],
 				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
+				tokens_endowed_accounts,
 				REGISTERED_PARA_ID.into(),
 				vec![],
 				vec![],
@@ -102,6 +119,7 @@ fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
+	tokens_endowed_accounts: Vec<(AccountId, CurrencyId, Balance)>,
 	para_id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
@@ -148,7 +166,7 @@ fn testnet_genesis(
 		aura_ext: Default::default(),
 		council: CouncilConfig { members: general_councils, phantom: Default::default() },
 		democracy: Default::default(),
-		tokens: Default::default(),
+		tokens: TokensConfig { balances: tokens_endowed_accounts },
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
 			members: technical_memberships.try_into().unwrap(),
