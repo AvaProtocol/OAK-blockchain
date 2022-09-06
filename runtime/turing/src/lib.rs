@@ -26,6 +26,9 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use primitives::{assets::CustomMetadata, TokenId};
+use scale_info::TypeInfo;
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
@@ -467,6 +470,52 @@ parameter_types! {
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
 	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
+}
+
+// TODO: remove after asset registry migration
+// Can only append.
+// DO NOT CHANGE THE ORDER.
+#[derive(
+	Encode,
+	Decode,
+	Eq,
+	PartialEq,
+	Copy,
+	Clone,
+	RuntimeDebug,
+	PartialOrd,
+	Ord,
+	TypeInfo,
+	MaxEncodedLen,
+)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum CurrencyId {
+	Native,
+	KSM,
+	AUSD,
+	KAR,
+	LKSM,
+	HKO,
+	SKSM,
+	PHA,
+	UNIT,
+}
+
+impl From<u32> for CurrencyId {
+	fn from(a: u32) -> Self {
+		match a {
+			0 => CurrencyId::Native,
+			1 => CurrencyId::KSM,
+			2 => CurrencyId::AUSD,
+			3 => CurrencyId::KAR,
+			4 => CurrencyId::LKSM,
+			5 => CurrencyId::HKO,
+			6 => CurrencyId::SKSM,
+			7 => CurrencyId::PHA,
+			8 => CurrencyId::UNIT,
+			_ => CurrencyId::Native,
+		}
+	}
 }
 
 pub struct DustRemovalWhitelist;

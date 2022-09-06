@@ -111,6 +111,7 @@ orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-m
 [features]
 default = [
 	"std",
+	"try-runtime",
 ]
 std = [
 	"codec/std",

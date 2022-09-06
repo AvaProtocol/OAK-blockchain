@@ -219,7 +219,7 @@ impl FixedConversionRateProvider for FeePerSecondProvider {
 				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
 			_ => AssetRegistryOf::<Runtime>::fetch_metadata_by_location(location)?,
 		};
-		Some(metadata.additional.fee_per_second)
+		metadata.additional.fee_per_second
 	}
 }
 

@@ -6,8 +6,6 @@ pub mod asset_registry {
 	use frame_support::{Twox64Concat, WeakBoundedVec};
 	use orml_asset_registry::AssetMetadata;
 
-	const CONVERSION_RATE_TBD: u32 = 1u32;
-
 	pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
 
 	pub mod parachains {
@@ -26,11 +24,6 @@ pub mod asset_registry {
 			pub const KAR_KEY: &[u8] = &[0, 128];
 			pub const AUSD_KEY: &[u8] = &[0, 129];
 			pub const LKSM_KEY: &[u8] = &[0, 131];
-		}
-
-		// TODO: Add AssetMetadata for Mangata
-		pub mod mangata {
-			pub const ID: u32 = 2110;
 		}
 
 		pub mod khala {
@@ -81,10 +74,7 @@ pub mod asset_registry {
 						decimals: 10,
 						name: b"Native".to_vec(),
 						symbol: b"TUR".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: tur_per_second(),
-							conversion_rate: 1,
-						},
+						additional: Default::default(),
 						existential_deposit: EXISTENTIAL_DEPOSIT,
 						location: Some(MultiLocation::new(0, Here).into()),
 					},
@@ -95,10 +85,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"KSM".to_vec(),
 						symbol: b"Kusama".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second(),
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: 10 * millicent(12),
 						location: Some(MultiLocation::parent().into()),
 					},
@@ -109,10 +96,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"AUSD".to_vec(),
 						symbol: b"AUSD".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second() * 400,
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -135,10 +119,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"Karura".to_vec(),
 						symbol: b"KAR".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second() * 50,
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: 10 * cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -161,10 +142,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"Liquid KSM".to_vec(),
 						symbol: b"LKSM".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second() * 10,
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: 50 * millicent(12),
 						location: Some(
 							MultiLocation::new(
@@ -187,10 +165,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"Heiko".to_vec(),
 						symbol: b"HKO".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second() * 30,
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: 50 * cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -213,10 +188,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"SKSM".to_vec(),
 						symbol: b"SKSM".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second(),
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: 50 * millicent(12),
 						location: Some(
 							MultiLocation::new(
@@ -239,10 +211,7 @@ pub mod asset_registry {
 						decimals: 12,
 						name: b"PHA".to_vec(),
 						symbol: b"PHA".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: ksm_per_second() * 400,
-							conversion_rate: CONVERSION_RATE_TBD,
-						},
+						additional: Default::default(),
 						existential_deposit: cent(12),
 						location: Some(
 							MultiLocation::new(1, X1(Parachain(parachains::khala::ID))).into(),
@@ -256,8 +225,8 @@ pub mod asset_registry {
 						name: b"UNIT".to_vec(),
 						symbol: b"UNIT".to_vec(),
 						additional: CustomMetadata {
-							fee_per_second: tur_per_second(),
-							conversion_rate: 1,
+							fee_per_second: Some(tur_per_second()),
+							conversion_rate: Some(1),
 						},
 						existential_deposit: 10 * millicent(12),
 						location: Some(
@@ -297,20 +266,22 @@ pub mod asset_registry {
 
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<(), &'static str> {
-			/// 1. Read storage value of Tokens, store as tuple
-			/// 2. Post - Read storage value of Tokens again and compare
 			log::info!(
 				target: "asset_registry",
 				"pre_upgrade check"
 			);
 
-			use frame_support::migration::{get_storage_value, storage_key_iter};
+			use frame_support::{
+				migration::{get_storage_value, storage_key_iter},
+				traits::OnRuntimeUpgradeHelpersExt,
+			};
 
 			let pallet_prefix: &[u8] = b"AssetRegistry";
 			let metadata_prefix: &[u8] = b"Metadata";
 			let location_to_asset_id_prefix: &[u8] = b"LocationToAssetId";
 			let last_asset_id_prefix: &[u8] = b"LastAssetId";
 
+			// Assert Metadata length is 0
 			let metadata = storage_key_iter::<TokenId, AssetMetadataOf, Twox64Concat>(
 				pallet_prefix,
 				metadata_prefix,
@@ -318,6 +289,7 @@ pub mod asset_registry {
 			.collect::<Vec<_>>();
 			assert_eq!(metadata.len(), 0);
 
+			// Assert LocationToAssetId length is 0
 			let location_to_asset_id = storage_key_iter::<MultiLocation, TokenId, Twox64Concat>(
 				pallet_prefix,
 				location_to_asset_id_prefix,
@@ -325,9 +297,31 @@ pub mod asset_registry {
 			.collect::<Vec<_>>();
 			assert_eq!(location_to_asset_id.len(), 0);
 
+			// Assert last asset id is 0
 			let last_asset_id =
 				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
 			assert_eq!(last_asset_id, 0);
+
+			// Get tokens total issuance for comparing after migration
+			let pallet_prefix: &[u8] = b"Tokens";
+			let total_issuance_prefix: &[u8] = b"TotalIssuance";
+			let mut pre_tokens_total_issuance: Vec<(u32, u128)> = vec![];
+			storage_key_iter::<CurrencyId, u128, Twox64Concat>(
+				pallet_prefix,
+				total_issuance_prefix,
+			)
+			.for_each(|(currency_id, balance)| {
+				pre_tokens_total_issuance.push((currency_id as u32, balance));
+			});
+			Self::set_temp_storage::<Vec<(u32, u128)>>(
+				pre_tokens_total_issuance.clone(),
+				"pre_tokens_total_issuance",
+			);
+			log::info!(
+				target: "asset_registry",
+				"pre_upgrade tokens total issuance {}",
+				pre_tokens_total_issuance.len(),
+			);
 
 			Ok(())
 		}
@@ -339,13 +333,17 @@ pub mod asset_registry {
 				"post_upgrade check"
 			);
 
-			use frame_support::migration::{get_storage_value, storage_key_iter};
+			use frame_support::{
+				migration::{get_storage_value, storage_key_iter},
+				traits::OnRuntimeUpgradeHelpersExt,
+			};
 
 			let pallet_prefix: &[u8] = b"AssetRegistry";
 			let metadata_prefix: &[u8] = b"Metadata";
 			let location_to_asset_id_prefix: &[u8] = b"LocationToAssetId";
 			let last_asset_id_prefix: &[u8] = b"LastAssetId";
 
+			// Assert Metadata length
 			let metadata = storage_key_iter::<TokenId, AssetMetadataOf, Twox64Concat>(
 				pallet_prefix,
 				metadata_prefix,
@@ -353,6 +351,7 @@ pub mod asset_registry {
 			.collect::<Vec<_>>();
 			assert_eq!(metadata.len(), 9);
 
+			// Assert LocationToAssetId length
 			let location_to_asset_id = storage_key_iter::<MultiLocation, TokenId, Twox64Concat>(
 				pallet_prefix,
 				location_to_asset_id_prefix,
@@ -360,9 +359,28 @@ pub mod asset_registry {
 			.collect::<Vec<_>>();
 			assert_eq!(location_to_asset_id.len(), 9);
 
+			// Assert last asset id
 			let last_asset_id =
 				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
 			assert_eq!(last_asset_id, 8);
+
+			// Compare tokens totalIssuance from before and after upgrade
+			let pallet_prefix: &[u8] = b"Tokens";
+			let total_issuance_prefix: &[u8] = b"TotalIssuance";
+			let tokens_total_issuance = storage_key_iter::<TokenId, u128, Twox64Concat>(
+				pallet_prefix,
+				total_issuance_prefix,
+			)
+			.collect::<Vec<_>>();
+			log::info!(
+				target: "asset_registry",
+				"post_upgrade tokens total issuance {:?}",
+				tokens_total_issuance.len(),
+			);
+			// let pre_tokens_total_issuance =
+			// 	Self::get_temp_storage::<Vec<(u32, u128)>>("pre_tokens_total_issuance")
+			// 		.unwrap();
+			// assert_eq!(tokens_total_issuance.len(), pre_tokens_total_issuance.len());
 
 			Ok(())
 		}

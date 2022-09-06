@@ -35,7 +35,7 @@ use scale_info::TypeInfo;
 )]
 pub struct CustomMetadata {
 	/// The fee charged for every second that an XCM message takes to execute.
-	pub fee_per_second: u128,
+	pub fee_per_second: Option<u128>,
 	/// The token conversion rate to Native (ie. 1:10 equals .10)
-	pub conversion_rate: u32,
+	pub conversion_rate: Option<u32>,
 }
