@@ -70,7 +70,9 @@ pub fn turing_development_config() -> ChainSpec {
 				.iter()
 				.cloned()
 				.flat_map(|k| {
-					(1..9).map(|i| (k.clone(), CurrencyId::from(i), initial_balance)).collect::<Vec<(AccountId, CurrencyId, Balance)>>()
+					(1..9)
+						.map(|i| (k.clone(), CurrencyId::from(i), initial_balance))
+						.collect::<Vec<(AccountId, CurrencyId, Balance)>>()
 				})
 				.collect::<Vec<(AccountId, CurrencyId, Balance)>>();
 			testnet_genesis(
