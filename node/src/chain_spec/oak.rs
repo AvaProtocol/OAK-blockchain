@@ -9,7 +9,7 @@ use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config,
 	test::{validate_allocation, validate_vesting},
-	Extensions,
+	DummyChainSpec, Extensions,
 };
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
@@ -97,7 +97,7 @@ pub fn oak_development_config() -> ChainSpec {
 	)
 }
 
-pub fn oak_staging() -> ChainSpec {
+pub fn oak_staging() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/oak-staging.json")[..])
 }
 
