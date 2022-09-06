@@ -159,6 +159,7 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
+	pub const MaxWeightPerSlot: u128 = 40_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
 }
@@ -204,6 +205,12 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn run_auto_compound_delegated_stake_task() -> Weight {
 		20_000
 	}
+	fn run_dynamic_dispatch_action() -> Weight {
+		20_000
+	}
+	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
+		20_000
+	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
 		(10_000 * v).into()
 	}
@@ -227,6 +234,15 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn shift_missed_tasks() -> Weight {
 		20_000
+	}
+	fn migration_v4_2_slots() -> Weight {
+		0
+	}
+	fn migration_v4_1_slots() -> Weight {
+		0
+	}
+	fn migration_v4_0_slots() -> Weight {
+		0
 	}
 }
 
@@ -307,12 +323,14 @@ impl pallet_automation_time::Config for Test {
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
+	type MaxWeightPerSlot = MaxWeightPerSlot;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
 	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type Call = Call;
 }
 
 // Build genesis storage according to the mock runtime.
