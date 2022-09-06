@@ -26,9 +26,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use primitives::{assets::CustomMetadata, TokenId};
-use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
@@ -84,13 +81,9 @@ use polkadot_runtime_common::BlockHashCount;
 // XCM configurations.
 pub mod xcm_config;
 
-// ORML imports
-use orml_traits::parameter_type_with_key;
-
 // Common imports
 use primitives::{
-	tokens::TokenInfo, AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header,
-	Index, Signature,
+	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
 };
 
 // Custom pallet imports
@@ -123,6 +116,8 @@ pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<Address, Call, Signatu
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, Call, SignedExtra>;
 
+mod migrations;
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -130,6 +125,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	migrations::asset_registry::AssetRegistryMigration,
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -166,6 +162,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 12,
 	state_version: 0,
 };
+
+pub const NATIVE_TOKEN_ID: TokenId = 0;
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -469,91 +467,6 @@ parameter_types! {
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
 	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
-}
-
-parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-		match currency_id {
-			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
-			CurrencyId::UNIT => 10 * CurrencyId::UNIT.millicent(),
-			CurrencyId::KSM => 10 * CurrencyId::KSM.millicent(),
-			CurrencyId::AUSD => CurrencyId::AUSD.cent(),
-			CurrencyId::KAR => 10 * CurrencyId::KAR.cent(),
-			CurrencyId::LKSM => 50 * CurrencyId::LKSM.millicent(),
-			CurrencyId::HKO => 50 * CurrencyId::HKO.cent(),
-			CurrencyId::SKSM => 50 * CurrencyId::SKSM.millicent(),
-			CurrencyId::PHA => CurrencyId::PHA.cent(),
-		}
-	};
-}
-
-pub const NATIVE_TOKEN_ID: TokenId = 0;
-
-// Can only append.
-// DO NOT CHANGE THE ORDER.
-#[derive(
-	Encode,
-	Decode,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	RuntimeDebug,
-	PartialOrd,
-	Ord,
-	TypeInfo,
-	MaxEncodedLen,
-)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum CurrencyId {
-	Native,
-	KSM,
-	AUSD,
-	KAR,
-	LKSM,
-	HKO,
-	SKSM,
-	PHA,
-	UNIT,
-}
-
-impl From<u32> for CurrencyId {
-	fn from(a: u32) -> Self {
-		match a {
-			0 => CurrencyId::Native,
-			1 => CurrencyId::KSM,
-			2 => CurrencyId::AUSD,
-			3 => CurrencyId::KAR,
-			4 => CurrencyId::LKSM,
-			5 => CurrencyId::HKO,
-			6 => CurrencyId::SKSM,
-			7 => CurrencyId::PHA,
-			8 => CurrencyId::UNIT,
-			_ => CurrencyId::Native,
-		}
-	}
-}
-
-impl TokenInfo for CurrencyId {
-	fn get_decimals(&self) -> u32 {
-		match self {
-			CurrencyId::Native => 10,
-			CurrencyId::UNIT => 12,
-			CurrencyId::KSM => 12,
-			CurrencyId::AUSD => 12,
-			CurrencyId::KAR => 12,
-			CurrencyId::LKSM => 12,
-			CurrencyId::HKO => 12,
-			CurrencyId::SKSM => 12,
-			CurrencyId::PHA => 12,
-		}
-	}
-}
-
-impl Default for CurrencyId {
-	fn default() -> Self {
-		Self::Native
-	}
 }
 
 pub struct DustRemovalWhitelist;

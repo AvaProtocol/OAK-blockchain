@@ -17,6 +17,7 @@
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
+/// TODO: add decimal conversion
 /// A type describing our custom additional metadata stored in the orml-asset-registry.
 #[derive(
 	Clone,
@@ -35,4 +36,6 @@ use scale_info::TypeInfo;
 pub struct CustomMetadata {
 	/// The fee charged for every second that an XCM message takes to execute.
 	pub fee_per_second: u128,
+	/// The token conversion rate to Native (ie. 1:10 equals .10)
+	pub conversion_rate: u32,
 }

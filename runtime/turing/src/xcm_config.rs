@@ -1,7 +1,7 @@
 use super::{
-	AccountId, Balance, Call, Currencies, Event, Origin, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, TemporaryForeignTreasuryAccount, TokenId,
-	TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
+	AccountId, Balance, Call, Currencies, Event, Origin, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens,
+	XcmpQueue, MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
 use core::marker::PhantomData;
@@ -21,10 +21,10 @@ use polkadot_parachain::primitives::Sibling;
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin,
-	FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
+	LocationInverter, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
@@ -180,35 +180,28 @@ pub type Barrier = DenyThenTry<
 	),
 >;
 
-pub struct ToNativeTreasury;
-impl TakeRevenue for ToNativeTreasury {
+pub struct ToTreasury;
+impl TakeRevenue for ToTreasury {
 	fn take_revenue(revenue: MultiAsset) {
 		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
 			revenue
 		{
 			if let Some(currency_id) = TokenIdConvert::convert(id) {
-				// 20% burned, 80% to the treasury
-				let to_treasury = Percent::from_percent(80).mul_floor(amount);
-				// Due to the way XCM works the amount has already been taken off the total allocation balance.
-				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
-				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
-			}
-		}
-	}
-}
-
-pub struct ToForeignTreasury;
-impl TakeRevenue for ToForeignTreasury {
-	fn take_revenue(revenue: MultiAsset) {
-		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
-			revenue
-		{
-			if let Some(currency_id) = TokenIdConvert::convert(id) {
-				let _ = Currencies::deposit(
-					currency_id,
-					&TemporaryForeignTreasuryAccount::get(),
-					amount,
-				);
+				if currency_id == NATIVE_TOKEN_ID {
+					// Deposit to native treasury account
+					// 20% burned, 80% to the treasury
+					let to_treasury = Percent::from_percent(80).mul_floor(amount);
+					// Due to the way XCM works the amount has already been taken off the total allocation balance.
+					// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
+					let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
+				} else {
+					// Deposit to foreign treasury account
+					let _ = Currencies::deposit(
+						currency_id,
+						&TemporaryForeignTreasuryAccount::get(),
+						amount,
+					);
+				}
 			}
 		}
 	}
@@ -219,13 +212,19 @@ type AssetRegistryOf<T> = orml_asset_registry::Pallet<T>;
 pub struct FeePerSecondProvider;
 impl FixedConversionRateProvider for FeePerSecondProvider {
 	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
-		let metadata = AssetRegistryOf::<Runtime>::fetch_metadata_by_location(location)?;
+		let metadata = match location {
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
+			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+				if *para_id == u32::from(ParachainInfo::parachain_id()) =>
+				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
+			_ => AssetRegistryOf::<Runtime>::fetch_metadata_by_location(location)?,
+		};
 		Some(metadata.additional.fee_per_second)
 	}
 }
 
 pub type Trader =
-	(AssetRegistryTrader<FixedRateAssetRegistryTrader<FeePerSecondProvider>, ToForeignTreasury>,);
+	(AssetRegistryTrader<FixedRateAssetRegistryTrader<FeePerSecondProvider>, ToTreasury>,);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -356,7 +355,6 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
-
 
 pub struct TokenIdConvert;
 impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
