@@ -45,7 +45,7 @@ pub mod pallet {
 	use super::*;
 	use frame_support::{
 		dispatch::{CallMetadata, GetCallMetadata},
-		pallet_prelude::{DispatchResult, *},
+		pallet_prelude::*,
 		traits::{Contains, PalletInfoAccess, SortedMembers},
 	};
 	use frame_system::pallet_prelude::*;

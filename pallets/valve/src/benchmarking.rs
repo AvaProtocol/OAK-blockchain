@@ -27,8 +27,7 @@ fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
 }
 
 fn get_caller_account_id<T: Config>() -> T::AccountId {
-	let mut members = T::CallAccessFilter::sorted_members();
-	members.pop().unwrap()
+	T::CallAccessFilter::sorted_members().pop().unwrap()
 }
 
 benchmarks! {
