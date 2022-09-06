@@ -313,6 +313,16 @@ where
 	}
 }
 
+pub struct ScheduleAllowList;
+impl Contains<Call> for ScheduleAllowList {
+	fn contains(c: &Call) -> bool {
+		match c {
+			Call::System(_) => true,
+			_ => false,
+		}
+	}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -331,6 +341,7 @@ impl pallet_automation_time::Config for Test {
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = Call;
+	type ScheduleAllowList = ScheduleAllowList;
 }
 
 // Build genesis storage according to the mock runtime.
