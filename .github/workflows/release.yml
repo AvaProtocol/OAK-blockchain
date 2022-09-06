@@ -99,66 +99,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.tag }}
           fetch-depth: 0
-      - name: Download binary
+      - name: Download all artifacts
         uses: actions/download-artifact@v2
         with:
-          name: oak-collator
-      - name: Get debian package name
-        id: package
-        run: |
-          echo ::set-output name=name::$(ls -a *.deb | head -n 1)
-      - name: Download runtime
-        uses: actions/download-artifact@v2
-        with:
-          name: turing-runtime
-      - name: Generate notes
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ./.maintain/generate-release-notes ${{ github.event.inputs.tag }} > notes.md
-      - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.tag }}
-          release_name: ${{ github.event.inputs.tag }}
-          body_path: notes.md
-          draft: true
-      - name: Upload binary
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: oak-collator
-          asset_name: oak-collator
-          asset_content_type: application/octet-stream
-      - name: Upload deb
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.package.outputs.name }}
-          asset_name: oak-collator.deb
-          asset_content_type: application/octet-stream
-      - name: Upload runtime
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: turing-runtime.wasm
-          asset_name: turing-runtime.wasm
-          asset_content_type: application/octet-stream
-      - name: Upload runtime digest
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: turing-srtool-digest.json
-          asset_name: turing-srtool-digest.json
-          asset_content_type: application/octet-stream
+          path: artifacts
+      - name: Install tree
+        run: sudo apt-get install -y tree
+      - name: Show the directory tree
+        run: tree artifacts
