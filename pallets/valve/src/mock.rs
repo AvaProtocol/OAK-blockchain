@@ -93,11 +93,7 @@ impl Contains<Call> for ClosedCallFilter {
 pub struct TechCollective;
 impl SortedMembers<AccountId> for TechCollective {
 	fn contains(account_id: &AccountId) -> bool {
-		if account_id == &AccountId32::new(COLLECTIVE_MEMBER) {
-			true
-		} else {
-			false
-		}
+		account_id == &AccountId32::new(COLLECTIVE_MEMBER)
 	}
 
 	fn sorted_members() -> Vec<AccountId> {
