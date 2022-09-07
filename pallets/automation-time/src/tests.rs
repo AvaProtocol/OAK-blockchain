@@ -780,6 +780,27 @@ mod run_dynamic_dispatch_action {
 	}
 
 	#[test]
+	fn call_filtered() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = pallet_timestamp::Call::set { now: 100 }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Err(DispatchError::from(frame_system::Error::<Test>::CallFiltered)),
+				}),]
+			);
+		})
+	}
+
+	#[test]
 	fn call_works() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);

@@ -953,6 +953,17 @@ where
 	}
 }
 
+pub struct ScheduleAllowList;
+impl Contains<Call> for ScheduleAllowList {
+	fn contains(c: &Call) -> bool {
+		match c {
+			Call::System(_) => true,
+			Call::Balances(_) => true,
+			_ => false,
+		}
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = ConstU32<576>;
@@ -973,6 +984,7 @@ impl pallet_automation_time::Config for Runtime {
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
 	type DelegatorActions = ParachainStaking;
 	type Call = Call;
+	type ScheduleAllowList = ScheduleAllowList;
 }
 
 impl pallet_automation_price::Config for Runtime {
