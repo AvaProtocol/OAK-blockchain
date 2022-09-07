@@ -1060,6 +1060,7 @@ impl pallet_valve::Config for Runtime {
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
 	type AutomationPrice = AutomationPrice;
+	type CallAccessFilter = TechnicalMembership;
 }
 
 impl pallet_vesting::Config for Runtime {

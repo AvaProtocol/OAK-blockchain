@@ -19,7 +19,7 @@ use super::*;
 use crate as pallet_valve;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, GenesisBuild},
+	traits::{Contains, GenesisBuild, SortedMembers},
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -35,6 +35,9 @@ pub type Balance = u128;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
+
+pub const COLLECTIVE_MEMBER: [u8; 32] = [1u8; 32];
+pub const NON_COLLECTIVE_MEMBER: [u8; 32] = [2u8; 32];
 
 // Configure a mock runtime to test the pallet.
 construct_runtime!(
@@ -84,6 +87,17 @@ pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(_: &Call) -> bool {
 		false
+	}
+}
+
+pub struct TechCollective;
+impl SortedMembers<AccountId> for TechCollective {
+	fn contains(account_id: &AccountId) -> bool {
+		account_id == &AccountId32::new(COLLECTIVE_MEMBER)
+	}
+
+	fn sorted_members() -> Vec<AccountId> {
+		vec![]
 	}
 }
 
@@ -138,6 +152,7 @@ impl Config for Test {
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
 	type AutomationPrice = MockAutomationPrice;
+	type CallAccessFilter = TechCollective;
 }
 
 /// Externality builder for pallet maintenance mode's mock runtime
