@@ -46,7 +46,7 @@ pub mod pallet {
 	use frame_support::{
 		dispatch::{CallMetadata, GetCallMetadata},
 		pallet_prelude::*,
-		traits::{Contains, PalletInfoAccess},
+		traits::{Contains, PalletInfoAccess, SortedMembers},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -66,6 +66,9 @@ pub mod pallet {
 
 		/// The AutomationTime pallet.
 		type AutomationPrice: Shutdown;
+
+		/// The filter for who can call this pallet's extrinsics besides sudo.
+		type CallAccessFilter: SortedMembers<<Self as frame_system::Config>::AccountId>;
 	}
 
 	#[pallet::event]
@@ -101,6 +104,8 @@ pub mod pallet {
 		ScheduledTasksAlreadyStopped,
 		/// Scheduled tasks are already running.
 		ScheduledTasksAlreadyRunnung,
+		/// The user is not allowed to call the extrinsic.
+		NotAllowed,
 	}
 
 	#[pallet::pallet]
@@ -130,7 +135,7 @@ pub mod pallet {
 		/// This will stop all the pallets defined in `ClosedCallFilter` from receiving transactions.
 		#[pallet::weight(<T as Config>::WeightInfo::close_valve())]
 		pub fn close_valve(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			// Ensure the valve isn't already closed.
 			// This test is not strictly necessary, but seeing the error may help a confused chain
@@ -149,7 +154,7 @@ pub mod pallet {
 		/// You cannot close this pallet, as then you could never open it.
 		#[pallet::weight(<T as Config>::WeightInfo::close_pallet_gate_new())]
 		pub fn close_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			// Ensure the valve isn't closed.
 			// If the valve is closed there is no need to close individual pallet gates.
@@ -182,7 +187,7 @@ pub mod pallet {
 		/// This will open the valve but not any closed pallet gates.
 		#[pallet::weight(<T as Config>::WeightInfo::open_valve())]
 		pub fn open_valve(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			// Ensure the valve is closed.
 			// This test is not strictly necessary, but seeing the error may help a confused chain
@@ -199,7 +204,7 @@ pub mod pallet {
 		/// This allows the pallet to receiving transactions.
 		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gate())]
 		pub fn open_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			// If the valve is closed then you cannot open a specific pallet.
 			ensure!(!ValveClosed::<T>::get(), Error::<T>::ValveAlreadyClosed);
@@ -219,7 +224,7 @@ pub mod pallet {
 		/// It will send the PalletGatesClosed with a count of how many gates are still closed.
 		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gates())]
 		pub fn open_pallet_gates(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			let _ = ClosedPallets::<T>::clear(5, None);
 			let closed_pallet_count = Self::count_of_closed_gates();
@@ -233,7 +238,7 @@ pub mod pallet {
 		/// Stop all scheduled tasks from running.
 		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
 		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			ensure!(!T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyStopped);
 
@@ -246,7 +251,7 @@ pub mod pallet {
 		/// Allow scheduled tasks to run again.
 		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			ensure!(T::AutomationTime::is_shutdown(), Error::<T>::ScheduledTasksAlreadyRunnung);
 
@@ -259,7 +264,7 @@ pub mod pallet {
 		/// Stop all scheduled tasks from running.
 		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
 		pub fn stop_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			ensure!(!T::AutomationPrice::is_shutdown(), Error::<T>::ScheduledTasksAlreadyStopped);
 
@@ -272,7 +277,7 @@ pub mod pallet {
 		/// Allow scheduled tasks to run again.
 		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
-			ensure_root(origin)?;
+			Self::ensure_allowed(origin)?;
 
 			ensure!(T::AutomationPrice::is_shutdown(), Error::<T>::ScheduledTasksAlreadyRunnung);
 
@@ -303,6 +308,19 @@ pub mod pallet {
 				closed_pallet_count = closed_pallet_count.saturating_add(1);
 			}
 			ClosedPalletCount::<T>::put(closed_pallet_count);
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		/// Sudo or a member of the CallAccessFilter can call.
+		pub fn ensure_allowed(origin: OriginFor<T>) -> DispatchResult {
+			if let Err(_) = ensure_root(origin.clone()) {
+				let who = ensure_signed(origin)?;
+				if !T::CallAccessFilter::contains(&who) {
+					Err(Error::<T>::NotAllowed)?;
+				}
+			}
+			Ok(())
 		}
 	}
 
