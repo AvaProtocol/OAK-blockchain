@@ -495,7 +495,7 @@ pub mod pallet {
 		}
 
 		/// Schedule a task that will dispatch a call.
-		/// ** This is currently limited to calls from the System and Balances pallet.
+		/// ** This is currently limited to calls from the System and Balances pallets.
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
