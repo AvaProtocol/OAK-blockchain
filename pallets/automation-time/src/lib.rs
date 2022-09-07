@@ -60,7 +60,7 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement, IsSubType},
+	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
 	weights::GetDispatchInfo,
 };
 use frame_system::pallet_prelude::*;
@@ -163,6 +163,8 @@ pub mod pallet {
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
 			+ IsType<<Self as frame_system::Config>::Call>;
+
+		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
 	}
 
 	#[pallet::pallet]
@@ -1055,8 +1057,11 @@ pub mod pallet {
 		) -> Weight {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
-					let dispatch_origin: T::Origin =
+					let mut dispatch_origin: T::Origin =
 						frame_system::RawOrigin::Signed(caller.clone()).into();
+					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::Call| {
+						T::ScheduleAllowList::contains(call)
+					});
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
 					let (maybe_actual_call_weight, result) =
