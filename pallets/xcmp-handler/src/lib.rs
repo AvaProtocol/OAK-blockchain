@@ -189,10 +189,6 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
-
 			XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
 			Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
 
