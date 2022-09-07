@@ -20,13 +20,13 @@ jobs:
         run: rustup show
       - name: Build
         run: |
-          cargo build --locked --release --features turing-node
+          cargo build --locked --release --features turing-node,oak-node
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
       - name: Build debian
         run: |
           cargo install cargo-deb
-          cargo deb -p oak-node -- --release --features turing-node
+          cargo deb -p oak-node -- --release --features turing-node,oak-node
           cp target/debian/*.deb artifacts/
       - name: Upload binary
         uses: actions/upload-artifact@v2
