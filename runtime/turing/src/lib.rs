@@ -648,10 +648,30 @@ use sp_runtime::{
 	transaction_validity::InvalidTransaction,
 };
 use sp_std::marker::PhantomData;
+
+#[derive(Debug)]
+pub enum ExtraFeeName {
+	CrossChainFee,
+	NoExtraFee,
+}
+pub trait NameGetter<Call> {
+	fn get_name(call: &Call) -> ExtraFeeName;
+}
+pub struct FeeNameGetter;
+impl NameGetter<Call> for FeeNameGetter {
+	fn get_name(c: &Call) -> ExtraFeeName {
+		match *c {
+			Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task { .. }) =>
+				ExtraFeeName::CrossChainFee,
+			_ => ExtraFeeName::NoExtraFee,
+		}
+	}
+}
+pub type CallOf<T> = <T as frame_system::Config>::Call;
 type NegativeImbalanceOf<C, T> =
 	<C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
-pub struct DuplicateCurrencyAdapter<C, OU>(PhantomData<(C, OU)>);
-impl<T, C, OU> OnChargeTransaction<T> for DuplicateCurrencyAdapter<C, OU>
+pub struct DuplicateCurrencyAdapter<C, OU, FNG>(PhantomData<(C, OU, FNG)>);
+impl<T, C, OU, FNG> OnChargeTransaction<T> for DuplicateCurrencyAdapter<C, OU, FNG>
 where
 	T: pallet_transaction_payment::Config,
 	C: Currency<<T as frame_system::Config>::AccountId>,
@@ -664,6 +684,7 @@ where
 		Opposite = C::PositiveImbalance,
 	>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
+	FNG: NameGetter<CallOf<T>>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
 	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -673,7 +694,7 @@ where
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
 		who: &T::AccountId,
-		_call: &T::Call,
+		call: &T::Call,
 		_info: &DispatchInfoOf<T::Call>,
 		fee: Self::Balance,
 		tip: Self::Balance,
@@ -681,6 +702,10 @@ where
 		if fee.is_zero() {
 			return Ok(None)
 		}
+
+		// cross it
+		let call_name = FNG::get_name(call.clone());
+		log::info!("Call was of type: {:?}", call_name);
 
 		let withdraw_reason = if tip.is_zero() {
 			WithdrawReasons::TRANSACTION_PAYMENT
@@ -730,7 +755,8 @@ where
 
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction = DuplicateCurrencyAdapter<Balances, DealWithInclusionFees<Runtime>>;
+	type OnChargeTransaction =
+		DuplicateCurrencyAdapter<Balances, DealWithInclusionFees<Runtime>, FeeNameGetter>;
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
