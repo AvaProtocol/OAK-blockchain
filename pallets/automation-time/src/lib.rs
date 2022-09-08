@@ -1011,11 +1011,7 @@ pub mod pallet {
 				},
 			}
 
-			// Adding 2 DB write and 1 read that doesn't get accounted for in the benchmarks to run an xcmp task
-			T::DbWeight::get()
-				.writes(2)
-				.saturating_add(T::DbWeight::get().reads(1))
-				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
+			<T as Config>::WeightInfo::run_xcmp_task()
 		}
 
 		/// Executes auto compounding delegation and reschedules task on success
