@@ -54,7 +54,8 @@ impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
 			Action::DynamicDispatch { encoded_call } => {
 				let scheduled_call: <T as Config>::Call = Decode::decode(&mut &**encoded_call)
 					.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
-				scheduled_call.get_dispatch_info().weight
+				<T as Config>::WeightInfo::run_dynamic_dispatch_action()
+					.saturating_add(scheduled_call.get_dispatch_info().weight)
 			},
 		};
 		Ok(weight)

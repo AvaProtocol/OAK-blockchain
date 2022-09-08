@@ -21,12 +21,15 @@ use crate::{
 };
 use codec::Encode;
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{Currency, OnInitialize},
+};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
-	AccountId32,
+	AccountId32, DispatchError,
 };
 
 const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
@@ -725,6 +728,42 @@ fn force_cancel_task_works() {
 			}),]
 		);
 	})
+}
+
+mod extrinsics {
+	use super::*;
+
+	mod schedule_dynamic_dispatch_task {
+		use super::*;
+
+		#[test]
+		fn works() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let account_id = AccountId32::new(ALICE);
+				let execution_times = vec![SCHEDULED_TIME];
+				let provided_id = vec![0];
+				let task_id =
+					AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+				let call: Call = frame_system::Call::remark { remark: vec![] }.into();
+				assert_ok!(fund_account_dynamic_dispatch(
+					&account_id,
+					execution_times.len(),
+					call.encode()
+				));
+
+				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+					Origin::signed(account_id.clone()),
+					provided_id,
+					vec![SCHEDULED_TIME],
+					Box::new(call)
+				));
+				assert_eq!(
+					last_event(),
+					Event::AutomationTime(crate::Event::TaskScheduled { who: account_id, task_id })
+				);
+			})
+		}
+	}
 }
 
 mod run_dynamic_dispatch_action {
@@ -1798,6 +1837,10 @@ fn events() -> Vec<Event> {
 	evt
 }
 
+fn last_event() -> Event {
+	events().pop().unwrap()
+}
+
 fn get_funds(account: AccountId) {
 	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
@@ -1818,4 +1861,29 @@ fn get_xcmp_funds(account: AccountId) {
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
 	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
+}
+
+// TODO: swap above to this pattern
+fn fund_account_dynamic_dispatch(
+	account: &AccountId,
+	execution_count: usize,
+	encoded_call: Vec<u8>,
+) -> Result<(), DispatchError> {
+	let action: ActionOf<Test> = Action::DynamicDispatch { encoded_call };
+	let action_weight = action.execution_weight::<Test>()?;
+	fund_account(account, action_weight, execution_count, None);
+	Ok(())
+}
+
+fn fund_account(
+	account: &AccountId,
+	action_weight: u64,
+	execution_count: usize,
+	additional_amount: Option<u128>,
+) {
+	let amount: u128 =
+		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128 +
+			additional_amount.unwrap_or(0) +
+			u128::from(ExistentialDeposit::get());
+	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }

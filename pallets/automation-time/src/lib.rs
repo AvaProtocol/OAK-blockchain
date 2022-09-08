@@ -72,7 +72,7 @@ use sp_runtime::{
 	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -491,6 +491,36 @@ pub mod pallet {
 				frequency,
 			};
 			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
+			Ok(().into())
+		}
+
+		/// Schedule a task that will dispatch a call.
+		/// ** This is currently limited to calls from the System and Balances pallets.
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
+		/// * `call`: The call that will be dispatched.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
+		pub fn schedule_dynamic_dispatch_task(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			execution_times: Vec<UnixTime>,
+			call: Box<<T as Config>::Call>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let encoded_call = call.encode();
+			let action = Action::DynamicDispatch { encoded_call };
+
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
 
