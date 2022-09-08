@@ -3,7 +3,7 @@ use frame_support::traits::OnRuntimeUpgrade;
 
 pub mod asset_registry {
 	use super::*;
-	use frame_support::{Twox64Concat, WeakBoundedVec};
+	use frame_support::{Blake2_128Concat, BoundedVec, Twox64Concat, WeakBoundedVec};
 	use orml_asset_registry::AssetMetadata;
 
 	pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
@@ -58,6 +58,42 @@ pub mod asset_registry {
 		// Assuming KSM ~ $130.00.
 		tur_equivalent * 260
 	}
+
+	#[frame_support::storage_alias]
+	type TotalIssuance = StorageMap<Tokens, Twox64Concat, CurrencyId, Balance>;
+
+	#[frame_support::storage_alias]
+	type Locks<T: Config> = StorageDoubleMap<
+		Tokens,
+		Blake2_128Concat,
+		AccountId,
+		Twox64Concat,
+		CurrencyId,
+		BoundedVec<orml_tokens::BalanceLock<Balance>, <T as orml_tokens::Config>::MaxLocks>,
+	>;
+
+	#[frame_support::storage_alias]
+	type Accounts = StorageDoubleMap<
+		Tokens,
+		Blake2_128Concat,
+		AccountId,
+		Twox64Concat,
+		CurrencyId,
+		orml_tokens::AccountData<Balance>,
+	>;
+
+	#[frame_support::storage_alias]
+	type Reserves<T: Config> = StorageDoubleMap<
+		Tokens,
+		Blake2_128Concat,
+		AccountId,
+		Twox64Concat,
+		CurrencyId,
+		BoundedVec<
+			orml_tokens::ReserveData<<T as orml_tokens::Config>::ReserveIdentifier, Balance>,
+			<T as orml_tokens::Config>::MaxReserves,
+		>,
+	>;
 
 	pub struct AssetRegistryMigration;
 	impl OnRuntimeUpgrade for AssetRegistryMigration {
@@ -247,7 +283,7 @@ pub mod asset_registry {
 				.expect("should not fail");
 			}
 
-			// Set LastAssetId - zero index
+			// Set LastAssetId (zero index)
 			let pallet_prefix: &[u8] = b"AssetRegistry";
 			let last_asset_id_prefix: &[u8] = b"LastAssetId";
 			let last_asset_id: TokenId = (assets.len() - 1).try_into().unwrap();
@@ -258,8 +294,41 @@ pub mod asset_registry {
 				"on_runtime_upgrade: New data inserted"
 			);
 
+			// Migrate Tokens Accounts CurrencyId from Enum to u32
+			let mut tokens_accounts: Vec<(AccountId, TokenId, orml_tokens::AccountData<Balance>)> =
+				vec![];
+			Accounts::drain().for_each(|(account_id, currency_id, account_data)| {
+				tokens_accounts.push((account_id, currency_id as u32, account_data));
+			});
+			tokens_accounts.iter().for_each(|(account_id, currency_id, account_data)| {
+				orml_tokens::Accounts::<Runtime>::insert(account_id, currency_id, account_data);
+			});
+			log::info!(
+				target: "orml_tokens",
+				"on_runtime_upgrade: Accounts data updated {:?}",
+				orml_tokens::Accounts::<Runtime>::iter().count(),
+			);
+
+			// Migrate Tokens TotalIssuance CurrencyId from Enum to u32
+			let mut total_issuance: Vec<(TokenId, Balance)> = vec![];
+			TotalIssuance::drain().for_each(|(currency_id, balance)| {
+				total_issuance.push((currency_id as u32, balance));
+			});
+			total_issuance.iter().for_each(|(currency_id, balance)| {
+				orml_tokens::TotalIssuance::<Runtime>::insert(currency_id, balance);
+			});
+			log::info!(
+				target: "orml_tokens",
+				"on_runtime_upgrade: TotalIssuance data updated",
+			);
+
+			let mut total_rw = 0;
 			// Each asset + each asset location + updating last asset id
-			let total_rw = assets.len() as u32 * 2 + 1;
+			total_rw += assets.len() as u32 * 2 + 1;
+			// Each tokens account/currency_id
+			total_rw += tokens_accounts.len() as u32;
+			// Each tokens currency total issuance
+			total_rw += total_issuance.len() as u32;
 			<Runtime as frame_system::Config>::DbWeight::get()
 				.reads_writes(total_rw as Weight, total_rw as Weight)
 		}
@@ -281,7 +350,7 @@ pub mod asset_registry {
 			let location_to_asset_id_prefix: &[u8] = b"LocationToAssetId";
 			let last_asset_id_prefix: &[u8] = b"LastAssetId";
 
-			// Assert Metadata length is 0
+			// Assert asset Metadata length is 0
 			let metadata = storage_key_iter::<TokenId, AssetMetadataOf, Twox64Concat>(
 				pallet_prefix,
 				metadata_prefix,
@@ -289,7 +358,7 @@ pub mod asset_registry {
 			.collect::<Vec<_>>();
 			assert_eq!(metadata.len(), 0);
 
-			// Assert LocationToAssetId length is 0
+			// Assert asset LocationToAssetId length is 0
 			let location_to_asset_id = storage_key_iter::<MultiLocation, TokenId, Twox64Concat>(
 				pallet_prefix,
 				location_to_asset_id_prefix,
@@ -302,26 +371,35 @@ pub mod asset_registry {
 				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
 			assert_eq!(last_asset_id, 0);
 
-			// Get tokens total issuance for comparing after migration
-			let pallet_prefix: &[u8] = b"Tokens";
-			let total_issuance_prefix: &[u8] = b"TotalIssuance";
-			let mut pre_tokens_total_issuance: Vec<(u32, u128)> = vec![];
-			storage_key_iter::<CurrencyId, u128, Twox64Concat>(
-				pallet_prefix,
-				total_issuance_prefix,
-			)
-			.for_each(|(currency_id, balance)| {
-				pre_tokens_total_issuance.push((currency_id as u32, balance));
-			});
-			Self::set_temp_storage::<Vec<(u32, u128)>>(
-				pre_tokens_total_issuance.clone(),
-				"pre_tokens_total_issuance",
+			// Store old tokens accounts for comparing after migrations
+			let old_tokens_accounts = Accounts::iter().collect::<Vec<_>>();
+			Self::set_temp_storage::<Vec<(AccountId, CurrencyId, orml_tokens::AccountData<Balance>)>>(
+				old_tokens_accounts.clone(),
+				"old_tokens_accounts",
 			);
 			log::info!(
 				target: "asset_registry",
-				"pre_upgrade tokens total issuance {}",
-				pre_tokens_total_issuance.len(),
+				"pre_upgrade tokens account {:?}",
+				old_tokens_accounts.len(),
 			);
+
+			// Store old tokens total issuance for comparing after migrations
+			let old_total_issuance = TotalIssuance::iter().collect::<Vec<_>>();
+			Self::set_temp_storage::<Vec<(CurrencyId, Balance)>>(
+				old_total_issuance.clone(),
+				"old_total_issuance",
+			);
+			log::info!(
+				target: "asset_registry",
+				"pre_upgrade tokens total issuance {:?}",
+				old_total_issuance.len(),
+			);
+
+			// Reserves and Locks are not currently used. Ensure collections are empty and don't need migrating.
+			let locks = Locks::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(locks, 0);
+			let reserves = Reserves::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(reserves, 0);
 
 			Ok(())
 		}
@@ -364,23 +442,54 @@ pub mod asset_registry {
 				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
 			assert_eq!(last_asset_id, 8);
 
-			// Compare tokens totalIssuance from before and after upgrade
-			let pallet_prefix: &[u8] = b"Tokens";
-			let total_issuance_prefix: &[u8] = b"TotalIssuance";
-			let tokens_total_issuance = storage_key_iter::<TokenId, u128, Twox64Concat>(
-				pallet_prefix,
-				total_issuance_prefix,
-			)
-			.collect::<Vec<_>>();
+			// Compare tokens accounts from before and after upgrade
+			let new_tokens_accounts = orml_tokens::Accounts::<Runtime>::iter().collect::<Vec<_>>();
+			let old_tokens_accounts = Self::get_temp_storage::<
+				Vec<(AccountId, CurrencyId, orml_tokens::AccountData<Balance>)>,
+			>("old_tokens_accounts")
+			.unwrap();
+			assert_eq!(old_tokens_accounts.len(), new_tokens_accounts.len());
+			old_tokens_accounts
+				.iter()
+				.for_each(|(account_id, currency_id_old, account_data)| {
+					let current_account_data = orml_tokens::Accounts::<Runtime>::get(
+						account_id.clone(),
+						currency_id_old.clone() as u32,
+					);
+					assert_eq!(current_account_data.free, account_data.free);
+					assert_eq!(current_account_data.reserved, account_data.reserved);
+					assert_eq!(current_account_data.frozen, account_data.reserved);
+				});
 			log::info!(
-				target: "asset_registry",
-				"post_upgrade tokens total issuance {:?}",
-				tokens_total_issuance.len(),
+				target: "orml_tokens",
+				"post_upgrade check Accounts complete",
 			);
-			// let pre_tokens_total_issuance =
-			// 	Self::get_temp_storage::<Vec<(u32, u128)>>("pre_tokens_total_issuance")
-			// 		.unwrap();
-			// assert_eq!(tokens_total_issuance.len(), pre_tokens_total_issuance.len());
+
+			// Compare tokens TotalIssuance from before and after upgrade
+			let new_total_issuance =
+				orml_tokens::TotalIssuance::<Runtime>::iter().collect::<Vec<_>>();
+			let old_total_issuance =
+				Self::get_temp_storage::<Vec<(CurrencyId, Balance)>>("old_total_issuance").unwrap();
+			assert_eq!(new_total_issuance.len(), old_total_issuance.len());
+			old_total_issuance.iter().for_each(|(currency_id_old, balance)| {
+				let current_total_issuance =
+					orml_tokens::TotalIssuance::<Runtime>::get(currency_id_old.clone() as u32);
+				assert_eq!(current_total_issuance, *balance);
+			});
+			log::info!(
+				target: "orml_tokens",
+				"post_upgrade check TotalIssuance complete",
+			);
+
+			// Check Reserves and Locks are still empty.
+			let locks = orml_tokens::Locks::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(locks, 0);
+			let reserves = orml_tokens::Reserves::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(reserves, 0);
+			log::info!(
+				target: "orml_tokens",
+				"post_upgrade check Locks and Reserves complete",
+			);
 
 			Ok(())
 		}
