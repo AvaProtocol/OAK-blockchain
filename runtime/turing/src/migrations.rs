@@ -1,7 +1,7 @@
 use super::*;
 use frame_support::traits::OnRuntimeUpgrade;
 
-pub mod asset_registry {
+pub mod assets {
 	use super::*;
 	use frame_support::{Blake2_128Concat, BoundedVec, Twox64Concat, WeakBoundedVec};
 	use orml_asset_registry::AssetMetadata;
@@ -94,6 +94,10 @@ pub mod asset_registry {
 			<T as orml_tokens::Config>::MaxReserves,
 		>,
 	>;
+
+	#[frame_support::storage_alias]
+	type LastAssetId<T: Config> =
+		StorageValue<AssetRegistry, <T as orml_asset_registry::Config>::AssetId>;
 
 	pub struct AssetRegistryMigration;
 	impl OnRuntimeUpgrade for AssetRegistryMigration {
@@ -272,9 +276,7 @@ pub mod asset_registry {
 				),
 			];
 
-			use frame_support::migration::put_storage_value;
-
-			// Insert new data
+			// Insert assets
 			for (id, metadata) in assets.iter() {
 				orml_asset_registry::Pallet::<Runtime>::do_register_asset_without_asset_processor(
 					metadata.clone(),
@@ -284,14 +286,83 @@ pub mod asset_registry {
 			}
 
 			// Set LastAssetId (zero index)
-			let pallet_prefix: &[u8] = b"AssetRegistry";
-			let last_asset_id_prefix: &[u8] = b"LastAssetId";
 			let last_asset_id: TokenId = (assets.len() - 1).try_into().unwrap();
-			put_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[], last_asset_id);
+			LastAssetId::<Runtime>::set(Some(last_asset_id));
 
 			log::info!(
 				target: "asset_registry",
 				"on_runtime_upgrade: New data inserted"
+			);
+
+			// Each asset + each asset location + updating last asset id
+			let total_rw = assets.len() as u32 * 2 + 1;
+			<Runtime as frame_system::Config>::DbWeight::get()
+				.reads_writes(total_rw as Weight, total_rw as Weight)
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<(), &'static str> {
+			log::info!(
+				target: "asset_registry",
+				"pre_upgrade check"
+			);
+
+			// Assert asset Metadata length is 0
+			let asset_metadata_count =
+				orml_asset_registry::Metadata::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(asset_metadata_count, 0);
+
+			// Assert asset LocationToAssetId length is 0
+			let location_to_asset_id_count =
+				orml_asset_registry::LocationToAssetId::<Runtime>::iter()
+					.collect::<Vec<_>>()
+					.len();
+			assert_eq!(location_to_asset_id_count, 0);
+
+			// Assert last asset id is 0
+			if let Some(_last_asset_id) = LastAssetId::<Runtime>::get() {
+				return Err("pre_upgrade check - LastAssetId should equal None".into())
+			}
+
+			Ok(())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade() -> Result<(), &'static str> {
+			log::info!(
+				target: "asset_registry",
+				"post_upgrade check"
+			);
+
+			// Assert Metadata length
+			let asset_metadata_count =
+				orml_asset_registry::Metadata::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(asset_metadata_count, 9);
+
+			// Assert LocationToAssetId length
+			let location_to_asset_id_count =
+				orml_asset_registry::LocationToAssetId::<Runtime>::iter()
+					.collect::<Vec<_>>()
+					.len();
+			assert_eq!(location_to_asset_id_count, 9);
+
+			// Assert last asset id (zero index)
+			if let Some(last_asset_id) = LastAssetId::<Runtime>::get() {
+				assert_eq!(last_asset_id, 8);
+			} else {
+				return Err("post_upgrade check - LastAssetId should equal 8".into())
+			}
+
+			Ok(())
+		}
+	}
+
+	pub struct TokensCurrencyIdMigration;
+	impl OnRuntimeUpgrade for TokensCurrencyIdMigration {
+		fn on_runtime_upgrade() -> Weight {
+			log::info!(
+				target: "orml_tokens",
+				"on_runtime_upgrade: Attempted to apply tokens"
 			);
 
 			// Migrate Tokens Accounts CurrencyId from Enum to u32
@@ -323,8 +394,6 @@ pub mod asset_registry {
 			);
 
 			let mut total_rw = 0;
-			// Each asset + each asset location + updating last asset id
-			total_rw += assets.len() as u32 * 2 + 1;
 			// Each tokens account/currency_id
 			total_rw += tokens_accounts.len() as u32;
 			// Each tokens currency total issuance
@@ -335,41 +404,7 @@ pub mod asset_registry {
 
 		#[cfg(feature = "try-runtime")]
 		fn pre_upgrade() -> Result<(), &'static str> {
-			log::info!(
-				target: "asset_registry",
-				"pre_upgrade check"
-			);
-
-			use frame_support::{
-				migration::{get_storage_value, storage_key_iter},
-				traits::OnRuntimeUpgradeHelpersExt,
-			};
-
-			let pallet_prefix: &[u8] = b"AssetRegistry";
-			let metadata_prefix: &[u8] = b"Metadata";
-			let location_to_asset_id_prefix: &[u8] = b"LocationToAssetId";
-			let last_asset_id_prefix: &[u8] = b"LastAssetId";
-
-			// Assert asset Metadata length is 0
-			let metadata = storage_key_iter::<TokenId, AssetMetadataOf, Twox64Concat>(
-				pallet_prefix,
-				metadata_prefix,
-			)
-			.collect::<Vec<_>>();
-			assert_eq!(metadata.len(), 0);
-
-			// Assert asset LocationToAssetId length is 0
-			let location_to_asset_id = storage_key_iter::<MultiLocation, TokenId, Twox64Concat>(
-				pallet_prefix,
-				location_to_asset_id_prefix,
-			)
-			.collect::<Vec<_>>();
-			assert_eq!(location_to_asset_id.len(), 0);
-
-			// Assert last asset id is 0
-			let last_asset_id =
-				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
-			assert_eq!(last_asset_id, 0);
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
 
 			// Store old tokens accounts for comparing after migrations
 			let old_tokens_accounts = Accounts::iter().collect::<Vec<_>>();
@@ -378,7 +413,7 @@ pub mod asset_registry {
 				"old_tokens_accounts",
 			);
 			log::info!(
-				target: "asset_registry",
+				target: "orml_tokens",
 				"pre_upgrade tokens account {:?}",
 				old_tokens_accounts.len(),
 			);
@@ -390,7 +425,7 @@ pub mod asset_registry {
 				"old_total_issuance",
 			);
 			log::info!(
-				target: "asset_registry",
+				target: "orml_tokens",
 				"pre_upgrade tokens total issuance {:?}",
 				old_total_issuance.len(),
 			);
@@ -406,41 +441,7 @@ pub mod asset_registry {
 
 		#[cfg(feature = "try-runtime")]
 		fn post_upgrade() -> Result<(), &'static str> {
-			log::info!(
-				target: "asset_registry",
-				"post_upgrade check"
-			);
-
-			use frame_support::{
-				migration::{get_storage_value, storage_key_iter},
-				traits::OnRuntimeUpgradeHelpersExt,
-			};
-
-			let pallet_prefix: &[u8] = b"AssetRegistry";
-			let metadata_prefix: &[u8] = b"Metadata";
-			let location_to_asset_id_prefix: &[u8] = b"LocationToAssetId";
-			let last_asset_id_prefix: &[u8] = b"LastAssetId";
-
-			// Assert Metadata length
-			let metadata = storage_key_iter::<TokenId, AssetMetadataOf, Twox64Concat>(
-				pallet_prefix,
-				metadata_prefix,
-			)
-			.collect::<Vec<_>>();
-			assert_eq!(metadata.len(), 9);
-
-			// Assert LocationToAssetId length
-			let location_to_asset_id = storage_key_iter::<MultiLocation, TokenId, Twox64Concat>(
-				pallet_prefix,
-				location_to_asset_id_prefix,
-			)
-			.collect::<Vec<_>>();
-			assert_eq!(location_to_asset_id.len(), 9);
-
-			// Assert last asset id
-			let last_asset_id =
-				get_storage_value::<TokenId>(pallet_prefix, last_asset_id_prefix, &[]).unwrap_or(0);
-			assert_eq!(last_asset_id, 8);
+			use frame_support::traits::OnRuntimeUpgradeHelpersExt;
 
 			// Compare tokens accounts from before and after upgrade
 			let new_tokens_accounts = orml_tokens::Accounts::<Runtime>::iter().collect::<Vec<_>>();
@@ -448,7 +449,9 @@ pub mod asset_registry {
 				Vec<(AccountId, CurrencyId, orml_tokens::AccountData<Balance>)>,
 			>("old_tokens_accounts")
 			.unwrap();
+			// Assert length of accounts equals
 			assert_eq!(old_tokens_accounts.len(), new_tokens_accounts.len());
+			// Assert account/currency balance equals
 			old_tokens_accounts
 				.iter()
 				.for_each(|(account_id, currency_id_old, account_data)| {
@@ -490,6 +493,32 @@ pub mod asset_registry {
 				target: "orml_tokens",
 				"post_upgrade check Locks and Reserves complete",
 			);
+
+			Ok(())
+		}
+	}
+
+	pub struct AssetRegistryAndTokensMigrations;
+	impl OnRuntimeUpgrade for AssetRegistryAndTokensMigrations {
+		fn on_runtime_upgrade() -> Weight {
+			let mut weight = AssetRegistryMigration::on_runtime_upgrade();
+			weight += TokensCurrencyIdMigration::on_runtime_upgrade();
+
+			weight
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn pre_upgrade() -> Result<(), &'static str> {
+			AssetRegistryMigration::pre_upgrade()?;
+			TokensCurrencyIdMigration::pre_upgrade()?;
+
+			Ok(())
+		}
+
+		#[cfg(feature = "try-runtime")]
+		fn post_upgrade() -> Result<(), &'static str> {
+			AssetRegistryMigration::post_upgrade()?;
+			TokensCurrencyIdMigration::post_upgrade()?;
 
 			Ok(())
 		}

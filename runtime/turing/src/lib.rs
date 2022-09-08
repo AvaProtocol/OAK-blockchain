@@ -128,7 +128,7 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	migrations::asset_registry::AssetRegistryMigration,
+	migrations::assets::AssetRegistryAndTokensMigrations,
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
