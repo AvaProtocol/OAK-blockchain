@@ -214,6 +214,29 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		/// Send an XCM message with a transact.
+		#[pallet::weight(T::WeightInfo::remove_chain_currency_data())]
+		pub fn send_transact_xcm(
+			origin: OriginFor<T>,
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			transact_encoded_call: sp_std::vec::Vec<u8>,
+			transact_encoded_call_weight: u64,
+		) -> DispatchResultWithPostInfo {
+			let who = ensure_signed(origin)?;
+
+			Self::transact_xcm(
+				para_id.into(),
+				currency_id,
+				who,
+				transact_encoded_call,
+				transact_encoded_call_weight,
+				false,
+			)?;
+
+			Ok(().into())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -247,9 +270,10 @@ pub mod pallet {
 		pub fn get_instruction_set(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
-			caller: T::AccountId,
+			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
+			refund_location: Junctions,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
@@ -263,11 +287,6 @@ pub mod pallet {
 				currency_id,
 				transact_encoded_call_weight,
 			)?;
-
-			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
-				.try_into()
-				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
-
 			let instructions = Self::get_local_currency_instructions(
 				para_id,
 				descend_location,
@@ -275,6 +294,7 @@ pub mod pallet {
 				transact_encoded_call_weight,
 				weight,
 				fee,
+				refund_location,
 			)?;
 
 			Ok(instructions)
@@ -300,6 +320,7 @@ pub mod pallet {
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
 			fee: u128,
+			refund_location: Junctions,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
@@ -340,29 +361,24 @@ pub mod pallet {
 				DepositAsset::<()> {
 					assets: Wild(All),
 					max_assets: 1,
-					beneficiary: MultiLocation {
-						parents: 1,
-						interior: X1(Parachain(T::SelfParaId::get().into())),
-					},
+					beneficiary: MultiLocation { parents: 1, interior: refund_location },
 				},
 			]);
 
 			Ok((local_xcm, target_xcm))
 		}
 
-		/// Transact XCM instructions on local chain
-		///
+		/// Transact XCM instructions on local chain.
 		pub fn transact_in_local_chain(
 			internal_instructions: xcm::v2::Xcm<<T as pallet::Config>::Call>,
+			origin_location: Junctions,
 		) -> Result<(), DispatchError> {
-			let local_sovereign_account =
-				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
 				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
 
 			// Execute instruction on local chain
 			T::XcmExecutor::execute_xcm_in_credit(
-				local_sovereign_account,
+				MultiLocation::new(1, origin_location),
 				internal_instructions.into(),
 				weight,
 				weight,
@@ -403,19 +419,30 @@ pub mod pallet {
 		pub fn transact_xcm(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
-			caller: T::AccountId,
+			descend_account: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
+			use_sovereign: bool,
 		) -> Result<(), DispatchError> {
+			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(descend_account)
+				.try_into()
+				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
+
+			let origin_location = match use_sovereign {
+				true => X1(Parachain(T::SelfParaId::get().into())),
+				false => descend_location.clone(),
+			};
+
 			let (local_instructions, target_instructions) = Self::get_instruction_set(
 				para_id,
 				currency_id,
-				caller,
+				descend_location,
 				transact_encoded_call,
 				transact_encoded_call_weight,
+				origin_location.clone(),
 			)?;
 
-			Self::transact_in_local_chain(local_instructions)?;
+			Self::transact_in_local_chain(local_instructions, origin_location)?;
 			Self::transact_in_target_chain(para_id, target_instructions)?;
 
 			Ok(().into())
@@ -488,6 +515,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			caller,
 			transact_encoded_call,
 			transact_encoded_call_weight,
+			true,
 		)?;
 
 		Ok(()).into()

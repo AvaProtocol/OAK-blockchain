@@ -235,14 +235,17 @@ fn get_instruction_set_only_support_local_currency() {
 		let para_id: u32 = 1000;
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		assert_noop!(
 			XcmpHandler::get_instruction_set(
 				para_id,
 				currency_id,
-				ALICE,
+				descend_location.clone(),
 				transact_encoded_call,
-				transact_encoded_call_weight
+				transact_encoded_call_weight,
+				descend_location,
 			),
 			Error::<Test>::CurrencyChainComboNotSupported
 		);
@@ -272,11 +275,12 @@ fn get_instruction_set_local_currency_instructions() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
 			para_id,
-			descend_location,
+			descend_location.clone(),
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
+			descend_location.clone(),
 		)
 		.unwrap();
 
@@ -284,9 +288,10 @@ fn get_instruction_set_local_currency_instructions() {
 			XcmpHandler::get_instruction_set(
 				para_id,
 				currency_id,
-				ALICE,
+				descend_location.clone(),
 				transact_encoded_call,
-				transact_encoded_call_weight
+				transact_encoded_call_weight,
+				descend_location,
 			)
 			.unwrap(),
 			expected_instructions
@@ -309,11 +314,12 @@ fn get_local_currency_instructions_works() {
 
 		let (local, target) = XcmpHandler::get_local_currency_instructions(
 			para_id,
-			descend_location,
+			descend_location.clone(),
 			transact_encoded_call,
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
+			descend_location,
 		)
 		.unwrap();
 		assert_eq!(local.0.len(), 2);
@@ -335,6 +341,7 @@ fn transact_in_local_chain_works() {
 		};
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+		let sa_location = X1(Parachain(LOCAL_PARA_ID.into()));
 
 		let (local_instructions, _) = XcmpHandler::get_local_currency_instructions(
 			para_id,
@@ -343,10 +350,11 @@ fn transact_in_local_chain_works() {
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
+			sa_location.clone(),
 		)
 		.unwrap();
 
-		assert_ok!(XcmpHandler::transact_in_local_chain(local_instructions));
+		assert_ok!(XcmpHandler::transact_in_local_chain(local_instructions, sa_location));
 		assert_eq!(
 			transact_asset(),
 			vec![
@@ -380,6 +388,7 @@ fn transact_in_target_chain_works() {
 		};
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+		let sa_location = X1(Parachain(LOCAL_PARA_ID.into()));
 
 		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
 			para_id,
@@ -388,6 +397,7 @@ fn transact_in_target_chain_works() {
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
+			sa_location,
 		)
 		.unwrap();
 
