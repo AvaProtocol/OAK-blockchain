@@ -385,7 +385,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let destination_location = Junction::Parachain(para_id.into());
 
-			#[cfg(feature = "runtime-benchmarks")]
+			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
 			let destination_location: Junctions = Here;
 
 			// Send to target chain
