@@ -419,12 +419,12 @@ pub mod pallet {
 		pub fn transact_xcm(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
-			descend_account: T::AccountId,
+			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
 			use_sovereign: bool,
 		) -> Result<(), DispatchError> {
-			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(descend_account)
+			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
