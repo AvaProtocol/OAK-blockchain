@@ -383,12 +383,18 @@ pub mod pallet {
 			para_id: ParachainId,
 			target_instructions: xcm::v2::Xcm<()>,
 		) -> Result<(), DispatchError> {
+			let destination_location = Junction::Parachain(para_id.into());
+
+			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
+			let destination_location: Junctions = Here;
+
 			// Send to target chain
-			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
-				.map_err(|error| {
-				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
-				Error::<T>::ErrorSendingXcmToTarget
-			})?;
+			T::XcmSender::send_xcm((1, destination_location), target_instructions).map_err(
+				|error| {
+					log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+					Error::<T>::ErrorSendingXcmToTarget
+				},
+			)?;
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())

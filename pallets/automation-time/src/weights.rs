@@ -40,7 +40,7 @@
 //:run_notify_task 8_589_000
 //:run_tasks_many_found 203_000
 //:run_tasks_many_missing 182_000
-//:run_xcmp_task 79_666_000
+//:run_xcmp_task 92_000_000
 //:schedule_auto_compound_delegated_stake_task_full 112_631_000
 //:schedule_native_transfer_task_empty 57_630_000
 //:schedule_native_transfer_task_full 80_207_000
@@ -202,11 +202,12 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
-	// Storage: ParachainSystem RelevantMessagingState (r:1 w:0)
+	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(79_666_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(6 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		(92_000_000 as Weight)
+			.saturating_add(T::DbWeight::get().reads(7 as Weight))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
@@ -431,10 +432,13 @@ impl<T: frame_system::Config> WeightInfo for AutomationWeight<T> {
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
-	// Storage: System Account (r:1 w:0)
+	// Storage: System Account (r:2 w:2)
+	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(41_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+		(92_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
