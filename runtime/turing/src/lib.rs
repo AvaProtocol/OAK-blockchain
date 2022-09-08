@@ -660,10 +660,17 @@ pub trait NameGetter<Call> {
 pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
 	fn get_name(c: &Call) -> ExtraFeeName {
-		match *c {
-			Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task { .. }) =>
-				ExtraFeeName::CrossChainFee,
-			_ => ExtraFeeName::NoExtraFee,
+		if let Call::AutomationTime(
+			pallet_automation_time::Call::schedule_dynamic_dispatch_task { call, .. },
+		) = c.clone()
+		{
+			if let Call::System(frame_system::Call::remark_with_event { .. }) = *call {
+				ExtraFeeName::CrossChainFee
+			} else {
+				ExtraFeeName::NoExtraFee
+			}
+		} else {
+			ExtraFeeName::NoExtraFee
 		}
 	}
 }
