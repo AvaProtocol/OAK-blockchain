@@ -159,7 +159,7 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const MaxWeightPerSlot: u128 = 40_000;
+	pub const MaxWeightPerSlot: u128 = 70_000_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
 }
