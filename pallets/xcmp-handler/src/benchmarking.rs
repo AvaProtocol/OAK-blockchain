@@ -50,4 +50,4 @@ benchmarks! {
 	}
 }
 
-impl_benchmark_test_suite!(XcmpHandler, crate::mock::new_test_ext(), crate::mock::Test,);
+impl_benchmark_test_suite!(XcmpHandler, crate::mock::new_test_ext(None), crate::mock::Test,);
