@@ -28,6 +28,9 @@
 
 pub use pallet::*;
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
 #[cfg(test)]
 mod mock;
 
@@ -151,6 +154,7 @@ pub mod pallet {
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 	pub struct XcmCurrencyData {
 		/// Is the token native to the chain?
 		pub native: bool,
@@ -452,6 +456,27 @@ pub mod pallet {
 			};
 
 			Ok(().into())
+		}
+	}
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub chain_data: Vec<(u32, T::CurrencyId, XcmCurrencyData)>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { chain_data: Default::default() }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			for (para_id, currency_id, xcm_data) in self.chain_data.iter() {
+				XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
+			}
 		}
 	}
 }
