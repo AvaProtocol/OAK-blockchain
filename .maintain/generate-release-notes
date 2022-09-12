@@ -2,6 +2,58 @@
 
 tag=$1
 
+generate_srtool_block() {
+  digest_file=$1; shift
+
+  runtime=$(cat $digest_file)
+  rust=$(echo $runtime | jq --raw-output .rustc)
+  spec_name=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.specName
+  )
+  impl_name=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.implName
+  )
+  spec_version=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.specVersion
+  )
+  impl_version=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.implVersion
+  )
+  authoring_version=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.authoringVersion
+  )
+  transaction_version=$(
+    echo $runtime \
+      | jq --raw-output .runtimes.compressed.subwasm.core_version.transactionVersion
+  )
+  size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
+  proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
+  ipfs=$(echo $runtime | jq --raw-output .runtimes.compressed.ipfs)
+  blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
+
+  spec="$spec_name-$spec_version"
+  extended="$impl_name-$impl_version.tx$transaction_version.au$authoring_version"
+
+  echo "## $spec_name srtool output"
+  echo
+
+  cat <<-EOF
+  \`\`\`
+  Rust        : $rust
+  Version     : $spec ($extended)
+  Size        : $size
+  Proposal    : $proposal
+  IPFS        : $ipfs
+  BLAKE2_256  : $blake2_256
+  \`\`\`
+EOF
+}
+
 notes=$(
   curl -s -L \
     -X POST \
@@ -14,50 +66,6 @@ notes=$(
 echo $notes | jq .body | sed -e 's/^"//' -e 's/"$//' -e 's/\\n/\n/g'
 echo
 
-echo "## Turing srtool output"
-echo
-
-runtime=$(cat turing-srtool-digest.json)
-rust=$(echo $runtime | jq --raw-output .rustc)
-spec_name=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.specName
-)
-impl_name=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.implName
-)
-spec_version=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.specVersion
-)
-impl_version=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.implVersion
-)
-authoring_version=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.authoringVersion
-)
-transaction_version=$(
-  echo $runtime \
-    | jq --raw-output .runtimes.compressed.subwasm.core_version.transactionVersion
-)
-size=$(echo $runtime| jq --raw-output .runtimes.compressed.size)
-proposal=$(echo $runtime | jq --raw-output .runtimes.compressed.prop)
-ipfs=$(echo $runtime | jq --raw-output .runtimes.compressed.ipfs)
-blake2_256=$(echo $runtime | jq --raw-output .runtimes.compressed.blake2_256)
-
-spec="$spec_name-$spec_version"
-extended="$impl_name-$impl_version.tx$transaction_version.au$authoring_version"
-
-cat <<-EOF
-\`\`\`
-Rust        : $rust
-Version     : $spec ($extended)
-Size        : $size
-Proposal    : $proposal
-IPFS        : $ipfs
-BLAKE2_256  : $blake2_256
-\`\`\`
-EOF
+for digest in $(ls *-srtool-digest.json); do
+  generate_srtool_block $digest
+done

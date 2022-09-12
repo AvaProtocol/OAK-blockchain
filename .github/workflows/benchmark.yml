@@ -19,7 +19,7 @@ jobs:
         run: rustup show
       - name: Build
         run: |
-          cargo build --release --features runtime-benchmarks,turing-node
+          cargo build --release --features runtime-benchmarks,turing-node,oak-node
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
       - name: Upload binary

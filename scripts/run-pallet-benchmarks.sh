@@ -17,4 +17,5 @@ cargo run \
     --extrinsic '*' \
     --repeat 20 \
     --steps 50 \
-    --output ./pallets/$pallet/src/raw-weights.rs
+    --output ./pallets/$pallet/src/raw-weights.rs \
+    --template ./.maintain/frame-weight-template.hbs

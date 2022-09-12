@@ -17,15 +17,19 @@
 
 use crate::{
 	mock::*, AccountTasks, Action, ActionOf, Config, Error, LastTimeSlot, MissedQueueV2,
-	MissedTaskV2Of, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	MissedTaskV2Of, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
+use codec::Encode;
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::{Currency, OnInitialize},
+};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
-	AccountId32,
+	AccountId32, DispatchError,
 };
 
 const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
@@ -147,24 +151,25 @@ fn schedule_notify_works() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => match AutomationTime::get_account_task(
-				account_task_ids[0].0.clone(),
-				account_task_ids[0].1,
-			) {
-				None => {
-					panic!("A task should exist if it was scheduled")
-				},
-				Some(task) => {
-					let expected_task = TaskOf::<Test>::create_event_task(
-						AccountId32::new(ALICE),
-						vec![50],
-						vec![SCHEDULED_TIME].try_into().unwrap(),
-						message,
-					);
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
+				match AutomationTime::get_account_task(
+					account_task_ids[0].0.clone(),
+					account_task_ids[0].1,
+				) {
+					None => {
+						panic!("A task should exist if it was scheduled")
+					},
+					Some(task) => {
+						let expected_task = TaskOf::<Test>::create_event_task(
+							AccountId32::new(ALICE),
+							vec![50],
+							vec![SCHEDULED_TIME].try_into().unwrap(),
+							message,
+						);
 
-					assert_eq!(task, expected_task);
+						assert_eq!(task, expected_task);
+					},
 				},
-			},
 		}
 	})
 }
@@ -216,25 +221,26 @@ fn schedule_native_transfer_works() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => match AutomationTime::get_account_task(
-				account_task_ids[0].0.clone(),
-				account_task_ids[0].1,
-			) {
-				None => {
-					panic!("A task should exist if it was scheduled")
-				},
-				Some(task) => {
-					let expected_task = TaskOf::<Test>::create_native_transfer_task(
-						AccountId32::new(ALICE),
-						vec![50],
-						vec![SCHEDULED_TIME].try_into().unwrap(),
-						AccountId32::new(BOB),
-						1,
-					);
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
+				match AutomationTime::get_account_task(
+					account_task_ids[0].0.clone(),
+					account_task_ids[0].1,
+				) {
+					None => {
+						panic!("A task should exist if it was scheduled")
+					},
+					Some(task) => {
+						let expected_task = TaskOf::<Test>::create_native_transfer_task(
+							AccountId32::new(ALICE),
+							vec![50],
+							vec![SCHEDULED_TIME].try_into().unwrap(),
+							AccountId32::new(BOB),
+							1,
+						);
 
-					assert_eq!(task, expected_task);
+						assert_eq!(task, expected_task);
+					},
 				},
-			},
 		}
 	})
 }
@@ -296,7 +302,8 @@ fn schedule_auto_compound_delegated_stake() {
 			1_000_000_000,
 		));
 		let account_task_id = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME)
-			.expect("Task should be scheduled")[0]
+			.expect("Task should be scheduled")
+			.tasks[0]
 			.clone();
 		assert_eq!(
 			AutomationTime::get_account_task(account_task_id.0.clone(), account_task_id.1),
@@ -488,7 +495,7 @@ fn schedule_time_slot_full_rolls_back() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 2);
 				assert_eq!(account_task_ids[0].1, task_id1);
 				assert_eq!(account_task_ids[1].1, task_id2);
@@ -582,7 +589,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -591,7 +598,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -613,7 +620,7 @@ fn cancel_works_for_an_executed_task() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
 				assert_eq!(task_ids[0].1, task_id1);
 			},
@@ -721,6 +728,137 @@ fn force_cancel_task_works() {
 			}),]
 		);
 	})
+}
+
+mod extrinsics {
+	use super::*;
+
+	mod schedule_dynamic_dispatch_task {
+		use super::*;
+
+		#[test]
+		fn works() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let account_id = AccountId32::new(ALICE);
+				let execution_times = vec![SCHEDULED_TIME];
+				let provided_id = vec![0];
+				let task_id =
+					AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+				let call: Call = frame_system::Call::remark { remark: vec![] }.into();
+				assert_ok!(fund_account_dynamic_dispatch(
+					&account_id,
+					execution_times.len(),
+					call.encode()
+				));
+
+				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+					Origin::signed(account_id.clone()),
+					provided_id,
+					vec![SCHEDULED_TIME],
+					Box::new(call)
+				));
+				assert_eq!(
+					last_event(),
+					Event::AutomationTime(crate::Event::TaskScheduled { who: account_id, task_id })
+				);
+			})
+		}
+	}
+}
+
+mod run_dynamic_dispatch_action {
+	use super::*;
+	use sp_runtime::DispatchError;
+
+	#[test]
+	fn cannot_decode() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let bad_encoded_call: Vec<u8> = vec![1];
+
+			let weight = AutomationTime::run_dynamic_dispatch_action(
+				account_id.clone(),
+				bad_encoded_call,
+				task_id,
+			);
+
+			assert_eq!(
+				weight,
+				<Test as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+			);
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::CallCannotBeDecoded {
+					who: account_id,
+					task_id,
+				}),]
+			);
+		})
+	}
+
+	#[test]
+	fn call_errors() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = frame_system::Call::set_code { code: vec![] }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Err(DispatchError::BadOrigin),
+				}),]
+			);
+		})
+	}
+
+	#[test]
+	fn call_filtered() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = pallet_timestamp::Call::set { now: 100 }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Err(DispatchError::from(frame_system::Error::<Test>::CallFiltered)),
+				}),]
+			);
+		})
+	}
+
+	#[test]
+	fn call_works() {
+		new_test_ext(START_BLOCK_TIME).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let call: Call = frame_system::Call::remark { remark: vec![] }.into();
+			let encoded_call = call.encode();
+
+			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+
+			assert_eq!(
+				events(),
+				[Event::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id,
+					task_id,
+					result: Ok(()),
+				}),]
+			);
+		})
+	}
 }
 
 // Weights to use for tests below
@@ -877,7 +1015,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id2);
 			},
@@ -886,7 +1024,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(account_task_ids) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id1);
 			},
@@ -1302,6 +1440,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
 			.expect("Task should have been rescheduled")
+			.tasks
 			.into_iter()
 			.find(|t| *t == (AccountId32::new(ALICE), task_id))
 			.expect("Task should have been rescheduled");
@@ -1400,7 +1539,9 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 			})
 			.expect("AutoCompound failure event should have been emitted");
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
-			.filter(|tasks| { tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id)) })
+			.filter(|scheduled| {
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
+			})
 			.is_none());
 		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
 	})
@@ -1696,6 +1837,10 @@ fn events() -> Vec<Event> {
 	evt
 }
 
+fn last_event() -> Event {
+	events().pop().unwrap()
+}
+
 fn get_funds(account: AccountId) {
 	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
@@ -1716,4 +1861,29 @@ fn get_xcmp_funds(account: AccountId) {
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
 	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
+}
+
+// TODO: swap above to this pattern
+fn fund_account_dynamic_dispatch(
+	account: &AccountId,
+	execution_count: usize,
+	encoded_call: Vec<u8>,
+) -> Result<(), DispatchError> {
+	let action: ActionOf<Test> = Action::DynamicDispatch { encoded_call };
+	let action_weight = action.execution_weight::<Test>()?;
+	fund_account(account, action_weight, execution_count, None);
+	Ok(())
+}
+
+fn fund_account(
+	account: &AccountId,
+	action_weight: u64,
+	execution_count: usize,
+	additional_amount: Option<u128>,
+) {
+	let amount: u128 =
+		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128 +
+			additional_amount.unwrap_or(0) +
+			u128::from(ExistentialDeposit::get());
+	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }

@@ -49,18 +49,19 @@ pub use autocompounding::*;
 mod types;
 pub use types::*;
 
+use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::DispatchErrorWithPostInfo,
+	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement},
-	BoundedVec,
+	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
+	weights::GetDispatchInfo,
 };
 use frame_system::pallet_prelude::*;
 use pallet_parachain_staking::DelegatorActions;
@@ -68,10 +69,10 @@ use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 
 #[frame_support::pallet]
@@ -91,6 +92,7 @@ pub mod pallet {
 		<T as Config>::MaxExecutionTimes,
 	>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
+	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -118,6 +120,10 @@ pub mod pallet {
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
+
+		/// The maximum supported execution weight per automation slot
+		#[pallet::constant]
+		type MaxWeightPerSlot: Get<u128>;
 
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
@@ -149,6 +155,16 @@ pub mod pallet {
 		type FeeHandler: HandleFees<Self>;
 
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
+
+		/// The overarching call type.
+		type Call: Parameter
+			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+			+ GetDispatchInfo
+			+ From<frame_system::Call<Self>>
+			+ IsSubType<Call<Self>>
+			+ IsType<<Self as frame_system::Config>::Call>;
+
+		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
 	}
 
 	#[pallet::pallet]
@@ -158,8 +174,8 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasksV2<T: Config> =
-		StorageMap<_, Twox64Concat, u64, BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot>>;
+	pub type ScheduledTasksV3<T: Config> =
+		StorageMap<_, Twox64Concat, UnixTime, ScheduledTasksOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task)]
@@ -186,6 +202,7 @@ pub mod pallet {
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::error]
+	#[derive(PartialEq)]
 	pub enum Error<T> {
 		/// Time must end in a whole hour.
 		InvalidTime,
@@ -215,6 +232,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
+		/// The call can no longer be decoded.
+		CallCannotBeDecoded,
 	}
 
 	#[pallet::event]
@@ -273,6 +292,17 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
+		},
+		/// The result of the DynamicDispatch action.
+		DynamicDispatchResult {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			result: DispatchResult,
+		},
+		/// The call for the DynamicDispatch action can no longer be decoded.
+		CallCannotBeDecoded {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
 		},
 	}
 
@@ -461,6 +491,36 @@ pub mod pallet {
 				frequency,
 			};
 			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
+			Ok(().into())
+		}
+
+		/// Schedule a task that will dispatch a call.
+		/// ** This is currently limited to calls from the System and Balances pallets.
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
+		/// * `call`: The call that will be dispatched.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
+		pub fn schedule_dynamic_dispatch_task(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			execution_times: Vec<UnixTime>,
+			call: Box<<T as Config>::Call>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let encoded_call = call.encode();
+			let action = Action::DynamicDispatch { encoded_call };
+
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
 
@@ -681,9 +741,11 @@ pub mod pallet {
 				}
 				MissedQueueV2::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
-				if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
-					TaskQueueV2::<T>::put(task_ids);
-					ScheduledTasksV2::<T>::remove(current_time_slot);
+				if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =
+					Self::get_scheduled_tasks(current_time_slot)
+				{
+					TaskQueueV2::<T>::put(account_task_ids);
+					ScheduledTasksV3::<T>::remove(current_time_slot);
 				} else {
 					let empty_queue: Vec<AccountTaskId<T>> = vec![];
 					TaskQueueV2::<T>::put(empty_queue);
@@ -760,8 +822,10 @@ pub mod pallet {
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
-			if let Some(account_task_ids) = Self::get_scheduled_tasks(new_time_slot) {
-				ScheduledTasksV2::<T>::remove(new_time_slot);
+			if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =
+				Self::get_scheduled_tasks(new_time_slot)
+			{
+				ScheduledTasksV3::<T>::remove(new_time_slot);
 				for (account_id, task_id) in account_task_ids {
 					let new_missed_task =
 						MissedTaskV2Of::<T>::new(account_id, task_id, new_time_slot);
@@ -825,6 +889,12 @@ pub mod pallet {
 								task = mut_task;
 								weight
 							},
+							Action::DynamicDispatch { encoded_call } =>
+								Self::run_dynamic_dispatch_action(
+									task.owner_id.clone(),
+									encoded_call,
+									*task_id,
+								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -958,8 +1028,8 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 		) -> (TaskOf<T>, Weight) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds =
-				account_minimum.saturating_add(Self::calculate_execution_fee(&task.action, 1));
+			let reserved_funds = account_minimum
+				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
 			match T::DelegatorActions::delegator_bond_till_minimum(
 				&delegator,
 				&collator,
@@ -986,32 +1056,68 @@ pub mod pallet {
 
 			let new_execution_times: Vec<UnixTime> =
 				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-			let _ = Self::reschedule_existing_task(
-				task_id,
-				task.owner_id.clone(),
-				&task.action,
-				new_execution_times.clone(),
-			)
-			.map(|_| {
-				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-				task.executions_left += new_executions_left;
-				new_execution_times.iter().try_for_each(|t| {
-					task.execution_times.try_push(*t).and_then(|_| {
-						task.execution_times.remove(0);
-						Ok(())
+			let _ = Self::reschedule_existing_task(task_id, &task, new_execution_times.clone())
+				.map(|_| {
+					let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
+					task.executions_left += new_executions_left;
+					new_execution_times.iter().try_for_each(|t| {
+						task.execution_times.try_push(*t).and_then(|_| {
+							task.execution_times.remove(0);
+							Ok(())
+						})
 					})
 				})
-			})
-			.map_err(|e| {
-				let err: DispatchErrorWithPostInfo = e.into();
-				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-					error: err,
+				.map_err(|e| {
+					let err: DispatchErrorWithPostInfo = e.into();
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						task_id,
+						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
+						error: err,
+					});
 				});
-			});
 
 			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
+		}
+
+		/// Attempt to decode and run the call.
+		pub fn run_dynamic_dispatch_action(
+			caller: AccountOf<T>,
+			encoded_call: Vec<u8>,
+			task_id: TaskId<T>,
+		) -> Weight {
+			match <T as Config>::Call::decode(&mut &*encoded_call) {
+				Ok(scheduled_call) => {
+					let mut dispatch_origin: T::Origin =
+						frame_system::RawOrigin::Signed(caller.clone()).into();
+					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::Call| {
+						T::ScheduleAllowList::contains(call)
+					});
+
+					let call_weight = scheduled_call.get_dispatch_info().weight;
+					let (maybe_actual_call_weight, result) =
+						match scheduled_call.dispatch(dispatch_origin) {
+							Ok(post_info) => (post_info.actual_weight, Ok(())),
+							Err(error_and_info) =>
+								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
+						};
+
+					Self::deposit_event(Event::DynamicDispatchResult {
+						who: caller,
+						task_id,
+						result,
+					});
+
+					maybe_actual_call_weight
+						.unwrap_or(call_weight)
+						.saturating_add(<T as Config>::WeightInfo::run_dynamic_dispatch_action())
+				},
+				Err(_) => {
+					// TODO: If the call cannot be decoded then cancel the task.
+
+					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
+					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+				},
+			}
 		}
 
 		/// Decrements task executions left.
@@ -1057,16 +1163,24 @@ pub mod pallet {
 						break
 					}
 					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
-					if let Some(mut account_task_ids) = Self::get_scheduled_tasks(*execution_time) {
+					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
+						Self::get_scheduled_tasks(*execution_time)
+					{
 						for i in 0..account_task_ids.len() {
 							if account_task_ids[i].1 == task_id {
 								if account_task_ids.len() == 1 {
-									ScheduledTasksV2::<T>::remove(*execution_time);
+									ScheduledTasksV3::<T>::remove(*execution_time);
 								} else {
 									account_task_ids.remove(i);
-									ScheduledTasksV2::<T>::insert(
+									ScheduledTasksV3::<T>::insert(
 										*execution_time,
-										account_task_ids,
+										ScheduledTasksOf::<T> {
+											tasks: account_task_ids,
+											weight: weight.saturating_sub(
+												task.action.execution_weight::<T>().unwrap_or(0)
+													as u128,
+											),
+										},
 									);
 								}
 								found_task = true;
@@ -1078,16 +1192,24 @@ pub mod pallet {
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
 				for execution_time in task.execution_times.iter().rev() {
-					if let Some(mut account_task_ids) = Self::get_scheduled_tasks(*execution_time) {
+					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
+						Self::get_scheduled_tasks(*execution_time)
+					{
 						for i in 0..account_task_ids.len() {
 							if account_task_ids[i].1 == task_id {
 								if account_task_ids.len() == 1 {
-									ScheduledTasksV2::<T>::remove(*execution_time);
+									ScheduledTasksV3::<T>::remove(*execution_time);
 								} else {
 									account_task_ids.remove(i);
-									ScheduledTasksV2::<T>::insert(
+									ScheduledTasksV3::<T>::insert(
 										*execution_time,
-										account_task_ids,
+										ScheduledTasksOf::<T> {
+											tasks: account_task_ids,
+											weight: weight.saturating_sub(
+												task.action.execution_weight::<T>().unwrap_or(0)
+													as u128,
+											),
+										},
 									);
 								}
 								found_task = true;
@@ -1108,10 +1230,11 @@ pub mod pallet {
 
 		/// Schedule task and return it's task_id.
 		pub fn schedule_task(
-			owner_id: AccountOf<T>,
+			task: &TaskOf<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<TaskId<T>, Error<T>> {
+			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
 
 			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
@@ -1122,39 +1245,30 @@ pub mod pallet {
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
 				let mut task_queue = Self::get_task_queue();
-				task_queue.push((owner_id.clone(), task_id));
+				task_queue.push((owner_id, task_id));
 				TaskQueueV2::<T>::put(task_queue);
 
 				return Ok(task_id)
 			}
 
-			Self::insert_scheduled_tasks(owner_id, task_id, execution_times)
+			Self::insert_scheduled_tasks(task_id, task, execution_times)
 		}
 
 		/// Insert the account/task id into scheduled tasks
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
 		fn insert_scheduled_tasks(
-			owner_id: AccountOf<T>,
 			task_id: TaskId<T>,
+			task: &TaskOf<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<TaskId<T>, Error<T>> {
 			with_transaction(|| -> storage::TransactionOutcome<Result<TaskId<T>, DispatchError>> {
-				let account_task_id: AccountTaskId<T> = (owner_id, task_id);
 				for time in execution_times.iter() {
-					match Self::get_scheduled_tasks(*time) {
-						None => {
-							let account_task_ids: BoundedVec<AccountTaskId<T>, T::MaxTasksPerSlot> =
-								vec![account_task_id.clone()].try_into().unwrap();
-							ScheduledTasksV2::<T>::insert(*time, account_task_ids);
-						},
-						Some(mut account_task_ids) => {
-							if let Err(_) = account_task_ids.try_push(account_task_id.clone()) {
-								return Rollback(Err(DispatchError::Other("time slot full")))
-							}
-							<ScheduledTasksV2<T>>::insert(*time, account_task_ids);
-						},
+					let mut scheduled_tasks = Self::get_scheduled_tasks(*time).unwrap_or_default();
+					if let Err(_) = scheduled_tasks.try_push::<T, BalanceOf<T>>(task_id, task) {
+						return Rollback(Err(DispatchError::Other("time slot full")))
 					}
+					<ScheduledTasksV3<T>>::insert(*time, scheduled_tasks);
 				}
 
 				Commit(Ok(task_id))
@@ -1186,7 +1300,7 @@ pub mod pallet {
 
 			// Execution fee
 			let exeuction_fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 
 			// XCMP fee
 			let xcmp_fee: u128 = match action {
@@ -1209,17 +1323,13 @@ pub mod pallet {
 			)
 			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-			let task_id = Self::schedule_task(
-				owner_id.clone(),
-				provided_id.clone(),
-				execution_times.clone(),
-			)?;
 			let task = TaskOf::<T>::new(
 				owner_id.clone(),
-				provided_id,
-				execution_times.try_into().unwrap(),
+				provided_id.clone(),
+				execution_times.clone().try_into().unwrap(),
 				action.clone(),
 			);
+			let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
 			AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
 
 			// This should never error if can_pay_fee passed.
@@ -1240,21 +1350,21 @@ pub mod pallet {
 		/// Reschedules an existing task for a given number of execution times
 		fn reschedule_existing_task(
 			task_id: TaskId<T>,
-			owner_id: AccountOf<T>,
-			action: &ActionOf<T>,
+			task: &TaskOf<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions);
-			T::FeeHandler::can_pay_fee(&owner_id, fee.clone())
+
+			let fee = Self::calculate_execution_fee(&task.action, new_executions)?;
+			T::FeeHandler::can_pay_fee(&task.owner_id, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-			Self::insert_scheduled_tasks(owner_id.clone(), task_id, execution_times.clone())?;
+			Self::insert_scheduled_tasks(task_id, task, execution_times.clone())?;
 
-			T::FeeHandler::withdraw_fee(&owner_id, fee.clone())
+			T::FeeHandler::withdraw_fee(&task.owner_id, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
 			Ok(())
 		}
 
@@ -1277,23 +1387,14 @@ pub mod pallet {
 		///
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(action: &ActionOf<T>, executions: u32) -> BalanceOf<T> {
-			let action_weight = match action {
-				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { .. } =>
-					<T as Config>::WeightInfo::run_native_transfer_task(),
-				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { .. } => T::DbWeight::get()
-					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
-				Action::AutoCompoundDelegatedStake { .. } =>
-					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-			};
-
-			let total_weight = action_weight.saturating_mul(executions.into());
+		pub fn calculate_execution_fee(
+			action: &ActionOf<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
 		}
 	}
 
