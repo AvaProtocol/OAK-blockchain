@@ -5,6 +5,7 @@ pub mod assets {
 	use super::*;
 	use frame_support::{Blake2_128Concat, BoundedVec, Twox64Concat, WeakBoundedVec};
 	use orml_asset_registry::AssetMetadata;
+	use primitives::assets::ConversionRate;
 
 	pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
 
@@ -299,7 +300,7 @@ pub mod assets {
 						symbol: b"UNIT".to_vec(),
 						additional: CustomMetadata {
 							fee_per_second: Some(tur_per_second()),
-							conversion_rate: Some(1),
+							conversion_rate: Some(ConversionRate { native: 1, foreign: 1 }),
 						},
 						existential_deposit: 10 * millicent(12),
 						location: Some(
@@ -470,7 +471,9 @@ pub mod assets {
 			assert_eq!(reserves, 0);
 
 			// XcmChainCurrencyData is not currently used. Ensure collection is empty and doesn't need migrating.
-			let xcmp_chain_data = pallet_xcmp_handler::XcmChainCurrencyData::<Runtime>::iter().collect::<Vec<_>>().len();
+			let xcmp_chain_data = pallet_xcmp_handler::XcmChainCurrencyData::<Runtime>::iter()
+				.collect::<Vec<_>>()
+				.len();
 			assert_eq!(xcmp_chain_data, 0);
 
 			Ok(())
