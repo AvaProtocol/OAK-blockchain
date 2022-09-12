@@ -357,10 +357,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 pub struct TokenIdConvert;
 impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
 	fn convert(id: TokenId) -> Option<MultiLocation> {
-		match AssetRegistryOf::<Runtime>::multilocation(&id) {
-			Ok(Some(multi_location)) => Some(multi_location),
-			_ => None,
-		}
+		AssetRegistryOf::<Runtime>::multilocation(&id).unwrap_or(None)
 	}
 }
 
