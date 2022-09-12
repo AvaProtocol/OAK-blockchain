@@ -24,7 +24,6 @@ use sp_runtime::{
 };
 
 pub mod assets;
-pub mod tokens;
 
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
