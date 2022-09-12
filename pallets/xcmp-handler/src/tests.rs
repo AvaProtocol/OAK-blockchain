@@ -25,69 +25,65 @@ use xcm::latest::prelude::*;
 //Extrinsics
 //*****************
 
+const PARA_ID: u32 = 1000;
+const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
+	native: false,
+	fee_per_second: 50_000_000_000,
+	instruction_weight: 100_000_000,
+};
+
 // add_chain_currency_data
 #[test]
 fn add_chain_currency_data_new_data() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
 
-		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
+		if XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000 };
-
 		assert_ok!(XcmpHandler::add_chain_currency_data(
 			RawOrigin::Root.into(),
-			para_id,
+			PARA_ID,
 			currency_id,
-			xcm_data.clone()
+			XCM_DATA
 		));
-		assert_eq!(XcmChainCurrencyData::<Test>::get(para_id, currency_id).unwrap(), xcm_data);
+		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(), XCM_DATA);
 	});
 }
 
 #[test]
 fn add_chain_currency_data_update_data() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let xcm_data_old =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000 };
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data_old.clone());
+	let currency_id = CurrencyId::Native;
+	let gensis_config = vec![(PARA_ID, currency_id, XCM_DATA)];
 
-		assert_eq!(XcmChainCurrencyData::<Test>::get(para_id, currency_id).unwrap(), xcm_data_old);
+	new_test_ext(Some(gensis_config)).execute_with(|| {
+		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(), XCM_DATA);
 
 		let xcm_data_new =
 			XcmCurrencyData { native: false, fee_per_second: 200, instruction_weight: 3_000 };
 
 		assert_ok!(XcmpHandler::add_chain_currency_data(
 			RawOrigin::Root.into(),
-			para_id,
+			PARA_ID,
 			currency_id,
 			xcm_data_new.clone()
 		));
-		assert_eq!(XcmChainCurrencyData::<Test>::get(para_id, currency_id).unwrap(), xcm_data_new);
+		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(), xcm_data_new);
 	});
 }
 
 #[test]
 fn add_chain_currency_data_can_only_use_native_currency() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let currency_id = CurrencyId::ROC;
-		let para_id: u32 = 1000;
-
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000 };
 
 		assert_noop!(
 			XcmpHandler::add_chain_currency_data(
 				RawOrigin::Root.into(),
-				para_id,
+				PARA_ID,
 				currency_id,
-				xcm_data.clone()
+				XCM_DATA
 			),
 			Error::<Test>::CurrencyChainComboNotSupported
 		);
@@ -97,20 +93,16 @@ fn add_chain_currency_data_can_only_use_native_currency() {
 // remove_chain_currency_data
 #[test]
 fn remove_chain_currency_data_remove_data() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000 };
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+	let currency_id = CurrencyId::Native;
+	let gensis_config = vec![(PARA_ID, currency_id, XCM_DATA)];
 
-		assert_eq!(XcmChainCurrencyData::<Test>::get(para_id, currency_id).unwrap(), xcm_data);
+	new_test_ext(Some(gensis_config)).execute_with(|| {
 		assert_ok!(XcmpHandler::remove_chain_currency_data(
 			RawOrigin::Root.into(),
-			para_id,
+			PARA_ID,
 			currency_id
 		));
-		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
+		if XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 	});
@@ -118,15 +110,14 @@ fn remove_chain_currency_data_remove_data() {
 
 #[test]
 fn remove_chain_currency_data_not_found() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
 
-		if XcmChainCurrencyData::<Test>::get(para_id, currency_id).is_some() {
+		if XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).is_some() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), para_id, currency_id,),
+			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), PARA_ID, currency_id,),
 			Error::<Test>::CurrencyChainComboNotFound
 		);
 	});
@@ -139,23 +130,18 @@ fn remove_chain_currency_data_not_found() {
 // calculate_xcm_fee_and_weight
 #[test]
 fn calculate_xcm_fee_and_weight_works() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let xcm_data = XcmCurrencyData {
-			native: false,
-			fee_per_second: 50_000_000_000,
-			instruction_weight: 1_000,
-		};
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+	let currency_id = CurrencyId::Native;
+	let gensis_config = vec![(PARA_ID, currency_id, XCM_DATA)];
+
+	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_weight = transact_encoded_call_weight + xcm_data.instruction_weight;
+		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight;
 		let expected_fee =
-			xcm_data.fee_per_second * (expected_weight as u128) / (WEIGHT_PER_SECOND as u128);
+			XCM_DATA.fee_per_second * (expected_weight as u128) / (WEIGHT_PER_SECOND as u128);
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
-				para_id,
+				PARA_ID,
 				currency_id,
 				transact_encoded_call_weight
 			),
@@ -166,17 +152,17 @@ fn calculate_xcm_fee_and_weight_works() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: u128::MAX, instruction_weight: 1_000 };
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+	let currency_id = CurrencyId::Native;
+	let xcm_data =
+		XcmCurrencyData { native: false, fee_per_second: u128::MAX, instruction_weight: 1_000 };
+	let gensis_config = vec![(PARA_ID, currency_id, xcm_data)];
+
+	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
-				para_id,
+				PARA_ID,
 				currency_id,
 				transact_encoded_call_weight
 			),
@@ -187,17 +173,17 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
-	new_test_ext().execute_with(|| {
-		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 1_000, instruction_weight: u64::MAX };
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
+	let currency_id = CurrencyId::Native;
+	let xcm_data =
+		XcmCurrencyData { native: false, fee_per_second: 1_000, instruction_weight: u64::MAX };
+	let gensis_config = vec![(PARA_ID, currency_id, xcm_data)];
+
+	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = u64::MAX;
 
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
-				para_id,
+				PARA_ID,
 				currency_id,
 				transact_encoded_call_weight
 			),
@@ -208,17 +194,16 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_no_xcm_data() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(para_id, currency_id) {
+		if let Some(_) = XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id) {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
-				para_id,
+				PARA_ID,
 				currency_id,
 				transact_encoded_call_weight
 			),
@@ -230,15 +215,14 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 // get_instruction_set
 #[test]
 fn get_instruction_set_only_support_local_currency() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let currency_id = CurrencyId::ROC;
-		let para_id: u32 = 1000;
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
 		assert_noop!(
 			XcmpHandler::get_instruction_set(
-				para_id,
+				PARA_ID,
 				currency_id,
 				ALICE,
 				transact_encoded_call,
@@ -251,19 +235,15 @@ fn get_instruction_set_only_support_local_currency() {
 
 #[test]
 fn get_instruction_set_local_currency_instructions() {
-	new_test_ext().execute_with(|| {
+	let currency_id = CurrencyId::Native;
+	let gensis_config = vec![(PARA_ID, currency_id, XCM_DATA)];
+
+	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let currency_id = CurrencyId::Native;
-		let para_id: u32 = 1000;
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
-		let xcm_data = XcmCurrencyData {
-			native: false,
-			fee_per_second: 100_000,
-			instruction_weight: 100_000_000,
-		};
-		XcmChainCurrencyData::<Test>::insert(para_id, currency_id, xcm_data.clone());
 		let (xcm_fee, xcm_weight) = XcmpHandler::calculate_xcm_fee_and_weight(
-			para_id,
+			PARA_ID,
 			currency_id,
 			transact_encoded_call_weight,
 		)
@@ -271,7 +251,7 @@ fn get_instruction_set_local_currency_instructions() {
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
-			para_id,
+			PARA_ID,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
@@ -282,7 +262,7 @@ fn get_instruction_set_local_currency_instructions() {
 
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
-				para_id,
+				PARA_ID,
 				currency_id,
 				ALICE,
 				transact_encoded_call,
@@ -298,8 +278,7 @@ fn get_instruction_set_local_currency_instructions() {
 // TODO: use xcm_simulator to test these instructions.
 #[test]
 fn get_local_currency_instructions_works() {
-	new_test_ext().execute_with(|| {
-		let para_id: u32 = 1000;
+	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
@@ -308,7 +287,7 @@ fn get_local_currency_instructions_works() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let (local, target) = XcmpHandler::get_local_currency_instructions(
-			para_id,
+			PARA_ID,
 			descend_location,
 			transact_encoded_call,
 			transact_encoded_call_weight,
@@ -323,8 +302,7 @@ fn get_local_currency_instructions_works() {
 
 #[test]
 fn transact_in_local_chain_works() {
-	new_test_ext().execute_with(|| {
-		let para_id: u32 = 1000;
+	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
@@ -337,7 +315,7 @@ fn transact_in_local_chain_works() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let (local_instructions, _) = XcmpHandler::get_local_currency_instructions(
-			para_id,
+			PARA_ID,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
@@ -358,7 +336,7 @@ fn transact_in_local_chain_works() {
 				// Depositing asset
 				(
 					asset.clone().into(),
-					MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+					MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) }
 				),
 			]
 		);
@@ -368,8 +346,7 @@ fn transact_in_local_chain_works() {
 
 #[test]
 fn transact_in_target_chain_works() {
-	new_test_ext().execute_with(|| {
-		let para_id: u32 = 1000;
+	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
@@ -382,7 +359,7 @@ fn transact_in_target_chain_works() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
-			para_id,
+			PARA_ID,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
@@ -391,11 +368,11 @@ fn transact_in_target_chain_works() {
 		)
 		.unwrap();
 
-		assert_ok!(XcmpHandler::transact_in_target_chain(para_id, target_instructions));
+		assert_ok!(XcmpHandler::transact_in_target_chain(PARA_ID, target_instructions));
 		assert_eq!(
 			sent_xcm(),
 			vec![(
-				MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
+				MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) },
 				Xcm([
 					ReserveAssetDeposited(asset.into()),
 					BuyExecution {
@@ -427,13 +404,13 @@ fn transact_in_target_chain_works() {
 				.to_vec()),
 			)]
 		);
-		assert_eq!(events(), [Event::XcmpHandler(crate::Event::XcmSent { para_id: 1000 })]);
+		assert_eq!(events(), [Event::XcmpHandler(crate::Event::XcmSent { para_id: PARA_ID })]);
 	});
 }
 
 #[test]
 fn pay_xcm_fee_works() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let local_sovereign_account: AccountId =
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
@@ -449,7 +426,7 @@ fn pay_xcm_fee_works() {
 
 #[test]
 fn pay_xcm_fee_keeps_wallet_alive() {
-	new_test_ext().execute_with(|| {
+	new_test_ext(None).execute_with(|| {
 		let local_sovereign_account: AccountId =
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
