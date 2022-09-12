@@ -128,7 +128,11 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	pallet_automation_time::migrations::v4::MigrateToV4<Runtime>,
+	(
+		pallet_automation_time::migrations::v4::MigrateToV4<Runtime>,
+		migrations::assets::MigrateAssetRegistry,
+		migrations::assets::MigrateTokensCurrencyId,
+	),
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -470,42 +474,6 @@ parameter_types! {
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
 	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
-}
-
-// TODO: remove after asset registry migration
-// Can only append.
-// DO NOT CHANGE THE ORDER.
-#[derive(
-	Debug, Encode, Decode, Eq, PartialEq, Copy, Clone, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
-)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum CurrencyId {
-	Native,
-	KSM,
-	AUSD,
-	KAR,
-	LKSM,
-	HKO,
-	SKSM,
-	PHA,
-	UNIT,
-}
-
-impl From<u32> for CurrencyId {
-	fn from(a: u32) -> Self {
-		match a {
-			0 => CurrencyId::Native,
-			1 => CurrencyId::KSM,
-			2 => CurrencyId::AUSD,
-			3 => CurrencyId::KAR,
-			4 => CurrencyId::LKSM,
-			5 => CurrencyId::HKO,
-			6 => CurrencyId::SKSM,
-			7 => CurrencyId::PHA,
-			8 => CurrencyId::UNIT,
-			_ => CurrencyId::Native,
-		}
-	}
 }
 
 pub struct DustRemovalWhitelist;

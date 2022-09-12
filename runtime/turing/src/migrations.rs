@@ -8,6 +8,39 @@ pub mod assets {
 
 	pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
 
+	#[derive(
+		Debug, Encode, Decode, Eq, PartialEq, Copy, Clone, PartialOrd, Ord, TypeInfo, MaxEncodedLen,
+	)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+	pub enum CurrencyId {
+		Native,
+		KSM,
+		AUSD,
+		KAR,
+		LKSM,
+		HKO,
+		SKSM,
+		PHA,
+		UNIT,
+	}
+
+	impl From<u32> for CurrencyId {
+		fn from(a: u32) -> Self {
+			match a {
+				0 => CurrencyId::Native,
+				1 => CurrencyId::KSM,
+				2 => CurrencyId::AUSD,
+				3 => CurrencyId::KAR,
+				4 => CurrencyId::LKSM,
+				5 => CurrencyId::HKO,
+				6 => CurrencyId::SKSM,
+				7 => CurrencyId::PHA,
+				8 => CurrencyId::UNIT,
+				_ => CurrencyId::Native,
+			}
+		}
+	}
+
 	pub mod parachains {
 		pub mod testchain {
 			pub const ID: u32 = 1999;
@@ -99,8 +132,8 @@ pub mod assets {
 	type LastAssetId<T: Config> =
 		StorageValue<AssetRegistry, <T as orml_asset_registry::Config>::AssetId>;
 
-	pub struct AssetRegistryMigration;
-	impl OnRuntimeUpgrade for AssetRegistryMigration {
+	pub struct MigrateAssetRegistry;
+	impl OnRuntimeUpgrade for MigrateAssetRegistry {
 		fn on_runtime_upgrade() -> Weight {
 			log::info!(
 				target: "asset_registry",
@@ -357,8 +390,8 @@ pub mod assets {
 		}
 	}
 
-	pub struct TokensCurrencyIdMigration;
-	impl OnRuntimeUpgrade for TokensCurrencyIdMigration {
+	pub struct MigrateTokensCurrencyId;
+	impl OnRuntimeUpgrade for MigrateTokensCurrencyId {
 		fn on_runtime_upgrade() -> Weight {
 			log::info!(
 				target: "orml_tokens",
@@ -377,7 +410,7 @@ pub mod assets {
 			log::info!(
 				target: "orml_tokens",
 				"on_runtime_upgrade: Accounts data updated {:?}",
-				orml_tokens::Accounts::<Runtime>::iter().count(),
+				tokens_accounts.len(),
 			);
 
 			// Migrate Tokens TotalIssuance CurrencyId from Enum to u32
@@ -436,6 +469,10 @@ pub mod assets {
 			let reserves = Reserves::<Runtime>::iter().collect::<Vec<_>>().len();
 			assert_eq!(reserves, 0);
 
+			// XcmChainCurrencyData is not currently used. Ensure collection is empty and doesn't need migrating.
+			let xcmp_chain_data = pallet_xcmp_handler::XcmChainCurrencyData::<Runtime>::iter().collect::<Vec<_>>().len();
+			assert_eq!(xcmp_chain_data, 0);
+
 			Ok(())
 		}
 
@@ -493,32 +530,6 @@ pub mod assets {
 				target: "orml_tokens",
 				"post_upgrade check Locks and Reserves complete",
 			);
-
-			Ok(())
-		}
-	}
-
-	pub struct AssetRegistryAndTokensMigrations;
-	impl OnRuntimeUpgrade for AssetRegistryAndTokensMigrations {
-		fn on_runtime_upgrade() -> Weight {
-			let mut weight = AssetRegistryMigration::on_runtime_upgrade();
-			weight += TokensCurrencyIdMigration::on_runtime_upgrade();
-
-			weight
-		}
-
-		#[cfg(feature = "try-runtime")]
-		fn pre_upgrade() -> Result<(), &'static str> {
-			AssetRegistryMigration::pre_upgrade()?;
-			TokensCurrencyIdMigration::pre_upgrade()?;
-
-			Ok(())
-		}
-
-		#[cfg(feature = "try-runtime")]
-		fn post_upgrade() -> Result<(), &'static str> {
-			AssetRegistryMigration::post_upgrade()?;
-			TokensCurrencyIdMigration::post_upgrade()?;
 
 			Ok(())
 		}
