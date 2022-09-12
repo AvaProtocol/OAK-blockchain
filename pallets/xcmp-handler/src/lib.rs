@@ -461,7 +461,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub chain_data: Vec<(u32, T::CurrencyId, XcmCurrencyData)>,
+		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64)>,
 	}
 
 	#[cfg(feature = "std")]
@@ -474,8 +474,18 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			for (para_id, currency_id, xcm_data) in self.chain_data.iter() {
-				XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
+			for (para_id, currency_id, native, fee_per_second, instruction_weight) in
+				self.chain_data.iter()
+			{
+				XcmChainCurrencyData::<T>::insert(
+					para_id,
+					currency_id,
+					XcmCurrencyData {
+						native: *native,
+						fee_per_second: *fee_per_second,
+						instruction_weight: *instruction_weight,
+					},
+				);
 			}
 		}
 	}

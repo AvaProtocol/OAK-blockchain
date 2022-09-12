@@ -300,7 +300,7 @@ impl pallet_xcmp_handler::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext(
-	gensis_config: Option<Vec<(u32, CurrencyId, pallet_xcmp_handler::XcmCurrencyData)>>,
+	genesis_config: Option<Vec<(u32, CurrencyId, bool, u128, u64)>>,
 ) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
@@ -312,7 +312,7 @@ pub fn new_test_ext(
 	)
 	.expect("Pallet Parachain info can be assimilated");
 
-	if let Some(chain_data) = gensis_config {
+	if let Some(chain_data) = genesis_config {
 		GenesisBuild::<Test>::assimilate_storage(
 			&pallet_xcmp_handler::GenesisConfig { chain_data },
 			&mut t,
