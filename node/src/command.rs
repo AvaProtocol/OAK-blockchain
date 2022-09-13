@@ -23,12 +23,6 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		#[cfg(feature = "neumann-node")]
 		"dev" => Box::new(chain_spec::neumann::development_config()),
-		#[cfg(feature = "neumann-node")]
-		"" | "local" => Box::new(chain_spec::neumann::local_testnet_config()),
-		#[cfg(feature = "neumann-node")]
-		"neumann-staging" => Box::new(chain_spec::neumann::neumann_staging_testnet_config()),
-		#[cfg(feature = "neumann-node")]
-		"neumann" => Box::new(chain_spec::neumann::neumann_latest()?),
 		#[cfg(feature = "turing-node")]
 		"turing-dev" => Box::new(chain_spec::turing::turing_development_config()),
 		#[cfg(feature = "turing-node")]
