@@ -650,27 +650,36 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 
 #[derive(Debug)]
+pub struct FeeInformation {
+	currency_id: CurrencyId,
+	fee_per_second: u128,
+}
 pub enum ExtraFeeName {
 	CrossChainFee,
 	NoExtraFee,
 }
 pub trait NameGetter<Call> {
-	fn get_name(call: &Call) -> ExtraFeeName;
+	fn fee_information(call: &Call) -> FeeInformation;
 }
 pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
-	fn get_name(c: &Call) -> ExtraFeeName {
+	fn fee_information(c: &Call) -> FeeInformation {
 		if let Call::AutomationTime(
 			pallet_automation_time::Call::schedule_dynamic_dispatch_task { call, .. },
 		) = c.clone()
 		{
 			if let Call::System(frame_system::Call::remark_with_event { .. }) = *call {
-				ExtraFeeName::CrossChainFee
+				let xcm_data =
+					XcmpHandler::get_xcm_chain_data(1999, CurrencyId::Native).expect("missing");
+				FeeInformation {
+					currency_id: CurrencyId::Native,
+					fee_per_second: xcm_data.fee_per_second,
+				}
 			} else {
-				ExtraFeeName::NoExtraFee
+				FeeInformation { currency_id: CurrencyId::Native, fee_per_second: 1 }
 			}
 		} else {
-			ExtraFeeName::NoExtraFee
+			FeeInformation { currency_id: CurrencyId::Native, fee_per_second: 1 }
 		}
 	}
 }
@@ -711,7 +720,7 @@ where
 		}
 
 		// cross it
-		let call_name = FNG::get_name(call.clone());
+		let call_name = FNG::fee_information(call.clone());
 		log::info!("Call was of type: {:?}", call_name);
 
 		let withdraw_reason = if tip.is_zero() {
