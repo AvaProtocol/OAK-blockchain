@@ -45,10 +45,7 @@ impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
 		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
-			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-			Action::XCMP { .. } => T::DbWeight::get()
-				.writes(1)
-				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
+			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			Action::DynamicDispatch { encoded_call } => {
