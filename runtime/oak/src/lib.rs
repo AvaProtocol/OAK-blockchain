@@ -467,7 +467,7 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
-	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
+	pub TemporaryForeignTreasuryAccount: AccountId = hex!["6ac410dcac7ace36e401163d540cb9bdda1a2295d7e1233c1fc38281cd13ec23"].into();
 }
 
 parameter_type_with_key! {
@@ -673,11 +673,11 @@ parameter_types! {
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
 	/// Blocks per round
-	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
+	pub const DefaultBlocksPerRound: u32 = 6 * HOURS;
 	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	pub const MinCollatorStk: u128 = 800_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
-	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
+	pub const MinCandidateStk: u128 = 800_000 * DOLLAR;
 }
 impl pallet_parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -687,19 +687,19 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MinBlocksPerRound = ConstU32<10>;
 	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = ConstU32<24>;
+	type LeaveCandidatesDelay = ConstU32<28>;
 	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = ConstU32<24>;
+	type CandidateBondLessDelay = ConstU32<28>;
 	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = ConstU32<24>;
+	type LeaveDelegatorsDelay = ConstU32<28>;
 	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = ConstU32<24>;
+	type RevokeDelegationDelay = ConstU32<28>;
 	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = ConstU32<24>;
+	type DelegationBondLessDelay = ConstU32<28>;
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<5>;
+	type MinSelectedCandidates = ConstU32<4>;
 	/// Maximum top delegations per candidate
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
