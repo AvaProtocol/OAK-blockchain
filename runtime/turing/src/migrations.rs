@@ -328,7 +328,9 @@ pub mod assets {
 				"on_runtime_upgrade: New data inserted"
 			);
 
-			// Each asset + each asset location + updating last asset id
+			// Storage: AssetRegistry Metadata (r:1 w:1) per asset
+			// Storage: AssetRegistry LocationToAssetId (r:1 w:1) per asset
+			// Storage: AssetRegistry LastAssetId (r:1 w:1) x 1
 			let total_rw = assets.len() as u32 * 2 + 1;
 			<Runtime as frame_system::Config>::DbWeight::get()
 				.reads_writes(total_rw as Weight, total_rw as Weight)
@@ -427,11 +429,8 @@ pub mod assets {
 				"on_runtime_upgrade: TotalIssuance data updated",
 			);
 
-			let mut total_rw = 0;
-			// Each tokens account/currency_id
-			total_rw += tokens_accounts.len() as u32;
-			// Each tokens currency total issuance
-			total_rw += total_issuance.len() as u32;
+			// Each tokens account/currency_id + Each tokens currency total issuance
+			let total_rw = tokens_accounts.len() as u32 * 2;
 			<Runtime as frame_system::Config>::DbWeight::get()
 				.reads_writes(total_rw as Weight, total_rw as Weight)
 		}

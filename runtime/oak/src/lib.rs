@@ -81,6 +81,8 @@ use polkadot_runtime_common::BlockHashCount;
 // XCM configurations.
 pub mod xcm_config;
 
+pub mod weights;
+
 // Common imports
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
@@ -522,7 +524,7 @@ impl orml_asset_registry::Config for Runtime {
 	type AuthorityOrigin = AssetAuthority;
 	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
 	type Balance = Balance;
-	type WeightInfo = ();
+	type WeightInfo = weights::asset_registry_weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
