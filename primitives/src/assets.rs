@@ -33,7 +33,7 @@ use scale_info::TypeInfo;
 )]
 pub struct ConversionRate {
 	pub native: u32,
-	pub foreign: u32
+	pub foreign: u32,
 }
 
 /// TODO: add decimal conversion

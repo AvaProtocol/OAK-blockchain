@@ -1003,6 +1003,7 @@ pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
 		match c {
+			Call::AssetRegistry(_) => false,
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
