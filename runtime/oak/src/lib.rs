@@ -393,7 +393,7 @@ impl pallet_identity::Config for Runtime {
 	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
+parameter_types! { // IRSAL: Any reason to change this? 
 	pub const ProxyDepositBase: Balance = deposit(1, 8);
 	pub const ProxyDepositFactor: Balance = deposit(0, 33);
 	pub const AnnouncementDepositBase: Balance = deposit(1, 8);
@@ -467,7 +467,7 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
-	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
+	pub TemporaryForeignTreasuryAccount: AccountId = hex!["6ac410dcac7ace36e401163d540cb9bdda1a2295d7e1233c1fc38281cd13ec23"].into();  // IRSAL: changed to new foreign wallet that chris manages
 }
 
 parameter_type_with_key! {
@@ -502,7 +502,7 @@ pub enum CurrencyId {
 	DOT,
 }
 
-impl From<u32> for CurrencyId {
+impl From<u32> for CurrencyId { // IRSAL: Need laura's stuff to merge and we can talk about currencies to start
 	fn from(a: u32) -> Self {
 		match a {
 			0 => CurrencyId::Native,
@@ -604,7 +604,7 @@ where
 			if let Some(tips) = fees_then_tips.next() {
 				tips.merge_into(&mut fees);
 			}
-			// 20% burned, 80% to the treasury
+			// 20% burned, 80% to the treasury // IRSAL: I'm thinking we keep this. Any reason to change?
 			let (_, to_treasury) = fees.ration(20, 80);
 			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
 			// total_supply accordingly
@@ -645,7 +645,7 @@ impl parachain_info::Config for Runtime {}
 impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 parameter_types! {
-	pub const Period: u32 = 6 * HOURS;
+	pub const Period: u32 = 6 * HOURS; // IRSAL: Ask nikhil if we should increase this for parachain staking.
 }
 
 impl pallet_session::Config for Runtime {
@@ -673,11 +673,11 @@ parameter_types! {
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
 	/// Blocks per round
-	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
+	pub const DefaultBlocksPerRound: u32 = 6 * HOURS;
 	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	pub const MinCollatorStk: u128 = 800_000 * DOLLAR; // IRSAL: ask chris which fund we're getting the initial OAK for collators from
 	/// Minimum stake required to be reserved to be a candidate
-	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
+	pub const MinCandidateStk: u128 = 800_000 * DOLLAR; // IRSAL: what's the diff b/w this one and the const above?
 }
 impl pallet_parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -699,7 +699,7 @@ impl pallet_parachain_staking::Config for Runtime {
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<5>;
+	type MinSelectedCandidates = ConstU32<4>; // IRSAL: double check w/ nikhil
 	/// Maximum top delegations per candidate
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
@@ -1024,7 +1024,7 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 }
 
-impl pallet_automation_price::Config for Runtime {
+impl pallet_automation_price::Config for Runtime { // IRSAL: seems like it's safer to remove this pallet entirely
 	type Event = Event;
 	type MaxTasksPerSlot = ConstU32<1>;
 	type MaxBlockWeight = MaxBlockWeight;
@@ -1040,15 +1040,15 @@ pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
 		match c {
-			Call::AutomationTime(_) => false,
-			Call::Balances(_) => false,
-			Call::Bounties(_) => false,
-			Call::Currencies(_) => false,
-			Call::ParachainStaking(_) => false,
-			Call::PolkadotXcm(_) => false,
-			Call::Treasury(_) => false,
-			Call::XTokens(_) => false,
-			Call::AutomationPrice(_) => false,
+			Call::AutomationTime(_) => true,
+			Call::Balances(_) => true,
+			Call::Bounties(_) => true,
+			Call::Currencies(_) => true,
+			Call::ParachainStaking(_) => true,
+			Call::PolkadotXcm(_) => true,
+			Call::Treasury(_) => true,
+			Call::XTokens(_) => true,
+			Call::AutomationPrice(_) => true,
 			_ => true,
 		}
 	}

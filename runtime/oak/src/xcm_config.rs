@@ -181,7 +181,7 @@ pub type Barrier = DenyThenTry<
 
 /// Based on the precedent set by other projects. This will need to be changed.
 pub fn dot_per_second() -> u128 {
-	CurrencyId::DOT.cent() * 16
+	CurrencyId::DOT.cent() * 16 // IRSAL: Laura's going to cover this with her PR
 }
 
 /// Assuming ~ $0.50 OAK price.
