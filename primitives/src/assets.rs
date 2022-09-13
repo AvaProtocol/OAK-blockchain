@@ -32,8 +32,8 @@ use scale_info::TypeInfo;
 	MaxEncodedLen,
 )]
 pub struct ConversionRate {
-	native: u32,
-	foreign: u32
+	pub native: u32,
+	pub foreign: u32
 }
 
 /// TODO: add decimal conversion
