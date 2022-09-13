@@ -197,7 +197,7 @@ parameter_types! {
 			1,
 			X1(Parachain(parachains::testchain::ID)),
 		).into(),
-		oak_per_second() * 2
+		oak_per_second() * 2 // IRSAL: why?
 	);
 
 	pub OakPerSecond: (AssetId, u128) = (
@@ -341,7 +341,7 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 parameter_types! {
 	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
 	pub const BaseXcmWeight: Weight = 100_000_000;
-	pub const MaxAssetsForTransfer: usize = 1;
+	pub const MaxAssetsForTransfer: usize = 1; // IRSAL: what does this look like when it's >1?
 }
 
 parameter_type_with_key! {
@@ -392,7 +392,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 
 pub mod parachains {
 	pub mod testchain {
-		pub const ID: u32 = 1999;
+		pub const ID: u32 = 1999; // IRSAL: why 1999? prince?
 	}
 }
 

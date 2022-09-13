@@ -210,7 +210,7 @@ const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 /// We allow for 0.5 of a second of compute with a 12 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
+const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2; // IRSAL: any reason we should drop this? IMO not necessary, but just double checking
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -305,7 +305,7 @@ impl frame_system::Config for Runtime {
 
 parameter_types! {
 	// One storage item; key size is 32; value is size 4+4+16+32 bytes = 56 bytes.
-	pub const DepositBase: Balance = deposit(1, 88);
+	pub const DepositBase: Balance = deposit(1, 88); // IRSAL: but this says 88? Intentional?
 	// Additional storage item size of 32 bytes.
 	pub const DepositFactor: Balance = deposit(0, 32);
 }

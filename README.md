@@ -70,6 +70,8 @@ Build your executable:
     cargo build --release --features neumann-node
     # OR
     cargo build --release --features turing-node
+    # OR
+    cargo build --release --features oak-node
 ```
 
 Run your Local Network
