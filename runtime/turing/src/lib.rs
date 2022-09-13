@@ -654,6 +654,11 @@ pub struct FeeInformation {
 	currency_id: CurrencyId,
 	fee_per_second: u128,
 }
+impl Default for FeeInformation {
+	fn default() -> FeeInformation {
+		FeeInformation { currency_id: CurrencyId::Native, fee_per_second: 1 }
+	}
+}
 pub enum ExtraFeeName {
 	CrossChainFee,
 	NoExtraFee,
@@ -669,17 +674,16 @@ impl NameGetter<Call> for FeeNameGetter {
 		) = c.clone()
 		{
 			if let Call::System(frame_system::Call::remark_with_event { .. }) = *call {
-				let xcm_data =
-					XcmpHandler::get_xcm_chain_data(1999, CurrencyId::Native).expect("missing");
+				let xcm_data = XcmpHandler::get_xcm_chain_data(1999, CurrencyId::Native);
 				FeeInformation {
 					currency_id: CurrencyId::Native,
 					fee_per_second: xcm_data.fee_per_second,
 				}
 			} else {
-				FeeInformation { currency_id: CurrencyId::Native, fee_per_second: 1 }
+				FeeInformation::default()
 			}
 		} else {
-			FeeInformation { currency_id: CurrencyId::Native, fee_per_second: 1 }
+			FeeInformation::default()
 		}
 	}
 }
