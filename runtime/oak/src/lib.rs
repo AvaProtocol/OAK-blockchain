@@ -1133,7 +1133,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
-		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>} = 62,
+		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Config<T>, Event<T>} = 62,
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
