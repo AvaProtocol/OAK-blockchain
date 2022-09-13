@@ -8,8 +8,8 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
+	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
+	XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
