@@ -8,8 +8,8 @@ use crate::chain_spec::{
 };
 use primitives::{AccountId, AuraId, Balance};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	DOLLAR, TOKEN_DECIMALS,
+	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
+	VestingConfig, XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -78,6 +78,13 @@ pub fn turing_development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 				],
+				vec![(
+					1999,
+					turing_runtime::CurrencyId::default(),
+					false,
+					419_000_000_000,
+					1_000_000_000,
+				)],
 			)
 		},
 		Vec::new(),
@@ -108,6 +115,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
+	xcmp_handler_data: Vec<(u32, turing_runtime::CurrencyId, bool, u128, u64)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
 		turing_runtime::MinCollatorStk::get(),
@@ -160,6 +168,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
+		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
 	}
 }
 
