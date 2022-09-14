@@ -22,9 +22,8 @@ const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "rococo-local";
 static STAGING_RELAY_CHAIN: &str = "rococo";
 static LIVE_RELAY_CHAIN: &str = "polkadot";
-const REGISTERED_PARA_ID: u32 = 2114;
+const REGISTERED_PARA_ID: u32 = 2090;
 const REGISTERED_STAGING_PARA_ID: u32 = 4103;
-const REGISTERED_LIVE_PARA_ID: u32 = 2090;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -250,7 +249,7 @@ pub fn oak_live() -> ChainSpec {
 				// 66MGxr9zcyJ6ka6FBQmT1VSvMqARKfwBT7589Fikii1Ci5sg
 				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
-				REGISTERED_LIVE_PARA_ID.into(),
+				REGISTERED_PARA_ID.into(),
 				vec![
 					b"AutomationTime".to_vec(),
 					b"Balances".to_vec(),
@@ -293,7 +292,7 @@ pub fn oak_live() -> ChainSpec {
 		// Extensions
 		Extensions {
 			relay_chain: LIVE_RELAY_CHAIN.into(), // You MUST set this to the correct network!
-			para_id: REGISTERED_LIVE_PARA_ID,
+			para_id: REGISTERED_PARA_ID,
 		},
 	)
 }
