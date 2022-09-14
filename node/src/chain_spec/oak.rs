@@ -198,7 +198,7 @@ pub fn oak_live() -> ChainSpec {
 
 	ChainSpec::from_genesis(
 		// Name
-		"OAK",
+		"OAK Network",
 		// ID
 		"oak",
 		ChainType::Live,
