@@ -5,7 +5,6 @@ pub mod assets {
 	use super::*;
 	use frame_support::{Blake2_128Concat, BoundedVec, Twox64Concat, WeakBoundedVec};
 	use orml_asset_registry::AssetMetadata;
-	use primitives::assets::ConversionRate;
 
 	pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
 
@@ -22,7 +21,6 @@ pub mod assets {
 		HKO,
 		SKSM,
 		PHA,
-		UNIT,
 	}
 
 	impl From<u32> for CurrencyId {
@@ -36,17 +34,12 @@ pub mod assets {
 				5 => CurrencyId::HKO,
 				6 => CurrencyId::SKSM,
 				7 => CurrencyId::PHA,
-				8 => CurrencyId::UNIT,
 				_ => CurrencyId::Native,
 			}
 		}
 	}
 
 	pub mod parachains {
-		pub mod testchain {
-			pub const ID: u32 = 1999;
-		}
-
 		pub mod heiko {
 			pub const ID: u32 = 2085;
 			pub const HKO_KEY: &[u8] = b"HKO";
@@ -75,22 +68,6 @@ pub mod assets {
 
 	pub fn millicent(decimals: u32) -> Balance {
 		cent(decimals) / 1_000
-	}
-
-	/// Based on the precedent set by other projects. This will need to be changed.
-	pub fn ksm_per_second() -> u128 {
-		cent(12) * 16
-	}
-
-	/// Assuming ~ $0.50 TUR price.
-	pub fn tur_per_second() -> u128 {
-		let ksm_decimals: u32 = 12;
-		let tur_decimals: u32 = 10;
-		let diff = ksm_decimals - tur_decimals;
-		let tur_equivalent = ksm_per_second() / 10_u128.pow(diff);
-
-		// Assuming KSM ~ $130.00.
-		tur_equivalent * 260
 	}
 
 	#[frame_support::storage_alias]
@@ -292,22 +269,6 @@ pub mod assets {
 						),
 					},
 				),
-				(
-					8,
-					AssetMetadataOf {
-						decimals: 12,
-						name: b"UNIT".to_vec(),
-						symbol: b"UNIT".to_vec(),
-						additional: CustomMetadata {
-							fee_per_second: Some(tur_per_second()),
-							conversion_rate: Some(ConversionRate { native: 1, foreign: 1 }),
-						},
-						existential_deposit: 10 * millicent(12),
-						location: Some(
-							MultiLocation::new(1, X1(Parachain(parachains::testchain::ID))).into(),
-						),
-					},
-				),
 			];
 
 			// Insert assets
@@ -373,20 +334,20 @@ pub mod assets {
 			// Assert Metadata length
 			let asset_metadata_count =
 				orml_asset_registry::Metadata::<Runtime>::iter().collect::<Vec<_>>().len();
-			assert_eq!(asset_metadata_count, 9);
+			assert_eq!(asset_metadata_count, 8);
 
 			// Assert LocationToAssetId length
 			let location_to_asset_id_count =
 				orml_asset_registry::LocationToAssetId::<Runtime>::iter()
 					.collect::<Vec<_>>()
 					.len();
-			assert_eq!(location_to_asset_id_count, 9);
+			assert_eq!(location_to_asset_id_count, 8);
 
 			// Assert last asset id (zero index)
 			if let Some(last_asset_id) = LastAssetId::<Runtime>::get() {
-				assert_eq!(last_asset_id, 8);
+				assert_eq!(last_asset_id, 7);
 			} else {
-				return Err("post_upgrade check - LastAssetId should equal 8".into())
+				return Err("post_upgrade check - LastAssetId should equal 7".into())
 			}
 
 			Ok(())
