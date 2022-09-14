@@ -204,8 +204,7 @@ pub fn oak_live() -> ChainSpec {
 		"oak",
 		ChainType::Live,
 		move || {
-			let allocation_json =
-				&include_bytes!("../../../distribution/oak_alloc.json")[..];
+			let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
 			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
@@ -252,7 +251,17 @@ pub fn oak_live() -> ChainSpec {
 				hex!["08df8338e854d8d589dedd4305c11e589cbef994e5dd00c7bb8fb7d277705b06"].into(),
 				initial_allocation,
 				REGISTERED_LIVE_PARA_ID.into(),
-				vec![],
+				vec![
+					b"AutomationTime".to_vec(),
+					b"Balances".to_vec(),
+					b"Bounties".to_vec(),
+					b"Currencies".to_vec(),
+					b"Democracy".to_vec(),
+					b"ParachainStaking".to_vec(),
+					b"PolkadotXcm".to_vec(),
+					b"Treasury".to_vec(),
+					b"XTokens".to_vec(),
+				],
 				initial_vesting,
 				vec![
 					// 69pKU2QpgtMBT9NsaN1diyJQ8qcvrJy8KJk5aWeAXfMGjb5F
