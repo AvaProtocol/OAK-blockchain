@@ -286,6 +286,7 @@ pub fn oak_live() -> ChainSpec {
 					// 6871Utgdq5ycWnTzm7VEwQfg4zM81JqYv8EDzKPu3fdzsXK8
 					hex!["56766d3f856f2ca399ae575689a7340c2532351948f355c21bc06b170569da35"].into(),
 				],
+				vec![],
 			)
 		},
 		// Bootnodes
