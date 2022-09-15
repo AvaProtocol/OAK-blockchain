@@ -1311,13 +1311,10 @@ pub mod pallet {
 			if let Some(e) = dispatch_error {
 				remove_on_err(task, e);
 			} else {
+				let owner_id = task.owner_id.clone();
 				match Self::reschedule_existing_task(task_id, task) {
-					Ok(task) => {
-						Self::deposit_event(Event::<T>::TaskRescheduled {
-							who: task.owner_id.clone(),
-							task_id,
-						});
-						AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+					Ok(_) => {
+						Self::deposit_event(Event::<T>::TaskRescheduled { who: owner_id, task_id });
 					},
 					Err(e) => {
 						remove_on_err(task, e);
@@ -1326,10 +1323,7 @@ pub mod pallet {
 			}
 		}
 
-		fn reschedule_existing_task(
-			task_id: TaskId<T>,
-			task: &mut TaskOf<T>,
-		) -> Result<&TaskOf<T>, DispatchError> {
+		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
 			match task.schedule {
 				Schedule::Recurring { ref mut next_execution_time, frequency } => {
 					let new_execution_time = next_execution_time
@@ -1343,14 +1337,14 @@ pub mod pallet {
 							.map_err(|e| e.into())
 					})?;
 
-					Self::deposit_event(Event::<T>::TaskScheduled {
-						who: task.owner_id.clone(),
-						task_id,
-					});
-					Ok(task)
+					let owner_id = task.owner_id.clone();
+					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
+
+					Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 				},
 				Schedule::Fixed { .. } => {},
 			}
+			Ok(())
 		}
 
 		fn handle_task_post_processing(
