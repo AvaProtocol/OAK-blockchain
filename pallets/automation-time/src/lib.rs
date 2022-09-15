@@ -234,8 +234,6 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// The call can no longer be decoded.
 		CallCannotBeDecoded,
-		/// Unsupported by pallet
-		UnsupportedOperation,
 	}
 
 	#[pallet::event]
@@ -1339,6 +1337,7 @@ pub mod pallet {
 						.ok_or(Error::<T>::InvalidTime)?;
 					*next_execution_time = new_execution_time;
 
+					// TODO: should execution fee depend on whether task is recurring?
 					T::FeeHandler::pay_checked_fees_for(&task.owner_id, &task.action, 1, || {
 						Self::insert_scheduled_tasks(task_id, task, vec![new_execution_time])
 							.map_err(|e| e.into())
@@ -1350,7 +1349,7 @@ pub mod pallet {
 					});
 					Ok(task)
 				},
-				Schedule::Fixed { .. } => Err(Error::<T>::UnsupportedOperation)?,
+				Schedule::Fixed { .. } => {},
 			}
 		}
 
