@@ -234,6 +234,8 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// The call can no longer be decoded.
 		CallCannotBeDecoded,
+		/// Unsupported by pallet
+		UnsupportedOperation,
 	}
 
 	#[pallet::event]
@@ -244,7 +246,7 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
-		// Cancelled a task.
+		/// Cancelled a task.
 		TaskCancelled {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
@@ -303,6 +305,15 @@ pub mod pallet {
 		CallCannotBeDecoded {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
+		},
+		TaskRescheduled {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+		},
+		TaskNotRescheduled {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			error: DispatchError,
 		},
 	}
 
@@ -893,7 +904,12 @@ pub mod pallet {
 									*task_id,
 								),
 						};
-						Self::decrement_task_and_remove_if_complete(*task_id, task);
+						match task.schedule {
+							Schedule::Fixed { .. } =>
+								Self::decrement_task_and_remove_if_complete(*task_id, task),
+							Schedule::Recurring { .. } =>
+								Self::reschedule_or_remove_task(*task_id, &mut task),
+						}
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
@@ -1281,26 +1297,50 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Reschedules an existing task for a given number of execution times
+		fn reschedule_or_remove_task(task_id: TaskId<T>, task: &mut TaskOf<T>) {
+			match Self::reschedule_existing_task(task_id, task) {
+				Ok(task) => {
+					Self::deposit_event(Event::<T>::TaskRescheduled {
+						who: task.owner_id.clone(),
+						task_id,
+					});
+					AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+				},
+				Err(err) => {
+					Self::deposit_event(Event::<T>::TaskNotRescheduled {
+						who: task.owner_id.clone(),
+						task_id,
+						error: err,
+					});
+					AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+				},
+			}
+		}
+
 		fn reschedule_existing_task(
 			task_id: TaskId<T>,
-			task: &TaskOf<T>,
-			execution_times: Vec<UnixTime>,
-		) -> Result<(), DispatchError> {
-			let new_executions = execution_times.len().try_into().unwrap();
+			task: &mut TaskOf<T>,
+		) -> Result<&TaskOf<T>, DispatchError> {
+			match task.schedule {
+				Schedule::Recurring { ref mut next_execution_time, frequency } => {
+					let new_execution_time = next_execution_time
+						.checked_add(frequency)
+						.ok_or(Error::<T>::InvalidTime)?;
+					*next_execution_time = new_execution_time;
 
-			T::FeeHandler::pay_checked_fees_for(
-				&task.owner_id,
-				&task.action,
-				new_executions,
-				|| {
-					Self::insert_scheduled_tasks(task_id, task, execution_times.clone())
-						.map_err(|e| e.into())
+					T::FeeHandler::pay_checked_fees_for(&task.owner_id, &task.action, 1, || {
+						Self::insert_scheduled_tasks(task_id, task, vec![new_execution_time])
+							.map_err(|e| e.into())
+					})?;
+
+					Self::deposit_event(Event::<T>::TaskScheduled {
+						who: task.owner_id.clone(),
+						task_id,
+					});
+					Ok(task)
 				},
-			)?;
-
-			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
-			Ok(())
+				Schedule::Fixed { .. } => Err(Error::<T>::UnsupportedOperation)?,
+			}
 		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskId<T> {
