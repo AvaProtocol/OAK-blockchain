@@ -357,7 +357,7 @@ pub mod pallet {
 				Action::Notify { message },
 				who,
 				provided_id,
-				execution_times,
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?,
 			)?;
 			Ok(().into())
 		}
@@ -405,7 +405,9 @@ pub mod pallet {
 			}
 			let action =
 				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -443,8 +445,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -476,21 +480,14 @@ pub mod pallet {
 			let provided_id: Vec<u8> =
 				Self::generate_auto_compound_delegated_stake_provided_id(&who, &collator_id);
 
-			// Validate frequency by ensuring that the next proposed execution is at a valid time
-			let next_execution =
-				execution_time.checked_add(frequency).ok_or(Error::<T>::TimeTooFarOut)?;
-			Self::is_valid_time(next_execution)?;
-			if next_execution == execution_time {
-				Err(Error::<T>::InvalidTime)?;
-			}
-
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,
 				account_minimum,
-				frequency,
 			};
-			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_recurring_schedule(execution_time, frequency);
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -519,8 +516,10 @@ pub mod pallet {
 
 			let encoded_call = call.encode();
 			let action = Action::DynamicDispatch { encoded_call };
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -595,7 +594,7 @@ pub mod pallet {
 		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
+		pub fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
 			#[cfg(feature = "dev-queue")]
 			if scheduled_time == 0 {
 				return Ok(())
@@ -623,7 +622,7 @@ pub mod pallet {
 		}
 
 		/// Cleans the executions times by removing duplicates and putting in ascending order.
-		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
+		pub fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
 			execution_times.sort_unstable();
 			execution_times.dedup();
 		}
@@ -875,14 +874,12 @@ pub mod pallet {
 								delegator,
 								collator,
 								account_minimum,
-								frequency,
 							} => {
 								let (mut_task, weight) =
 									Self::run_auto_compound_delegated_stake_task(
 										delegator,
 										collator,
 										account_minimum,
-										frequency,
 										*task_id,
 										task,
 									);
@@ -1019,7 +1016,6 @@ pub mod pallet {
 			delegator: AccountOf<T>,
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
 			task_id: TaskId<T>,
 			mut task: TaskOf<T>,
 		) -> (TaskOf<T>, Weight) {
@@ -1220,10 +1216,13 @@ pub mod pallet {
 		pub fn schedule_task(
 			task: &TaskOf<T>,
 			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
 		) -> Result<TaskId<T>, Error<T>> {
 			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
+			let execution_times = match &task.schedule {
+				Schedule::Fixed { execution_times } => execution_times.to_vec(),
+				Schedule::Recurring { next_execution_time, .. } => vec![*next_execution_time],
+			};
 
 			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
 				Err(Error::<T>::DuplicateTask)?;
@@ -1271,37 +1270,23 @@ pub mod pallet {
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
-			mut execution_times: Vec<UnixTime>,
+			schedule: Schedule<T::MaxExecutionTimes>,
 		) -> Result<(), DispatchError> {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			Self::clean_execution_times_vector(&mut execution_times);
-			let max_allowed_executions: usize = T::MaxExecutionTimes::get().try_into().unwrap();
-			if execution_times.len() > max_allowed_executions {
-				Err(Error::<T>::TooManyExecutionsTimes)?;
-			}
-			for time in execution_times.iter() {
-				Self::is_valid_time(*time)?;
-			}
+			schedule.valid::<T>()?;
+			let executions = schedule.number_of_known_executions();
 
-			let task = TaskOf::<T>::new(
-				owner_id.clone(),
-				provided_id.clone(),
-				execution_times.clone().try_into().unwrap(),
-				action.clone(),
-			);
-			let task_id = T::FeeHandler::pay_checked_fees_for(
-				&owner_id,
-				&action,
-				execution_times.len().try_into().unwrap(),
-				|| {
-					let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
+			let task =
+				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());
+			let task_id =
+				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
+					let task_id = Self::schedule_task(&task, provided_id)?;
 					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
 					Ok(task_id)
-				},
-			)?;
+				})?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())

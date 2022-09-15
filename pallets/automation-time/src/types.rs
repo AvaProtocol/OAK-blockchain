@@ -1,4 +1,4 @@
-use crate::{weights::WeightInfo, Config, Error};
+use crate::{weights::WeightInfo, Config, Error, Pallet};
 
 use frame_support::{pallet_prelude::*, traits::Get, weights::GetDispatchInfo};
 
@@ -33,7 +33,6 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		delegator: AccountId,
 		collator: AccountId,
 		account_minimum: Balance,
-		frequency: Seconds,
 	},
 	DynamicDispatch {
 		encoded_call: Vec<u8>,
@@ -83,7 +82,6 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				delegator: default_account.clone(),
 				collator: default_account,
 				account_minimum: 0u32.into(),
-				frequency: 0,
 			},
 		}
 	}
@@ -93,7 +91,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub enum Schedule<MaxExecutionTimes: Get<u32>> {
 	Fixed { execution_times: BoundedVec<UnixTime, MaxExecutionTimes> },
-	Recurring { frequency: Seconds },
+	Recurring { next_execution_time: UnixTime, frequency: Seconds },
 }
 
 impl<B: Get<u32>> PartialEq for Schedule<B> {
@@ -101,8 +99,50 @@ impl<B: Get<u32>> PartialEq for Schedule<B> {
 		match (self, other) {
 			(Schedule::Fixed { execution_times: a }, Schedule::Fixed { execution_times: b }) =>
 				a.to_vec() == b.to_vec(),
-			(Schedule::Recurring { frequency: a }, Schedule::Recurring { frequency: b }) => a == b,
+			(Schedule::Recurring { .. }, Schedule::Recurring { .. }) => self == other,
 			_ => false,
+		}
+	}
+}
+
+impl<MaxExecutionTimes: Get<u32>> Schedule<MaxExecutionTimes> {
+	pub fn new_fixed_schedule<T: Config>(execution_times: Vec<UnixTime>) -> Result<Self, Error<T>> {
+		let mut execution_times = execution_times.clone();
+		Pallet::<T>::clean_execution_times_vector(&mut execution_times);
+		let execution_times: BoundedVec<UnixTime, MaxExecutionTimes> =
+			execution_times.try_into().map_err(|_| Error::<T>::TooManyExecutionsTimes)?;
+		Ok(Self::Fixed { execution_times })
+	}
+
+	pub fn new_recurring_schedule(next_execution_time: UnixTime, frequency: Seconds) -> Self {
+		Self::Recurring { next_execution_time, frequency }
+	}
+
+	pub fn valid<T: Config>(&self) -> Result<(), DispatchError> {
+		match self {
+			Self::Fixed { execution_times } =>
+				for time in execution_times.iter() {
+					Pallet::<T>::is_valid_time(*time)?;
+				},
+			Self::Recurring { next_execution_time, frequency } => {
+				Pallet::<T>::is_valid_time(*next_execution_time)?;
+				// Validate frequency by ensuring that the next proposed execution is at a valid time
+				let next_recurrence =
+					next_execution_time.checked_add(*frequency).ok_or(Error::<T>::TimeTooFarOut)?;
+				if *next_execution_time == next_recurrence {
+					Err(Error::<T>::InvalidTime)?;
+				}
+				Pallet::<T>::is_valid_time(next_recurrence)?;
+			},
+		}
+		Ok(())
+	}
+
+	pub fn number_of_known_executions(&self) -> u32 {
+		match self {
+			Self::Fixed { execution_times } =>
+				execution_times.len().try_into().expect("MaxExecutionTimes is bounded by u32"),
+			Self::Recurring { .. } => 1,
 		}
 	}
 }
@@ -141,11 +181,14 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 	pub fn new(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+		schedule: Schedule<MaxExecutionTimes>,
 		action: Action<AccountId, Balance, CurrencyId>,
 	) -> Self {
-		let executions_left: u32 = execution_times.len().try_into().unwrap();
-		let schedule = Schedule::<MaxExecutionTimes>::Fixed { execution_times };
+		// TODO: executions_left
+		let executions_left: u32 = match schedule {
+			Schedule::Fixed { ref execution_times } => execution_times.len().try_into().unwrap(),
+			Schedule::Recurring { .. } => 1,
+		};
 		Self { owner_id, provided_id, schedule, executions_left, action }
 	}
 
@@ -156,7 +199,8 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		message: Vec<u8>,
 	) -> Self {
 		let action = Action::Notify { message };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::Fixed { execution_times };
+		Self::new(owner_id, provided_id, schedule, action)
 	}
 
 	pub fn create_native_transfer_task(
@@ -168,7 +212,8 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 	) -> Self {
 		let action =
 			Action::NativeTransfer { sender: owner_id.clone(), recipient: recipient_id, amount };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::Fixed { execution_times };
+		Self::new(owner_id, provided_id, schedule, action)
 	}
 
 	pub fn create_xcmp_task(
@@ -181,13 +226,14 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		encoded_call_weight: Weight,
 	) -> Self {
 		let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::Fixed { execution_times };
+		Self::new(owner_id, provided_id, schedule, action)
 	}
 
 	pub fn create_auto_compound_delegated_stake_task(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_time: UnixTime,
+		next_execution_time: UnixTime,
 		frequency: Seconds,
 		collator_id: AccountId,
 		account_minimum: Balance,
@@ -196,9 +242,9 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 			delegator: owner_id.clone(),
 			collator: collator_id,
 			account_minimum,
-			frequency,
 		};
-		Self::new(owner_id, provided_id, vec![execution_time].try_into().unwrap(), action)
+		let schedule = Schedule::<MaxExecutionTimes>::Recurring { next_execution_time, frequency };
+		Self::new(owner_id, provided_id, schedule, action)
 	}
 
 	pub fn execution_times(&self) -> Option<&BoundedVec<UnixTime, MaxExecutionTimes>> {

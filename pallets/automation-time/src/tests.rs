@@ -1368,7 +1368,6 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency: 3600,
 			},
 		);
 
@@ -1411,15 +1410,15 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		let account_minimum = before_balance / 2;
 		let frequency = 3_600;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency,
 			},
 		);
 
@@ -1478,7 +1477,6 @@ fn auto_compound_delegated_stake_without_minimum_balance() {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency: 3600,
 			},
 		);
 
@@ -1509,15 +1507,15 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 		let account_minimum = before_balance * 2;
 		let frequency = 3_600;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency,
 			},
 		);
 
