@@ -258,7 +258,7 @@ fn schedule_xcmp_works() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			PARA_ID.try_into().unwrap(),
-			CurrencyId::Native,
+			NATIVE,
 			call.clone(),
 			100_000,
 		));
@@ -279,7 +279,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				vec![50],
 				vec![SCHEDULED_TIME],
 				PARA_ID.try_into().unwrap(),
-				CurrencyId::Native,
+				NATIVE,
 				call.clone(),
 				100_000,
 			),
@@ -1335,7 +1335,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				para_id,
-				currency_id: CurrencyId::Native,
+				currency_id: NATIVE,
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: 100_000,
 			},
