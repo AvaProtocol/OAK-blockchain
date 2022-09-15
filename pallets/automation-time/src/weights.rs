@@ -229,8 +229,8 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
 		(102_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
+			.saturating_add(T::DbWeight::get().reads(8 as Weight))
+			.saturating_add(T::DbWeight::get().writes(3 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
