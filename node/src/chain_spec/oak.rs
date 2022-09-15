@@ -15,7 +15,7 @@ use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, XcmpHandlerConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
 };
-use primitives::{AccountId, AuraId, Balance};
+use primitives::{AccountId, AuraId, Balance, TokenId};
 
 const TOKEN_SYMBOL: &str = "OAK";
 const SS_58_FORMAT: u32 = 51;
@@ -83,13 +83,7 @@ pub fn oak_development_config() -> ChainSpec {
 				vec![],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![(
-					1999,
-					oak_runtime::CurrencyId::default(),
-					false,
-					419_000_000_000,
-					1_000_000_000,
-				)],
+				vec![(1999, oak_runtime::NATIVE_TOKEN_ID, false, 419_000_000_000, 1_000_000_000)],
 			)
 		},
 		Vec::new(),
@@ -205,7 +199,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, oak_runtime::CurrencyId, bool, u128, u64)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
 ) -> oak_runtime::GenesisConfig {
 	let candidate_stake =
 		std::cmp::max(oak_runtime::MinCollatorStk::get(), oak_runtime::MinCandidateStk::get());
@@ -258,5 +252,6 @@ fn testnet_genesis(
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
+		asset_registry: Default::default(),
 	}
 }

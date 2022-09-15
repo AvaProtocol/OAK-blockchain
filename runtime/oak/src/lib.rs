@@ -25,9 +25,7 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
-use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
+use primitives::{assets::CustomMetadata, TokenId};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
@@ -52,8 +50,8 @@ use sp_version::RuntimeVersion;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, Imbalance,
-		InstanceFilter, OnUnbalanced, PrivilegeCmp,
+		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
+		EnsureOriginWithArg, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -83,13 +81,11 @@ use polkadot_runtime_common::BlockHashCount;
 // XCM configurations.
 pub mod xcm_config;
 
-// ORML imports
-use orml_traits::parameter_type_with_key;
+pub mod weights;
 
 // Common imports
 use primitives::{
-	tokens::TokenInfo, AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header,
-	Index, Signature,
+	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
 };
 
 // Custom pallet imports
@@ -165,6 +161,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	transaction_version: 12,
 	state_version: 0,
 };
+
+pub const NATIVE_TOKEN_ID: TokenId = 0;
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
@@ -470,65 +468,6 @@ parameter_types! {
 	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
 }
 
-parameter_type_with_key! {
-	pub ExistentialDeposits: |currency_id: CurrencyId| -> Balance {
-		match currency_id {
-			CurrencyId::Native => EXISTENTIAL_DEPOSIT,
-			CurrencyId::UNIT => 10 * CurrencyId::UNIT.millicent(),
-			CurrencyId::DOT => 100 * CurrencyId::DOT.cent(),
-		}
-	};
-}
-
-// Can only append.
-// DO NOT CHANGE THE ORDER.
-#[derive(
-	Encode,
-	Decode,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	RuntimeDebug,
-	PartialOrd,
-	Ord,
-	TypeInfo,
-	MaxEncodedLen,
-)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum CurrencyId {
-	Native,
-	UNIT,
-	DOT,
-}
-
-impl From<u32> for CurrencyId {
-	fn from(a: u32) -> Self {
-		match a {
-			0 => CurrencyId::Native,
-			1 => CurrencyId::UNIT,
-			2 => CurrencyId::DOT,
-			_ => CurrencyId::Native,
-		}
-	}
-}
-
-impl TokenInfo for CurrencyId {
-	fn get_decimals(&self) -> u32 {
-		match self {
-			CurrencyId::Native => 10,
-			CurrencyId::UNIT => 12,
-			CurrencyId::DOT => 10,
-		}
-	}
-}
-
-impl Default for CurrencyId {
-	fn default() -> Self {
-		Self::Native
-	}
-}
-
 pub struct DustRemovalWhitelist;
 impl Contains<AccountId> for DustRemovalWhitelist {
 	fn contains(a: &AccountId) -> bool {
@@ -540,9 +479,9 @@ impl orml_tokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
 	type Amount = Amount;
-	type CurrencyId = CurrencyId;
+	type CurrencyId = TokenId;
 	type WeightInfo = ();
-	type ExistentialDeposits = ExistentialDeposits;
+	type ExistentialDeposits = orml_asset_registry::ExistentialDeposits<Runtime>;
 	type OnDust = orml_tokens::TransferDust<Runtime, TreasuryAccount>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
@@ -553,7 +492,7 @@ impl orml_tokens::Config for Runtime {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const GetNativeCurrencyId: TokenId = NATIVE_TOKEN_ID;
 }
 
 impl orml_currencies::Config for Runtime {
@@ -562,6 +501,30 @@ impl orml_currencies::Config for Runtime {
 		orml_currencies::BasicCurrencyAdapter<Runtime, Balances, Amount, BlockNumber>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type WeightInfo = ();
+}
+
+pub struct AssetAuthority;
+impl EnsureOriginWithArg<Origin, Option<u32>> for AssetAuthority {
+	type Success = ();
+
+	fn try_origin(origin: Origin, _asset_id: &Option<u32>) -> Result<Self::Success, Origin> {
+		EnsureRoot::try_origin(origin)
+	}
+
+	#[cfg(feature = "runtime-benchmarks")]
+	fn successful_origin(_asset_id: &Option<u32>) -> Origin {
+		EnsureRoot::successful_origin()
+	}
+}
+
+impl orml_asset_registry::Config for Runtime {
+	type Event = Event;
+	type CustomMetadata = CustomMetadata;
+	type AssetId = TokenId;
+	type AuthorityOrigin = AssetAuthority;
+	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
+	type Balance = Balance;
+	type WeightInfo = weights::asset_registry_weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1015,7 +978,7 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
-	type CurrencyId = CurrencyId;
+	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
@@ -1040,6 +1003,7 @@ pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
 		match c {
+			Call::AssetRegistry(_) => false,
 			Call::AutomationTime(_) => false,
 			Call::Balances(_) => false,
 			Call::Bounties(_) => false,
@@ -1096,6 +1060,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>} = 11,
 		Currencies: orml_currencies::{Pallet, Call} = 12,
 		TransactionPayment: pallet_transaction_payment::{Pallet, Storage, Event<T>} = 13,
+		AssetRegistry: orml_asset_registry::{Pallet, Call, Storage, Event<T>, Config<T>} = 14,
 
 		// Collator support. The order of these 4 are important and shall not change.
 		Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -1265,7 +1230,7 @@ impl_runtime_apis! {
 
 				let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
 					u32::from(para_id),
-					CurrencyId::from(currency_id),
+					currency_id,
 					encoded_call_weight,
 				).map_err(|e| {
 					match e {

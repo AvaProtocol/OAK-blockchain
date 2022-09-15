@@ -6,7 +6,7 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
 	Extensions,
 };
-use primitives::{AccountId, AuraId, Balance};
+use primitives::{AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
 	XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
@@ -80,7 +80,7 @@ pub fn turing_development_config() -> ChainSpec {
 				],
 				vec![(
 					1999,
-					turing_runtime::CurrencyId::default(),
+					turing_runtime::NATIVE_TOKEN_ID,
 					false,
 					419_000_000_000,
 					1_000_000_000,
@@ -115,7 +115,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, turing_runtime::CurrencyId, bool, u128, u64)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
 		turing_runtime::MinCollatorStk::get(),
@@ -169,6 +169,7 @@ fn testnet_genesis(
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
+		asset_registry: Default::default(),
 	}
 }
 
