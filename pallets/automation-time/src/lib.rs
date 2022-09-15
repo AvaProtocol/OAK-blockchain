@@ -885,18 +885,13 @@ pub mod pallet {
 								delegator,
 								collator,
 								account_minimum,
-							} => {
-								let (mut_task, weight) =
-									Self::run_auto_compound_delegated_stake_task(
-										delegator,
-										collator,
-										account_minimum,
-										*task_id,
-										task,
-									);
-								task = mut_task;
-								weight
-							},
+							} => Self::run_auto_compound_delegated_stake_task(
+								delegator,
+								collator,
+								account_minimum,
+								*task_id,
+								&task,
+							),
 							Action::DynamicDispatch { encoded_call } =>
 								Self::run_dynamic_dispatch_action(
 									task.owner_id.clone(),
@@ -1033,8 +1028,8 @@ pub mod pallet {
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
 			task_id: TaskId<T>,
-			mut task: TaskOf<T>,
-		) -> (TaskOf<T>, Weight) {
+			task: &TaskOf<T>,
+		) -> Weight {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum
 				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
@@ -1054,17 +1049,10 @@ pub mod pallet {
 						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
 						error: e,
 					});
-					return (
-						task,
-						// TODO: benchmark and return a smaller weight here to account for the early exit
-						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					)
 				},
 			}
 
-			// TODO: Task must be rescheduled in new paradigm
-
-			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
+			<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task()
 		}
 
 		/// Attempt to decode and run the call.
