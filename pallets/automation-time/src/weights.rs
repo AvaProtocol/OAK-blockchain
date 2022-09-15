@@ -57,7 +57,7 @@
 //:force_cancel_scheduled_task_full 809_933_000
 //:run_notify_task 8_851_000
 //:run_native_transfer_task 33_995_000
-//:run_xcmp_task 40_350_000
+//:run_xcmp_task 102_000_000
 //:run_auto_compound_delegated_stake_task 105_359_000
 //:run_dynamic_dispatch_action 17_152_000
 //:run_dynamic_dispatch_action_fail_decode 8_984_000
@@ -224,9 +224,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
 	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
+	// Storage: System Account (r:2 w:2)
+	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(40_350_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
+		(102_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
@@ -454,9 +458,13 @@ impl WeightInfo for () {
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
 	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
+	// Storage: System Account (r:2 w:2)
+	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(40_350_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
+		(102_000_000 as Weight)
+			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
+			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
