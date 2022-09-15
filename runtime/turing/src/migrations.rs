@@ -70,6 +70,21 @@ pub mod assets {
 		cent(decimals) / 1_000
 	}
 
+	/// Based on the precedent set by other projects. This will need to be changed.
+	pub fn ksm_per_second() -> u128 {
+		cent(12) * 16
+	}
+
+	/// Assuming ~ $0.50 TUR price.
+	pub fn tur_per_second() -> u128 {
+		let ksm_decimals: u32 = 12;
+		let tur_decimals: u32 = 10;
+		let diff = ksm_decimals - tur_decimals;
+		let tur_equivalent = ksm_per_second() / 10_u128.pow(diff);
+		// Assuming KSM ~ $130.00.
+		tur_equivalent * 260
+	}
+
 	#[frame_support::storage_alias]
 	type TotalIssuance = StorageMap<Tokens, Twox64Concat, CurrencyId, Balance>;
 
@@ -125,7 +140,10 @@ pub mod assets {
 						decimals: 10,
 						name: b"Native".to_vec(),
 						symbol: b"TUR".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(tur_per_second()),
+							conversion_rate: None,
+						},
 						existential_deposit: EXISTENTIAL_DEPOSIT,
 						location: Some(MultiLocation::new(0, Here).into()),
 					},
@@ -136,7 +154,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"Kusama".to_vec(),
 						symbol: b"KSM".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second()),
+							conversion_rate: None,
+						},
 						existential_deposit: 10 * millicent(12),
 						location: Some(MultiLocation::parent().into()),
 					},
@@ -147,7 +168,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"AUSD".to_vec(),
 						symbol: b"AUSD".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second() * 400),
+							conversion_rate: None,
+						},
 						existential_deposit: cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -170,7 +194,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"Karura".to_vec(),
 						symbol: b"KAR".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second() * 50),
+							conversion_rate: None,
+						},
 						existential_deposit: 10 * cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -193,7 +220,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"Liquid KSM".to_vec(),
 						symbol: b"LKSM".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second() * 10),
+							conversion_rate: None,
+						},
 						existential_deposit: 50 * millicent(12),
 						location: Some(
 							MultiLocation::new(
@@ -216,7 +246,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"Heiko".to_vec(),
 						symbol: b"HKO".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second() * 30),
+							conversion_rate: None,
+						},
 						existential_deposit: 50 * cent(12),
 						location: Some(
 							MultiLocation::new(
@@ -239,7 +272,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"SKSM".to_vec(),
 						symbol: b"SKSM".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second()),
+							conversion_rate: None,
+						},
 						existential_deposit: 50 * millicent(12),
 						location: Some(
 							MultiLocation::new(
@@ -262,7 +298,10 @@ pub mod assets {
 						decimals: 12,
 						name: b"Phala".to_vec(),
 						symbol: b"PHA".to_vec(),
-						additional: Default::default(),
+						additional: CustomMetadata {
+							fee_per_second: Some(ksm_per_second() * 400),
+							conversion_rate: None,
+						},
 						existential_deposit: cent(12),
 						location: Some(
 							MultiLocation::new(1, X1(Parachain(parachains::khala::ID))).into(),
