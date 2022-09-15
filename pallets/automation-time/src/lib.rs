@@ -899,12 +899,7 @@ pub mod pallet {
 									*task_id,
 								),
 						};
-						match task.schedule {
-							Schedule::Fixed { .. } =>
-								Self::decrement_task_and_remove_if_complete(*task_id, task),
-							Schedule::Recurring { .. } =>
-								Self::reschedule_or_remove_task(*task_id, &mut task, dispatch_error),
-						}
+						Self::handle_task_post_processing(*task_id, &mut task, dispatch_error);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
@@ -946,14 +941,13 @@ pub mod pallet {
 							});
 							<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 						},
-						Some(task) => {
+						Some(mut task) => {
 							Self::deposit_event(Event::TaskMissed {
 								who: task.owner_id.clone(),
 								task_id: missed_task.task_id.clone(),
 								execution_time: missed_task.execution_time,
 							});
-							// TODO: need to handle recurring tasks here?
-							Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
+							Self::handle_task_post_processing(missed_task.task_id, &mut task, None);
 							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 						},
 					};
@@ -1114,7 +1108,7 @@ pub mod pallet {
 		/// Decrements task executions left.
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
-		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: TaskOf<T>) {
+		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, task: &mut TaskOf<T>) {
 			match task.schedule {
 				Schedule::Fixed { ref mut executions_left, .. } => {
 					*executions_left = executions_left.saturating_sub(1);
@@ -1357,6 +1351,18 @@ pub mod pallet {
 					Ok(task)
 				},
 				Schedule::Fixed { .. } => Err(Error::<T>::UnsupportedOperation)?,
+			}
+		}
+
+		fn handle_task_post_processing(
+			task_id: TaskId<T>,
+			task: &mut TaskOf<T>,
+			error: Option<DispatchError>,
+		) {
+			match task.schedule {
+				Schedule::Fixed { .. } =>
+					Self::decrement_task_and_remove_if_complete(task_id, task),
+				Schedule::Recurring { .. } => Self::reschedule_or_remove_task(task_id, task, error),
 			}
 		}
 
