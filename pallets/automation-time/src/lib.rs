@@ -1050,27 +1050,7 @@ pub mod pallet {
 				},
 			}
 
-			let new_execution_times: Vec<UnixTime> =
-				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-			let _ = Self::reschedule_existing_task(task_id, &task, new_execution_times.clone())
-				.map(|_| {
-					let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-					task.executions_left += new_executions_left;
-					new_execution_times.iter().try_for_each(|t| {
-						task.execution_times.try_push(*t).and_then(|_| {
-							task.execution_times.remove(0);
-							Ok(())
-						})
-					})
-				})
-				.map_err(|e| {
-					let err: DispatchErrorWithPostInfo = e.into();
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-						task_id,
-						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-						error: err,
-					});
-				});
+			// TODO: Task must be rescheduled in new paradigm
 
 			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
 		}
@@ -1131,7 +1111,9 @@ pub mod pallet {
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
-			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
+			Self::clean_execution_times_vector(
+				&mut task.execution_times().expect("TODO: always Schedule::Fixed for now").to_vec(),
+			);
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
@@ -1139,7 +1121,12 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
-				for execution_time in task.execution_times.iter().rev() {
+				for execution_time in task
+					.execution_times()
+					.expect("TODO: always Schedule::Fixed for now")
+					.iter()
+					.rev()
+				{
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
 					if *execution_time < current_time_slot {
 						break
@@ -1187,7 +1174,12 @@ pub mod pallet {
 				}
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
-				for execution_time in task.execution_times.iter().rev() {
+				for execution_time in task
+					.execution_times()
+					.expect("TODO: always Schedule::Fixed for now")
+					.iter()
+					.rev()
+				{
 					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
 						Self::get_scheduled_tasks(*execution_time)
 					{

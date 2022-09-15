@@ -89,13 +89,31 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 	}
 }
 
+#[derive(Debug, Encode, Decode, TypeInfo)]
+#[scale_info(skip_type_params(MaxExecutionTimes))]
+pub enum Schedule<MaxExecutionTimes: Get<u32>> {
+	Fixed { execution_times: BoundedVec<UnixTime, MaxExecutionTimes> },
+	Recurring { frequency: Seconds },
+}
+
+impl<B: Get<u32>> PartialEq for Schedule<B> {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(Schedule::Fixed { execution_times: a }, Schedule::Fixed { execution_times: b }) =>
+				a.to_vec() == b.to_vec(),
+			(Schedule::Recurring { frequency: a }, Schedule::Recurring { frequency: b }) => a == b,
+			_ => false,
+		}
+	}
+}
+
 /// The struct that stores all information needed for a task.
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub struct Task<AccountId, Balance, CurrencyId, MaxExecutionTimes: Get<u32>> {
 	pub owner_id: AccountId,
 	pub provided_id: Vec<u8>,
-	pub execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+	pub schedule: Schedule<MaxExecutionTimes>,
 	pub executions_left: u32,
 	pub action: Action<AccountId, Balance, CurrencyId>,
 }
@@ -108,9 +126,7 @@ impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord, MaxExecutionTimes: Get<u32>>
 			self.provided_id == other.provided_id &&
 			self.action == other.action &&
 			self.executions_left == other.executions_left &&
-			self.execution_times.len() == other.execution_times.len() &&
-			self.execution_times.capacity() == other.execution_times.capacity() &&
-			self.execution_times.to_vec() == other.execution_times.to_vec()
+			self.schedule == other.schedule
 	}
 }
 
@@ -129,7 +145,8 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		action: Action<AccountId, Balance, CurrencyId>,
 	) -> Self {
 		let executions_left: u32 = execution_times.len().try_into().unwrap();
-		Self { owner_id, provided_id, execution_times, executions_left, action }
+		let schedule = Schedule::<MaxExecutionTimes>::Fixed { execution_times };
+		Self { owner_id, provided_id, schedule, executions_left, action }
 	}
 
 	pub fn create_event_task(
@@ -182,6 +199,13 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 			frequency,
 		};
 		Self::new(owner_id, provided_id, vec![execution_time].try_into().unwrap(), action)
+	}
+
+	pub fn execution_times(&self) -> Option<&BoundedVec<UnixTime, MaxExecutionTimes>> {
+		match &self.schedule {
+			Schedule::Fixed { execution_times } => Some(execution_times),
+			Schedule::Recurring { .. } => None,
+		}
 	}
 }
 
