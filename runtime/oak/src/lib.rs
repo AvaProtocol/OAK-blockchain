@@ -155,10 +155,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("oak"),
 	impl_name: create_runtime_str!("oak"),
 	authoring_version: 1,
-	spec_version: 286,
+	spec_version: 287,
 	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 12,
+	transaction_version: 13,
 	state_version: 0,
 };
 
