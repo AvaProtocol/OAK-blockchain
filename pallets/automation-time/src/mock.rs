@@ -38,10 +38,12 @@ type Block = system::mocking::MockBlock<Test>;
 
 pub type Balance = u128;
 pub type AccountId = AccountId32;
+pub type CurrencyId = u32;
 
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
 pub const PARA_ID: u32 = 2000;
+pub const NATIVE: CurrencyId = 0;
 
 construct_runtime!(
 	pub enum Test where
@@ -161,7 +163,7 @@ parameter_types! {
 	pub const ExecutionWeightFee: Balance = 12;
 	pub const MaxWeightPerSlot: u128 = 70_000_000;
 	pub const XmpFee: u128 = 1_000_000;
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -244,27 +246,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn migration_v4_0_slots() -> Weight {
 		0
 	}
-}
-
-#[derive(
-	Encode,
-	Decode,
-	Deserialize,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	RuntimeDebug,
-	PartialOrd,
-	Serialize,
-	Ord,
-	TypeInfo,
-	MaxEncodedLen,
-)]
-pub enum CurrencyId {
-	Native,
-	ROC,
-	UNIT,
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
