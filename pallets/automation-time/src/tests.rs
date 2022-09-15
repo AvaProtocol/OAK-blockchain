@@ -774,7 +774,7 @@ mod run_dynamic_dispatch_action {
 			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
 			let bad_encoded_call: Vec<u8> = vec![1];
 
-			let weight = AutomationTime::run_dynamic_dispatch_action(
+			let (weight, _) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				bad_encoded_call,
 				task_id,
