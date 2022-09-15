@@ -157,12 +157,13 @@ fn schedule_notify_works() {
 						panic!("A task should exist if it was scheduled")
 					},
 					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_event_task(
+						let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 							AccountId32::new(ALICE),
 							vec![50],
-							vec![SCHEDULED_TIME].try_into().unwrap(),
+							vec![SCHEDULED_TIME],
 							message,
-						);
+						)
+						.unwrap();
 
 						assert_eq!(task, expected_task);
 					},
@@ -227,13 +228,14 @@ fn schedule_native_transfer_works() {
 						panic!("A task should exist if it was scheduled")
 					},
 					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_native_transfer_task(
+						let expected_task = TaskOf::<Test>::create_native_transfer_task::<Test>(
 							AccountId32::new(ALICE),
 							vec![50],
-							vec![SCHEDULED_TIME].try_into().unwrap(),
+							vec![SCHEDULED_TIME],
 							AccountId32::new(BOB),
 							1,
-						);
+						)
+						.unwrap();
 
 						assert_eq!(task, expected_task);
 					},
@@ -304,14 +306,15 @@ fn schedule_auto_compound_delegated_stake() {
 			.clone();
 		assert_eq!(
 			AutomationTime::get_account_task(account_task_id.0.clone(), account_task_id.1),
-			Some(TaskOf::<Test>::create_auto_compound_delegated_stake_task(
+			TaskOf::<Test>::create_auto_compound_delegated_stake_task::<Test>(
 				alice.clone(),
 				AutomationTime::generate_auto_compound_delegated_stake_provided_id(&alice, &bob),
 				SCHEDULED_TIME,
 				3_600,
 				bob,
 				1_000_000_000,
-			))
+			)
+			.ok()
 		);
 	})
 }
@@ -423,12 +426,13 @@ fn schedule_execution_times_removes_dupes() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				let expected_task = TaskOf::<Test>::create_event_task(
+				let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
 					vec![50],
-					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800].try_into().unwrap(),
+					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800],
 					vec![2, 4],
-				);
+				)
+				.unwrap();
 
 				assert_eq!(task, expected_task);
 			},
@@ -578,7 +582,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.executions_left(), 2);
 			},
 		}
 
@@ -608,7 +612,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.executions_left(), 1);
 			},
 		}
 
@@ -666,12 +670,13 @@ fn cancel_works_for_tasks_in_queue() {
 #[test]
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task = TaskOf::<Test>::create_event_task(
+		let task = TaskOf::<Test>::create_event_task::<Test>(
 			AccountId32::new(ALICE),
 			vec![40],
-			vec![SCHEDULED_TIME].try_into().unwrap(),
+			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
-		);
+		)
+		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);
 
 		assert_noop!(
@@ -685,12 +690,13 @@ fn cancel_task_must_exist() {
 fn cancel_task_not_found() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task = TaskOf::<Test>::create_event_task(
+		let task = TaskOf::<Test>::create_event_task::<Test>(
 			owner.clone(),
 			vec![40],
-			vec![SCHEDULED_TIME].try_into().unwrap(),
+			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
-		);
+		)
+		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);
 		AccountTasks::<Test>::insert(owner.clone(), task_id, task);
 
@@ -1182,7 +1188,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.executions_left(), 2);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1190,7 +1196,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.executions_left(), 2);
 			},
 		}
 
@@ -1219,7 +1225,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.executions_left(), 1);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1227,7 +1233,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.executions_left(), 1);
 			},
 		}
 	})
@@ -1256,7 +1262,7 @@ fn missed_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.executions_left(), 2);
 			},
 		}
 
@@ -1443,7 +1449,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 			.expect("Task should have been rescheduled");
 		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
 			.expect("Task should not have been removed from task map");
-		assert_eq!(task.executions_left, 1);
+		assert_eq!(task.executions_left(), 1);
 		assert_eq!(task.execution_times(vec![]), vec![next_scheduled_time]);
 
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
@@ -1560,7 +1566,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.executions_left(), 2);
 			},
 		}
 
@@ -1578,7 +1584,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.executions_left(), 1);
 			},
 		}
 	})
@@ -1601,7 +1607,7 @@ fn trigger_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.executions_left(), 1);
 			},
 		}
 

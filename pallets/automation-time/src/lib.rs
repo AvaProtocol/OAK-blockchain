@@ -952,6 +952,7 @@ pub mod pallet {
 								task_id: missed_task.task_id.clone(),
 								execution_time: missed_task.execution_time,
 							});
+							// TODO: need to handle recurring tasks here?
 							Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
 							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 						},
@@ -1114,11 +1115,16 @@ pub mod pallet {
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
 		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: TaskOf<T>) {
-			task.executions_left = task.executions_left.saturating_sub(1);
-			if task.executions_left <= 0 {
-				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			} else {
-				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+			match task.schedule {
+				Schedule::Fixed { ref mut executions_left, .. } => {
+					*executions_left = executions_left.saturating_sub(1);
+					if *executions_left <= 0 {
+						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+					} else {
+						AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+					}
+				},
+				Schedule::Recurring { .. } => {},
 			}
 		}
 
