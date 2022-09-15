@@ -36,7 +36,7 @@ const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
 #[test]
 fn add_chain_currency_data_new_data() {
 	new_test_ext(None).execute_with(|| {
-		let currency_id = CurrencyId::Native;
+		let currency_id = NATIVE;
 
 		if XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).is_some() {
 			panic!("There should be no data set")
@@ -56,17 +56,14 @@ fn add_chain_currency_data_new_data() {
 fn add_chain_currency_data_update_data() {
 	let genesis_config = vec![(
 		PARA_ID,
-		CurrencyId::Native,
+		NATIVE,
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_eq!(
-			XcmChainCurrencyData::<Test>::get(PARA_ID, CurrencyId::Native).unwrap(),
-			XCM_DATA
-		);
+		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), XCM_DATA);
 
 		let xcm_data_new =
 			XcmCurrencyData { native: false, fee_per_second: 200, instruction_weight: 3_000 };
@@ -74,13 +71,10 @@ fn add_chain_currency_data_update_data() {
 		assert_ok!(XcmpHandler::add_chain_currency_data(
 			RawOrigin::Root.into(),
 			PARA_ID,
-			CurrencyId::Native,
+			NATIVE,
 			xcm_data_new.clone()
 		));
-		assert_eq!(
-			XcmChainCurrencyData::<Test>::get(PARA_ID, CurrencyId::Native).unwrap(),
-			xcm_data_new
-		);
+		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), xcm_data_new);
 	});
 }
 
@@ -88,12 +82,7 @@ fn add_chain_currency_data_update_data() {
 fn add_chain_currency_data_can_only_use_native_currency() {
 	new_test_ext(None).execute_with(|| {
 		assert_noop!(
-			XcmpHandler::add_chain_currency_data(
-				RawOrigin::Root.into(),
-				PARA_ID,
-				CurrencyId::ROC,
-				XCM_DATA
-			),
+			XcmpHandler::add_chain_currency_data(RawOrigin::Root.into(), PARA_ID, RELAY, XCM_DATA),
 			Error::<Test>::CurrencyChainComboNotSupported
 		);
 	});
@@ -104,7 +93,7 @@ fn add_chain_currency_data_can_only_use_native_currency() {
 fn remove_chain_currency_data_remove_data() {
 	let genesis_config = vec![(
 		PARA_ID,
-		CurrencyId::Native,
+		NATIVE,
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -114,9 +103,9 @@ fn remove_chain_currency_data_remove_data() {
 		assert_ok!(XcmpHandler::remove_chain_currency_data(
 			RawOrigin::Root.into(),
 			PARA_ID,
-			CurrencyId::Native
+			NATIVE
 		));
-		if XcmChainCurrencyData::<Test>::get(PARA_ID, CurrencyId::Native).is_some() {
+		if XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).is_some() {
 			panic!("There should be no data set")
 		};
 	});
@@ -125,15 +114,11 @@ fn remove_chain_currency_data_remove_data() {
 #[test]
 fn remove_chain_currency_data_not_found() {
 	new_test_ext(None).execute_with(|| {
-		if XcmChainCurrencyData::<Test>::get(PARA_ID, CurrencyId::Native).is_some() {
+		if XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).is_some() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_chain_currency_data(
-				RawOrigin::Root.into(),
-				PARA_ID,
-				CurrencyId::Native,
-			),
+			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), PARA_ID, NATIVE,),
 			Error::<Test>::CurrencyChainComboNotFound
 		);
 	});
@@ -148,7 +133,7 @@ fn remove_chain_currency_data_not_found() {
 fn calculate_xcm_fee_and_weight_works() {
 	let genesis_config = vec![(
 		PARA_ID,
-		CurrencyId::Native,
+		NATIVE,
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -163,7 +148,7 @@ fn calculate_xcm_fee_and_weight_works() {
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				CurrencyId::Native,
+				NATIVE,
 				transact_encoded_call_weight
 			),
 			(expected_fee, expected_weight),
@@ -173,7 +158,7 @@ fn calculate_xcm_fee_and_weight_works() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
-	let gensis_config = vec![(PARA_ID, CurrencyId::Native, false, u128::MAX, 1_000)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, u128::MAX, 1_000)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
@@ -181,7 +166,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				CurrencyId::Native,
+				NATIVE,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::FeeOverflow
@@ -191,7 +176,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
-	let gensis_config = vec![(PARA_ID, CurrencyId::Native, false, 1_000, u64::MAX)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, 1_000, u64::MAX)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = u64::MAX;
@@ -199,7 +184,7 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				CurrencyId::Native,
+				NATIVE,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::WeightOverflow
@@ -212,13 +197,13 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(PARA_ID, CurrencyId::Native) {
+		if let Some(_) = XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE) {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				CurrencyId::Native,
+				NATIVE,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::CurrencyChainComboNotFound
@@ -236,7 +221,7 @@ fn get_instruction_set_only_support_local_currency() {
 		assert_noop!(
 			XcmpHandler::get_instruction_set(
 				PARA_ID,
-				CurrencyId::ROC,
+				RELAY,
 				ALICE,
 				transact_encoded_call,
 				transact_encoded_call_weight
@@ -250,7 +235,7 @@ fn get_instruction_set_only_support_local_currency() {
 fn get_instruction_set_local_currency_instructions() {
 	let genesis_config = vec![(
 		PARA_ID,
-		CurrencyId::Native,
+		NATIVE,
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -261,7 +246,7 @@ fn get_instruction_set_local_currency_instructions() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let (xcm_fee, xcm_weight) = XcmpHandler::calculate_xcm_fee_and_weight(
 			PARA_ID,
-			CurrencyId::Native,
+			NATIVE,
 			transact_encoded_call_weight,
 		)
 		.unwrap();
@@ -280,7 +265,7 @@ fn get_instruction_set_local_currency_instructions() {
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
 				PARA_ID,
-				CurrencyId::Native,
+				NATIVE,
 				ALICE,
 				transact_encoded_call,
 				transact_encoded_call_weight
