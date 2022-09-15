@@ -1226,10 +1226,7 @@ pub mod pallet {
 		) -> Result<TaskId<T>, Error<T>> {
 			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
-			let execution_times = match &task.schedule {
-				Schedule::Fixed { execution_times } => execution_times.to_vec(),
-				Schedule::Recurring { next_execution_time, .. } => vec![*next_execution_time],
-			};
+			let execution_times = task.execution_times(vec![]);
 
 			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
 				Err(Error::<T>::DuplicateTask)?;

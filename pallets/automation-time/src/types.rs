@@ -97,9 +97,12 @@ pub enum Schedule<MaxExecutionTimes: Get<u32>> {
 impl<B: Get<u32>> PartialEq for Schedule<B> {
 	fn eq(&self, other: &Self) -> bool {
 		match (self, other) {
-			(Schedule::Fixed { execution_times: a }, Schedule::Fixed { execution_times: b }) =>
-				a.to_vec() == b.to_vec(),
-			(Schedule::Recurring { .. }, Schedule::Recurring { .. }) => self == other,
+			(Schedule::Fixed { execution_times: t1 }, Schedule::Fixed { execution_times: t2 }) =>
+				t1.to_vec() == t2.to_vec(),
+			(
+				Schedule::Recurring { next_execution_time: t1, frequency: f1 },
+				Schedule::Recurring { next_execution_time: t2, frequency: f2 },
+			) => t1 == t2 && f1 == f2,
 			_ => false,
 		}
 	}
