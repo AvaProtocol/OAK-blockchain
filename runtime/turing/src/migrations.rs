@@ -134,8 +134,8 @@ pub mod assets {
 					1,
 					AssetMetadataOf {
 						decimals: 12,
-						name: b"KSM".to_vec(),
-						symbol: b"Kusama".to_vec(),
+						name: b"Kusama".to_vec(),
+						symbol: b"KSM".to_vec(),
 						additional: Default::default(),
 						existential_deposit: 10 * millicent(12),
 						location: Some(MultiLocation::parent().into()),
@@ -260,7 +260,7 @@ pub mod assets {
 					7,
 					AssetMetadataOf {
 						decimals: 12,
-						name: b"PHA".to_vec(),
+						name: b"Phala".to_vec(),
 						symbol: b"PHA".to_vec(),
 						additional: Default::default(),
 						existential_deposit: cent(12),
