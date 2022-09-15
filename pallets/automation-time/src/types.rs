@@ -257,10 +257,7 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 	}
 
 	pub fn executions_left(&self) -> u32 {
-		match &self.schedule {
-			Schedule::Fixed { executions_left, .. } => *executions_left,
-			Schedule::Recurring { .. } => 1,
-		}
+		*&self.schedule.number_of_known_executions()
 	}
 }
 
