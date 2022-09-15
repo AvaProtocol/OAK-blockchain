@@ -402,4 +402,198 @@ mod tests {
 			})
 		}
 	}
+
+	mod schedule {
+		use frame_support::{assert_err, assert_ok};
+
+		use super::*;
+
+		#[test]
+		fn partial_eq() {
+			new_test_ext(0).execute_with(|| {
+				assert_eq!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![1].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					}
+				);
+				assert_eq!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					},
+					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 1,
+						frequency: 3600
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 7200
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_sets_executions_left() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![0, 1, 2])
+					.unwrap();
+				if let Schedule::Fixed { executions_left, .. } = s {
+					assert_eq!(executions_left, 3);
+				} else {
+					panic!("Exepected Schedule::Fixed");
+				}
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_errors_with_too_many_executions() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(
+					(0u64..=MaxExecutionTimes::get() as u64).collect(),
+				);
+				assert_err!(s, Error::<Test>::TooManyExecutionsTimes);
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_cleans_execution_times() {
+			new_test_ext(0).execute_with(|| {
+				let s =
+					Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![1, 3, 2, 3, 3]);
+				if let Schedule::Fixed { execution_times, .. } = s.unwrap() {
+					assert_eq!(execution_times, vec![1, 2, 3]);
+				} else {
+					panic!("Exepected Schedule::Fixed");
+				}
+			})
+		}
+
+		#[test]
+		fn checks_for_fixed_schedule_validity() {
+			let start_time = 1_663_225_200;
+			new_test_ext(start_time * 1_000).execute_with(|| {
+				assert_ok!(Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![
+					start_time + 3600
+				])
+				.unwrap()
+				.valid::<Test>());
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![
+						start_time + 3600,
+						start_time + 3650
+					])
+					.unwrap()
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+			})
+		}
+
+		#[test]
+		fn checks_for_recurring_schedule_validity() {
+			let start_time = 1_663_225_200;
+			new_test_ext(start_time * 1_000).execute_with(|| {
+				assert_ok!(Schedule::<MaxExecutionTimes>::Recurring {
+					next_execution_time: start_time + 3600,
+					frequency: 3600
+				}
+				.valid::<Test>());
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3650,
+						frequency: 3600
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3600,
+						frequency: 0
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3600,
+						frequency: start_time + 3600
+					}
+					.valid::<Test>(),
+					Error::<Test>::TimeTooFarOut
+				);
+			})
+		}
+
+		#[test]
+		fn number_of_known_executions_for_fixed() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::Fixed {
+					execution_times: vec![].try_into().unwrap(),
+					executions_left: 5,
+				};
+				assert_eq!(s.number_of_known_executions(), 5);
+			})
+		}
+
+		#[test]
+		fn number_of_known_executions_for_recurring() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::Recurring {
+					next_execution_time: 0,
+					frequency: 0,
+				};
+				assert_eq!(s.number_of_known_executions(), 1);
+			})
+		}
+	}
 }
