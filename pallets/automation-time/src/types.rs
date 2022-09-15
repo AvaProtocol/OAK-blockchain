@@ -184,11 +184,7 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		schedule: Schedule<MaxExecutionTimes>,
 		action: Action<AccountId, Balance, CurrencyId>,
 	) -> Self {
-		// TODO: executions_left
-		let executions_left: u32 = match schedule {
-			Schedule::Fixed { ref execution_times } => execution_times.len().try_into().unwrap(),
-			Schedule::Recurring { .. } => 1,
-		};
+		let executions_left: u32 = schedule.number_of_known_executions();
 		Self { owner_id, provided_id, schedule, executions_left, action }
 	}
 
@@ -247,10 +243,13 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		Self::new(owner_id, provided_id, schedule, action)
 	}
 
-	pub fn execution_times(&self) -> Option<&BoundedVec<UnixTime, MaxExecutionTimes>> {
+	pub fn execution_times(&self, mut l: Vec<UnixTime>) -> Vec<UnixTime> {
 		match &self.schedule {
-			Schedule::Fixed { execution_times } => Some(execution_times),
-			Schedule::Recurring { .. } => None,
+			Schedule::Fixed { execution_times } => execution_times.to_vec(),
+			Schedule::Recurring { next_execution_time, .. } => {
+				l.push(*next_execution_time);
+				l
+			},
 		}
 	}
 }

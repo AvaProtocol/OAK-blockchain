@@ -1107,9 +1107,8 @@ pub mod pallet {
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
-			Self::clean_execution_times_vector(
-				&mut task.execution_times().expect("TODO: always Schedule::Fixed for now").to_vec(),
-			);
+			let mut execution_times = task.execution_times(vec![]);
+			Self::clean_execution_times_vector(&mut execution_times);
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
@@ -1117,12 +1116,7 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
-				for execution_time in task
-					.execution_times()
-					.expect("TODO: always Schedule::Fixed for now")
-					.iter()
-					.rev()
-				{
+				for execution_time in execution_times.iter().rev() {
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
 					if *execution_time < current_time_slot {
 						break
@@ -1170,12 +1164,7 @@ pub mod pallet {
 				}
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
-				for execution_time in task
-					.execution_times()
-					.expect("TODO: always Schedule::Fixed for now")
-					.iter()
-					.rev()
-				{
+				for execution_time in execution_times.iter().rev() {
 					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
 						Self::get_scheduled_tasks(*execution_time)
 					{
