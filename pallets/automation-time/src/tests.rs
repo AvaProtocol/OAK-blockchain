@@ -1360,10 +1360,11 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
 		let account_minimum = before_balance / 2;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			3600,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
