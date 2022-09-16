@@ -8,7 +8,7 @@ use sp_core::{crypto::UncheckedInto, sr25519};
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config,
-	test::{validate_allocation, validate_vesting},
+	test::{validate_allocation, validate_vesting, vesting_monthly_totals, vesting_address_totals, vesting_address_monthly},
 	Extensions,
 };
 use oak_runtime::{
@@ -24,6 +24,7 @@ static STAGING_RELAY_CHAIN: &str = "rococo";
 static LIVE_RELAY_CHAIN: &str = "polkadot";
 const REGISTERED_PARA_ID: u32 = 2090;
 const REGISTERED_STAGING_PARA_ID: u32 = 4103;
+const TOTAL_TOKENS: u128 = DOLLAR * 1_000_000_000;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
@@ -368,5 +369,95 @@ fn testnet_genesis(
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	#[test]
+	fn validate_oak_allocation() {
+		let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+		let alloc_tokens = DOLLAR * 8_023_000;
+		validate_allocation(initial_allocation, alloc_tokens, EXISTENTIAL_DEPOSIT);
+	}
+
+	#[test]
+	fn validate_oak_vesting() {
+		let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
+		let initial_allocation: Vec<(AccountId, Balance)> =
+			serde_json::from_slice(allocation_json).unwrap();
+
+		let vesting_json = &include_bytes!("../../../distribution/oak_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		testnet_genesis(
+			// initial collators.
+			vec![
+					(
+						get_account_id_from_seed::<sr25519::Public>("Alice"),
+						get_collator_keys_from_seed("Alice"),
+					),
+					(
+						get_account_id_from_seed::<sr25519::Public>("Bob"),
+						get_collator_keys_from_seed("Bob"),
+					),
+				],
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
+				initial_allocation.clone(),
+				REGISTERED_PARA_ID.into(),
+				vec![],
+				vec![],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![(
+					1999,
+					oak_runtime::CurrencyId::default(),
+					false,
+					419_000_000_000,
+					1_000_000_000,
+				)],
+		);
+
+		let vested_tokens = 7599999950000000000;
+		let ecosystem_alloc = DOLLAR * 8_023_000;
+		println!("{}",vested_tokens);
+		println!("{}",ecosystem_alloc);
+		println!("{}",ecosystem_alloc + vested_tokens);
+		assert_eq!(1,0);
+		let vest_starting_time: u64 = 1672603200;
+		let vest_ending_time: u64 = 1796155200;
+		validate_vesting(initial_vesting, vested_tokens, EXISTENTIAL_DEPOSIT, vest_starting_time, vest_ending_time);
+	}
+
+	#[test]
+	fn totals_per_month() {
+		let vesting_json = &include_bytes!("../../../distribution/oak_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		vesting_monthly_totals(initial_vesting, DOLLAR, TOTAL_TOKENS);
+	}
+
+	// #[test]
+	// fn totals_per_address() {
+	// 	let vesting_json = &include_bytes!("../../../distribution/oak_vesting.json")[..];
+	// 	let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+	// 		serde_json::from_slice(vesting_json).unwrap();
+
+	// 	vesting_address_totals(initial_vesting, TOTAL_TOKENS);
+	// }
+
+	#[test]
+	fn totals_by_account_per_month() {
+		let vesting_json = &include_bytes!("../../../distribution/oak_vesting.json")[..];
+		let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
+			serde_json::from_slice(vesting_json).unwrap();
+
+		let ecosystem_alloc = DOLLAR * 8_023_000;
+		vesting_address_monthly(initial_vesting, ecosystem_alloc);
 	}
 }

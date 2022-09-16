@@ -9,6 +9,7 @@ use sp_runtime::{
 };
 
 use pallet_parachain_staking::{InflationInfo, Range};
+use std::collections::HashMap;
 
 use primitives::{AccountId, AuraId, Balance, Signature};
 
@@ -217,5 +218,380 @@ pub mod test {
 		);
 
 		assert_eq!(total_vested, total_tokens, "total vested does not equal the desired amount");
+	}
+
+	/// Validate that the vested fits the following criteria:
+	/// - amounts per month
+	pub fn vesting_monthly_totals(
+		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+		dollar: u128,
+		base_amount: Balance,
+	) {
+		let mut month_total: Balance = 0;
+		vesting_timeslots
+			.iter()
+			.for_each(|(timestamp, schedules)| {
+				schedules
+					.iter()
+					.for_each(|(_, amount)| {
+						println!("{}", month_total);
+						println!("{}", amount);
+						month_total = month_total
+							.checked_add(*amount)
+							.expect("shouldn't overflow when building genesis");
+						println!("{}", month_total);
+					});
+				match timestamp {
+					1672603200 => {
+						assert_eq!(
+							month_total, 697916660000000000
+						);
+					},
+					1675281600 => {
+						assert_eq!(
+							month_total, 780274810000000000
+						);
+					},
+					1677700800 => {
+						assert_eq!(
+							month_total, 862632960000000000
+						);
+					},
+					1680375600 => {
+						assert_eq!(
+							month_total, 1021397360000000000 //40 to 36
+						);
+					},
+					1682967600 => {
+						assert_eq!(
+							month_total, 1103755510000000000
+						);
+					},
+					1685646000 => {
+						assert_eq!(
+							month_total, 1346113660000000000
+						);
+					},
+					1688238000 => {
+						assert_eq!(
+							month_total, 1444878060000000000
+						);
+					},
+					1690916400 => {
+						assert_eq!(
+							month_total, 1587236210000000000
+						);
+					},
+					1693594800 => {
+						assert_eq!(
+							month_total, 1669594360000000000
+						);
+					},
+					1696186800 => {
+						assert_eq!(
+							month_total, 1768358760000000000
+						);
+					},
+					1698865200 => {
+						assert_eq!(
+							month_total, 1850716910000000000
+						);
+					},
+					1701460800 => {
+						assert_eq!(
+							month_total, 2638075060000000000
+						);
+					},
+					1704139200 => {
+						assert_eq!(
+							month_total, 2695172800000000000
+						);
+					},
+					1706817600 => {
+						assert_eq!(
+							month_total, 2735864290000000000
+						);
+					},
+					1709323200 => {
+						assert_eq!(
+							month_total, 3381555780000000000
+						);
+					},
+					1711998000 => {
+						assert_eq!(
+							month_total, 3498653520000000000
+						);
+					},
+					1714590000 => {
+						assert_eq!(
+							month_total, 3539345010000000000
+						);
+					},
+					1717268400 => {
+						assert_eq!(
+							month_total, 4185036500000000000
+						);
+					},
+					1719860400 => {
+						assert_eq!(
+							month_total, 4242134240000000000
+						);
+					},
+					1722538800 => {
+						assert_eq!(
+							month_total, 4342825730000000000
+						);
+					},
+					1725217200 => {
+						assert_eq!(
+							month_total, 4988517220000000000
+						);
+					},
+					1727809200 => {
+						assert_eq!(
+							month_total, 5045614960000000000
+						);
+					},
+					1730487600 => {
+						assert_eq!(
+							month_total, 5086306450000000000
+						);
+					},
+					1733083200 => {
+						assert_eq!(
+							month_total, 5731997940000000000
+						);
+					},
+					1735761600 => {
+						assert_eq!(
+							month_total, 5789095680000000000
+						);
+					},
+					1738440000 => {
+						assert_eq!(
+							month_total, 5829787170000000000
+						);
+					},
+					1740859200 => {
+						assert_eq!(
+							month_total, 5995478660000000000
+						);
+					},
+					1743534000 => {
+						assert_eq!(
+							month_total, 6036170150000000000
+						);
+					},
+					1746126000 => {
+						assert_eq!(
+							month_total, 6076861640000000000
+						);
+					},
+					1748804400 => {
+						assert_eq!(
+							month_total, 6242553130000000000
+						);
+					},
+					1751396400 => {
+						assert_eq!(
+							month_total, 6283244620000000000
+						);
+					},
+					1754074800 => {
+						assert_eq!(
+							month_total, 6323936110000000000
+						);
+					},
+					1756753200 => {
+						assert_eq!(
+							month_total, 6489627600000000000
+						);
+					},
+					1759345200 => {
+						assert_eq!(
+							month_total, 6530319090000000000
+						);
+					},
+					1762023600 => {
+						assert_eq!(
+							month_total, 6571010580000000000
+						);
+					},
+					1764619200 => {
+						assert_eq!(
+							month_total, 6736702070000000000
+						);
+					},
+					1767297600 => {
+						assert_eq!(
+							month_total, 6777393560000000000
+						);
+					},
+					1769976000 => {
+						assert_eq!(
+							month_total, 6818085050000000000
+						);
+					},
+					1772395200 => {
+						assert_eq!(
+							month_total, 6983776540000000000
+						);
+					},
+					1775070000 => {
+						assert_eq!(
+							month_total, 7024468030000000000
+						);
+					},
+					1777662000 => {
+						assert_eq!(
+							month_total, 7065159520000000000
+						);
+					},
+					1780340400 => {
+						assert_eq!(
+							month_total, 7230851010000000000
+						);
+					},
+					1782932400 => {
+						assert_eq!(
+							month_total, 7271542500000000000
+						);
+					},
+					1785610800 => {
+						assert_eq!(
+							month_total, 7312233990000000000
+						);
+					},
+					1788289200 => {
+						assert_eq!(
+							month_total, 7477925480000000000
+						);
+					},
+					1790881200 => {
+						assert_eq!(
+							month_total, 7518616970000000000
+						);
+					},
+					1793563200 => {
+						assert_eq!(
+							month_total, 7559308460000000000
+						);
+					},
+					1796155200 => {
+						assert_eq!(
+							month_total, 7599999950000000000
+						);
+					},
+					_ => {
+						println!("month total: {}", month_total);
+					}
+				}
+			});
+	}
+
+
+	/// Validate that the vested fits the following criteria:
+	/// - amounts per address
+	pub fn vesting_address_totals(
+		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+		base_amount: Balance,
+	) {
+		let mut accounts: HashMap<AccountId, u128> = HashMap::new();
+		vesting_timeslots
+			.iter()
+			.for_each(|(_timestamp, schedules)| {
+				schedules
+					.iter()
+					.for_each(|(account_id, amount)| {
+						let mut new_amount: u128 = *amount;
+						let account_str = account_id.clone();
+						println!("key: {}, string: {}", account_id, account_str);
+						if accounts.contains_key(&account_str) {
+							if let Some(old_amount) = accounts.get(&account_str) {
+								new_amount = new_amount + old_amount;
+							}
+						}
+						accounts.insert(account_str, new_amount);
+					});
+			});
+		let mut grand_total: u128 = 0;
+		accounts.iter().for_each(|(key, amount)| {
+			println!("key: {} val: {}", *key, amount);
+			grand_total += *amount;
+		});
+		println!("{grand_total}");
+	// strat_part: 5DbvVzgMUaakg9ZCAsJ9Wx7XngiTUpwNLkNJaP6KrA7rkjDd val: 999999999999999972 //67grpvYywCTJ5gCNKfDMv4WMc416yUc43DMV7Xt31rUFHexc
+	// dev_incentives: 5EPUXN1Unn8Zbdbue8qG5vLNtbQfRRUD7fyM1x67pfSXzDac val: 1499999999999999976 //68UQrHt7FQ171AF5nvkUV2jChxhJv58tp8xXZ6spzMnvWvFN
+	// ecosystem_development: 5CamukJsXYQKhYq4h9Mm8fuMnZd66ViFuTsM4n28LrEvZdje val: 1499999999999999976 //66fiEgBVzAGs75UEqwGyXnJBbvujb9NwbvrXbvoqWYbK6Uui
+	// crowdloan: 5H6LdMvqX4qqqWdNn7ZbAMm4uZ4vSz74fnvECtX2VXQtHfwb val: 1119999999999999999 //6BBGxHoTygiPF3GYvuUoZU9tivMZwdmkNFuQk3JjfDmGpbVC
+	// community_dao: 5CFe6mCFDdsfAPt4PjrN4wdCoqnNgqZaTGBXp8PfgVpYWoPJ val: 1000000000000000000 //66LaRh4sgFkCZvXEYXmaU422dD52BVEG9jAiMHBNrCAw3g6h
+	// earlybackers: 5HWUKbTo7J91swVmq7RgLgsWGEisiuGD8rDQx5ZBJoTHZJyP val: 800000000000000000 //6BbQeXLRZv1ZHU8wyuLtjoGL5c1XDYvtqKCbVELtUVog6MAJ
+	// team: 5DsfkzRDrzL3n7jw1QJQHqGeo2AC7VAGaFzdQGVgp87X7YAg val: 1599999999999999996 //67xc5vHrKcCbBeP7ACDcgwfUcPSqc8pxGiyowRHPypTueU4d
+	// parachainslotreserve: 5DFXtRzj8nAEVvFWESwsvvxCLPLhP9e6tjXHwuZP4vKRb3mF val: 500000000000000000 //67LUDMsMbQ2muStgPEs6L3M29kdLsoJnbCWUV4M6Ecfp7oVc
+	// collator_fund: 5GRjwiFB7J44iYQrcPMiuPUBS8H9uyhbPfch3E8zpkBeRkzc val: 400000000000000000 //6AWgGe7oZuvc8542mBGwJVs1FVZoQdNH68bsaNvhzSY2xjYN
+
+		// let collator_fund = "6AWgGe7oZuvc8542mBGwJVs1FVZoQdNH68bsaNvhzSY2xjYN".to_string();
+		// let dev_incentives = "68UQrHt7FQ171AF5nvkUV2jChxhJv58tp8xXZ6spzMnvWvFN".to_string();
+		// let ecosystem_development = "66fiEgBVzAGs75UEqwGyXnJBbvujb9NwbvrXbvoqWYbK6Uui".to_string();
+		// let strat_part = "67grpvYywCTJ5gCNKfDMv4WMc416yUc43DMV7Xt31rUFHexc".to_string();
+		// let crowdloan = "6BBGxHoTygiPF3GYvuUoZU9tivMZwdmkNFuQk3JjfDmGpbVC".to_string();
+		// let earlybackers = "6BbQeXLRZv1ZHU8wyuLtjoGL5c1XDYvtqKCbVELtUVog6MAJ".to_string();
+		// let team = "67xc5vHrKcCbBeP7ACDcgwfUcPSqc8pxGiyowRHPypTueU4d".to_string();
+		// let community_dao = "66LaRh4sgFkCZvXEYXmaU422dD52BVEG9jAiMHBNrCAw3g6h".to_string();
+		// let parachainslotreserve = "67LUDMsMbQ2muStgPEs6L3M29kdLsoJnbCWUV4M6Ecfp7oVc".to_string();
+
+		// assert_eq!(1,0);
+	}
+
+	/// Validate that the vested fits the following criteria:
+	/// - amounts per address
+	pub fn vesting_address_monthly(
+		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
+		base_ecosystem_amount: Balance,
+	) {
+		let mut accounts: HashMap<String, u128> = HashMap::new();
+		// accounts.insert("68AJcfjXieDqsBxk4mYVGhRBHcqJm7tzdxpkDKx8gPhkKbid".to_string(), 0);
+		// accounts.insert("66aUED3BFQX1yKbTV2xfHStgo9qzfTPt5xoWYW83TyZWAbzf".to_string(), 0);
+		// accounts.insert("6AsPuKdBFQBENh8XG831i9DZHeRRTWDVG5MPseCzZMhZwqBB".to_string(), 0);
+		// accounts.insert("69jQ52EQgtqShE7Xc3uEk9BoTRcPLuMMUC5xTNcSA3NEoxNP".to_string(), 0);
+		// accounts.insert("6B5xHoASi3J95oYmfTGcYgviA8Lou58PaRVmsLzM7M7JPGR8".to_string(), 0);
+		// accounts.insert("671sSYej7EidfpnXnV2szkBg1VsSgp8zhmXWSiPcTarRJBtv".to_string(), 0);
+		// accounts.insert("68ug2jNhBH9oE89JUsLrmCkoKoVyFQDqasSDee1UrMmcxGnf".to_string(), 0);
+		// accounts.insert("69NVptNsycgjrUY5qG3uAdMg7Qh9LE4HmvMwi5FQUVpAKpXo".to_string(), 0);
+		// accounts.insert("671hHAijZgBhwxWtABJhpzhC8QFbU4JzZJLyZiGxdgNAYVRD".to_string(), 0);
+		// accounts.insert("67ZY3Qfd6qhsypsmsvzzmKjXTWg7MGUce99h45rCtzVf2NEg".to_string(), base_ecosystem_amount);
+		let mut count = 0;
+		vesting_timeslots
+			.iter()
+			.for_each(|(timestamp, schedules)| {
+				count = count + 1;
+				schedules
+					.iter()
+					.for_each(|(account_id, amount)| {
+						let mut new_amount: u128 = *amount;
+						let account_str = account_id.to_string();
+						if accounts.contains_key(&account_str) {
+							if let Some(old_amount) = accounts.get(&account_str) {
+								new_amount = new_amount + old_amount;
+							}
+						}
+						accounts.insert(account_str, new_amount);
+					});
+				println!("==================================");
+				println!("month: {}", count);
+				println!("timestamp: {}", timestamp);
+				accounts.iter().for_each(|(key, amount)| {
+					println!("key: {} val: {}", *key, amount);
+				});
+				println!("==================================");
+			});
+		let mut grand_total: u128 = 0;
+		accounts.iter().for_each(|(key, amount)| {
+			println!("key: {} val: {}", *key, amount);
+			grand_total += *amount;
+		});
+		println!("{grand_total}");
+
+		// assert_eq!(1,0);
 	}
 }

@@ -26,6 +26,7 @@ runtime-benchmarks = [
     "turing-runtime/runtime-benchmarks",
     "polkadot-cli/runtime-benchmarks",
 ]
+default = ["oak-node"]
 neumann-node = ["neumann-runtime"]
 oak-node = ["oak-runtime"]
 turing-node = ["turing-runtime"]
