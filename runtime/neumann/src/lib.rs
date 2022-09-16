@@ -160,7 +160,8 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	state_version: 0,
 };
 
-pub const NATIVE_TOKEN_ID: TokenId = 0;
+// TODO: Update to `0` once asset_registry genesis is available.
+pub const NATIVE_TOKEN_ID: TokenId = 1;
 
 /// This determines the average expected block time that we are targeting.
 /// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
