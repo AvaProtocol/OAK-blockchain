@@ -4,7 +4,7 @@ timeout = 1000
 
 [relaychain]
 default_command = "../polkadot/target/release/polkadot"
-chain = "rococo-local"
+chain = "westend-local"
 
   [[relaychain.nodes]]
   name = "alice"
