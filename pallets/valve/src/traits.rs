@@ -7,3 +7,11 @@ pub trait Shutdown {
 	/// Forwards restart message to implementer
 	fn restart();
 }
+
+impl Shutdown for () {
+	fn is_shutdown() -> bool {
+		true
+	}
+	fn shutdown() {}
+	fn restart() {}
+}

@@ -1004,21 +1004,12 @@ impl Contains<Call> for ClosedCallFilter {
 	}
 }
 
-pub struct DummyPallet {}
-impl pallet_valve::Shutdown for DummyPallet {
-	fn is_shutdown() -> bool {
-		true
-	}
-	fn shutdown() {}
-	fn restart() {}
-}
-
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
 	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
-	type AutomationPrice = DummyPallet;
+	type AutomationPrice = ();
 	type CallAccessFilter = TechnicalMembership;
 }
 
