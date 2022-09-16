@@ -149,7 +149,7 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get()),
+			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get(), 5),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
