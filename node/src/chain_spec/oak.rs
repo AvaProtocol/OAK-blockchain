@@ -240,17 +240,31 @@ pub fn oak_live() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// SS58 prefix substrate: 5EvKT4iWQ5gDnRhkS3d254RVCfaQJSyXHj5mA4kQTsCjWchW
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+						// SS58 prefix 51: 67He8TSn5ayD2p2ZS9WDQtuVuW7Z8RXXvBx5NyszGwcEGpzS
+						hex!["325603af5d8d4e284646556835df92977d48c8100eaf92e110d4b75d4650a73c"]
 							.into(),
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+						hex!["325603af5d8d4e284646556835df92977d48c8100eaf92e110d4b75d4650a73c"]
 							.unchecked_into(),
 					),
 					(
-						// SS58 prefix substrate: 5F4Dx9TD16awU7FeGD3Me5VDrEsL5MDPEcbNBvUgLQFawxyW
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+						// SS58 prefix 51: 6Azd1ebort6eZUDfg9f4A75fmD1JCV6ysHaFnTEqEPEuGpbP
+						hex!["d64c03d1ab36318a0d7da660670c83928261fc2a3464f92218ff5d42561e9a40"]
 							.into(),
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+						hex!["d64c03d1ab36318a0d7da660670c83928261fc2a3464f92218ff5d42561e9a40"]
+							.unchecked_into(),
+					),
+					(
+						// SS58 prefix 51: 6AQf3NV66CTNSsFuY1ehA1zJySYQybQwvC5Yq8ufqcZVQ3iN
+						hex!["bc6480f3f236dcd444809ace67e5a64bd35d7757b46d051bf300264bfc1eea55"]
+							.into(),
+						hex!["bc6480f3f236dcd444809ace67e5a64bd35d7757b46d051bf300264bfc1eea55"]
+							.unchecked_into(),
+					),
+					(
+						// SS58 prefix 51: 66AJHj124JZnpKnWFoJGx41uSVqjyUz6tmVPfZWnhemBe8wG
+						hex!["00804668906bbe7934ba89ef18c17c62c2dc175ca8df33621f2413e677c7144f"]
+							.into(),
+						hex!["00804668906bbe7934ba89ef18c17c62c2dc175ca8df33621f2413e677c7144f"]
 							.unchecked_into(),
 					),
 				],

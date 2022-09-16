@@ -674,9 +674,9 @@ parameter_types! {
 	/// Blocks per round
 	pub const DefaultBlocksPerRound: u32 = 6 * HOURS;
 	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 800_000 * DOLLAR;
+	pub const MinCollatorStk: u128 = 2_000_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
-	pub const MinCandidateStk: u128 = 800_000 * DOLLAR;
+	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
 impl pallet_parachain_staking::Config for Runtime {
 	type Event = Event;
@@ -1040,12 +1040,21 @@ impl Contains<Call> for ClosedCallFilter {
 	}
 }
 
+pub struct DummyPallet {}
+impl pallet_valve::Shutdown for DummyPallet {
+	fn is_shutdown() -> bool {
+		true
+	}
+	fn shutdown() {}
+	fn restart() {}
+}
+
 impl pallet_valve::Config for Runtime {
 	type Event = Event;
 	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
-	type AutomationPrice = AutomationTime;
+	type AutomationPrice = DummyPallet;
 	type CallAccessFilter = TechnicalMembership;
 }
 
