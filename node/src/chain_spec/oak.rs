@@ -114,10 +114,10 @@ pub fn oak_staging() -> ChainSpec {
 		ChainType::Live,
 		move || {
 			let allocation_json =
-				&include_bytes!("../../../distribution/oak_staging_alloc.json")[..];
+				&include_bytes!("../../../distribution/oak_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			const ALLOC_TOKENS_TOTAL: u128 = 80230000000000000;
 			validate_allocation(
 				initial_allocation.clone(),
 				ALLOC_TOKENS_TOTAL,
@@ -128,9 +128,9 @@ pub fn oak_staging() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
-			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1651431600;
-			let vest_ending_time: u64 = 1743534000;
+			let vested_tokens = 7599999950000000000;
+			let vest_starting_time: u64 = 1672603200;
+			let vest_ending_time: u64 = 1796155200;
 			validate_vesting(
 				initial_vesting.clone(),
 				vested_tokens,
@@ -143,17 +143,17 @@ pub fn oak_staging() -> ChainSpec {
 				// initial collators.
 				vec![
 					(
-						// SS58 prefix substrate: 5EvKT4iWQ5gDnRhkS3d254RVCfaQJSyXHj5mA4kQTsCjWchW
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+						// SS58 prefix 51: 67He8TSn5ayD2p2ZS9WDQtuVuW7Z8RXXvBx5NyszGwcEGpzS
+						hex!["325603af5d8d4e284646556835df92977d48c8100eaf92e110d4b75d4650a73c"]
 							.into(),
-						hex!["7e4f4efde71551c83714fb3062724067e7bb6ebc3bf942813321f1583e187572"]
+						hex!["325603af5d8d4e284646556835df92977d48c8100eaf92e110d4b75d4650a73c"]
 							.unchecked_into(),
 					),
 					(
-						// SS58 prefix substrate: 5F4Dx9TD16awU7FeGD3Me5VDrEsL5MDPEcbNBvUgLQFawxyW
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+						// SS58 prefix 51: 6Azd1ebort6eZUDfg9f4A75fmD1JCV6ysHaFnTEqEPEuGpbP
+						hex!["d64c03d1ab36318a0d7da660670c83928261fc2a3464f92218ff5d42561e9a40"]
 							.into(),
-						hex!["8456c30af083c2b2d767d6950e8ee654d4eff5e69cdd9f75db5bcbf2d7b0d801"]
+						hex!["d64c03d1ab36318a0d7da660670c83928261fc2a3464f92218ff5d42561e9a40"]
 							.unchecked_into(),
 					),
 				],
@@ -161,7 +161,18 @@ pub fn oak_staging() -> ChainSpec {
 				hex!["004df6aeb14c73ef5cd2c57d9028afc402c4f101a8917bbb6cd19407c8bf8307"].into(),
 				initial_allocation,
 				REGISTERED_STAGING_PARA_ID.into(),
-				vec![],
+				vec![
+					b"AssetRegistry".to_vec(),
+					b"AutomationTime".to_vec(),
+					b"Balances".to_vec(),
+					b"Bounties".to_vec(),
+					b"Currencies".to_vec(),
+					b"Democracy".to_vec(),
+					b"ParachainStaking".to_vec(),
+					b"PolkadotXcm".to_vec(),
+					b"Treasury".to_vec(),
+					b"XTokens".to_vec(),
+				],
 				initial_vesting,
 				vec![
 					// 5C571x5GLRQwfA3aRtVcxZzD7JnzNb3JbtZEvJWfQozWE54K
@@ -208,7 +219,7 @@ pub fn oak_live() -> ChainSpec {
 			let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = DOLLAR * 1_000_000_000;
+			const ALLOC_TOKENS_TOTAL: u128 = 80230000000000000;
 			validate_allocation(
 				initial_allocation.clone(),
 				ALLOC_TOKENS_TOTAL,
@@ -219,9 +230,9 @@ pub fn oak_live() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
-			let vested_tokens = 9_419_999_999_999_999_919;
-			let vest_starting_time: u64 = 1669874400;
-			let vest_ending_time: u64 = 1764568800;
+			let vested_tokens = 7599999950000000000;
+			let vest_starting_time: u64 = 1672603200;
+			let vest_ending_time: u64 = 1796155200;
 			validate_vesting(
 				initial_vesting.clone(),
 				vested_tokens,
@@ -267,6 +278,7 @@ pub fn oak_live() -> ChainSpec {
 				initial_allocation,
 				REGISTERED_PARA_ID.into(),
 				vec![
+					b"AssetRegistry".to_vec(),
 					b"AutomationTime".to_vec(),
 					b"Balances".to_vec(),
 					b"Bounties".to_vec(),
@@ -285,6 +297,10 @@ pub fn oak_live() -> ChainSpec {
 					hex!["88c782a383f0cfa5fbc36c9734dfc7cb6319137b48cc69cc662c84b6e687a106"].into(),
 					// 67D6ecyNhnAzZqgRbxr3MdGnxB9Bw8VadMhjpLAYB3wf5Pq6
 					hex!["2edf0fd8948ea642f135b314b1358c77ec6d0a4af83220b6ea18136e5ce36277"].into(),
+					// 6AxoUZEKEbaGVHsBkuJ6mvVgeMEixoroGiD1b3sBkroBqDXE
+					hex!["d4e8bfb1c924dd64e33ecfbb35d90061bb83b2dde667e58588780068f9fc1471"].into(),
+					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
+					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
 				],
 				vec![
 					// 69pKU2QpgtMBT9NsaN1diyJQ8qcvrJy8KJk5aWeAXfMGjb5F
@@ -293,6 +309,12 @@ pub fn oak_live() -> ChainSpec {
 					hex!["4a1d713c2f41e10db31b83a45a3a98b64088330190eac7fcef4623694fbac55e"].into(),
 					// 6871Utgdq5ycWnTzm7VEwQfg4zM81JqYv8EDzKPu3fdzsXK8
 					hex!["56766d3f856f2ca399ae575689a7340c2532351948f355c21bc06b170569da35"].into(),
+					// 68Tn1mgDo1dvctJLZCWaYJWLSWgu4GYtL5jgrrmzidAgpoJG
+					hex!["664d3e87b905d7e3fba4f459673af256166313c498972fb8cbba6e3697d7fe3b"].into(),
+					// 67Za6G2i3BGkcTtYzU2hUzHrmy6quwWzyEMJB98oRv3GwDmb
+					hex!["3e7c592124e2cde1808eeaa4c6799cb680506046bfc7b0304d9305bd3bd50b11"].into(),
+					// 67nmVh57G9yo7sqiGLjgNNqtUd7H2CSESTyQgp5272aMibwS
+					hex!["488ced7d199b4386081a52505962128da5a3f54f4665db3d78b6e9f9e89eea4d"].into(),
 				],
 				vec![],
 			)

@@ -40,7 +40,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 		#[cfg(feature = "oak-node")]
 		"oak-staging" => Box::new(chain_spec::oak::oak_staging()),
 		#[cfg(feature = "oak-node")]
-		"oak-live" => Box::new(chain_spec::oak::oak_live()),
+		"oak" => Box::new(chain_spec::oak::oak_live()),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
