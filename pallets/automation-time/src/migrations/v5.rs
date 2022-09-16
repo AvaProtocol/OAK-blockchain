@@ -155,3 +155,70 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 		Ok(())
 	}
 }
+
+#[cfg(test)]
+mod test {
+	use super::{OldAction, OldTask};
+	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
+	use frame_support::traits::OnRuntimeUpgrade;
+	use sp_runtime::AccountId32;
+
+	#[test]
+	fn on_runtime_upgrade() {
+		new_test_ext(0).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+			let task_id_1 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
+			let task_id_2 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![2]);
+			let task_1 = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				execution_times: vec![0, 1].try_into().unwrap(),
+				executions_left: 2,
+				action: OldAction::<Test>::Notify { message: vec![0] },
+			};
+			let task_2 = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![2],
+				execution_times: vec![10].try_into().unwrap(),
+				executions_left: 1,
+				action: OldAction::<Test>::AutoCompoundDelegatedStake {
+					delegator: account_id.clone(),
+					collator: account_id.clone(),
+					account_minimum: 10,
+					frequency: 11,
+				},
+			};
+			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_1, task_1);
+			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_2, task_2);
+
+			super::MigrateToV5::<Test>::on_runtime_upgrade();
+
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 2);
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id_1).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					provided_id: vec![1],
+					action: ActionOf::<Test>::Notify { message: vec![0] },
+					schedule: Schedule::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					}
+				}
+			);
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id_2).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					provided_id: vec![2],
+					action: ActionOf::<Test>::AutoCompoundDelegatedStake {
+						delegator: account_id.clone(),
+						collator: account_id.clone(),
+						account_minimum: 10
+					},
+					schedule: Schedule::Recurring { next_execution_time: 10, frequency: 11 }
+				}
+			);
+		})
+	}
+}
