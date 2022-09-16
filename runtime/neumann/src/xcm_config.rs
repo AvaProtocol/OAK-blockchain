@@ -1,7 +1,7 @@
 use super::{
-	AccountId, Balance, Call, Currencies, CurrencyId, Event, Origin, ParachainInfo,
-	ParachainSystem, PolkadotXcm, Runtime, TreasuryAccount, UnknownTokens, XcmpQueue,
-	MAXIMUM_BLOCK_WEIGHT,
+	AccountId, Balance, Call, Currencies, Event, Origin, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, TokenId, TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
+	NATIVE_TOKEN_ID,
 };
 
 use core::marker::PhantomData;
@@ -21,21 +21,22 @@ use polkadot_parachain::primitives::Sibling;
 use xcm::{latest::prelude::*, v1::Junction::Parachain};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedRateOfFungible,
-	FixedWeightBounds, LocationInverter, ParentIsPreset, RelayChainAsNative,
-	SiblingParachainAsNative, SiblingParachainConvertsVia, SignedAccountId32AsNative,
-	SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
+	LocationInverter, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
 // ORML imports
-use orml_traits::{location::AbsoluteReserveProvider, parameter_type_with_key, MultiCurrency};
+use orml_asset_registry::{AssetRegistryTrader, FixedRateAssetRegistryTrader};
+use orml_traits::{
+	location::AbsoluteReserveProvider, parameter_type_with_key, FixedConversionRateProvider,
+	MultiCurrency,
+};
 use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
-
-// Common imports
-use primitives::tokens::{convert_to_token, TokenInfo};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -59,12 +60,12 @@ pub type LocationToAccountId = (
 pub type LocalAssetTransactor = MultiCurrencyAdapter<
 	Currencies,
 	UnknownTokens,
-	IsNativeConcrete<CurrencyId, CurrencyIdConvert>,
+	IsNativeConcrete<TokenId, TokenIdConvert>,
 	AccountId,
 	LocationToAccountId,
-	CurrencyId,
-	CurrencyIdConvert,
-	DepositToAlternative<TreasuryAccount, Currencies, CurrencyId, AccountId, Balance>,
+	TokenId,
+	TokenIdConvert,
+	DepositToAlternative<TreasuryAccount, Currencies, TokenId, AccountId, Balance>,
 >;
 
 /// This is the type we use to convert an (incoming) XCM origin into a local `Origin` instance,
@@ -179,84 +180,49 @@ pub type Barrier = DenyThenTry<
 	),
 >;
 
-/// Based on Kusama values.
-pub fn roc_per_second() -> u128 {
-	CurrencyId::ROC.cent() * 16
-}
-
-/// Based on Turing values.
-pub fn neu_per_second() -> u128 {
-	let neu_equivalent = convert_to_token(CurrencyId::ROC, CurrencyId::Native, roc_per_second());
-	neu_equivalent * 260
-}
-
-parameter_types! {
-	pub NeuPerSecond: (AssetId, u128) = (
-		MultiLocation::new(
-			1,
-			X1(Parachain(u32::from(ParachainInfo::parachain_id()))),
-		).into(),
-		neu_per_second()
-	);
-
-	pub NeuCanonicalPerSecond: (AssetId, u128) = (
-		MultiLocation::new(
-			0,
-			Here,
-		).into(),
-		neu_per_second()
-	);
-
-	pub RocPerSecond: (AssetId, u128) = (MultiLocation::parent().into(), roc_per_second());
-
-	pub UnitPerSecond: (AssetId, u128) = (
-		MultiLocation::new(
-			1,
-			X1(Parachain(parachains::testchain::ID)),
-		).into(),
-		roc_per_second() * 2
-	);
-}
-
-pub struct ToNativeTreasury;
-impl TakeRevenue for ToNativeTreasury {
+pub struct ToTreasury;
+impl TakeRevenue for ToTreasury {
 	fn take_revenue(revenue: MultiAsset) {
 		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
 			revenue
 		{
-			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-				// 20% burned, 80% to the treasury
-				let to_treasury = Percent::from_percent(80).mul_floor(amount);
-				// Due to the way XCM works the amount has already been taken off the total allocation balance.
-				// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
-				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
+			if let Some(currency_id) = TokenIdConvert::convert(id) {
+				if currency_id == NATIVE_TOKEN_ID {
+					// Deposit to native treasury account
+					// 20% burned, 80% to the treasury
+					let to_treasury = Percent::from_percent(80).mul_floor(amount);
+					// Due to the way XCM works the amount has already been taken off the total allocation balance.
+					// Thus whatever we deposit here gets added back to the total allocation, and the rest is burned.
+					let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), to_treasury);
+				} else {
+					// Ensure TreasuryAccount have ed requirement for native asset, but don't need
+					// ed requirement for cross-chain asset because it's one of whitelist accounts.
+					// Ignore the result.
+					let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), amount);
+				}
 			}
 		}
 	}
 }
 
-pub struct ToForeignTreasury;
-impl TakeRevenue for ToForeignTreasury {
-	fn take_revenue(revenue: MultiAsset) {
-		if let MultiAsset { id: AssetId::Concrete(id), fun: Fungibility::Fungible(amount) } =
-			revenue
-		{
-			if let Some(currency_id) = CurrencyIdConvert::convert(id) {
-				// Ensure TreasuryAccount have ed requirement for native asset, but don't need
-				// ed requirement for cross-chain asset because it's one of whitelist accounts.
-				// Ignore the result.
-				let _ = Currencies::deposit(currency_id, &TreasuryAccount::get(), amount);
-			}
-		}
+type AssetRegistryOf<T> = orml_asset_registry::Pallet<T>;
+
+pub struct FeePerSecondProvider;
+impl FixedConversionRateProvider for FeePerSecondProvider {
+	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+		let metadata = match location {
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
+			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+				if *para_id == u32::from(ParachainInfo::parachain_id()) =>
+				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
+			_ => AssetRegistryOf::<Runtime>::fetch_metadata_by_location(location)?,
+		};
+		metadata.additional.fee_per_second
 	}
 }
 
-pub type Trader = (
-	FixedRateOfFungible<NeuPerSecond, ToNativeTreasury>,
-	FixedRateOfFungible<NeuCanonicalPerSecond, ToNativeTreasury>,
-	FixedRateOfFungible<RocPerSecond, ToForeignTreasury>,
-	FixedRateOfFungible<UnitPerSecond, ToForeignTreasury>,
-);
+pub type Trader =
+	(AssetRegistryTrader<FixedRateAssetRegistryTrader<FeePerSecondProvider>, ToTreasury>,);
 
 pub struct XcmConfig;
 impl Config for XcmConfig {
@@ -351,8 +317,8 @@ parameter_type_with_key! {
 impl orml_xtokens::Config for Runtime {
 	type Event = Event;
 	type Balance = Balance;
-	type CurrencyId = CurrencyId;
-	type CurrencyIdConvert = CurrencyIdConvert;
+	type CurrencyId = TokenId;
+	type CurrencyIdConvert = TokenIdConvert;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type SelfLocation = SelfLocation;
 	type MinXcmFee = ParachainMinFee;
@@ -370,13 +336,13 @@ impl orml_unknown_tokens::Config for Runtime {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const GetNativeCurrencyId: TokenId = NATIVE_TOKEN_ID;
 }
 
 impl pallet_xcmp_handler::Config for Runtime {
 	type Event = Event;
 	type Call = Call;
-	type CurrencyId = CurrencyId;
+	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Currency = pallet_balances::Pallet<Runtime>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
@@ -388,51 +354,27 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
 
-pub mod parachains {
-	pub mod testchain {
-		pub const ID: u32 = 1999;
+pub struct TokenIdConvert;
+impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
+	fn convert(id: TokenId) -> Option<MultiLocation> {
+		AssetRegistryOf::<Runtime>::multilocation(&id).unwrap_or(None)
 	}
 }
 
-pub struct CurrencyIdConvert;
-impl Convert<CurrencyId, Option<MultiLocation>> for CurrencyIdConvert {
-	fn convert(id: CurrencyId) -> Option<MultiLocation> {
-		match id {
-			CurrencyId::Native =>
-				Some(MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())))),
-			CurrencyId::ROC => Some(MultiLocation::parent()),
-			CurrencyId::UNIT =>
-				Some(MultiLocation::new(1, X1(Parachain(parachains::testchain::ID)))),
-		}
-	}
-}
-
-impl Convert<MultiLocation, Option<CurrencyId>> for CurrencyIdConvert {
-	fn convert(location: MultiLocation) -> Option<CurrencyId> {
-		if location == MultiLocation::parent() {
-			return Some(CurrencyId::ROC)
-		}
-
+impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
+	fn convert(location: MultiLocation) -> Option<TokenId> {
 		match location {
-			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) } => {
-				match para_id {
-					// If it's NEU
-					id if id == u32::from(ParachainInfo::parachain_id()) =>
-						Some(CurrencyId::Native),
-					// testchain
-					id if id == u32::from(parachains::testchain::ID) => Some(CurrencyId::UNIT),
-					_ => None,
-				}
-			},
-			// adapt for re-anchor canonical location: https://github.com/paritytech/polkadot/pull/4470
-			MultiLocation { parents: 0, interior: Here } => Some(CurrencyId::Native),
-			_ => None,
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
+			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
+				if para_id == u32::from(ParachainInfo::parachain_id()) =>
+				Some(NATIVE_TOKEN_ID),
+			_ => AssetRegistryOf::<Runtime>::location_to_asset_id(location.clone()),
 		}
 	}
 }
 
-impl Convert<MultiAsset, Option<CurrencyId>> for CurrencyIdConvert {
-	fn convert(asset: MultiAsset) -> Option<CurrencyId> {
+impl Convert<MultiAsset, Option<TokenId>> for TokenIdConvert {
+	fn convert(asset: MultiAsset) -> Option<TokenId> {
 		if let MultiAsset { id: Concrete(location), .. } = asset {
 			Self::convert(location)
 		} else {

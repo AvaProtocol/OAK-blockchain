@@ -1,11 +1,10 @@
-# CHANGELOG
+# CHANGELOG -- DEPRECATED
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-- Remove Sudo from Turing
+# Deprecated in favor of [Releases](https://github.com/OAK-Foundation/OAK-blockchain/releases)
 
 ## [1.7.0] - 2022-08-18
 - Adding try-runtime to Turing
