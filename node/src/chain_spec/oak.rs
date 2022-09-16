@@ -116,7 +116,7 @@ pub fn oak_staging() -> ChainSpec {
 			let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = 80230000000000000;
+			const ALLOC_TOKENS_TOTAL: u128 = 80_230_000_000_000_000;
 			validate_allocation(
 				initial_allocation.clone(),
 				ALLOC_TOKENS_TOTAL,
@@ -127,7 +127,7 @@ pub fn oak_staging() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
-			let vested_tokens = 7599999950000000000;
+			let vested_tokens = 7_599_999_950_000_000_000;
 			let vest_starting_time: u64 = 1672603200;
 			let vest_ending_time: u64 = 1796155200;
 			validate_vesting(
@@ -218,7 +218,7 @@ pub fn oak_live() -> ChainSpec {
 			let allocation_json = &include_bytes!("../../../distribution/oak_alloc.json")[..];
 			let initial_allocation: Vec<(AccountId, Balance)> =
 				serde_json::from_slice(allocation_json).unwrap();
-			const ALLOC_TOKENS_TOTAL: u128 = 80230000000000000;
+			const ALLOC_TOKENS_TOTAL: u128 = 80_230_000_000_000_000;
 			validate_allocation(
 				initial_allocation.clone(),
 				ALLOC_TOKENS_TOTAL,
@@ -229,7 +229,7 @@ pub fn oak_live() -> ChainSpec {
 			let initial_vesting: Vec<(u64, Vec<(AccountId, Balance)>)> =
 				serde_json::from_slice(vesting_json).unwrap();
 
-			let vested_tokens = 7599999950000000000;
+			let vested_tokens = 7_599_999_950_000_000_000;
 			let vest_starting_time: u64 = 1672603200;
 			let vest_ending_time: u64 = 1796155200;
 			validate_vesting(
