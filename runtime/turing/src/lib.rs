@@ -870,11 +870,11 @@ impl pallet_scheduler::Config for Runtime {
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 5 * DAYS;
 	pub const VotingPeriod: BlockNumber = 5 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
+	pub const FastTrackVotingPeriod: BlockNumber = 1 * HOURS;
 	pub const MinimumDeposit: Balance = 40 * DOLLAR;
 	pub const EnactmentPeriod: BlockNumber = 2 * DAYS;
-	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
+	pub const VoteLockingPeriod: BlockNumber = 5 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 5 * DAYS;
 	pub const InstantAllowed: bool = true;
 }
 
