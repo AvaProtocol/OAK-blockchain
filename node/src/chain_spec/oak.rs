@@ -161,7 +161,6 @@ pub fn oak_staging() -> ChainSpec {
 				initial_allocation,
 				REGISTERED_STAGING_PARA_ID.into(),
 				vec![
-					b"AssetRegistry".to_vec(),
 					b"AutomationTime".to_vec(),
 					b"Balances".to_vec(),
 					b"Bounties".to_vec(),
@@ -277,7 +276,6 @@ pub fn oak_live() -> ChainSpec {
 				initial_allocation,
 				REGISTERED_PARA_ID.into(),
 				vec![
-					b"AssetRegistry".to_vec(),
 					b"AutomationTime".to_vec(),
 					b"Balances".to_vec(),
 					b"Bounties".to_vec(),
