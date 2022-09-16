@@ -45,13 +45,17 @@ use xcm_executor::{
 	traits::{TransactAsset, WeightTrader},
 	Assets, XcmExecutor,
 };
-pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
-pub const LOCAL_PARA_ID: u32 = 2114;
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = AccountId32;
 pub type Balance = u128;
+pub type CurrencyId = u32;
+
+pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
+pub const LOCAL_PARA_ID: u32 = 2114;
+pub const NATIVE: CurrencyId = 0;
+pub const RELAY: CurrencyId = 1;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -122,28 +126,6 @@ impl pallet_balances::Config for Test {
 }
 
 impl parachain_info::Config for Test {}
-
-#[derive(
-	Encode,
-	Decode,
-	Deserialize,
-	Eq,
-	PartialEq,
-	Copy,
-	Clone,
-	RuntimeDebug,
-	PartialOrd,
-	Serialize,
-	Ord,
-	TypeInfo,
-	MaxEncodedLen,
-)]
-// #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum CurrencyId {
-	Native,
-	ROC,
-	UNIT,
-}
 
 pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
@@ -280,7 +262,7 @@ impl cumulus_pallet_xcm::Config for Test {
 }
 
 parameter_types! {
-	pub const GetNativeCurrencyId: CurrencyId = CurrencyId::Native;
+	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
@@ -300,7 +282,9 @@ impl pallet_xcmp_handler::Config for Test {
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext(
+	genesis_config: Option<Vec<(u32, CurrencyId, bool, u128, u64)>>,
+) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.expect("Frame system builds valid default genesis config");
@@ -310,6 +294,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 		&mut t,
 	)
 	.expect("Pallet Parachain info can be assimilated");
+
+	if let Some(chain_data) = genesis_config {
+		GenesisBuild::<Test>::assimilate_storage(
+			&pallet_xcmp_handler::GenesisConfig { chain_data },
+			&mut t,
+		)
+		.expect("Pallet Parachain info can be assimilated");
+	}
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

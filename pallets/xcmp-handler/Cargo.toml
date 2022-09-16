@@ -14,6 +14,7 @@ targets = ['x86_64-unknown-linux-gnu']
 codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
 scale-info = { version = "2.1", default-features = false, features = ["derive"] }
 log = { version = "0.4.17", default-features = false }
+serde = { version = "1.0.132" }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -35,8 +36,6 @@ xcm = { git = "https://github.com/paritytech/polkadot", default-features = false
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.26" }
 
 [dev-dependencies]
-serde = { version = "1.0.132" }
-
 # Substrate
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.26" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }

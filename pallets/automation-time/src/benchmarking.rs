@@ -23,6 +23,7 @@ use frame_system::RawOrigin;
 use pallet_timestamp;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
+use sp_std::cmp;
 
 use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 
@@ -186,7 +187,12 @@ benchmarks! {
 	}: schedule_notify_task(RawOrigin::Signed(caller), provided_id, times, vec![4, 5])
 
 	schedule_xcmp_task_full {
-		let v in 1 .. T::MaxExecutionTimes::get();
+		let v in 1..T::MaxExecutionTimes::get();
+
+		let mut max_tasks_per_slot: u32 = (
+			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task() as u128
+		).try_into().unwrap();
+		max_tasks_per_slot = cmp::min(max_tasks_per_slot, T::MaxTasksPerSlot::get());
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 7200;
@@ -195,13 +201,13 @@ benchmarks! {
 		let call = vec![4,5,6];
 
 		let mut times: Vec<u64> = vec![];
-		for i in 0..v {
-			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
+		for i in 1..=v {
+			let hour: u64 = (3600 * i).try_into().unwrap();
 			times.push(hour);
 		}
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
-		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
+		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));

@@ -28,6 +28,9 @@
 
 pub use pallet::*;
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
 #[cfg(test)]
 mod mock;
 
@@ -151,6 +154,7 @@ pub mod pallet {
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 	pub struct XcmCurrencyData {
 		/// Is the token native to the chain?
 		pub native: bool,
@@ -379,12 +383,18 @@ pub mod pallet {
 			para_id: ParachainId,
 			target_instructions: xcm::v2::Xcm<()>,
 		) -> Result<(), DispatchError> {
+			let destination_location = Junction::Parachain(para_id.into());
+
+			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
+			let destination_location: Junctions = Here;
+
 			// Send to target chain
-			T::XcmSender::send_xcm((1, Junction::Parachain(para_id.into())), target_instructions)
-				.map_err(|error| {
-				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
-				Error::<T>::ErrorSendingXcmToTarget
-			})?;
+			T::XcmSender::send_xcm((1, destination_location), target_instructions).map_err(
+				|error| {
+					log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+					Error::<T>::ErrorSendingXcmToTarget
+				},
+			)?;
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())
@@ -442,6 +452,37 @@ pub mod pallet {
 			};
 
 			Ok(().into())
+		}
+	}
+
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64)>,
+	}
+
+	#[cfg(feature = "std")]
+	impl<T: Config> Default for GenesisConfig<T> {
+		fn default() -> Self {
+			Self { chain_data: Default::default() }
+		}
+	}
+
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			for (para_id, currency_id, native, fee_per_second, instruction_weight) in
+				self.chain_data.iter()
+			{
+				XcmChainCurrencyData::<T>::insert(
+					para_id,
+					currency_id,
+					XcmCurrencyData {
+						native: *native,
+						fee_per_second: *fee_per_second,
+						instruction_weight: *instruction_weight,
+					},
+				);
+			}
 		}
 	}
 }

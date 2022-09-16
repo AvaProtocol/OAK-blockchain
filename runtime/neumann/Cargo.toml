@@ -98,6 +98,7 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", default-feature
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.26" }
 
 # ORML Dependencies
+orml-asset-registry = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
@@ -170,6 +171,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+	"orml-asset-registry/std",
 	"orml-currencies/std",
 	"orml-tokens/std",
 	"orml-traits/std",
