@@ -340,7 +340,7 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(neumann_runtime::DefaultBlocksPerRound::get()),
+			inflation_config: inflation_config(neumann_runtime::DefaultBlocksPerRound::get(), 5),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
