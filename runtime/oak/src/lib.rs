@@ -89,7 +89,6 @@ use primitives::{
 };
 
 // Custom pallet imports
-pub use pallet_automation_price;
 pub use pallet_automation_time;
 
 /// Block type as expected by this runtime.
@@ -465,7 +464,8 @@ parameter_types! {
 	pub TreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
 	// Until we can codify how to handle forgien tokens that we collect in XCMP fees
 	// we will send the tokens to a special account to be dealt with.
-	pub TemporaryForeignTreasuryAccount: AccountId = hex!["8acc2955e592588af0eeec40384bf3b498335ecc90df5e6980f0141e1314eb37"].into();
+	// SS58 prefix 51: 68ZdW8SDzsHs8oRFso5sUCK6HvmWMAhMT8LSbwqAReQeHq7G
+	pub TemporaryForeignTreasuryAccount: AccountId = hex!["6ac410dcac7ace36e401163d540cb9bdda1a2295d7e1233c1fc38281cd13ec23"].into();
 }
 
 pub struct DustRemovalWhitelist;
@@ -636,9 +636,9 @@ parameter_types! {
 	/// Default percent of inflation set aside for parachain bond every round
 	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
 	/// Blocks per round
-	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
+	pub const DefaultBlocksPerRound: u32 = 6 * HOURS;
 	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	pub const MinCollatorStk: u128 = 2_000_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
 	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
@@ -650,19 +650,19 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MinBlocksPerRound = ConstU32<10>;
 	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = ConstU32<24>;
+	type LeaveCandidatesDelay = ConstU32<28>;
 	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = ConstU32<24>;
+	type CandidateBondLessDelay = ConstU32<28>;
 	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = ConstU32<24>;
+	type LeaveDelegatorsDelay = ConstU32<28>;
 	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = ConstU32<24>;
+	type RevokeDelegationDelay = ConstU32<28>;
 	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = ConstU32<24>;
+	type DelegationBondLessDelay = ConstU32<28>;
 	/// Rounds before the reward is paid
 	type RewardPaymentDelay = ConstU32<2>;
 	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<5>;
+	type MinSelectedCandidates = ConstU32<4>;
 	/// Maximum top delegations per candidate
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
@@ -866,12 +866,12 @@ impl pallet_scheduler::Config for Runtime {
 
 parameter_types! {
 	pub const LaunchPeriod: BlockNumber = 5 * DAYS;
-	pub const VotingPeriod: BlockNumber = 5 * DAYS;
-	pub const FastTrackVotingPeriod: BlockNumber = 3 * HOURS;
-	pub const MinimumDeposit: Balance = 40 * DOLLAR;
+	pub const VotingPeriod: BlockNumber = 10 * DAYS;
+	pub const FastTrackVotingPeriod: BlockNumber = 2 * HOURS;
+	pub const MinimumDeposit: Balance = 500 * DOLLAR;
 	pub const EnactmentPeriod: BlockNumber = 2 * DAYS;
-	pub const VoteLockingPeriod: BlockNumber = 7 * DAYS;
-	pub const CooloffPeriod: BlockNumber = 7 * DAYS;
+	pub const VoteLockingPeriod: BlockNumber = 10 * DAYS;
+	pub const CooloffPeriod: BlockNumber = 10 * DAYS;
 	pub const InstantAllowed: bool = true;
 }
 
@@ -987,18 +987,6 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 }
 
-impl pallet_automation_price::Config for Runtime {
-	type Event = Event;
-	type MaxTasksPerSlot = ConstU32<1>;
-	type MaxBlockWeight = MaxBlockWeight;
-	type MaxWeightPercentage = MaxWeightPercentage;
-	type WeightInfo = ();
-	type ExecutionWeightFee = ExecutionWeightFee;
-	type Currency = Balances;
-	type FeeHandler = pallet_automation_price::FeeHandler<DealWithExecutionFees<Runtime>>;
-	type Origin = Origin;
-}
-
 pub struct ClosedCallFilter;
 impl Contains<Call> for ClosedCallFilter {
 	fn contains(c: &Call) -> bool {
@@ -1012,7 +1000,6 @@ impl Contains<Call> for ClosedCallFilter {
 			Call::PolkadotXcm(_) => false,
 			Call::Treasury(_) => false,
 			Call::XTokens(_) => false,
-			Call::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -1023,7 +1010,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
-	type AutomationPrice = AutomationPrice;
+	type AutomationPrice = ();
 	type CallAccessFilter = TechnicalMembership;
 }
 
@@ -1099,7 +1086,6 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Config<T>, Event<T>} = 62,
-		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
 

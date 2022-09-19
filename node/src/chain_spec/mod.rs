@@ -90,7 +90,10 @@ where
 	AccountPublic::from(get_public_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
+pub fn inflation_config(
+	blocks_per_round: u32,
+	annual_inflation_percentage: u32,
+) -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
 		use pallet_parachain_staking::inflation::{
 			perbill_annual_to_perbill_round, BLOCKS_PER_YEAR,
@@ -99,9 +102,9 @@ pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	}
 
 	let annual = Range {
-		min: Perbill::from_percent(5),
-		ideal: Perbill::from_percent(5),
-		max: Perbill::from_percent(5),
+		min: Perbill::from_percent(annual_inflation_percentage),
+		ideal: Perbill::from_percent(annual_inflation_percentage),
+		max: Perbill::from_percent(annual_inflation_percentage),
 	};
 
 	InflationInfo {
