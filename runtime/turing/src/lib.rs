@@ -616,18 +616,15 @@ pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
 	fn fee_information(c: &Call) -> FeeInformation {
 		if let Call::AutomationTime(
-			pallet_automation_time::Call::schedule_dynamic_dispatch_task { call, .. },
+			pallet_automation_time::Call::schedule_xcmp_task { currency_id, .. },
 		) = c.clone()
 		{
-			if let Call::System(frame_system::Call::remark_with_event { .. }) = *call {
-				let xcm_data = XcmpHandler::get_xcm_chain_data(1999, NATIVE_TOKEN_ID).unwrap();
-				FeeInformation {
-					token_id: NATIVE_TOKEN_ID,
-					fee_per_second: xcm_data.fee_per_second,
-				}
-			} else {
-				FeeInformation::default()
-			}
+            let xcm_data = XcmpHandler::get_xcm_chain_data(currency_id, NATIVE_TOKEN_ID).unwrap();
+            let asset_data = AssetRegistry::metadata(currency_id).unwrap();
+            FeeInformation {
+                token_id: currency_id,
+                fee_per_second: xcm_data.fee_per_second,
+            }
 		} else {
 			FeeInformation::default()
 		}
