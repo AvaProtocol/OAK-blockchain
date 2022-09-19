@@ -36,6 +36,9 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod base;
+use base::{Base, Utils};
+
 mod benchmarking;
 pub mod migrations;
 pub mod weights;
@@ -65,12 +68,11 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use pallet_parachain_staking::DelegatorActions;
-use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
-	ArithmeticError, DispatchError, Perbill,
+	traits::{Dispatchable, SaturatedConversion, Saturating},
+	DispatchError, Perbill,
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -479,7 +481,7 @@ pub mod pallet {
 			// Validate frequency by ensuring that the next proposed execution is at a valid time
 			let next_execution =
 				execution_time.checked_add(frequency).ok_or(Error::<T>::TimeTooFarOut)?;
-			Self::is_valid_time(next_execution)?;
+			Base::<T>::is_valid_time(next_execution)?;
 			if next_execution == execution_time {
 				Err(Error::<T>::InvalidTime)?;
 			}
@@ -569,65 +571,6 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Based on the block time, return the time slot.
-		///
-		/// In order to do this we:
-		/// * Get the most recent timestamp from the block.
-		/// * Convert the ms unix timestamp to seconds.
-		/// * Bring the timestamp down to the last whole hour.
-		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
-			let now = <timestamp::Pallet<T>>::get()
-				.checked_into::<UnixTime>()
-				.ok_or(ArithmeticError::Overflow)?;
-
-			if now == 0 {
-				Err(Error::<T>::BlockTimeNotSet)?
-			}
-
-			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
-			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
-			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
-		}
-
-		/// Checks to see if the scheduled time is valid.
-		///
-		/// In order for a time to be valid it must
-		/// - End in a whole hour
-		/// - Be in the future
-		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
-			#[cfg(feature = "dev-queue")]
-			if scheduled_time == 0 {
-				return Ok(())
-			}
-
-			let remainder = scheduled_time.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
-			if remainder != 0 {
-				Err(<Error<T>>::InvalidTime)?;
-			}
-
-			let current_time_slot = Self::get_current_time_slot()?;
-			if scheduled_time <= current_time_slot {
-				Err(<Error<T>>::PastTime)?;
-			}
-
-			let max_schedule_time = current_time_slot
-				.checked_add(T::MaxScheduleSeconds::get())
-				.ok_or(ArithmeticError::Overflow)?;
-
-			if scheduled_time > max_schedule_time {
-				Err(Error::<T>::TimeTooFarOut)?;
-			}
-
-			Ok(())
-		}
-
-		/// Cleans the executions times by removing duplicates and putting in ascending order.
-		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
-			execution_times.sort_unstable();
-			execution_times.dedup();
-		}
-
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
@@ -690,7 +633,7 @@ pub mod pallet {
 		pub fn update_task_queue(allotted_weight: Weight) -> Weight {
 			let mut total_weight = <T as Config>::WeightInfo::update_task_queue_overhead();
 
-			let current_time_slot = match Self::get_current_time_slot() {
+			let current_time_slot = match Base::<T>::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				Err(_) => return total_weight,
 			};
@@ -1131,8 +1074,8 @@ pub mod pallet {
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
-			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
-			let current_time_slot = match Self::get_current_time_slot() {
+			Utils::clean_execution_times_vector(&mut task.execution_times.to_vec());
+			let current_time_slot = match Base::<T>::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
 				Err(_) => 0,
@@ -1285,13 +1228,13 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			Self::clean_execution_times_vector(&mut execution_times);
+			Utils::clean_execution_times_vector(&mut execution_times);
 			let max_allowed_executions: usize = T::MaxExecutionTimes::get().try_into().unwrap();
 			if execution_times.len() > max_allowed_executions {
 				Err(Error::<T>::TooManyExecutionsTimes)?;
 			}
 			for time in execution_times.iter() {
-				Self::is_valid_time(*time)?;
+				Base::<T>::is_valid_time(*time)?;
 			}
 
 			// Execution fee
