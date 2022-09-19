@@ -105,9 +105,6 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
-	fn migration_v4_2_slots() -> Weight;
-	fn migration_v4_1_slots() -> Weight;
-	fn migration_v4_0_slots() -> Weight;
 }
 
 /// Weights for pallet_automation_time using the Substrate node and recommended hardware.
@@ -322,27 +319,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:3 w:2)
-	// Storage: AutomationTime AccountTasks (r:2 w:0)
-	// Storage: AutomationTime ScheduledTasksV3 (r:0 w:2)
-	fn migration_v4_2_slots() -> Weight {
-		(32_078_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:2 w:1)
-	// Storage: AutomationTime AccountTasks (r:1 w:0)
-	// Storage: AutomationTime ScheduledTasksV3 (r:0 w:1)
-	fn migration_v4_1_slots() -> Weight {
-		(17_955_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:1 w:0)
-	fn migration_v4_0_slots() -> Weight {
-		(4_583_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-	}
 }
 
 // For backwards compatibility and tests
@@ -555,26 +531,5 @@ impl WeightInfo for () {
 		(29_532_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:3 w:2)
-	// Storage: AutomationTime AccountTasks (r:2 w:0)
-	// Storage: AutomationTime ScheduledTasksV3 (r:0 w:2)
-	fn migration_v4_2_slots() -> Weight {
-		(32_078_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:2 w:1)
-	// Storage: AutomationTime AccountTasks (r:1 w:0)
-	// Storage: AutomationTime ScheduledTasksV3 (r:0 w:1)
-	fn migration_v4_1_slots() -> Weight {
-		(17_955_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-	}
-	// Storage: unknown [0x85227ce1b17dca8228bad629dedea8b3cdc1d89ad121752636d864cb8fbf2580] (r:1 w:0)
-	fn migration_v4_0_slots() -> Weight {
-		(4_583_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 	}
 }
