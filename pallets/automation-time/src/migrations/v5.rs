@@ -1,15 +1,12 @@
 use core::marker::PhantomData;
 
 use crate::{
-	AccountOf, ActionOf, BalanceOf, Config, Schedule, Seconds, TaskId, TaskOf, UnixTime, Vec,
+	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, Seconds, TaskId, TaskOf,
+	UnixTime, Vec,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
-use frame_support::{
-	traits::{Get, OnRuntimeUpgrade},
-	weights::Weight,
-	BoundedVec, Twox64Concat,
-};
+use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
 use scale_info::TypeInfo;
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
@@ -88,7 +85,7 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 }
 
 #[frame_support::storage_alias]
-type AccountTasks<T: Config> = StorageDoubleMap<
+pub type AccountTasks<T: Config> = StorageDoubleMap<
 	AutomationTime,
 	Twox64Concat,
 	AccountOf<T>,
@@ -117,7 +114,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 	fn on_runtime_upgrade() -> Weight {
 		log::info!(target: "automation-time", "Migrating automation-time v5");
 
-		let mut migrated_tasks = 0u64;
+		let mut migrated_tasks = 0u32;
 		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
 			let migrated_task: TaskOf<T> = task.into();
 			crate::AccountTasks::<T>::insert(account_id, task_id, migrated_task);
@@ -131,11 +128,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 			migrated_tasks
 		);
 
-		// 1 read + write to transform each task
-		let weight = T::DbWeight::get().reads_writes(migrated_tasks, migrated_tasks);
-
-		// Adding a buffer for the rest of the code
-		weight + (migrated_tasks * 10_000_000)
+		<T as Config>::WeightInfo::migration_v5(migrated_tasks)
 	}
 
 	#[cfg(feature = "try-runtime")]

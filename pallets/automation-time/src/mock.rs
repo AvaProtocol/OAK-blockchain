@@ -237,6 +237,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		20_000
 	}
+	fn migration_v5(_: u32) -> Weight {
+		0
+	}
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
