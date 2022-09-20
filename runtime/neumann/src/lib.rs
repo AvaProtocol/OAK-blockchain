@@ -592,7 +592,7 @@ impl NameGetter<Call> for FeeNameGetter {
 		) = c.clone()
 		{
             log::info!("FEES: Processing automation time");
-            let xcm_data = match XcmpHandler::get_xcm_chain_data(u32::from(para_id), NATIVE_TOKEN_ID) {
+            let xcm_data = match XcmpHandler::get_xcm_chain_data(u32::from(para_id), currency_id) {
                 Some(value) => value,
                 None => return FeeInformation::default(),
             };

@@ -615,12 +615,22 @@ pub trait NameGetter<Call> {
 pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
 	fn fee_information(c: &Call) -> FeeInformation {
+		log::info!("FEES: Tracking down call info");
 		if let Call::AutomationTime(
 			pallet_automation_time::Call::schedule_xcmp_task { currency_id, .. },
 		) = c.clone()
 		{
-            let xcm_data = XcmpHandler::get_xcm_chain_data(currency_id, NATIVE_TOKEN_ID).unwrap();
-            let asset_data = AssetRegistry::metadata(currency_id).unwrap();
+            let xcm_data = match XcmpHandler::get_xcm_chain_data(currency_id, NATIVE_TOKEN_ID) {
+                Some(value) => value,
+                None => return FeeInformation::default(),
+            };
+            log::info!("FEES: XCM data found");
+            let asset_data = match AssetRegistry::metadata(currency_id) {
+                Some(value) => value,
+                None => return FeeInformation::default(),
+            };
+            log::info!("FEES: asset data found");
+
             FeeInformation {
                 token_id: currency_id,
                 fee_per_second: xcm_data.fee_per_second,
@@ -668,7 +678,7 @@ where
 
 		// cross it
 		let call_name = FNG::fee_information(call.clone());
-		log::info!("Call was of type: {:?}", call_name);
+		log::info!("FEES: Call was of type: {:?}", call_name);
 
 		let withdraw_reason = if tip.is_zero() {
 			WithdrawReasons::TRANSACTION_PAYMENT
