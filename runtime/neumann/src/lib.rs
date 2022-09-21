@@ -626,6 +626,8 @@ where
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	MC::CurrencyId: From<TokenId>,
 	C: Currency<<T as frame_system::Config>::AccountId>,
+	C::Balance: From<MC::Balance>,
+	MC::Balance: From<C::Balance>,
 	C::PositiveImbalance: Imbalance<
 		<C as Currency<<T as frame_system::Config>::AccountId>>::Balance,
 		Opposite = C::NegativeImbalance,
@@ -638,7 +640,7 @@ where
 	FNG: NameGetter<CallOf<T>>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
-	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
 	///
@@ -658,22 +660,16 @@ where
 		let call_name = FNG::fee_information(call.clone());
 		log::info!("FEES: Call was of type: {:?}", call_name);
 
-		let withdraw_reason = if tip.is_zero() {
-			WithdrawReasons::TRANSACTION_PAYMENT
-		} else {
-			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
-		};
-
 		let currency_id = call_name.token_id.into();
 		// Check existential deposit
 		MC::ensure_can_withdraw(
 			currency_id,
 			who,
-			fee.saturating_add(MC::minimum_balance(currency_id)),
+			fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
 		)
 		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-		match MC::withdraw(currency_id, who, fee) {
+		match MC::withdraw(currency_id, who, fee.into()) {
 			// TODO: real imbalance?
 			Ok(()) => Ok(Some(C::NegativeImbalance::zero())),
 			Err(_) => Err(InvalidTransaction::Payment.into()),
@@ -693,23 +689,23 @@ where
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
-		// if let Some(paid) = already_withdrawn {
-		// 	// Calculate how much refund we should return
-		// 	let refund_amount = paid.peek().saturating_sub(corrected_fee);
-		// 	// refund to the the account that paid the fees. If this fails, the
-		// 	// account might have dropped below the existential balance. In
-		// 	// that case we don't refund anything.
-		// 	let refund_imbalance = C::deposit_into_existing(who, refund_amount)
-		// 		.unwrap_or_else(|_| C::PositiveImbalance::zero());
-		// 	// merge the imbalance caused by paying the fees and refunding parts of it again.
-		// 	let adjusted_paid = paid
-		// 		.offset(refund_imbalance)
-		// 		.same()
-		// 		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-		// 	// Call someone else to handle the imbalance (fee and tip separately)
-		// 	let (tip, fee) = adjusted_paid.split(tip);
-		// 	OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
-		// }
+		if let Some(paid) = already_withdrawn {
+			// Calculate how much refund we should return
+			let refund_amount = paid.peek().saturating_sub(corrected_fee);
+			// refund to the the account that paid the fees. If this fails, the
+			// account might have dropped below the existential balance. In
+			// that case we don't refund anything.
+			let refund_imbalance = C::deposit_into_existing(who, refund_amount)
+				.unwrap_or_else(|_| C::PositiveImbalance::zero());
+			// merge the imbalance caused by paying the fees and refunding parts of it again.
+			let adjusted_paid = paid
+				.offset(refund_imbalance)
+				.same()
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			// Call someone else to handle the imbalance (fee and tip separately)
+			let (tip, fee) = adjusted_paid.split(tip);
+			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
+		}
 		Ok(())
 	}
 }
