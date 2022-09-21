@@ -14,7 +14,7 @@ use primitives::{AccountId, AuraId, Balance, TokenId};
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
 static RELAY_CHAIN: &str = "westend-local";
-const DEFAULT_PARA_ID: u32 = 2000;
+const DEFAULT_PARA_ID: u32 = 2114;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
