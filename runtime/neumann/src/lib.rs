@@ -587,28 +587,27 @@ pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
 	fn fee_information(c: &Call) -> FeeInformation {
 		log::info!("FEES: Tracking down call info");
-		if let Call::AutomationTime(
-			pallet_automation_time::Call::schedule_xcmp_task { para_id, currency_id, .. },
-		) = c.clone()
+		if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task {
+			para_id,
+			currency_id,
+			..
+		}) = c.clone()
 		{
-            log::info!("FEES: Processing automation time");
-            let xcm_data = match XcmpHandler::get_xcm_chain_data(u32::from(para_id), currency_id) {
-                Some(value) => value,
-                None => return FeeInformation::default(),
-            };
-            log::info!("FEES: XCM data found");
-            let asset_data = match AssetRegistry::metadata(currency_id) {
-                Some(value) => value,
-                None => return FeeInformation::default(),
-            };
-            log::info!("FEES: asset data found");
+			log::info!("FEES: Processing automation time");
+			let xcm_data = match XcmpHandler::get_xcm_chain_data(u32::from(para_id), currency_id) {
+				Some(value) => value,
+				None => return FeeInformation::default(),
+			};
+			log::info!("FEES: XCM data found");
+			let asset_data = match AssetRegistry::metadata(currency_id) {
+				Some(value) => value,
+				None => return FeeInformation::default(),
+			};
+			log::info!("FEES: asset data found");
 
-            FeeInformation {
-                token_id: currency_id,
-                fee_per_second: xcm_data.fee_per_second,
-            }
+			FeeInformation { token_id: currency_id, fee_per_second: xcm_data.fee_per_second }
 		} else {
-            log::info!("FEES: Standard call...use defaults");
+			log::info!("FEES: Standard call...use defaults");
 			FeeInformation::default()
 		}
 	}
@@ -616,10 +615,16 @@ impl NameGetter<Call> for FeeNameGetter {
 pub type CallOf<T> = <T as frame_system::Config>::Call;
 type NegativeImbalanceOf<C, T> =
 	<C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
-pub struct DuplicateCurrencyAdapter<C, OU, FNG>(PhantomData<(C, OU, FNG)>);
-impl<T, C, OU, FNG> OnChargeTransaction<T> for DuplicateCurrencyAdapter<C, OU, FNG>
+
+use orml_traits::MultiCurrency;
+
+pub struct DuplicateCurrencyAdapter<MC, C, OU, FNG>(PhantomData<(MC, C, OU, FNG)>);
+
+impl<T, MC, C, OU, FNG> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, FNG>
 where
 	T: pallet_transaction_payment::Config,
+	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
+	MC::CurrencyId: From<TokenId>,
 	C: Currency<<T as frame_system::Config>::AccountId>,
 	C::PositiveImbalance: Imbalance<
 		<C as Currency<<T as frame_system::Config>::AccountId>>::Balance,
@@ -633,7 +638,7 @@ where
 	FNG: NameGetter<CallOf<T>>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
-	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	type Balance = <MC as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
 	///
@@ -659,8 +664,9 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => Ok(Some(imbalance)),
+		match MC::withdraw(call_name.token_id.into(), who, fee) {
+			// TODO: real imbalance
+			Ok(()) => Ok(Some(C::NegativeImbalance::zero())),
 			Err(_) => Err(InvalidTransaction::Payment.into()),
 		}
 	}
@@ -678,23 +684,23 @@ where
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
-		if let Some(paid) = already_withdrawn {
-			// Calculate how much refund we should return
-			let refund_amount = paid.peek().saturating_sub(corrected_fee);
-			// refund to the the account that paid the fees. If this fails, the
-			// account might have dropped below the existential balance. In
-			// that case we don't refund anything.
-			let refund_imbalance = C::deposit_into_existing(who, refund_amount)
-				.unwrap_or_else(|_| C::PositiveImbalance::zero());
-			// merge the imbalance caused by paying the fees and refunding parts of it again.
-			let adjusted_paid = paid
-				.offset(refund_imbalance)
-				.same()
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			// Call someone else to handle the imbalance (fee and tip separately)
-			let (tip, fee) = adjusted_paid.split(tip);
-			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
-		}
+		// if let Some(paid) = already_withdrawn {
+		// 	// Calculate how much refund we should return
+		// 	let refund_amount = paid.peek().saturating_sub(corrected_fee);
+		// 	// refund to the the account that paid the fees. If this fails, the
+		// 	// account might have dropped below the existential balance. In
+		// 	// that case we don't refund anything.
+		// 	let refund_imbalance = C::deposit_into_existing(who, refund_amount)
+		// 		.unwrap_or_else(|_| C::PositiveImbalance::zero());
+		// 	// merge the imbalance caused by paying the fees and refunding parts of it again.
+		// 	let adjusted_paid = paid
+		// 		.offset(refund_imbalance)
+		// 		.same()
+		// 		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		// 	// Call someone else to handle the imbalance (fee and tip separately)
+		// 	let (tip, fee) = adjusted_paid.split(tip);
+		// 	OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
+		// }
 		Ok(())
 	}
 }
@@ -702,7 +708,7 @@ where
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
 	type OnChargeTransaction =
-		DuplicateCurrencyAdapter<Balances, DealWithInclusionFees<Runtime>, FeeNameGetter>;
+		DuplicateCurrencyAdapter<Tokens, Balances, DealWithInclusionFees<Runtime>, FeeNameGetter>;
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
