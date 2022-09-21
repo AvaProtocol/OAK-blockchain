@@ -664,8 +664,17 @@ where
 			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
 		};
 
-		match MC::withdraw(call_name.token_id.into(), who, fee) {
-			// TODO: real imbalance
+		let currency_id = call_name.token_id.into();
+		// Check existential deposit
+		MC::ensure_can_withdraw(
+			currency_id,
+			who,
+			fee.saturating_add(MC::minimum_balance(currency_id)),
+		)
+		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		match MC::withdraw(currency_id, who, fee) {
+			// TODO: real imbalance?
 			Ok(()) => Ok(Some(C::NegativeImbalance::zero())),
 			Err(_) => Err(InvalidTransaction::Payment.into()),
 		}
