@@ -639,7 +639,7 @@ where
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	FNG: NameGetter<CallOf<T>>,
 {
-	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
+	type LiquidityInfo = Option<(MC::CurrencyId, NegativeImbalanceOf<C, T>)>;
 	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
@@ -671,7 +671,7 @@ where
 
 		match MC::withdraw(currency_id, who, fee.into()) {
 			// TODO: real imbalance?
-			Ok(()) => Ok(Some(C::NegativeImbalance::zero())),
+			Ok(()) => Ok(Some((currency_id, C::NegativeImbalance::zero()))),
 			Err(_) => Err(InvalidTransaction::Payment.into()),
 		}
 	}
@@ -690,6 +690,7 @@ where
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
 		if let Some(paid) = already_withdrawn {
+			let paid = paid.1;
 			// Calculate how much refund we should return
 			let refund_amount = paid.peek().saturating_sub(corrected_fee);
 			// refund to the the account that paid the fees. If this fails, the
