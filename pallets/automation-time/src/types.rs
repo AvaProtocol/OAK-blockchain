@@ -111,8 +111,9 @@ impl<B: Get<u32>> PartialEq for Schedule<B> {
 }
 
 impl<MaxExecutionTimes: Get<u32>> Schedule<MaxExecutionTimes> {
-	pub fn new_fixed_schedule<T: Config>(execution_times: Vec<UnixTime>) -> Result<Self, Error<T>> {
-		let mut execution_times = execution_times.clone();
+	pub fn new_fixed_schedule<T: Config>(
+		mut execution_times: Vec<UnixTime>,
+	) -> Result<Self, Error<T>> {
 		Pallet::<T>::clean_execution_times_vector(&mut execution_times);
 		let executions_left = execution_times.len() as u32;
 		let execution_times: BoundedVec<UnixTime, MaxExecutionTimes> =
