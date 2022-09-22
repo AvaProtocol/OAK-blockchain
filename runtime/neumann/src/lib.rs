@@ -659,17 +659,30 @@ where
 
 		let currency_id = call_name.token_id.into();
 		// Check existential deposit
-		MC::ensure_can_withdraw(
-			currency_id,
-			who,
-			fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
-		)
-		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		if call_name.token_id != 1 {
+			MC::ensure_can_withdraw(
+				currency_id,
+				who,
+				fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
+			)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-		match MC::withdraw(currency_id, who, fee.into()) {
-			// TODO: real imbalance?
-			Ok(()) => Ok(Some((currency_id, C::NegativeImbalance::zero()))),
-			Err(_) => Err(InvalidTransaction::Payment.into()),
+			match MC::withdraw(currency_id, who, fee.into()) {
+				// TODO: real imbalance?
+				Ok(()) => Ok(Some((currency_id, C::NegativeImbalance::zero()))),
+				Err(_) => Err(InvalidTransaction::Payment.into()),
+			}
+		} else {
+			let withdraw_reason = if tip.is_zero() {
+				WithdrawReasons::TRANSACTION_PAYMENT
+			} else {
+				WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
+			};
+
+			match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
+				Ok(imbalance) => Ok(Some((currency_id, imbalance))),
+				Err(_) => Err(InvalidTransaction::Payment.into()),
+			}
 		}
 	}
 
