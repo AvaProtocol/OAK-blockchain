@@ -29,8 +29,8 @@ use sp_runtime::{
 	AccountId32,
 };
 
-const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
+pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
+pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
 #[test]
@@ -959,8 +959,12 @@ fn trigger_tasks_handles_missed_slots() {
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let missing_task_id0 =
-			add_task_to_task_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
+		let missing_task_id0 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![40] },
+		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
 		let missing_task_id1 =
@@ -1042,14 +1046,14 @@ fn trigger_tasks_completes_all_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1100,14 +1104,14 @@ fn trigger_tasks_completes_some_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1131,13 +1135,13 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		let task_id1 = add_task_to_missed_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1150,12 +1154,12 @@ fn trigger_tasks_completes_all_missed_tasks() {
 				Event::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
 					task_id: task_id1,
-					execution_time: 0
+					execution_time: SCHEDULED_TIME
 				}),
 				Event::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
 					task_id: task_id2,
-					execution_time: 0
+					execution_time: SCHEDULED_TIME
 				}),
 			]
 		);
@@ -1632,18 +1636,22 @@ fn on_init_runs_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
-		let task_id3 =
-			add_task_to_task_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
+		let task_id3 = add_task_to_task_queue(
+			ALICE,
+			vec![60],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![50] },
+		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);

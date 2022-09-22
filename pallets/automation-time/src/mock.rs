@@ -363,7 +363,9 @@ pub fn add_recurring_task_to_task_queue(
 	frequency: u64,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let schedule = Schedule::<MaxExecutionTimes>::new_recurring_schedule(scheduled_time, frequency);
+	let schedule =
+		Schedule::<MaxExecutionTimes>::new_recurring_schedule::<Test>(scheduled_time, frequency)
+			.unwrap();
 	add_to_task_queue(owner, provided_id, schedule, action)
 }
 

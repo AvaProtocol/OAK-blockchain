@@ -494,8 +494,10 @@ pub mod pallet {
 				collator: collator_id,
 				account_minimum,
 			};
-			let schedule =
-				Schedule::<T::MaxExecutionTimes>::new_recurring_schedule(execution_time, frequency);
+			let schedule = Schedule::<T::MaxExecutionTimes>::new_recurring_schedule::<T>(
+				execution_time,
+				frequency,
+			)?;
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
@@ -1278,7 +1280,6 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			schedule.valid::<T>()?;
 			let executions = schedule.number_of_known_executions();
 
 			let task =
