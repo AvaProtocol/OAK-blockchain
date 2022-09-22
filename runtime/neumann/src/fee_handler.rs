@@ -54,11 +54,8 @@ pub struct DuplicateCurrencyAdapter<MC, C, OU, FCP>(PhantomData<(MC, C, OU, FCP)
 impl<T, MC, C, OU, FCP> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, FCP>
 where
 	T: pallet_transaction_payment::Config,
-	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
-	MC::CurrencyId: From<TokenId>,
 	C: Currency<<T as frame_system::Config>::AccountId>,
 	C::Balance: From<MC::Balance>,
-	MC::Balance: From<C::Balance>,
 	C::PositiveImbalance: Imbalance<
 		<C as Currency<<T as frame_system::Config>::AccountId>>::Balance,
 		Opposite = C::NegativeImbalance,
@@ -67,6 +64,9 @@ where
 		<C as Currency<<T as frame_system::Config>::AccountId>>::Balance,
 		Opposite = C::PositiveImbalance,
 	>,
+	MC::CurrencyId: From<TokenId>,
+	MC::Balance: From<C::Balance>,
+	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	FCP: CallParser<CallOf<T>>,
 {
