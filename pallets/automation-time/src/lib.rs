@@ -1125,7 +1125,7 @@ pub mod pallet {
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
-			let mut execution_times = task.execution_times(vec![]);
+			let mut execution_times = task.execution_times();
 			Self::clean_execution_times_vector(&mut execution_times);
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
@@ -1226,7 +1226,7 @@ pub mod pallet {
 		) -> Result<TaskId<T>, Error<T>> {
 			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
-			let execution_times = task.execution_times(vec![]);
+			let execution_times = task.execution_times();
 
 			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
 				Err(Error::<T>::DuplicateTask)?;

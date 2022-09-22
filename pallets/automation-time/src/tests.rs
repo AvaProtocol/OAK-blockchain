@@ -1454,7 +1454,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
 			.expect("Task should not have been removed from task map");
 		assert_eq!(task.executions_left(), 1);
-		assert_eq!(task.execution_times(vec![]), vec![next_scheduled_time]);
+		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
 
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
 		get_funds(AccountId32::new(ALICE));

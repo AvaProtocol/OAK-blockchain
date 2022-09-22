@@ -256,12 +256,11 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
 
-	pub fn execution_times(&self, mut l: Vec<UnixTime>) -> Vec<UnixTime> {
+	pub fn execution_times(&self) -> Vec<UnixTime> {
 		match &self.schedule {
 			Schedule::Fixed { execution_times, .. } => execution_times.to_vec(),
 			Schedule::Recurring { next_execution_time, .. } => {
-				l.push(*next_execution_time);
-				l
+				vec![*next_execution_time]
 			},
 		}
 	}
