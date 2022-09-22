@@ -8,7 +8,7 @@ use orml_traits::MultiCurrency;
 use pallet_transaction_payment::OnChargeTransaction;
 use pallet_xcmp_handler::XcmCurrencyData;
 use sp_runtime::{
-	traits::{DispatchInfoOf, PostDispatchInfoOf, Saturating, Zero},
+	traits::{DispatchInfoOf, Get, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::InvalidTransaction,
 };
 use sp_std::marker::PhantomData;
@@ -49,9 +49,9 @@ pub type CallOf<T> = <T as frame_system::Config>::Call;
 type NegativeImbalanceOf<C, T> =
 	<C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
-pub struct DuplicateCurrencyAdapter<MC, C, OU, FCP>(PhantomData<(MC, C, OU, FCP)>);
+pub struct DuplicateCurrencyAdapter<MC, C, OU, TA, FCP>(PhantomData<(MC, C, OU, TA, FCP)>);
 
-impl<T, MC, C, OU, FCP> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, FCP>
+impl<T, MC, C, OU, TA, FCP> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, TA, FCP>
 where
 	T: pallet_transaction_payment::Config,
 	C: Currency<<T as frame_system::Config>::AccountId>,
@@ -68,12 +68,13 @@ where
 	MC::Balance: From<C::Balance>,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
+	TA: Get<T::AccountId>,
 	FCP: CallParser<CallOf<T>>,
 {
 	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
 	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
-	/// Withdraw the predicted fee from the transaction origin.
+	/// Withdraw the prxedicted fee from the transaction origin.
 	///
 	/// Note: The `fee` already includes the `tip`.
 	fn withdraw_fee(
@@ -116,9 +117,9 @@ where
 
 			MC::withdraw(currency_id, who, fee.into())
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			// TODO: get TREASURY_ACCOUNT
-			// MC::deposit(currency_id, TREASURY_ACCOUNT, fee.into()) // treasury account
-			// 	.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			MC::deposit(currency_id, &TA::get(), fee.into()) // treasury account
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// TODO: Fire event for deposit
 

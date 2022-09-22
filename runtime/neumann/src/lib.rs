@@ -559,8 +559,13 @@ mod fee_handler;
 use fee_handler::*;
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction =
-		DuplicateCurrencyAdapter<Tokens, Balances, DealWithInclusionFees<Runtime>, FeeCallParser>;
+	type OnChargeTransaction = DuplicateCurrencyAdapter<
+		Tokens,
+		Balances,
+		DealWithInclusionFees<Runtime>,
+		TreasuryAccount,
+		FeeCallParser
+	>;
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
