@@ -362,11 +362,13 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 			Self::validate_and_schedule_task(
 				Action::Notify { message },
 				who,
 				provided_id,
-				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?,
+				schedule,
 			)?;
 			Ok(().into())
 		}
