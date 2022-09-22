@@ -22,11 +22,11 @@ impl Default for FeeInformation {
 		FeeInformation { token_id: NATIVE_TOKEN_ID, xcm_data: None, asset_metadata: None }
 	}
 }
-pub trait NameGetter<Call> {
+pub trait CallParser<Call> {
 	fn fee_information(call: &Call) -> FeeInformation;
 }
-pub struct FeeNameGetter;
-impl NameGetter<Call> for FeeNameGetter {
+pub struct FeeCallParser;
+impl CallParser<Call> for FeeCallParser {
 	fn fee_information(c: &Call) -> FeeInformation {
 		if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task {
 			para_id,
@@ -49,9 +49,9 @@ type NegativeImbalanceOf<C, T> =
 
 use orml_traits::MultiCurrency;
 
-pub struct DuplicateCurrencyAdapter<MC, C, OU, FNG>(PhantomData<(MC, C, OU, FNG)>);
+pub struct DuplicateCurrencyAdapter<MC, C, OU, FCP>(PhantomData<(MC, C, OU, FCP)>);
 
-impl<T, MC, C, OU, FNG> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, FNG>
+impl<T, MC, C, OU, FCP> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, FCP>
 where
 	T: pallet_transaction_payment::Config,
 	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
@@ -68,7 +68,7 @@ where
 		Opposite = C::PositiveImbalance,
 	>,
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
-	FNG: NameGetter<CallOf<T>>,
+	FCP: CallParser<CallOf<T>>,
 {
 	type LiquidityInfo = Option<(MC::CurrencyId, NegativeImbalanceOf<C, T>)>;
 	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -88,7 +88,7 @@ where
 		}
 
 		// cross it
-		let call_name = FNG::fee_information(call.clone());
+		let call_name = FCP::fee_information(call.clone());
 
 		let currency_id = call_name.token_id.into();
 		// Check existential deposit
