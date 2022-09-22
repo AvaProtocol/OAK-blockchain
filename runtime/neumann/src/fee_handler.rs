@@ -70,7 +70,7 @@ where
 	OU: OnUnbalanced<NegativeImbalanceOf<C, T>>,
 	FCP: CallParser<CallOf<T>>,
 {
-	type LiquidityInfo = Option<(MC::CurrencyId, NegativeImbalanceOf<C, T>)>;
+	type LiquidityInfo = Option<NegativeImbalanceOf<C, T>>;
 	type Balance = <C as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 
 	/// Withdraw the predicted fee from the transaction origin.
@@ -88,24 +88,11 @@ where
 		}
 
 		// cross it
-		let call_name = FCP::fee_information(call.clone());
+		let call_information = FCP::fee_information(call.clone());
 
-		let currency_id = call_name.token_id.into();
-		// Check existential deposit
-		if call_name.token_id != NATIVE_TOKEN_ID {
-			MC::ensure_can_withdraw(
-				currency_id,
-				who,
-				fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
-			)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+		// TODO: when no info or we don't allow that token throw error
 
-			match MC::withdraw(currency_id, who, fee.into()) {
-				// TODO: real imbalance?
-				Ok(()) => Ok(Some((currency_id, C::NegativeImbalance::zero()))),
-				Err(_) => Err(InvalidTransaction::Payment.into()),
-			}
-		} else {
+		if call_information.token_id == NATIVE_TOKEN_ID {
 			let withdraw_reason = if tip.is_zero() {
 				WithdrawReasons::TRANSACTION_PAYMENT
 			} else {
@@ -113,9 +100,29 @@ where
 			};
 
 			match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-				Ok(imbalance) => Ok(Some((currency_id, imbalance))),
+				Ok(imbalance) => Ok(Some(imbalance)),
 				Err(_) => Err(InvalidTransaction::Payment.into()),
 			}
+		} else {
+			let currency_id = call_information.token_id.into();
+			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
+			// withdraw if they don't have enough to avoid reaping
+			MC::ensure_can_withdraw(
+				currency_id,
+				who,
+				fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
+			)
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			MC::withdraw(currency_id, who, fee.into())
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			MC::deposit(currency_id, TREASURY, fee.into())
+				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+			// TODO: Fire event for deposit
+
+			// We dealt with imbalance here so pass zero
+			Ok(Some(C::NegativeImbalance::zero())),
 		}
 	}
 
@@ -133,7 +140,6 @@ where
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
 		if let Some(paid) = already_withdrawn {
-			let paid = paid.1;
 			// Calculate how much refund we should return
 			let refund_amount = paid.peek().saturating_sub(corrected_fee);
 			// refund to the the account that paid the fees. If this fails, the
