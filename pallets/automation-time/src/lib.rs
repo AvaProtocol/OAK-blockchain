@@ -865,7 +865,7 @@ pub mod pallet {
 						});
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
-					Some(mut task) => {
+					Some(task) => {
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
@@ -901,7 +901,7 @@ pub mod pallet {
 									*task_id,
 								),
 						};
-						Self::handle_task_post_processing(*task_id, &mut task, dispatch_error);
+						Self::handle_task_post_processing(*task_id, task, dispatch_error);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
@@ -943,13 +943,13 @@ pub mod pallet {
 							});
 							<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
 						},
-						Some(mut task) => {
+						Some(task) => {
 							Self::deposit_event(Event::TaskMissed {
 								who: task.owner_id.clone(),
 								task_id: missed_task.task_id.clone(),
 								execution_time: missed_task.execution_time,
 							});
-							Self::handle_task_post_processing(missed_task.task_id, &mut task, None);
+							Self::handle_task_post_processing(missed_task.task_id, task, None);
 							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 						},
 					};
@@ -1110,7 +1110,7 @@ pub mod pallet {
 		/// Decrements task executions left.
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
-		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, task: &mut TaskOf<T>) {
+		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: TaskOf<T>) {
 			match task.schedule {
 				Schedule::Fixed { ref mut executions_left, .. } => {
 					*executions_left = executions_left.saturating_sub(1);
@@ -1299,31 +1299,31 @@ pub mod pallet {
 
 		fn reschedule_or_remove_task(
 			task_id: TaskId<T>,
-			task: &mut TaskOf<T>,
+			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-			let remove_on_err = |task: &TaskOf<T>, err: DispatchError| {
-				Self::deposit_event(Event::<T>::TaskNotRescheduled {
-					who: task.owner_id.clone(),
-					task_id,
-					error: err,
-				});
-				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			};
-
 			if let Some(e) = dispatch_error {
-				remove_on_err(task, e);
+				Self::remove_task_on_err(task_id, task, e);
 			} else {
 				let owner_id = task.owner_id.clone();
-				match Self::reschedule_existing_task(task_id, task) {
+				match Self::reschedule_existing_task(task_id, &mut task) {
 					Ok(_) => {
 						Self::deposit_event(Event::<T>::TaskRescheduled { who: owner_id, task_id });
 					},
 					Err(e) => {
-						remove_on_err(task, e);
+						Self::remove_task_on_err(task_id, task, e);
 					},
 				};
 			}
+		}
+
+		fn remove_task_on_err(task_id: TaskId<T>, task: TaskOf<T>, err: DispatchError) {
+			Self::deposit_event(Event::<T>::TaskNotRescheduled {
+				who: task.owner_id.clone(),
+				task_id,
+				error: err,
+			});
+			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 		}
 
 		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
@@ -1352,7 +1352,7 @@ pub mod pallet {
 
 		fn handle_task_post_processing(
 			task_id: TaskId<T>,
-			task: &mut TaskOf<T>,
+			task: TaskOf<T>,
 			error: Option<DispatchError>,
 		) {
 			match task.schedule {
