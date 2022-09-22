@@ -254,9 +254,9 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
+			// if currency_id != T::GetNativeCurrencyId::get() {
+			// 	Err(Error::<T>::CurrencyChainComboNotSupported)?
+			// }
 
 			let (fee, weight) = Self::calculate_xcm_fee_and_weight(
 				para_id,
