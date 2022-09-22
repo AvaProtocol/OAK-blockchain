@@ -26,9 +26,6 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
 use primitives::{assets::CustomMetadata, TokenId};
-use scale_info::TypeInfo;
-#[cfg(feature = "std")]
-use serde::{Deserialize, Serialize};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
 use sp_runtime::{
@@ -128,11 +125,6 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	(
-		pallet_automation_time::migrations::v4::MigrateToV4<Runtime>,
-		migrations::assets::MigrateAssetRegistry,
-		migrations::assets::MigrateTokensCurrencyId,
-	),
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
