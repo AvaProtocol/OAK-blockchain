@@ -304,11 +304,19 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
+		/// A recurring task was rescheduled
 		TaskRescheduled {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
+		/// A recurring task was not rescheduled
 		TaskNotRescheduled {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			error: DispatchError,
+		},
+		/// A recurring task attempted but failed to be rescheduled
+		TaskFailedToReschedule {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 			error: DispatchError,
@@ -1302,28 +1310,29 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-			if let Some(e) = dispatch_error {
-				Self::remove_task_on_err(task_id, task, e);
+			if let Some(err) = dispatch_error {
+				Self::deposit_event(Event::<T>::TaskNotRescheduled {
+					who: task.owner_id.clone(),
+					task_id,
+					error: err,
+				});
+				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			} else {
 				let owner_id = task.owner_id.clone();
 				match Self::reschedule_existing_task(task_id, &mut task) {
 					Ok(_) => {
 						Self::deposit_event(Event::<T>::TaskRescheduled { who: owner_id, task_id });
 					},
-					Err(e) => {
-						Self::remove_task_on_err(task_id, task, e);
+					Err(err) => {
+						Self::deposit_event(Event::<T>::TaskFailedToReschedule {
+							who: task.owner_id.clone(),
+							task_id,
+							error: err,
+						});
+						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 					},
 				};
 			}
-		}
-
-		fn remove_task_on_err(task_id: TaskId<T>, task: TaskOf<T>, err: DispatchError) {
-			Self::deposit_event(Event::<T>::TaskNotRescheduled {
-				who: task.owner_id.clone(),
-				task_id,
-				error: err,
-			});
-			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 		}
 
 		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
