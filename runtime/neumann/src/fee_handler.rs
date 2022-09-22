@@ -1,5 +1,6 @@
 use crate::*;
-use frame_support::{ traits::{Currency, ExistenceRequirement, WithdrawReasons},
+use frame_support::{
+	traits::{Currency, ExistenceRequirement, WithdrawReasons},
 	unsigned::TransactionValidityError,
 };
 use orml_asset_registry::AssetMetadata;
@@ -11,7 +12,6 @@ use sp_runtime::{
 	transaction_validity::InvalidTransaction,
 };
 use sp_std::marker::PhantomData;
-
 
 #[derive(Debug)]
 pub struct FeeInformation {
@@ -112,12 +112,13 @@ where
 				who,
 				fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
 			)
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			MC::withdraw(currency_id, who, fee.into())
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			MC::deposit(currency_id, TREASURY, fee.into())
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+			// TODO: get TREASURY_ACCOUNT
+			// MC::deposit(currency_id, TREASURY_ACCOUNT, fee.into()) // treasury account
+			// 	.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// TODO: Fire event for deposit
 
@@ -159,4 +160,3 @@ where
 		Ok(())
 	}
 }
-

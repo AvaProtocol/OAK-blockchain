@@ -588,6 +588,7 @@ use frame_support::{
 	traits::{Currency, ExistenceRequirement, WithdrawReasons},
 	unsigned::TransactionValidityError,
 };
+use orml_asset_registry::AssetMetadata;
 use pallet_transaction_payment::OnChargeTransaction;
 use pallet_xcmp_handler::XcmCurrencyData;
 use sp_runtime::{
@@ -595,7 +596,6 @@ use sp_runtime::{
 	transaction_validity::InvalidTransaction,
 };
 use sp_std::marker::PhantomData;
-use orml_asset_registry::AssetMetadata;
 
 #[derive(Debug)]
 pub struct FeeInformation {
