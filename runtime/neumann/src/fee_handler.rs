@@ -123,8 +123,8 @@ where
 
 			// TODO: Fire event for deposit
 
-			// We dealt with imbalance here so pass zero
-			Ok(Some(C::NegativeImbalance::zero()))
+			// We dealt with imbalance here so don't let `correct_and_deposit_fee` do it
+			Ok(None)
 		}
 	}
 
