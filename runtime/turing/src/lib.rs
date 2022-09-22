@@ -589,20 +589,23 @@ use frame_support::{
 	unsigned::TransactionValidityError,
 };
 use pallet_transaction_payment::OnChargeTransaction;
+use pallet_xcmp_handler::XcmCurrencyData;
 use sp_runtime::{
 	traits::{DispatchInfoOf, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::InvalidTransaction,
 };
 use sp_std::marker::PhantomData;
+use orml_asset_registry::AssetMetadata;
 
 #[derive(Debug)]
 pub struct FeeInformation {
 	token_id: TokenId,
-	fee_per_second: u128,
+	xcm_data: Option<XcmCurrencyData>,
+	asset_metadata: Option<AssetMetadata<Balance, CustomMetadata>>,
 }
 impl Default for FeeInformation {
 	fn default() -> FeeInformation {
-		FeeInformation { token_id: NATIVE_TOKEN_ID, fee_per_second: 1 }
+		FeeInformation { token_id: NATIVE_TOKEN_ID, xcm_data: None, asset_metadata: None }
 	}
 }
 pub enum ExtraFeeName {
@@ -616,25 +619,17 @@ pub struct FeeNameGetter;
 impl NameGetter<Call> for FeeNameGetter {
 	fn fee_information(c: &Call) -> FeeInformation {
 		log::info!("FEES: Tracking down call info");
-		if let Call::AutomationTime(
-			pallet_automation_time::Call::schedule_xcmp_task { currency_id, .. },
-		) = c.clone()
+		if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task {
+			currency_id,
+			..
+		}) = c.clone()
 		{
-            let xcm_data = match XcmpHandler::get_xcm_chain_data(currency_id, NATIVE_TOKEN_ID) {
-                Some(value) => value,
-                None => return FeeInformation::default(),
-            };
-            log::info!("FEES: XCM data found");
-            let asset_data = match AssetRegistry::metadata(currency_id) {
-                Some(value) => value,
-                None => return FeeInformation::default(),
-            };
-            log::info!("FEES: asset data found");
+			let xcm_data = XcmpHandler::get_xcm_chain_data(currency_id, NATIVE_TOKEN_ID);
+			log::info!("FEES: XCM data found");
+			let asset_metadata = AssetRegistry::metadata(currency_id);
+			log::info!("FEES: asset data found");
 
-            FeeInformation {
-                token_id: currency_id,
-                fee_per_second: xcm_data.fee_per_second,
-            }
+			FeeInformation { token_id: currency_id, xcm_data, asset_metadata }
 		} else {
 			FeeInformation::default()
 		}
