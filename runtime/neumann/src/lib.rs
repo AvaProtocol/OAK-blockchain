@@ -559,7 +559,7 @@ mod fee_handler;
 use fee_handler::*;
 impl pallet_transaction_payment::Config for Runtime {
 	type Event = Event;
-	type OnChargeTransaction = DuplicateCurrencyAdapter<
+	type OnChargeTransaction = CurrencyAdapter<
 		Tokens,
 		Balances,
 		DealWithInclusionFees<Runtime>,

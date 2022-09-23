@@ -7,6 +7,7 @@ use orml_asset_registry::AssetMetadata;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::OnChargeTransaction;
 use pallet_xcmp_handler::XcmCurrencyData;
+use sp_runtime::SaturatedConversion;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Get, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::InvalidTransaction,
@@ -44,9 +45,9 @@ pub type CallOf<T> = <T as frame_system::Config>::Call;
 type NegativeImbalanceOf<C, T> =
 	<C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
 
-pub struct DuplicateCurrencyAdapter<MC, C, OU, TA, FCP>(PhantomData<(MC, C, OU, TA, FCP)>);
+pub struct CurrencyAdapter<MC, C, OU, TA, FCP>(PhantomData<(MC, C, OU, TA, FCP)>);
 
-impl<T, MC, C, OU, TA, FCP> OnChargeTransaction<T> for DuplicateCurrencyAdapter<MC, C, OU, TA, FCP>
+impl<T, MC, C, OU, TA, FCP> OnChargeTransaction<T> for CurrencyAdapter<MC, C, OU, TA, FCP>
 where
 	T: pallet_transaction_payment::Config,
 	C: Currency<<T as frame_system::Config>::AccountId>,
@@ -103,7 +104,6 @@ where
 				Err(_) => Err(InvalidTransaction::Payment.into()),
 			}
 		} else {
-			use sp_runtime::SaturatedConversion;
 			let currency_id = call_information.token_id.into();
 			let foreign_fee = call_information
 				.asset_metadata
