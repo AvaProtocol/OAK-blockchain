@@ -365,6 +365,33 @@ fn get_instruction_set_foreign_currency_instructions() {
 	});
 }
 
+// get_foreign_currency_instructions
+// TODO: use xcm_simulator to test these instructions.
+#[test]
+fn get_foreign_currency_instructions_works() {
+	new_test_ext(None).execute_with(|| {
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
+		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+
+		let (local, target) = XcmpHandler::get_foreign_currency_instructions(
+			PARA_ID,
+			RELAY,
+			descend_location,
+			transact_encoded_call,
+			transact_encoded_call_weight,
+			xcm_weight,
+			xcm_fee,
+		)
+		.unwrap();
+		assert_eq!(local.0.len(), 1);
+		assert_eq!(target.0.len(), 6);
+	});
+}
+
 // get_local_currency_instructions
 // TODO: use xcm_simulator to test these instructions.
 #[test]
@@ -523,7 +550,7 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 		let fee = 3_500_000;
 		let alice_balance = fee;
 
-		Currencies::update_balance(RawOrigin::Root.into(), ALICE, NATIVE, alice_balance).unwrap();
+		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
 
 		assert_noop!(
 			XcmpHandler::pay_xcm_fee(0, ALICE, fee.try_into().unwrap()),
