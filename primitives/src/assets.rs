@@ -59,7 +59,7 @@ pub struct CustomMetadata {
 	pub conversion_rate: Option<ConversionRate>,
 }
 impl CustomMetadata {
-	fn convert_from_foreign_to_native(&self, fee: u128) -> Option<u128> {
+	pub fn convert_from_foreign_to_native(&self, fee: u128) -> Option<u128> {
 		match self.conversion_rate {
 			Some(value) => Some(fee * value.native as u128 / value.foreign as u128),
 			None => None,

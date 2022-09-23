@@ -106,23 +106,31 @@ where
 				Err(_) => Err(InvalidTransaction::Payment.into()),
 			}
 		} else {
+			use sp_runtime::SaturatedConversion;
 			let currency_id = call_information.token_id.into();
-			let foreign_fee = fee;
-			// foreign_fee = call_information.asset_metadata.additional.convert_from_foreign_to_native(fee)
+			let foreign_fee = match call_information.asset_metadata {
+				None => return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)),
+				Some(asset_metadata) => {
+					match asset_metadata.additional.convert_from_foreign_to_native(fee.saturated_into()) {
+						None => return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)),
+						Some(converted_fee) => converted_fee,
+					}
+				},
+			};
 
 			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
 			// withdraw if they don't have enough to avoid reaping
 			MC::ensure_can_withdraw(
 				currency_id,
 				who,
-				foreign_fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
+				foreign_fee.saturating_add(MC::minimum_balance(currency_id).saturated_into()).saturated_into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			MC::withdraw(currency_id, who, foreign_fee.into())
+			MC::withdraw(currency_id, who, foreign_fee.saturated_into())
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			MC::deposit(currency_id, &TA::get(), foreign_fee.into()) // treasury account
+			MC::deposit(currency_id, &TA::get(), foreign_fee.saturated_into()) // treasury account
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// TODO: Fire event for deposit
