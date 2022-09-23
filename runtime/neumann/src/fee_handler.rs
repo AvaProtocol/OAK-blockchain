@@ -85,7 +85,9 @@ where
 
 		let call_information = FCP::fee_information(call.clone());
 
-		if call_information.token_id != NATIVE_TOKEN_ID && call_information.xcm_data == None || call_information.asset_metadata == None {
+		if call_information.token_id != NATIVE_TOKEN_ID && call_information.xcm_data == None ||
+			call_information.asset_metadata == None
+		{
 			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 		}
 
@@ -106,8 +108,14 @@ where
 			let foreign_fee = match call_information.asset_metadata {
 				None => return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)),
 				Some(asset_metadata) => {
-					match asset_metadata.additional.convert_from_foreign_to_native(fee.saturated_into()) {
-						None => return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)),
+					match asset_metadata
+						.additional
+						.convert_from_foreign_to_native(fee.saturated_into())
+					{
+						None =>
+							return Err(TransactionValidityError::Invalid(
+								InvalidTransaction::Payment,
+							)),
 						Some(converted_fee) => converted_fee,
 					}
 				},
@@ -118,7 +126,9 @@ where
 			MC::ensure_can_withdraw(
 				currency_id,
 				who,
-				foreign_fee.saturating_add(MC::minimum_balance(currency_id).saturated_into()).saturated_into(),
+				foreign_fee
+					.saturating_add(MC::minimum_balance(currency_id).saturated_into())
+					.saturated_into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
