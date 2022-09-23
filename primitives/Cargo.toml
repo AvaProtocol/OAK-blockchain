@@ -20,6 +20,7 @@ default = ["std"]
 std = [
 	"codec/std",
 	"scale-info/std",
+	"sp-consensus-aura/std",
 	"sp-core/std",
 	"sp-runtime/std",
 ]
