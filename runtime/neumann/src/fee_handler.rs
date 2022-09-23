@@ -87,12 +87,6 @@ where
 
 		let call_information = FCP::fee_information(call.clone());
 
-		if call_information.token_id != NATIVE_TOKEN_ID && call_information.xcm_data == None ||
-			call_information.asset_metadata == None
-		{
-			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
-		}
-
 		if call_information.token_id == NATIVE_TOKEN_ID {
 			let withdraw_reason = if tip.is_zero() {
 				WithdrawReasons::TRANSACTION_PAYMENT
@@ -105,6 +99,10 @@ where
 				Err(_) => Err(InvalidTransaction::Payment.into()),
 			}
 		} else {
+			if call_information.xcm_data == None || call_information.asset_metadata == None {
+				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+			}
+
 			let currency_id = call_information.token_id.into();
 			let foreign_fee = call_information
 				.asset_metadata
