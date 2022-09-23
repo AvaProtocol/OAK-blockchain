@@ -24,7 +24,6 @@ use frame_support::{
 };
 use frame_system as system;
 use pallet_balances::NegativeImbalance;
-use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -236,15 +235,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn shift_missed_tasks() -> Weight {
 		20_000
-	}
-	fn migration_v4_2_slots() -> Weight {
-		0
-	}
-	fn migration_v4_1_slots() -> Weight {
-		0
-	}
-	fn migration_v4_0_slots() -> Weight {
-		0
 	}
 }
 
