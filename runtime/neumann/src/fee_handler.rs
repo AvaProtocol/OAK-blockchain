@@ -7,10 +7,10 @@ use orml_asset_registry::AssetMetadata;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::OnChargeTransaction;
 use pallet_xcmp_handler::XcmCurrencyData;
-use sp_runtime::SaturatedConversion;
 use sp_runtime::{
 	traits::{DispatchInfoOf, Get, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::InvalidTransaction,
+	SaturatedConversion,
 };
 use sp_std::marker::PhantomData;
 
@@ -108,7 +108,6 @@ where
 			let foreign_fee = call_information
 				.asset_metadata
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
-				.additional
 				.convert_fee_into_foreign(fee.saturated_into())
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
@@ -167,5 +166,83 @@ where
 			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
 		}
 		Ok(())
+	}
+}
+
+pub trait FeeConversion {
+	fn convert_fee_into_foreign(&self, fee: Balance) -> Option<Balance>;
+}
+impl FeeConversion for orml_asset_registry::AssetMetadata<Balance, CustomMetadata> {
+	fn convert_fee_into_foreign(&self, fee: Balance) -> Option<Balance> {
+		let decimaled_fee = if self.decimals >= TOKEN_DECIMALS {
+			fee / 10_u128.pow(self.decimals - TOKEN_DECIMALS)
+		} else {
+			fee * 10_u128.pow(TOKEN_DECIMALS - self.decimals)
+		};
+
+		match self.additional.conversion_rate {
+			Some(value) => Some(decimaled_fee * value.native as Balance / value.foreign as Balance),
+			None => None,
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use primitives::assets::ConversionRate;
+
+	macro_rules! test_asset {
+		($decimals:literal) => {
+			AssetMetadata {
+				decimals: $decimals,
+				name: b"Foreign".to_vec(),
+				symbol: b"FU".to_vec(),
+				existential_deposit: 1,
+				location: None,
+				additional: CustomMetadata { fee_per_second: Some(1), conversion_rate: None },
+			}
+		};
+		($decimals:literal, $native:literal, $foreign:literal) => {
+			AssetMetadata {
+				decimals: $decimals,
+				name: b"Foreign".to_vec(),
+				symbol: b"FU".to_vec(),
+				existential_deposit: 1,
+				location: None,
+				additional: CustomMetadata {
+					fee_per_second: Some(1),
+					conversion_rate: Some(ConversionRate { native: $native, foreign: $foreign }),
+				},
+			}
+		};
+	}
+
+	#[test]
+	fn ensure_none_if_no_conversion_rate() {
+		let asset = test_asset!(10);
+
+		assert_eq!(asset.convert_fee_into_foreign(1), None)
+	}
+
+	#[test]
+	fn check_simple_conversion() {
+		let asset = test_asset!(10, 1, 50);
+
+		assert_eq!(asset.convert_fee_into_foreign(200), Some(4))
+	}
+
+	#[test]
+	fn check_decimal_conversion() {
+		let asset = test_asset!(12, 1, 50);
+
+		assert_eq!(asset.convert_fee_into_foreign(20000), Some(4))
+	}
+
+	#[test]
+	fn check_decimal_conversion_with_bigger_native() {
+		let asset = test_asset!(8, 1, 50);
+
+		assert_eq!(asset.convert_fee_into_foreign(200), Some(400))
 	}
 }
