@@ -564,7 +564,7 @@ impl pallet_transaction_payment::Config for Runtime {
 		Balances,
 		DealWithInclusionFees<Runtime>,
 		TreasuryAccount,
-		FeeCallParser
+		FeeCallParser,
 	>;
 	type WeightToFee = ConstantMultiplier<Balance, WeightToFeeScalar>;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
