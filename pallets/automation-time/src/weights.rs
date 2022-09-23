@@ -105,7 +105,7 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
-	fn migration_v5(v: u32, ) -> Weight;
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight;
 }
 
 /// Weights for pallet_automation_time using the Substrate node and recommended hardware.
@@ -322,7 +322,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_v5(v: u32, ) -> Weight {
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
 		(0 as Weight)
 			// Standard Error: 10_000
 			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))
@@ -545,7 +545,7 @@ impl WeightInfo for () {
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_v5(v: u32, ) -> Weight {
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
 		(0 as Weight)
 			// Standard Error: 10_000
 			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))

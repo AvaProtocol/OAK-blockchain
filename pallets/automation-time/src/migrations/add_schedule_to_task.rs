@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, Seconds, TaskId, TaskOf,
-	UnixTime, Vec,
+	UnixTime,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -95,25 +95,10 @@ pub type AccountTasks<T: Config> = StorageDoubleMap<
 	OldTask<T>,
 >;
 
-pub struct MigrateToV5<T>(PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
-	#[cfg(feature = "try-runtime")]
-	fn pre_upgrade() -> Result<(), &'static str> {
-		use frame_support::traits::OnRuntimeUpgradeHelpersExt;
-
-		let task_count = AccountTasks::<T>::iter().count();
-		Self::set_temp_storage::<u32>(task_count as u32, "pre_migration_task_count");
-
-		log::info!(
-			target: "automation-time",
-			"migration: AutomationTime storage version v5 PRE migration checks succesful!"
-		);
-
-		Ok(())
-	}
-
+pub struct AddScheduleToTask<T>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for AddScheduleToTask<T> {
 	fn on_runtime_upgrade() -> Weight {
-		log::info!(target: "automation-time", "Migrating automation-time v5");
+		log::info!(target: "automation-time", "AddScheduleToTask migration");
 
 		let mut migrated_tasks = 0u32;
 		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
@@ -125,11 +110,26 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 
 		log::info!(
 			target: "automation-time",
-			"migration: AutomationTime storage version v5 migration succesful! Migrated {} tasks.",
+			"migration: AddScheduleToTask succesful! Migrated {} tasks.",
 			migrated_tasks
 		);
 
-		<T as Config>::WeightInfo::migration_v5(migrated_tasks)
+		<T as Config>::WeightInfo::migration_add_schedule_to_task(migrated_tasks)
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<(), &'static str> {
+		use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+		let task_count = AccountTasks::<T>::iter().count();
+		Self::set_temp_storage::<u32>(task_count as u32, "pre_migration_task_count");
+
+		log::info!(
+			target: "automation-time",
+			"migration: AddScheduleToTask PRE migration checks succesful!"
+		);
+
+		Ok(())
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -142,7 +142,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 
 		log::info!(
 			target: "automation-time",
-			"migration: AutomationTime storage version v5 POST migration checks succesful! Migrated {} tasks.",
+			"migration: AddScheduleToTask POST migration checks succesful! Migrated {} tasks.",
 			post_task_count
 		);
 
@@ -152,7 +152,7 @@ impl<T: Config> OnRuntimeUpgrade for MigrateToV5<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{OldAction, OldTask};
+	use super::{AddScheduleToTask, OldAction, OldTask};
 	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
@@ -185,7 +185,7 @@ mod test {
 			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_1, task_1);
 			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_2, task_2);
 
-			super::MigrateToV5::<Test>::on_runtime_upgrade();
+			AddScheduleToTask::<Test>::on_runtime_upgrade();
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 2);
 			assert_eq!(
