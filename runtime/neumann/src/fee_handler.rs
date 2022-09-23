@@ -99,7 +99,7 @@ where
 				Err(_) => Err(InvalidTransaction::Payment.into()),
 			}
 		} else {
-			if call_information.xcm_data == None || call_information.asset_metadata == None {
+			if call_information.xcm_data.is_none() || call_information.asset_metadata.is_none() {
 				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 			}
 
