@@ -105,21 +105,12 @@ where
 		} else {
 			use sp_runtime::SaturatedConversion;
 			let currency_id = call_information.token_id.into();
-			let foreign_fee = match call_information.asset_metadata {
-				None => return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment)),
-				Some(asset_metadata) => {
-					match asset_metadata
-						.additional
-						.convert_from_foreign_to_native(fee.saturated_into())
-					{
-						None =>
-							return Err(TransactionValidityError::Invalid(
-								InvalidTransaction::Payment,
-							)),
-						Some(converted_fee) => converted_fee,
-					}
-				},
-			};
+			let foreign_fee = call_information
+				.asset_metadata
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
+				.additional
+				.convert_from_foreign_to_native(fee.saturated_into())
+				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
 			// withdraw if they don't have enough to avoid reaping
