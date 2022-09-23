@@ -42,6 +42,76 @@ impl CallParser<Call> for FeeCallParser {
 		}
 	}
 }
+
+pub struct NativeFeeProcessor<T, C>(PhantomData<(T, C)>);
+impl<T, C> NativeFeeProcessor<T, C>
+where
+	T: pallet_transaction_payment::Config,
+	C: Currency<<T as frame_system::Config>::AccountId>,
+{
+	fn withdraw_fee(
+		who: &T::AccountId,
+		fee: C::Balance,
+		tip: C::Balance,
+	) -> Result<Option<NegativeImbalanceOf<C, T>>, TransactionValidityError> {
+		let withdraw_reason = if tip.is_zero() {
+			WithdrawReasons::TRANSACTION_PAYMENT
+		} else {
+			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
+		};
+
+		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
+			Ok(imbalance) => Ok(Some(imbalance)),
+			Err(_) => Err(InvalidTransaction::Payment.into()),
+		}
+	}
+}
+
+pub struct ForeignFeeProcessor<T, MC, TA>(PhantomData<(T, MC, TA)>);
+impl<T, MC, TA> ForeignFeeProcessor<T, MC, TA>
+where
+	T: pallet_transaction_payment::Config,
+	MC: MultiCurrency<<T as frame_system::Config>::AccountId>,
+	MC::CurrencyId: From<TokenId>,
+	TA: Get<T::AccountId>,
+{
+	fn withdraw_fee(
+		who: &T::AccountId,
+		fee: MC::Balance,
+		call_information: FeeInformation,
+	) -> Result<(), TransactionValidityError> {
+		if call_information.xcm_data.is_none() || call_information.asset_metadata.is_none() {
+			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+		}
+
+		let currency_id = call_information.token_id.into();
+		let foreign_fee: MC::Balance = call_information
+			.asset_metadata
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
+			.convert_fee_into_foreign(fee.saturated_into())
+			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
+			.saturated_into();
+
+		// orml_tokens doesn't provide withdraw that allows setting existence so prevent
+		// withdraw if they don't have enough to avoid reaping
+		MC::ensure_can_withdraw(
+			currency_id,
+			who,
+			foreign_fee.saturating_add(MC::minimum_balance(currency_id)),
+		)
+		.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		MC::withdraw(currency_id, who, foreign_fee)
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		MC::deposit(currency_id, &TA::get(), foreign_fee) // treasury account
+			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
+
+		// We dealt with imbalance here so don't let `correct_and_deposit_fee` do it
+		Ok(())
+	}
+}
+
 pub type CallOf<T> = <T as frame_system::Config>::Call;
 type NegativeImbalanceOf<C, T> =
 	<C as Currency<<T as frame_system::Config>::AccountId>>::NegativeImbalance;
@@ -52,7 +122,6 @@ impl<T, MC, C, OU, TA, FCP> OnChargeTransaction<T> for CurrencyAdapter<MC, C, OU
 where
 	T: pallet_transaction_payment::Config,
 	C: Currency<<T as frame_system::Config>::AccountId>,
-	C::Balance: From<MC::Balance>,
 	C::PositiveImbalance: Imbalance<
 		<C as Currency<<T as frame_system::Config>::AccountId>>::Balance,
 		Opposite = C::NegativeImbalance,
@@ -88,48 +157,9 @@ where
 		let call_information = FCP::fee_information(call.clone());
 
 		if call_information.token_id == NATIVE_TOKEN_ID {
-			let withdraw_reason = if tip.is_zero() {
-				WithdrawReasons::TRANSACTION_PAYMENT
-			} else {
-				WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
-			};
-
-			match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-				Ok(imbalance) => Ok(Some(imbalance)),
-				Err(_) => Err(InvalidTransaction::Payment.into()),
-			}
+			NativeFeeProcessor::<T, C>::withdraw_fee(who, fee, tip)
 		} else {
-			if call_information.xcm_data.is_none() || call_information.asset_metadata.is_none() {
-				return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
-			}
-
-			let currency_id = call_information.token_id.into();
-			let foreign_fee = call_information
-				.asset_metadata
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
-				.convert_fee_into_foreign(fee.saturated_into())
-				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
-			// withdraw if they don't have enough to avoid reaping
-			MC::ensure_can_withdraw(
-				currency_id,
-				who,
-				foreign_fee
-					.saturating_add(MC::minimum_balance(currency_id).saturated_into())
-					.saturated_into(),
-			)
-			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			MC::withdraw(currency_id, who, foreign_fee.saturated_into())
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			MC::deposit(currency_id, &TA::get(), foreign_fee.saturated_into()) // treasury account
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-
-			// TODO: Fire event for deposit
-
-			// We dealt with imbalance here so don't let `correct_and_deposit_fee` do it
+			ForeignFeeProcessor::<T, MC, TA>::withdraw_fee(who, fee.into(), call_information)?;
 			Ok(None)
 		}
 	}
