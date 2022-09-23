@@ -109,7 +109,7 @@ where
 				.asset_metadata
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
 				.additional
-				.convert_from_foreign_to_native(fee.saturated_into())
+				.convert_fee_into_foreign(fee.saturated_into())
 				.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
