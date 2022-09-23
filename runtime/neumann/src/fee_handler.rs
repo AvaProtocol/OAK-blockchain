@@ -88,10 +88,11 @@ where
 			return Ok(None)
 		}
 
-		// cross it
 		let call_information = FCP::fee_information(call.clone());
 
-		// TODO: when no info or we don't allow that token throw error
+		if call_information.token_id != NATIVE_TOKEN_ID && call_information.xcm_data == None || call_information.asset_metadata == None {
+			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+		}
 
 		if call_information.token_id == NATIVE_TOKEN_ID {
 			let withdraw_reason = if tip.is_zero() {
@@ -106,19 +107,22 @@ where
 			}
 		} else {
 			let currency_id = call_information.token_id.into();
+			let foreign_fee = fee;
+			// foreign_fee = call_information.asset_metadata.additional.convert_from_foreign_to_native(fee)
+
 			// orml_tokens doesn't provide withdraw that allows setting existence so prevent
 			// withdraw if they don't have enough to avoid reaping
 			MC::ensure_can_withdraw(
 				currency_id,
 				who,
-				fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
+				foreign_fee.saturating_add(MC::minimum_balance(currency_id).into()).into(),
 			)
 			.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			MC::withdraw(currency_id, who, fee.into())
+			MC::withdraw(currency_id, who, foreign_fee.into())
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
-			MC::deposit(currency_id, &TA::get(), fee.into()) // treasury account
+			MC::deposit(currency_id, &TA::get(), foreign_fee.into()) // treasury account
 				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
 
 			// TODO: Fire event for deposit
