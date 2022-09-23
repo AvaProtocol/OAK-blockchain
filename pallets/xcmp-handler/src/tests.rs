@@ -3,6 +3,8 @@
 // Copyright (C) 2022 OAK Network
 // SPDX-License-Identifier: Apache-2.0
 
+use core::convert::TryInto;
+
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -26,7 +28,12 @@ use xcm::latest::prelude::*;
 //*****************
 
 const PARA_ID: u32 = 1000;
-const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
+const XCM_DATA_NATIVE: XcmCurrencyData = XcmCurrencyData {
+	native: true,
+	fee_per_second: 50_000_000_000,
+	instruction_weight: 100_000_000,
+};
+const XCM_DATA_NON_NATIVE: XcmCurrencyData = XcmCurrencyData {
 	native: false,
 	fee_per_second: 50_000_000_000,
 	instruction_weight: 100_000_000,
@@ -46,9 +53,12 @@ fn add_chain_currency_data_new_data() {
 			RawOrigin::Root.into(),
 			PARA_ID,
 			currency_id,
-			XCM_DATA
+			XCM_DATA_NON_NATIVE
 		));
-		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(), XCM_DATA);
+		assert_eq!(
+			XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(),
+			XCM_DATA_NON_NATIVE
+		);
 	});
 }
 
@@ -57,13 +67,16 @@ fn add_chain_currency_data_update_data() {
 	let genesis_config = vec![(
 		PARA_ID,
 		NATIVE,
-		XCM_DATA.native,
-		XCM_DATA.fee_per_second,
-		XCM_DATA.instruction_weight,
+		XCM_DATA_NON_NATIVE.native,
+		XCM_DATA_NON_NATIVE.fee_per_second,
+		XCM_DATA_NON_NATIVE.instruction_weight,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), XCM_DATA);
+		assert_eq!(
+			XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(),
+			XCM_DATA_NON_NATIVE
+		);
 
 		let xcm_data_new =
 			XcmCurrencyData { native: false, fee_per_second: 200, instruction_weight: 3_000 };
@@ -82,7 +95,12 @@ fn add_chain_currency_data_update_data() {
 fn add_chain_currency_data_can_only_use_native_currency() {
 	new_test_ext(None).execute_with(|| {
 		assert_noop!(
-			XcmpHandler::add_chain_currency_data(RawOrigin::Root.into(), PARA_ID, RELAY, XCM_DATA),
+			XcmpHandler::add_chain_currency_data(
+				RawOrigin::Root.into(),
+				PARA_ID,
+				RELAY,
+				XCM_DATA_NON_NATIVE
+			),
 			Error::<Test>::CurrencyChainComboNotSupported
 		);
 	});
@@ -94,9 +112,9 @@ fn remove_chain_currency_data_remove_data() {
 	let genesis_config = vec![(
 		PARA_ID,
 		NATIVE,
-		XCM_DATA.native,
-		XCM_DATA.fee_per_second,
-		XCM_DATA.instruction_weight,
+		XCM_DATA_NON_NATIVE.native,
+		XCM_DATA_NON_NATIVE.fee_per_second,
+		XCM_DATA_NON_NATIVE.instruction_weight,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -134,17 +152,17 @@ fn calculate_xcm_fee_and_weight_works() {
 	let genesis_config = vec![(
 		PARA_ID,
 		NATIVE,
-		XCM_DATA.native,
-		XCM_DATA.fee_per_second,
-		XCM_DATA.instruction_weight,
+		XCM_DATA_NON_NATIVE.native,
+		XCM_DATA_NON_NATIVE.fee_per_second,
+		XCM_DATA_NON_NATIVE.instruction_weight,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight;
-		let expected_fee =
-			XCM_DATA.fee_per_second * (expected_weight as u128) / (WEIGHT_PER_SECOND as u128);
+		let expected_weight = transact_encoded_call_weight + XCM_DATA_NON_NATIVE.instruction_weight;
+		let expected_fee = XCM_DATA_NON_NATIVE.fee_per_second * (expected_weight as u128) /
+			(WEIGHT_PER_SECOND as u128);
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
@@ -213,8 +231,16 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 
 // get_instruction_set
 #[test]
-fn get_instruction_set_only_support_local_currency() {
-	new_test_ext(None).execute_with(|| {
+fn get_instruction_set_only_support_local_and_foreign_native_currency() {
+	let genesis_config = vec![(
+		PARA_ID,
+		RELAY,
+		XCM_DATA_NON_NATIVE.native,
+		XCM_DATA_NON_NATIVE.fee_per_second,
+		XCM_DATA_NON_NATIVE.instruction_weight,
+	)];
+
+	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
@@ -232,13 +258,33 @@ fn get_instruction_set_only_support_local_currency() {
 }
 
 #[test]
+fn get_instruction_set_fails_if_no_xcmp_data() {
+	new_test_ext(None).execute_with(|| {
+		// add foreign non-native currency
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+
+		assert_noop!(
+			XcmpHandler::get_instruction_set(
+				PARA_ID,
+				RELAY,
+				ALICE,
+				transact_encoded_call,
+				transact_encoded_call_weight
+			),
+			Error::<Test>::CurrencyChainComboNotFound
+		);
+	});
+}
+
+#[test]
 fn get_instruction_set_local_currency_instructions() {
 	let genesis_config = vec![(
 		PARA_ID,
 		NATIVE,
-		XCM_DATA.native,
-		XCM_DATA.fee_per_second,
-		XCM_DATA.instruction_weight,
+		XCM_DATA_NON_NATIVE.native,
+		XCM_DATA_NON_NATIVE.fee_per_second,
+		XCM_DATA_NON_NATIVE.instruction_weight,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -266,6 +312,49 @@ fn get_instruction_set_local_currency_instructions() {
 			XcmpHandler::get_instruction_set(
 				PARA_ID,
 				NATIVE,
+				ALICE,
+				transact_encoded_call,
+				transact_encoded_call_weight
+			)
+			.unwrap(),
+			expected_instructions
+		);
+	});
+}
+
+#[test]
+fn get_instruction_set_foreign_currency_instructions() {
+	let genesis_config = vec![(
+		PARA_ID,
+		RELAY,
+		XCM_DATA_NATIVE.native,
+		XCM_DATA_NATIVE.fee_per_second,
+		XCM_DATA_NATIVE.instruction_weight,
+	)];
+
+	new_test_ext(Some(genesis_config)).execute_with(|| {
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight: u64 = 100_000_000;
+		let (xcm_fee, xcm_weight) =
+			XcmpHandler::calculate_xcm_fee_and_weight(PARA_ID, RELAY, transact_encoded_call_weight)
+				.unwrap();
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+		let expected_instructions = XcmpHandler::get_foreign_currency_instructions(
+			PARA_ID,
+			RELAY,
+			descend_location,
+			transact_encoded_call.clone(),
+			transact_encoded_call_weight,
+			xcm_weight,
+			xcm_fee,
+		)
+		.unwrap();
+
+		assert_eq!(
+			XcmpHandler::get_instruction_set(
+				PARA_ID,
+				RELAY,
 				ALICE,
 				transact_encoded_call,
 				transact_encoded_call_weight
@@ -420,7 +509,7 @@ fn pay_xcm_fee_works() {
 
 		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_ok!(XcmpHandler::pay_xcm_fee(0, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
 		assert_eq!(Balances::free_balance(local_sovereign_account), fee);
 	});
@@ -434,10 +523,13 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 		let fee = 3_500_000;
 		let alice_balance = fee;
 
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+		Currencies::update_balance(RawOrigin::Root.into(), ALICE, NATIVE, alice_balance).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
-		assert_eq!(Balances::free_balance(ALICE), alice_balance);
+		assert_noop!(
+			XcmpHandler::pay_xcm_fee(0, ALICE, fee.try_into().unwrap()),
+			Error::<Test>::InsufficientFundsToPayFees
+		);
+		assert_eq!(Balances::free_balance(ALICE), alice_balance.try_into().unwrap());
 		assert_eq!(Balances::free_balance(local_sovereign_account), 0);
 	});
 }

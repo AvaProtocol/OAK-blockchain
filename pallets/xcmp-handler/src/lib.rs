@@ -53,16 +53,18 @@ pub mod pallet {
 		weights::constants::WEIGHT_PER_SECOND,
 	};
 	use frame_system::pallet_prelude::*;
+	use orml_traits::MultiCurrency;
 	use polkadot_parachain::primitives::Sibling;
-	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
+	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion, Saturating};
 	use sp_std::prelude::*;
 	use xcm::latest::prelude::*;
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
 
-	pub type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub(crate) type BalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -70,8 +72,14 @@ pub mod pallet {
 
 		type Call: From<Call<Self>> + Encode;
 
-		/// The Currency type for interacting with balances
+		/// Handler for both NativeCurrency and MultiCurrency
+		type MultiCurrency: MultiCurrency<Self::AccountId, CurrencyId = Self::CurrencyId>;
+
+		/// The currency type in which fees will be paid.
 		type Currency: Currency<Self::AccountId>;
+
+		/// Convert `T::CurrencyId` to `MultiLocation`.
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
@@ -150,6 +158,10 @@ pub mod pallet {
 		XcmExecutionFailed,
 		/// Failed to get weight of call.
 		ErrorGettingCallWeight,
+		/// Not enough funds to pay fees.
+		InsufficientFundsToPayFees,
+		/// Failed to get MultiLocation of CurrencyId.
+		FailedCurrencyIdToMultiLocation,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -183,7 +195,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add or update XCM data for a chain/currency pair.
-		/// For now we only support our native currency.
+		/// For now we only support our native currency or a chains native currency.
 		#[pallet::weight(T::WeightInfo::add_chain_currency_data())]
 		pub fn add_chain_currency_data(
 			origin: OriginFor<T>,
@@ -193,7 +205,7 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			if currency_id != T::GetNativeCurrencyId::get() {
+			if currency_id != T::GetNativeCurrencyId::get() && xcm_data.native != true {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			}
 
@@ -258,10 +270,6 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
-
 			let (fee, weight) = Self::calculate_xcm_fee_and_weight(
 				para_id,
 				currency_id,
@@ -272,14 +280,30 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = Self::get_local_currency_instructions(
-				para_id,
-				descend_location,
-				transact_encoded_call,
-				transact_encoded_call_weight,
-				weight,
-				fee,
-			)?;
+			let instructions = match T::GetNativeCurrencyId::get() == currency_id {
+				true => Self::get_local_currency_instructions(
+					para_id,
+					descend_location,
+					transact_encoded_call,
+					transact_encoded_call_weight,
+					weight,
+					fee,
+				)?,
+				false
+					if XcmChainCurrencyData::<T>::get(para_id, currency_id)
+						.ok_or(Error::<T>::CurrencyChainComboNotFound)?
+						.native == true =>
+					Self::get_foreign_currency_instructions(
+						para_id,
+						currency_id,
+						descend_location,
+						transact_encoded_call,
+						transact_encoded_call_weight,
+						weight,
+						fee,
+					)?,
+				_ => Err(Error::<T>::CurrencyChainComboNotSupported)?,
+			};
 
 			Ok(instructions)
 		}
@@ -334,6 +358,72 @@ pub mod pallet {
 			let target_xcm = Xcm(vec![
 				ReserveAssetDeposited::<()>(local_asset.clone().into()),
 				BuyExecution::<()> { fees: local_asset, weight_limit: Limited(xcm_weight) },
+				DescendOrigin::<()>(descend_location),
+				Transact::<()> {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: transact_encoded_call_weight,
+					call: transact_encoded_call.into(),
+				},
+				RefundSurplus::<()>,
+				DepositAsset::<()> {
+					assets: Wild(All),
+					max_assets: 1,
+					beneficiary: MultiLocation {
+						parents: 1,
+						interior: X1(Parachain(T::SelfParaId::get().into())),
+					},
+				},
+			]);
+
+			Ok((local_xcm, target_xcm))
+		}
+
+		/// Construct the instructions for a transact xcm with a foreign currency.
+		///
+		/// Local instructions
+		/// 	- WithdrawAsset
+		///
+		/// Target instructions
+		/// 	- WithdrawAsset
+		/// 	- BuyExecution
+		/// 	- DescendOrigin
+		/// 	- Transact
+		/// 	- RefundSurplus
+		/// 	- DepositAsset
+		pub fn get_foreign_currency_instructions(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			descend_location: Junctions,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+			xcm_weight: u64,
+			fee: u128,
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
+			let fee_location: MultiLocation = T::CurrencyIdConvert::convert(currency_id)
+				.ok_or(Error::<T>::FailedCurrencyIdToMultiLocation)?;
+
+			let foreign_asset =
+				MultiAsset { id: Concrete(fee_location), fun: Fungibility::Fungible(fee) };
+
+			// This message deducts and burns "amount" from the caller when executed
+			let local_xcm = Xcm(vec![WithdrawAsset::<<T as pallet::Config>::Call>(
+				foreign_asset.clone().into(),
+			)]);
+
+			// XCM for target chain
+			let foreign_asset = foreign_asset
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					&T::LocationInverter::ancestry(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
+
+			let target_xcm = Xcm(vec![
+				WithdrawAsset::<()>(foreign_asset.clone().into()),
+				BuyExecution::<()> { fees: foreign_asset, weight_limit: Limited(xcm_weight) },
 				DescendOrigin::<()>(descend_location),
 				Transact::<()> {
 					origin_type: OriginKind::SovereignAccount,
@@ -434,15 +524,30 @@ pub mod pallet {
 		/// Pay for XCMP fees.
 		/// Transfers fee from payer account to the local chain sovereign account.
 		///
-		pub fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), DispatchError> {
+		pub fn pay_xcm_fee(
+			currency_id: T::CurrencyId,
+			source: T::AccountId,
+			fee: u128,
+		) -> Result<(), DispatchError> {
 			let local_sovereign_account =
 				Sibling::from(T::SelfParaId::get()).into_account_truncating();
 
-			match T::Currency::transfer(
+			ensure!(
+				T::MultiCurrency::ensure_can_withdraw(
+					currency_id,
+					&source,
+					<BalanceOf<T>>::saturated_from(fee)
+						.saturating_add(T::MultiCurrency::minimum_balance(currency_id)),
+				)
+				.is_ok(),
+				Error::<T>::InsufficientFundsToPayFees
+			);
+
+			match T::MultiCurrency::transfer(
+				currency_id,
 				&source,
 				&local_sovereign_account,
 				<BalanceOf<T>>::saturated_from(fee),
-				frame_support::traits::ExistenceRequirement::KeepAlive,
 			) {
 				Ok(_number) => Self::deposit_event(Event::XcmFeesPaid {
 					source,
@@ -506,7 +611,11 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError>;
 
-	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
+	fn pay_xcm_fee(
+		currency_id: CurrencyId,
+		source: AccountId,
+		fee: u128,
+	) -> Result<(), sp_runtime::DispatchError>;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_currency_data(
@@ -545,8 +654,12 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Ok(fee)
 	}
 
-	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
-		Self::pay_xcm_fee(source, fee)?;
+	fn pay_xcm_fee(
+		currency_id: T::CurrencyId,
+		source: T::AccountId,
+		fee: u128,
+	) -> Result<(), sp_runtime::DispatchError> {
+		Self::pay_xcm_fee(currency_id, source, fee)?;
 
 		Ok(()).into()
 	}

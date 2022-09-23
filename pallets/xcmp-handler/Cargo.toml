@@ -29,11 +29,13 @@ frame-system = { git = "https://github.com/paritytech/substrate", default-featur
 # Cumulus dependencies
 cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.26', default-features = false }
 
-
 # Polkadot Dependencies
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.26" }
 xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.26" }
 xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.26" }
+
+# ORML Dependencies
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
 
 [dev-dependencies]
 # Substrate
@@ -51,6 +53,10 @@ pallet-xcm = { git = 'https://github.com/paritytech/polkadot', default-features 
 xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
 xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = 'release-v0.9.26' }
 
+# ORML Dependencies
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "8c625a5ab43c1c56cdeed5f8d814a891566d4cf8" }
+
 [features]
 default = ["std"]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
@@ -60,6 +66,9 @@ std = [
     "frame-benchmarking/std",
     "frame-support/std",
     "frame-system/std",
+    "orml-currencies/std",
+    "orml-traits/std",
+    "orml-tokens/std",
     "polkadot-parachain/std",
     "scale-info/std",
     "sp-runtime/std",

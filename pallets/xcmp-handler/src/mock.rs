@@ -16,23 +16,20 @@
 // limitations under the License.
 
 use crate as pallet_xcmp_handler;
-use codec::{Decode, Encode, MaxEncodedLen};
 use core::cell::RefCell;
 use frame_support::{
 	parameter_types,
-	traits::{Everything, GenesisBuild},
+	traits::{Everything, GenesisBuild, Nothing},
 	weights::Weight,
 };
 use frame_system as system;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
-use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, Convert, IdentityLookup},
-	AccountId32, RuntimeDebug,
+	AccountId32,
 };
 use xcm::latest::prelude::*;
 use xcm_builder::{
@@ -49,13 +46,16 @@ use xcm_executor::{
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = AccountId32;
+pub type Amount = i128;
 pub type Balance = u128;
+pub type BlockNumber = u64;
 pub type CurrencyId = u32;
+pub type TokenId = u32;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 pub const LOCAL_PARA_ID: u32 = 2114;
 pub const NATIVE: CurrencyId = 0;
-pub const RELAY: CurrencyId = 1;
+pub const RELAY: CurrencyId = 2;
 
 frame_support::construct_runtime!(
 	pub enum Test where
@@ -69,6 +69,8 @@ frame_support::construct_runtime!(
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin},
+		Tokens: orml_tokens::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Currencies: orml_currencies::{Pallet, Call, Storage},
 	}
 );
 
@@ -131,6 +133,17 @@ pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
 	fn convert(account: AccountId) -> MultiLocation {
 		X1(Junction::AccountId32 { network: NetworkId::Any, id: account.into() }).into()
+	}
+}
+
+pub struct TokenIdConvert;
+impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
+	fn convert(id: TokenId) -> Option<MultiLocation> {
+		match id {
+			0 => Some(MultiLocation::new(0, Here).into()),
+			1 => Some(MultiLocation::parent().into()),
+			_ => Some(MultiLocation::new(1, X1(Parachain(id))).into()),
+		}
 	}
 }
 
@@ -261,15 +274,48 @@ impl cumulus_pallet_xcm::Config for Test {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
+orml_traits::parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		0
+	};
+}
+impl orml_tokens::Config for Test {
+	type Amount = Amount;
+	type Balance = Balance;
+	type CurrencyId = CurrencyId;
+	type DustRemovalWhitelist = Nothing;
+	type Event = Event;
+	type ExistentialDeposits = ExistentialDeposits;
+	type MaxLocks = ();
+	type MaxReserves = ();
+	type OnDust = ();
+	type ReserveIdentifier = [u8; 8];
+	type WeightInfo = ();
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+}
+
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+}
+
+pub type AdaptedBasicCurrency =
+	orml_currencies::BasicCurrencyAdapter<Test, Balances, Amount, BlockNumber>;
+
+impl orml_currencies::Config for Test {
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type MultiCurrency = Tokens;
+	type NativeCurrency = AdaptedBasicCurrency;
+	type WeightInfo = ();
 }
 
 impl pallet_xcmp_handler::Config for Test {
 	type Event = Event;
 	type Call = Call;
 	type CurrencyId = CurrencyId;
+	type MultiCurrency = Currencies;
+	type CurrencyIdConvert = TokenIdConvert;
 	type Currency = Balances;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Test>;
