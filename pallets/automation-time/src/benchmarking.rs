@@ -506,8 +506,8 @@ benchmarks! {
 
 		for i in 0..v {
 			let account_id: T::AccountId = account("Account", 0, i);
-			let task_id_1 = Pallet::<T>::generate_task_id(account_id.clone(), vec![0]);
-			let task_1 = OldTask::<T> {
+			let task_id = Pallet::<T>::generate_task_id(account_id.clone(), vec![0]);
+			let task = OldTask::<T> {
 				owner_id: account_id.clone(),
 				provided_id: vec![1],
 				execution_times: vec![10].try_into().unwrap(),
@@ -519,7 +519,7 @@ benchmarks! {
 					frequency: 11,
 				},
 			};
-			OldAccountTasks::<T>::insert(account_id.clone(), task_id_1, task_1);
+			OldAccountTasks::<T>::insert(account_id.clone(), task_id, task);
 		}
 	}: { AddScheduleToTask::<T>::on_runtime_upgrade() }
 	verify {
