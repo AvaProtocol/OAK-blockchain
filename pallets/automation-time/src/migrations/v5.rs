@@ -8,6 +8,7 @@ use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
 use scale_info::TypeInfo;
+use sp_std::vec::Vec;
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
