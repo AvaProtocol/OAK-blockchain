@@ -19,11 +19,6 @@ pub struct FeeInformation {
 	xcm_data: Option<XcmCurrencyData>,
 	asset_metadata: Option<AssetMetadata<Balance, CustomMetadata>>,
 }
-impl Default for FeeInformation {
-	fn default() -> FeeInformation {
-		FeeInformation { token_id: NATIVE_TOKEN_ID, xcm_data: None, asset_metadata: None }
-	}
-}
 pub trait CallParser<Call> {
 	fn fee_information(call: &Call) -> FeeInformation;
 }
@@ -41,7 +36,7 @@ impl CallParser<Call> for FeeCallParser {
 
 			FeeInformation { token_id: currency_id, xcm_data, asset_metadata }
 		} else {
-			FeeInformation::default()
+			FeeInformation { token_id: NATIVE_TOKEN_ID, xcm_data: None, asset_metadata: None }
 		}
 	}
 }
