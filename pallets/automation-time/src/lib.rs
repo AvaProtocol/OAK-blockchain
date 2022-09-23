@@ -1334,8 +1334,8 @@ pub mod pallet {
 
 			// Pay XCMP fees
 			match action {
-				Action::XCMP { .. } =>
-					T::XcmpTransactor::pay_xcm_fee(owner_id.clone(), xcmp_fee).unwrap(),
+				Action::XCMP { currency_id, .. } =>
+					T::XcmpTransactor::pay_xcm_fee(currency_id, owner_id.clone(), xcmp_fee).unwrap(),
 				_ => (),
 			};
 
