@@ -189,8 +189,17 @@ benchmarks! {
 	schedule_xcmp_task_full {
 		let v in 1..T::MaxExecutionTimes::get();
 
+		// TODO: Additional read/writes accounts for AssetRegistry assets unavailable.
+		// Remove added weight when AssetRegistry genesis config is merged.
+		// Storage: AssetRegistry AssetIdToLocation (r:1 w:0)
+		// Storage: System Account (r:2 w:2)
+		// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+		// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
+		let xcmp_weight = (<T as Config>::WeightInfo::run_xcmp_task() as u128)
+			.saturating_add(T::DbWeight::get().reads(5 as Weight) as u128)
+			.saturating_add(T::DbWeight::get().writes(3 as Weight) as u128);
 		let mut max_tasks_per_slot: u32 = (
-			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task() as u128
+			T::MaxWeightPerSlot::get() / xcmp_weight
 		).try_into().unwrap();
 		max_tasks_per_slot = cmp::min(max_tasks_per_slot, T::MaxTasksPerSlot::get());
 
