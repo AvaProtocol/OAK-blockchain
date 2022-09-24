@@ -560,6 +560,7 @@ mod tests {
 					frequency: 3600
 				}
 				.valid::<Test>());
+				// Next execution time not at hour granuality
 				assert_err!(
 					Schedule::<MaxExecutionTimes>::Recurring {
 						next_execution_time: start_time + 3650,
@@ -568,6 +569,16 @@ mod tests {
 					.valid::<Test>(),
 					Error::<Test>::InvalidTime
 				);
+				// Frequency not at hour granularity
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3650,
+						frequency: 3650
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				// Frequency of 0
 				assert_err!(
 					Schedule::<MaxExecutionTimes>::Recurring {
 						next_execution_time: start_time + 3600,
@@ -576,6 +587,7 @@ mod tests {
 					.valid::<Test>(),
 					Error::<Test>::InvalidTime
 				);
+				// Frequency too far out
 				assert_err!(
 					Schedule::<MaxExecutionTimes>::Recurring {
 						next_execution_time: start_time + 3600,
