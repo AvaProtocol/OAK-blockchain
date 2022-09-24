@@ -1,5 +1,4 @@
-use crate::{AssetRegistry, Balance, Call, NATIVE_TOKEN_ID, TOKEN_DECIMALS, XcmpHandler};
-use primitives::{TokenId, assets::CustomMetadata};
+use crate::{AssetRegistry, Balance, Call, XcmpHandler, NATIVE_TOKEN_ID, TOKEN_DECIMALS};
 use frame_support::{
 	traits::{Currency, ExistenceRequirement, Imbalance, OnUnbalanced, WithdrawReasons},
 	unsigned::TransactionValidityError,
@@ -8,6 +7,7 @@ use orml_asset_registry::AssetMetadata;
 use orml_traits::MultiCurrency;
 use pallet_transaction_payment::OnChargeTransaction;
 use pallet_xcmp_handler::XcmCurrencyData;
+use primitives::{assets::CustomMetadata, TokenId};
 use sp_runtime::{
 	traits::{DispatchInfoOf, Get, PostDispatchInfoOf, Saturating, Zero},
 	transaction_validity::InvalidTransaction,
