@@ -582,7 +582,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -612,7 +612,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 
@@ -1192,7 +1192,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1200,7 +1200,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1229,7 +1229,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1237,7 +1237,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 	})
@@ -1266,7 +1266,7 @@ fn missed_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1453,7 +1453,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 			.expect("Task should have been rescheduled");
 		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
 			.expect("Task should not have been removed from task map");
-		assert_eq!(task.executions_left(), 1);
+		assert_eq!(task.schedule.number_of_known_executions(), 1);
 		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
 
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
@@ -1570,7 +1570,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1588,7 +1588,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 	})
@@ -1611,7 +1611,7 @@ fn trigger_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left(), 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 

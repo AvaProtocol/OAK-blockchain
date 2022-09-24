@@ -264,10 +264,6 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 			},
 		}
 	}
-
-	pub fn executions_left(&self) -> u32 {
-		*&self.schedule.number_of_known_executions()
-	}
 }
 
 #[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
