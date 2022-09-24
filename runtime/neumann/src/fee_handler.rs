@@ -221,29 +221,31 @@ mod tests {
 	use super::*;
 	use primitives::assets::ConversionRate;
 
-	macro_rules! test_asset {
-		($decimals:literal) => {
+	macro_rules! asset_struct {
+		($decimals:literal, $custom_metadata:tt) => {
 			AssetMetadata {
 				decimals: $decimals,
 				name: b"Foreign".to_vec(),
 				symbol: b"FU".to_vec(),
 				existential_deposit: 1,
 				location: None,
-				additional: CustomMetadata { fee_per_second: Some(1), conversion_rate: None },
+				additional: CustomMetadata $custom_metadata,
 			}
 		};
-		($decimals:literal, $native:literal, $foreign:literal) => {
-			AssetMetadata {
-				decimals: $decimals,
-				name: b"Foreign".to_vec(),
-				symbol: b"FU".to_vec(),
-				existential_deposit: 1,
-				location: None,
-				additional: CustomMetadata {
-					fee_per_second: Some(1),
-					conversion_rate: Some(ConversionRate { native: $native, foreign: $foreign }),
-				},
-			}
+	}
+
+	macro_rules! test_asset {
+		($decimals:literal) => {
+			asset_struct!($decimals, {
+				fee_per_second: Some(1),
+				conversion_rate: None,
+			})
+		};
+		($decimals:literal, $native:literal : $foreign:literal) => {
+			asset_struct!($decimals, {
+				fee_per_second: Some(1),
+				conversion_rate: Some(ConversionRate { native: $native, foreign: $foreign }),
+			})
 		};
 	}
 
@@ -256,21 +258,21 @@ mod tests {
 
 	#[test]
 	fn check_simple_conversion() {
-		let asset = test_asset!(10, 1, 50);
+		let asset = test_asset!(10, 1:50);
 
 		assert_eq!(asset.convert_fee_into_foreign(200), Some(4))
 	}
 
 	#[test]
 	fn check_decimal_conversion() {
-		let asset = test_asset!(12, 1, 50);
+		let asset = test_asset!(12, 1:50);
 
 		assert_eq!(asset.convert_fee_into_foreign(20000), Some(4))
 	}
 
 	#[test]
 	fn check_decimal_conversion_with_bigger_native() {
-		let asset = test_asset!(8, 1, 50);
+		let asset = test_asset!(8, 1:50);
 
 		assert_eq!(asset.convert_fee_into_foreign(200), Some(400))
 	}
