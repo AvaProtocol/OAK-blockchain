@@ -1072,7 +1072,18 @@ pub mod pallet {
 					});
 				});
 
-			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
+			// TODO: Additional read/writes accounts for AssetRegistry assets unavailable.
+			// Remove added weight when AssetRegistry genesis config is merged.
+			// Storage: AssetRegistry AssetIdToLocation (r:1 w:0)
+			// Storage: System Account (r:2 w:2)
+			// Storage: ParachainSystem HostConfiguration (r:1 w:0)
+			// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
+			(
+				task,
+				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task()
+					.saturating_add(T::DbWeight::get().reads(5 as Weight))
+					.saturating_add(T::DbWeight::get().writes(3 as Weight)),
+			)
 		}
 
 		/// Attempt to decode and run the call.
