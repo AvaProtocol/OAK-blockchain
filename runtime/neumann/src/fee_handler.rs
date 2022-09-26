@@ -43,30 +43,6 @@ impl CallParser<Call> for FeeCallParser {
 	}
 }
 
-pub struct NativeFeeProcessor<T, C>(PhantomData<(T, C)>);
-impl<T, C> NativeFeeProcessor<T, C>
-where
-	T: pallet_transaction_payment::Config,
-	C: Currency<<T as frame_system::Config>::AccountId>,
-{
-	fn withdraw_fee(
-		who: &T::AccountId,
-		fee: C::Balance,
-		tip: C::Balance,
-	) -> Result<Option<NegativeImbalanceOf<C, T>>, TransactionValidityError> {
-		let withdraw_reason = if tip.is_zero() {
-			WithdrawReasons::TRANSACTION_PAYMENT
-		} else {
-			WithdrawReasons::TRANSACTION_PAYMENT | WithdrawReasons::TIP
-		};
-
-		match C::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => Ok(Some(imbalance)),
-			Err(_) => Err(InvalidTransaction::Payment.into()),
-		}
-	}
-}
-
 pub struct ForeignFeeProcessor<T, MC, TA>(PhantomData<(T, MC, TA)>);
 impl<T, MC, TA> ForeignFeeProcessor<T, MC, TA>
 where
@@ -80,6 +56,10 @@ where
 		fee: MC::Balance,
 		call_information: FeeInformation,
 	) -> Result<(), TransactionValidityError> {
+		if fee.is_zero() {
+			return Ok(())
+		}
+
 		if call_information.xcm_data.is_none() || call_information.asset_metadata.is_none() {
 			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
 		}
@@ -150,14 +130,13 @@ where
 		fee: Self::Balance,
 		tip: Self::Balance,
 	) -> Result<Self::LiquidityInfo, TransactionValidityError> {
-		if fee.is_zero() {
-			return Ok(None)
-		}
-
 		let call_information = FCP::fee_information(call.clone());
 
 		if call_information.token_id == NATIVE_TOKEN_ID {
-			NativeFeeProcessor::<T, C>::withdraw_fee(who, fee, tip)
+			// NativeFeeProcessor::<T, C>::withdraw_fee(who, fee, tip)
+			<pallet_transaction_payment::CurrencyAdapter<C, OU> as OnChargeTransaction<T>>::withdraw_fee(
+                who, call, _info, fee, tip
+            )
 		} else {
 			ForeignFeeProcessor::<T, MC, TA>::withdraw_fee(who, fee.into(), call_information)?;
 			Ok(None)
@@ -177,24 +156,9 @@ where
 		tip: Self::Balance,
 		already_withdrawn: Self::LiquidityInfo,
 	) -> Result<(), TransactionValidityError> {
-		if let Some(paid) = already_withdrawn {
-			// Calculate how much refund we should return
-			let refund_amount = paid.peek().saturating_sub(corrected_fee);
-			// refund to the the account that paid the fees. If this fails, the
-			// account might have dropped below the existential balance. In
-			// that case we don't refund anything.
-			let refund_imbalance = C::deposit_into_existing(who, refund_amount)
-				.unwrap_or_else(|_| C::PositiveImbalance::zero());
-			// merge the imbalance caused by paying the fees and refunding parts of it again.
-			let adjusted_paid = paid
-				.offset(refund_imbalance)
-				.same()
-				.map_err(|_| TransactionValidityError::Invalid(InvalidTransaction::Payment))?;
-			// Call someone else to handle the imbalance (fee and tip separately)
-			let (tip, fee) = adjusted_paid.split(tip);
-			OU::on_unbalanceds(Some(fee).into_iter().chain(Some(tip)));
-		}
-		Ok(())
+		<pallet_transaction_payment::CurrencyAdapter<C, OU> as OnChargeTransaction<T>>::correct_and_deposit_fee(
+			who, _dispatch_info, _post_info, corrected_fee, tip, already_withdrawn
+		)
 	}
 }
 
