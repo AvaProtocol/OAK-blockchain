@@ -171,16 +171,20 @@ pub trait FeeConversion {
 }
 impl FeeConversion for orml_asset_registry::AssetMetadata<Balance, CustomMetadata> {
 	fn convert_fee_into_foreign(&self, fee: Balance) -> Option<Balance> {
+		let conversion_rate = match self.additional.conversion_rate {
+			Some(value) => value,
+			None => return None,
+		};
+
+		let fee = fee * conversion_rate.native as Balance;
+
 		let decimaled_fee = if self.decimals >= TOKEN_DECIMALS {
 			fee / 10_u128.pow(self.decimals - TOKEN_DECIMALS)
 		} else {
 			fee * 10_u128.pow(TOKEN_DECIMALS - self.decimals)
 		};
 
-		match self.additional.conversion_rate {
-			Some(value) => Some(decimaled_fee * value.native as Balance / value.foreign as Balance),
-			None => None,
-		}
+		Some(decimaled_fee as Balance / conversion_rate.foreign as Balance)
 	}
 }
 
