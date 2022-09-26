@@ -35,8 +35,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, DispatchError, FixedPointNumber, ModuleError, Percent,
-	RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, DispatchError, ModuleError, Percent, RuntimeDebug,
 };
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
@@ -53,7 +52,8 @@ use sp_version::RuntimeVersion;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
-		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EnsureOneOf, InstanceFilter, PrivilegeCmp,
+		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
+		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
 	},
 	weights::{
 		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},

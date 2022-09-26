@@ -43,6 +43,7 @@ serde_json = "1.0.68"
 hex-literal = "0.3.1"
 # TODO: try to remove when upgrading to 0.9.28 
 tracing-core = "=0.1.26"
+parity-db= "=0.3.16"
 
 # RPC related Dependencies
 jsonrpsee = { version = "0.14.0", features = ["server"] }
