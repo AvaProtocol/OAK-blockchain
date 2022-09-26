@@ -137,7 +137,6 @@ where
 		let call_information = FCP::fee_information(call.clone());
 
 		if call_information.token_id == NATIVE_TOKEN_ID {
-			// NativeFeeProcessor::<T, C>::withdraw_fee(who, fee, tip)
 			<pallet_transaction_payment::CurrencyAdapter<C, OU> as OnChargeTransaction<T>>::withdraw_fee(
 				who, call, _info, fee, tip
 			)
