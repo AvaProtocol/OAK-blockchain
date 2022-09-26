@@ -14,6 +14,8 @@ use primitives::{AccountId, AuraId, Balance, Signature};
 
 #[cfg(feature = "neumann-node")]
 pub mod neumann;
+#[cfg(feature = "oak-node")]
+pub mod oak;
 #[cfg(feature = "turing-node")]
 pub mod turing;
 
@@ -28,6 +30,9 @@ pub trait IdentifyVariant {
 
 	/// Returns `true` if this is a configuration for the `Turing` network.
 	fn is_turing(&self) -> bool;
+
+	/// Returns `true` if this is a configuration for the `OAK` network.
+	fn is_oak(&self) -> bool;
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
@@ -37,6 +42,10 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 
 	fn is_turing(&self) -> bool {
 		self.id().starts_with("turing")
+	}
+
+	fn is_oak(&self) -> bool {
+		self.id().starts_with("oak")
 	}
 }
 
@@ -81,7 +90,10 @@ where
 	AccountPublic::from(get_public_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
+pub fn inflation_config(
+	blocks_per_round: u32,
+	annual_inflation_percentage: u32,
+) -> InflationInfo<Balance> {
 	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
 		use pallet_parachain_staking::inflation::{
 			perbill_annual_to_perbill_round, BLOCKS_PER_YEAR,
@@ -90,9 +102,9 @@ pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	}
 
 	let annual = Range {
-		min: Perbill::from_percent(5),
-		ideal: Perbill::from_percent(5),
-		max: Perbill::from_percent(5),
+		min: Perbill::from_percent(annual_inflation_percentage),
+		ideal: Perbill::from_percent(annual_inflation_percentage),
+		max: Perbill::from_percent(annual_inflation_percentage),
 	};
 
 	InflationInfo {
@@ -103,8 +115,7 @@ pub fn inflation_config(blocks_per_round: u32) -> InflationInfo<Balance> {
 	}
 }
 
-#[cfg(test)]
-mod test {
+pub mod test {
 	use super::*;
 	use sp_runtime::traits::Zero;
 

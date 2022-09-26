@@ -7,10 +7,10 @@ use crate::chain_spec::{
 	Extensions,
 };
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
-use primitives::{AccountId, AuraId, Balance};
+use primitives::{AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig,
+	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
+	VestingConfig, XcmpHandlerConfig
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -70,13 +70,22 @@ pub fn turing_development_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				REGISTERED_PARA_ID.into(),
 				vec![],
 				vec![],
 				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
-				vec![get_account_id_from_seed::<sr25519::Public>("Alice")],
+				vec![
+					get_account_id_from_seed::<sr25519::Public>("Alice"),
+					get_account_id_from_seed::<sr25519::Public>("Bob"),
+				],
+				vec![(
+					1999,
+					turing_runtime::NATIVE_TOKEN_ID,
+					false,
+					419_000_000_000,
+					1_000_000_000,
+				)],
 			)
 		},
 		Vec::new(),
@@ -101,13 +110,13 @@ pub fn turing_live() -> Result<DummyChainSpec, String> {
 
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
-	root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	para_id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
 		turing_runtime::MinCollatorStk::get(),
@@ -141,7 +150,7 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get()),
+			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get(), 5),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
@@ -152,15 +161,16 @@ fn testnet_genesis(
 		tokens: Default::default(),
 		technical_committee: Default::default(),
 		technical_membership: TechnicalMembershipConfig {
-			members: technical_memberships,
+			members: technical_memberships.try_into().unwrap(),
 			phantom: Default::default(),
 		},
 		parachain_system: Default::default(),
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
-		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
+		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
+		asset_registry: Default::default(),
 	}
 }
 

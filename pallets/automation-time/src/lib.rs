@@ -46,38 +46,34 @@ pub use fees::*;
 mod autocompounding;
 pub use autocompounding::*;
 
+mod types;
+pub use types::*;
+
+use codec::Decode;
 use core::convert::TryInto;
-use cumulus_pallet_xcm::{ensure_sibling_para, Origin as CumulusOrigin};
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::DispatchErrorWithPostInfo,
+	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Currency, ExistenceRequirement, StorageVersion},
-	BoundedVec,
+	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
+	weights::GetDispatchInfo,
 };
-use frame_system::{pallet_prelude::*, Config as SystemConfig};
-use log::info;
-use pallet_automation_time_rpc_runtime_api::AutomationAction;
+use frame_system::pallet_prelude::*;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
-use polkadot_parachain::primitives::Sibling;
+use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{AccountIdConversion, CheckedConversion, CheckedSub, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::latest::prelude::*;
-
-// NOTE: this is the current storage version for the code.
-// On migration, you will need to increment this.
-const CURRENT_CODE_STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -86,187 +82,17 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-	type UnixTime = u64;
-	type Seconds = u64;
-
-	/// The enum that stores all action specific data.
-	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub enum Action<T: Config> {
-		Notify {
-			message: Vec<u8>,
-		},
-		NativeTransfer {
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		},
-		XCMP {
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-		},
-		AutoCompoundDelegatedStake {
-			delegator: AccountOf<T>,
-			collator: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
-		},
-	}
-
-	impl<T: Config> From<AutomationAction> for Action<T> {
-		fn from(a: AutomationAction) -> Self {
-			let default_account =
-				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-					.expect("always valid");
-			match a {
-				AutomationAction::Notify => Action::Notify { message: "default".into() },
-				AutomationAction::NativeTransfer => Action::NativeTransfer {
-					sender: default_account.clone(),
-					recipient: default_account,
-					amount: 0u32.into(),
-				},
-				AutomationAction::XCMP => Action::XCMP {
-					para_id: ParaId::from(2114 as u32),
-					call: vec![0],
-					weight_at_most: 0,
-				},
-				AutomationAction::AutoCompoundDelegatedStake =>
-					Action::AutoCompoundDelegatedStake {
-						delegator: default_account.clone(),
-						collator: default_account,
-						account_minimum: 0u32.into(),
-						frequency: 0,
-					},
-			}
-		}
-	}
-
-	/// The struct that stores data for a missed task.
-	#[derive(Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct MissedTask<T: Config> {
-		task_id: T::Hash,
-		execution_time: UnixTime,
-	}
-
-	impl<T: Config> MissedTask<T> {
-		pub fn create_missed_task(task_id: T::Hash, execution_time: UnixTime) -> MissedTask<T> {
-			MissedTask::<T> { task_id, execution_time }
-		}
-	}
-
-	/// The struct that stores all information needed for a task.
-	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct Task<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
-		pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-		executions_left: u32,
-		action: Action<T>,
-	}
-
-	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
-	impl<T: Config> PartialEq for Task<T> {
-		fn eq(&self, other: &Self) -> bool {
-			self.owner_id == other.owner_id &&
-				self.provided_id == other.provided_id &&
-				self.action == other.action &&
-				self.executions_left == other.executions_left &&
-				self.execution_times.len() == other.execution_times.len() &&
-				self.execution_times.capacity() == other.execution_times.capacity() &&
-				self.execution_times.to_vec() == other.execution_times.to_vec()
-		}
-	}
-
-	impl<T: Config> Task<T> {
-		pub fn create_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			action: Action<T>,
-		) -> Task<T> {
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			Task::<T> { owner_id, provided_id, execution_times, executions_left, action }
-		}
-
-		pub fn create_event_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			message: Vec<u8>,
-		) -> Task<T> {
-			let action = Action::Notify { message };
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_native_transfer_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			recipient_id: AccountOf<T>,
-			amount: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::NativeTransfer {
-				sender: owner_id.clone(),
-				recipient: recipient_id,
-				amount,
-			};
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_xcmp_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-		) -> Task<T> {
-			let action = Action::XCMP { para_id, call, weight_at_most };
-			Self::create_task(owner_id, provided_id, execution_times, action)
-		}
-
-		pub fn create_auto_compound_delegated_stake_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			execution_time: UnixTime,
-			frequency: Seconds,
-			collator_id: AccountOf<T>,
-			account_minimum: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::AutoCompoundDelegatedStake {
-				delegator: owner_id.clone(),
-				collator: collator_id,
-				account_minimum,
-				frequency,
-			};
-			Self::create_task(
-				owner_id,
-				provided_id,
-				vec![execution_time].try_into().unwrap(),
-				action,
-			)
-		}
-
-		pub fn get_executions_left(&self) -> u32 {
-			self.executions_left
-		}
-	}
-
-	#[derive(Debug, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct TaskHashInput<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
-	}
-
-	impl<T: Config> TaskHashInput<T> {
-		pub fn create_hash_input(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskHashInput<T> {
-			TaskHashInput::<T> { owner_id, provided_id }
-		}
-	}
+	pub type TaskId<T> = <T as frame_system::Config>::Hash;
+	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
+	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
+	pub type TaskOf<T> = Task<
+		AccountOf<T>,
+		BalanceOf<T>,
+		<T as Config>::CurrencyId,
+		<T as Config>::MaxExecutionTimes,
+	>;
+	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
+	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -295,13 +121,13 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
 
+		/// The maximum supported execution weight per automation slot
+		#[pallet::constant]
+		type MaxWeightPerSlot: Get<u128>;
+
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
 		type UpdateQueueRatio: Get<Perbill>;
-
-		/// The time each block takes.
-		#[pallet::constant]
-		type SecondsPerBlock: Get<u64>;
 
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
@@ -309,16 +135,36 @@ pub mod pallet {
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
+		/// The currencyIds that our chain supports.
+		type CurrencyId: Parameter
+			+ Member
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ TypeInfo
+			+ MaxEncodedLen;
+
+		/// Utility for sending XCM messages
+		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// The currencyId for the native currency.
+		#[pallet::constant]
+		type GetNativeCurrencyId: Get<Self::CurrencyId>;
+
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
 
-		/// Utility for sending XCM messages
-		type XcmSender: SendXcm;
-
-		type Origin: From<<Self as SystemConfig>::Origin>
-			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
-
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
+
+		/// The overarching call type.
+		type Call: Parameter
+			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+			+ GetDispatchInfo
+			+ From<frame_system::Call<Self>>
+			+ IsSubType<Call<Self>>
+			+ IsType<<Self as frame_system::Config>::Call>;
+
+		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
 	}
 
 	#[pallet::pallet]
@@ -328,20 +174,21 @@ pub mod pallet {
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks<T: Config> =
-		StorageMap<_, Twox64Concat, u64, BoundedVec<T::Hash, T::MaxTasksPerSlot>>;
+	pub type ScheduledTasksV3<T: Config> =
+		StorageMap<_, Twox64Concat, UnixTime, ScheduledTasksOf<T>>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, T::Hash, Task<T>>;
+	#[pallet::getter(fn get_account_task)]
+	pub type AccountTasks<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId<T>, TaskOf<T>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<T::Hash>, ValueQuery>;
+	pub type TaskQueueV2<T: Config> = StorageValue<_, Vec<AccountTaskId<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_missed_queue)]
-	pub type MissedQueue<T: Config> = StorageValue<_, Vec<MissedTask<T>>, ValueQuery>;
+	pub type MissedQueueV2<T: Config> = StorageValue<_, Vec<MissedTaskV2Of<T>>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_last_slot)]
@@ -355,6 +202,7 @@ pub mod pallet {
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	#[pallet::error]
+	#[derive(PartialEq)]
 	pub enum Error<T> {
 		/// Time must end in a whole hour.
 		InvalidTime,
@@ -370,8 +218,6 @@ pub mod pallet {
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
 		TimeSlotFull,
-		/// You are not the owner of the task.
-		NotTaskOwner,
 		/// The task does not exist.
 		TaskDoesNotExist,
 		/// Block time not set.
@@ -386,8 +232,8 @@ pub mod pallet {
 		LiquidityRestrictions,
 		/// Too many execution times provided.
 		TooManyExecutionsTimes,
-		/// ParaId provided does not match origin paraId.
-		ParaIdMismatch,
+		/// The call can no longer be decoded.
+		CallCannotBeDecoded,
 	}
 
 	#[pallet::event]
@@ -396,12 +242,12 @@ pub mod pallet {
 		/// Schedule task success.
 		TaskScheduled {
 			who: AccountOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		// Cancelled a task.
 		TaskCancelled {
 			who: AccountOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		/// Notify event for the task.
 		Notify {
@@ -409,42 +255,54 @@ pub mod pallet {
 		},
 		/// A Task was not found.
 		TaskNotFound {
-			task_id: T::Hash,
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
 		},
 		/// Successfully transferred funds
 		SuccessfullyTransferredFunds {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 		},
 		/// Successfully sent XCMP
-		SuccessfullySentXCMP {
+		XcmpTaskSucceeded {
 			task_id: T::Hash,
 			para_id: ParaId,
 		},
 		/// Failed to send XCMP
-		FailedToSendXCMP {
+		XcmpTaskFailed {
 			task_id: T::Hash,
 			para_id: ParaId,
-			error: SendError,
+			error: DispatchError,
 		},
 		/// Transfer Failed
 		TransferFailed {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			error: DispatchError,
 		},
 		SuccesfullyAutoCompoundedDelegatorStake {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			amount: BalanceOf<T>,
 		},
 		AutoCompoundDelegatorStakeFailed {
-			task_id: T::Hash,
+			task_id: TaskId<T>,
 			error_message: Vec<u8>,
 			error: DispatchErrorWithPostInfo,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
-			who: T::AccountId,
-			task_id: T::Hash,
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
 			execution_time: UnixTime,
+		},
+		/// The result of the DynamicDispatch action.
+		DynamicDispatchResult {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			result: DispatchResult,
+		},
+		/// The call for the DynamicDispatch action can no longer be decoded.
+		CallCannotBeDecoded {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
 		},
 	}
 
@@ -458,17 +316,6 @@ pub mod pallet {
 			let max_weight: Weight =
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
 			Self::trigger_tasks(max_weight)
-		}
-
-		fn on_runtime_upgrade() -> Weight {
-			let on_chain_storage_version = StorageVersion::get::<Pallet<T>>();
-			info!("on chain storage version, {:?}", on_chain_storage_version);
-			if on_chain_storage_version < CURRENT_CODE_STORAGE_VERSION {
-				migrations::v2::migrate::<T>()
-			} else {
-				info!("migration already run before");
-				0
-			}
 		}
 	}
 
@@ -492,6 +339,7 @@ pub mod pallet {
 		/// * `PastTime`: Time must be in the future.
 		/// * `EmptyMessage`: The message cannot be empty.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_notify_task(
@@ -533,16 +381,16 @@ pub mod pallet {
 		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
-		/// * `TransferFailed`: Transfer failed for unknown reason.
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
-			recipient_id: T::AccountId,
+			recipient_id: AccountOf<T>,
 			#[pallet::compact] amount: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -566,40 +414,36 @@ pub mod pallet {
 		/// Before the task can be scheduled the task must past validation checks.
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
-		/// * The para_id is that of the sender
 		/// * The times are valid
+		/// * The chain/currency pair is supported
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
 		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
 		/// * `para_id`: Parachain id the XCMP call will be sent to.
-		/// * `call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `weight_at_most`: Required weight at most the provided call will take.
+		/// * `currency_id`: The currency in which fees will be paid.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `ParaIdMismatch`: ParaId provided does not match origin paraId.
-		///
-		/// TODO: Create benchmark for schedule_xcmp_task
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
 		) -> DispatchResult {
-			let origin_para_id: ParaId = ensure_sibling_para(<T as Config>::Origin::from(origin))?;
-			if para_id != origin_para_id {
-				Err(<Error<T>>::ParaIdMismatch)?
-			}
+			let who = ensure_signed(origin)?;
+			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
 
-			let who = Sibling::from(para_id).into_account_truncating();
-			let action = Action::XCMP { para_id, call, weight_at_most };
 			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
 			Ok(().into())
 		}
@@ -625,7 +469,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			execution_time: UnixTime,
 			frequency: Seconds,
-			collator_id: T::AccountId,
+			collator_id: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -650,6 +494,36 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Schedule a task that will dispatch a call.
+		/// ** This is currently limited to calls from the System and Balances pallets.
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
+		/// * `call`: The call that will be dispatched.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
+		pub fn schedule_dynamic_dispatch_task(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			execution_times: Vec<UnixTime>,
+			call: Box<<T as Config>::Call>,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let encoded_call = call.encode();
+			let action = Action::DynamicDispatch { encoded_call };
+
+			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Ok(().into())
+		}
+
 		/// Cancel a task.
 		///
 		/// Tasks can only can be cancelled by their owners.
@@ -658,39 +532,37 @@ pub mod pallet {
 		/// * `task_id`: The id of the task.
 		///
 		/// # Errors
-		/// * `NotTaskOwner`: You are not the owner of the task.
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
-		pub fn cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
+		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			match Self::get_task(task_id) {
-				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => {
-					if who != task.owner_id {
-						Err(Error::<T>::NotTaskOwner)?
-					}
-					Self::remove_task(task_id, task);
-				},
-			}
+			AccountTasks::<T>::get(who, task_id)
+				.ok_or(Error::<T>::TaskDoesNotExist)
+				.map(|task| Self::remove_task(task_id, task))?;
+
 			Ok(().into())
 		}
 
 		/// Sudo can force cancel a task.
 		///
 		/// # Parameters
+		/// * `owner_id`: The owner of the task.
 		/// * `task_id`: The id of the task.
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
-		pub fn force_cancel_task(origin: OriginFor<T>, task_id: T::Hash) -> DispatchResult {
+		pub fn force_cancel_task(
+			origin: OriginFor<T>,
+			owner_id: AccountOf<T>,
+			task_id: TaskId<T>,
+		) -> DispatchResult {
 			ensure_root(origin)?;
 
-			match Self::get_task(task_id) {
-				None => Err(Error::<T>::TaskDoesNotExist)?,
-				Some(task) => Self::remove_task(task_id, task),
-			}
+			AccountTasks::<T>::get(owner_id, task_id)
+				.ok_or(Error::<T>::TaskDoesNotExist)
+				.map(|task| Self::remove_task(task_id, task))?;
 
 			Ok(().into())
 		}
@@ -782,7 +654,7 @@ pub mod pallet {
 			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-				TaskQueue::<T>::put(tasks_left);
+				TaskQueueV2::<T>::put(tasks_left);
 				weight_left =
 					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 			}
@@ -798,7 +670,7 @@ pub mod pallet {
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
-					MissedQueue::<T>::put(tasks_left);
+					MissedQueueV2::<T>::put(tasks_left);
 					weight_left =
 						new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
 				}
@@ -862,19 +734,21 @@ pub mod pallet {
 			if current_time_slot != last_time_slot {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
-				for missed_task in missed_tasks {
-					let new_missed_task: MissedTask<T> =
-						MissedTask::<T> { task_id: missed_task, execution_time: last_time_slot };
+				for (account_id, task_id) in missed_tasks {
+					let new_missed_task =
+						MissedTaskV2Of::<T>::new(account_id, task_id, last_time_slot);
 					missed_queue.push(new_missed_task);
 				}
-				MissedQueue::<T>::put(missed_queue);
+				MissedQueueV2::<T>::put(missed_queue);
 				// move current time slot to task queue or clear the task queue
-				if let Some(task_ids) = Self::get_scheduled_tasks(current_time_slot) {
-					TaskQueue::<T>::put(task_ids);
-					ScheduledTasks::<T>::remove(current_time_slot);
+				if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =
+					Self::get_scheduled_tasks(current_time_slot)
+				{
+					TaskQueueV2::<T>::put(account_task_ids);
+					ScheduledTasksV3::<T>::remove(current_time_slot);
 				} else {
-					let empty_queue: Vec<T::Hash> = vec![];
-					TaskQueue::<T>::put(empty_queue);
+					let empty_queue: Vec<AccountTaskId<T>> = vec![];
+					TaskQueueV2::<T>::put(empty_queue);
 				}
 			}
 			let weight_used = <T as Config>::WeightInfo::update_scheduled_task_queue();
@@ -930,7 +804,7 @@ pub mod pallet {
 			// Update the missed queue
 			let mut missed_queue = Self::get_missed_queue();
 			missed_queue.append(&mut missed_tasks);
-			MissedQueue::<T>::put(missed_queue);
+			MissedQueueV2::<T>::put(missed_queue);
 
 			let weight = <T as Config>::WeightInfo::append_to_missed_tasks(diff.saturated_into());
 			(weight, diff)
@@ -943,16 +817,18 @@ pub mod pallet {
 		pub fn shift_missed_tasks(
 			last_missed_slot: UnixTime,
 			number_of_missed_slots: u64,
-		) -> Vec<MissedTask<T>> {
+		) -> Vec<MissedTaskV2Of<T>> {
 			let mut tasks = vec![];
 			let seconds_in_slot = 3600;
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
-			if let Some(task_ids) = Self::get_scheduled_tasks(new_time_slot) {
-				ScheduledTasks::<T>::remove(new_time_slot);
-				for task_id in task_ids {
-					let new_missed_task: MissedTask<T> =
-						MissedTask::<T> { task_id, execution_time: new_time_slot };
+			if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =
+				Self::get_scheduled_tasks(new_time_slot)
+			{
+				ScheduledTasksV3::<T>::remove(new_time_slot);
+				for (account_id, task_id) in account_task_ids {
+					let new_missed_task =
+						MissedTaskV2Of::<T>::new(account_id, task_id, new_time_slot);
 					tasks.push(new_missed_task);
 				}
 			}
@@ -963,29 +839,38 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_tasks(
-			mut task_ids: Vec<T::Hash>,
+			mut account_task_ids: Vec<AccountTaskId<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<T::Hash>, Weight) {
+		) -> (Vec<AccountTaskId<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
-			for task_id in task_ids.iter() {
+			for (account_id, task_id) in account_task_ids.iter() {
 				consumed_task_index.saturating_inc();
-				let action_weight = match Self::get_task(task_id) {
+				let action_weight = match AccountTasks::<T>::get(account_id.clone(), task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
+						Self::deposit_event(Event::TaskNotFound {
+							who: account_id.clone(),
+							task_id: task_id.clone(),
+						});
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(mut task) => {
 						let task_action_weight = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
-							Action::XCMP { para_id, call, weight_at_most } =>
-								Self::run_xcmp_task(para_id, call, weight_at_most, task_id.clone()),
+								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
+							Action::XCMP {
+								para_id,
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+							} => Self::run_xcmp_task(
+								para_id,
+								task.owner_id.clone(),
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+								*task_id,
+							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
 								collator,
@@ -998,12 +883,18 @@ pub mod pallet {
 										collator,
 										account_minimum,
 										frequency,
-										task_id.clone(),
+										*task_id,
 										task,
 									);
 								task = mut_task;
 								weight
 							},
+							Action::DynamicDispatch { encoded_call } =>
+								Self::run_dynamic_dispatch_action(
+									task.owner_id.clone(),
+									encoded_call,
+									*task_id,
+								),
 						};
 						Self::decrement_task_and_remove_if_complete(*task_id, task);
 						task_action_weight
@@ -1019,10 +910,10 @@ pub mod pallet {
 				}
 			}
 
-			if consumed_task_index == task_ids.len() {
+			if consumed_task_index == account_task_ids.len() {
 				return (vec![], weight_left)
 			} else {
-				return (task_ids.split_off(consumed_task_index), weight_left)
+				return (account_task_ids.split_off(consumed_task_index), weight_left)
 			}
 		}
 
@@ -1030,30 +921,33 @@ pub mod pallet {
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_missed_tasks(
-			mut missed_tasks: Vec<MissedTask<T>>,
+			mut missed_tasks: Vec<MissedTaskV2Of<T>>,
 			mut weight_left: Weight,
-		) -> (Vec<MissedTask<T>>, Weight) {
+		) -> (Vec<MissedTaskV2Of<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for missed_task in missed_tasks.iter() {
 				consumed_task_index += 1;
 
-				let action_weight = match Self::get_task(missed_task.task_id) {
-					None => {
-						Self::deposit_event(Event::TaskNotFound {
-							task_id: missed_task.task_id.clone(),
-						});
-						<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
-					},
-					Some(task) => {
-						Self::deposit_event(Event::TaskMissed {
-							who: task.owner_id.clone(),
-							task_id: missed_task.task_id.clone(),
-							execution_time: missed_task.execution_time,
-						});
-						Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
-						<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
-					},
-				};
+				let action_weight =
+					match AccountTasks::<T>::get(missed_task.owner_id.clone(), missed_task.task_id)
+					{
+						None => {
+							Self::deposit_event(Event::TaskNotFound {
+								who: missed_task.owner_id.clone(),
+								task_id: missed_task.task_id.clone(),
+							});
+							<T as Config>::WeightInfo::run_missed_tasks_many_missing(1)
+						},
+						Some(task) => {
+							Self::deposit_event(Event::TaskMissed {
+								who: task.owner_id.clone(),
+								task_id: missed_task.task_id.clone(),
+								execution_time: missed_task.execution_time,
+							});
+							Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
+							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
+						},
+					};
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
@@ -1076,8 +970,8 @@ pub mod pallet {
 		}
 
 		pub fn run_native_transfer_task(
-			sender: T::AccountId,
-			recipient: T::AccountId,
+			sender: AccountOf<T>,
+			recipient: AccountOf<T>,
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
 		) -> Weight {
@@ -1096,44 +990,46 @@ pub mod pallet {
 
 		pub fn run_xcmp_task(
 			para_id: ParaId,
-			call: Vec<u8>,
-			weight_at_most: Weight,
-			task_id: T::Hash,
+			caller: T::AccountId,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			task_id: TaskId<T>,
 		) -> Weight {
-			let destination = (1, Junction::Parachain(para_id.into()));
-			let message = Xcm(vec![Transact {
-				origin_type: OriginKind::Native,
-				require_weight_at_most: weight_at_most,
-				call: call.into(),
-			}]);
-			match T::XcmSender::send_xcm(destination, message) {
+			match T::XcmpTransactor::transact_xcm(
+				para_id.into(),
+				currency_id,
+				caller,
+				encoded_call,
+				encoded_call_weight,
+			) {
 				Ok(()) => {
-					Self::deposit_event(Event::SuccessfullySentXCMP { task_id, para_id });
+					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, para_id });
 				},
 				Err(e) => {
-					Self::deposit_event(Event::FailedToSendXCMP { task_id, para_id, error: e });
+					Self::deposit_event(Event::XcmpTaskFailed { task_id, para_id, error: e });
 				},
 			}
-			// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-			T::DbWeight::get()
-				.writes(1)
-				.saturating_add(<T as Config>::WeightInfo::run_xcmp_task())
+
+			<T as Config>::WeightInfo::run_xcmp_task()
 		}
 
 		/// Executes auto compounding delegation and reschedules task on success
 		pub fn run_auto_compound_delegated_stake_task(
-			delegator: T::AccountId,
-			collator: T::AccountId,
+			delegator: AccountOf<T>,
+			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
 			frequency: Seconds,
-			task_id: T::Hash,
-			mut task: Task<T>,
-		) -> (Task<T>, Weight) {
-			match Self::compound_delegator_stake(
-				delegator.clone(),
-				collator.clone(),
-				account_minimum,
-				Self::calculate_execution_fee(&task.action, 1),
+			task_id: TaskId<T>,
+			mut task: TaskOf<T>,
+		) -> (TaskOf<T>, Weight) {
+			// TODO: Handle edge case where user has enough funds to run task but not reschedule
+			let reserved_funds = account_minimum
+				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
+			match T::DelegatorActions::delegator_bond_till_minimum(
+				&delegator,
+				&collator,
+				reserved_funds,
 			) {
 				Ok(delegation) =>
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
@@ -1156,65 +1052,84 @@ pub mod pallet {
 
 			let new_execution_times: Vec<UnixTime> =
 				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-			let _ = Self::reschedule_existing_task(
-				task_id,
-				task.owner_id.clone(),
-				&task.action,
-				new_execution_times.clone(),
-			)
-			.map(|_| {
-				let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-				task.executions_left += new_executions_left;
-				new_execution_times.iter().try_for_each(|t| {
-					task.execution_times.try_push(*t).and_then(|_| {
-						task.execution_times.remove(0);
-						Ok(())
+			let _ = Self::reschedule_existing_task(task_id, &task, new_execution_times.clone())
+				.map(|_| {
+					let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
+					task.executions_left += new_executions_left;
+					new_execution_times.iter().try_for_each(|t| {
+						task.execution_times.try_push(*t).and_then(|_| {
+							task.execution_times.remove(0);
+							Ok(())
+						})
 					})
 				})
-			})
-			.map_err(|e| {
-				let err: DispatchErrorWithPostInfo = e.into();
-				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-					error: err,
+				.map_err(|e| {
+					let err: DispatchErrorWithPostInfo = e.into();
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						task_id,
+						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
+						error: err,
+					});
 				});
-			});
 
 			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
 		}
 
-		fn compound_delegator_stake(
-			delegator: T::AccountId,
-			collator: T::AccountId,
-			account_minimum: BalanceOf<T>,
-			execution_fee: BalanceOf<T>,
-		) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let reserved_funds = account_minimum.saturating_add(execution_fee);
-			T::Currency::free_balance(&delegator)
-				.checked_sub(&reserved_funds)
-				.ok_or(Error::<T>::InsufficientBalance.into())
-				.and_then(|delegation| {
-					T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation)
-						.and(Ok(delegation))
-				})
+		/// Attempt to decode and run the call.
+		pub fn run_dynamic_dispatch_action(
+			caller: AccountOf<T>,
+			encoded_call: Vec<u8>,
+			task_id: TaskId<T>,
+		) -> Weight {
+			match <T as Config>::Call::decode(&mut &*encoded_call) {
+				Ok(scheduled_call) => {
+					let mut dispatch_origin: T::Origin =
+						frame_system::RawOrigin::Signed(caller.clone()).into();
+					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::Call| {
+						T::ScheduleAllowList::contains(call)
+					});
+
+					let call_weight = scheduled_call.get_dispatch_info().weight;
+					let (maybe_actual_call_weight, result) =
+						match scheduled_call.dispatch(dispatch_origin) {
+							Ok(post_info) => (post_info.actual_weight, Ok(())),
+							Err(error_and_info) =>
+								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
+						};
+
+					Self::deposit_event(Event::DynamicDispatchResult {
+						who: caller,
+						task_id,
+						result,
+					});
+
+					maybe_actual_call_weight
+						.unwrap_or(call_weight)
+						.saturating_add(<T as Config>::WeightInfo::run_dynamic_dispatch_action())
+				},
+				Err(_) => {
+					// TODO: If the call cannot be decoded then cancel the task.
+
+					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
+					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+				},
+			}
 		}
 
 		/// Decrements task executions left.
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
-		fn decrement_task_and_remove_if_complete(task_id: T::Hash, mut task: Task<T>) {
+		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: TaskOf<T>) {
 			task.executions_left = task.executions_left.saturating_sub(1);
 			if task.executions_left <= 0 {
-				Tasks::<T>::remove(task_id);
+				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			} else {
-				Tasks::<T>::insert(task_id, task);
+				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
 			}
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
-		fn remove_task(task_id: T::Hash, task: Task<T>) {
+		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
 			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
 			let current_time_slot = match Self::get_current_time_slot() {
@@ -1234,9 +1149,9 @@ pub mod pallet {
 					if *execution_time == last_time_slot {
 						let mut task_queue = Self::get_task_queue();
 						for i in 0..task_queue.len() {
-							if task_queue[i] == task_id {
+							if task_queue[i].1 == task_id {
 								task_queue.remove(i);
-								TaskQueue::<T>::put(task_queue);
+								TaskQueueV2::<T>::put(task_queue);
 								found_task = true;
 								break
 							}
@@ -1244,14 +1159,25 @@ pub mod pallet {
 						break
 					}
 					// Execution time is greater than current time slot and in the future.  Remove task id from scheduled tasks.
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
-						for i in 0..task_ids.len() {
-							if task_ids[i] == task_id {
-								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*execution_time);
+					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
+						Self::get_scheduled_tasks(*execution_time)
+					{
+						for i in 0..account_task_ids.len() {
+							if account_task_ids[i].1 == task_id {
+								if account_task_ids.len() == 1 {
+									ScheduledTasksV3::<T>::remove(*execution_time);
 								} else {
-									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
+									account_task_ids.remove(i);
+									ScheduledTasksV3::<T>::insert(
+										*execution_time,
+										ScheduledTasksOf::<T> {
+											tasks: account_task_ids,
+											weight: weight.saturating_sub(
+												task.action.execution_weight::<T>().unwrap_or(0)
+													as u128,
+											),
+										},
+									);
 								}
 								found_task = true;
 								break
@@ -1262,14 +1188,25 @@ pub mod pallet {
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
 				for execution_time in task.execution_times.iter().rev() {
-					if let Some(mut task_ids) = Self::get_scheduled_tasks(*execution_time) {
-						for i in 0..task_ids.len() {
-							if task_ids[i] == task_id {
-								if task_ids.len() == 1 {
-									<ScheduledTasks<T>>::remove(*execution_time);
+					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
+						Self::get_scheduled_tasks(*execution_time)
+					{
+						for i in 0..account_task_ids.len() {
+							if account_task_ids[i].1 == task_id {
+								if account_task_ids.len() == 1 {
+									ScheduledTasksV3::<T>::remove(*execution_time);
 								} else {
-									task_ids.remove(i);
-									<ScheduledTasks<T>>::insert(*execution_time, task_ids);
+									account_task_ids.remove(i);
+									ScheduledTasksV3::<T>::insert(
+										*execution_time,
+										ScheduledTasksOf::<T> {
+											tasks: account_task_ids,
+											weight: weight.saturating_sub(
+												task.action.execution_weight::<T>().unwrap_or(0)
+													as u128,
+											),
+										},
+									);
 								}
 								found_task = true;
 								break
@@ -1280,60 +1217,54 @@ pub mod pallet {
 			}
 
 			if !found_task {
-				Self::deposit_event(Event::TaskNotFound { task_id });
+				Self::deposit_event(Event::TaskNotFound { who: task.owner_id.clone(), task_id });
 			}
 
-			<Tasks<T>>::remove(task_id);
+			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
 		/// Schedule task and return it's task_id.
 		pub fn schedule_task(
-			owner_id: AccountOf<T>,
+			task: &TaskOf<T>,
 			provided_id: Vec<u8>,
 			execution_times: Vec<UnixTime>,
-		) -> Result<T::Hash, Error<T>> {
+		) -> Result<TaskId<T>, Error<T>> {
+			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
 
-			if let Some(_) = Self::get_task(task_id) {
-				Err(Error::<T>::DuplicateTask)?
+			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
+				Err(Error::<T>::DuplicateTask)?;
 			}
 
 			// If 'dev-queue' feature flag and execution_times equals [0], allows for putting a task directly on the task queue
 			#[cfg(feature = "dev-queue")]
 			if execution_times == vec![0] {
 				let mut task_queue = Self::get_task_queue();
-				task_queue.push(task_id);
-				TaskQueue::<T>::put(task_queue);
+				task_queue.push((owner_id, task_id));
+				TaskQueueV2::<T>::put(task_queue);
 
 				return Ok(task_id)
 			}
 
-			Self::insert_scheduled_tasks(task_id, execution_times)
+			Self::insert_scheduled_tasks(task_id, task, execution_times)
 		}
 
-		/// Insert task id into scheduled tasks
+		/// Insert the account/task id into scheduled tasks
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
 		fn insert_scheduled_tasks(
-			task_id: T::Hash,
+			task_id: TaskId<T>,
+			task: &TaskOf<T>,
 			execution_times: Vec<UnixTime>,
-		) -> Result<T::Hash, Error<T>> {
-			with_transaction(|| -> storage::TransactionOutcome<Result<T::Hash, DispatchError>> {
+		) -> Result<TaskId<T>, Error<T>> {
+			with_transaction(|| -> storage::TransactionOutcome<Result<TaskId<T>, DispatchError>> {
 				for time in execution_times.iter() {
-					match Self::get_scheduled_tasks(*time) {
-						None => {
-							let task_ids: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-								vec![task_id].try_into().unwrap();
-							<ScheduledTasks<T>>::insert(*time, task_ids);
-						},
-						Some(mut task_ids) => {
-							if let Err(_) = task_ids.try_push(task_id) {
-								return Rollback(Err(DispatchError::Other("time slot full")))
-							}
-							<ScheduledTasks<T>>::insert(*time, task_ids);
-						},
+					let mut scheduled_tasks = Self::get_scheduled_tasks(*time).unwrap_or_default();
+					if let Err(_) = scheduled_tasks.try_push::<T, BalanceOf<T>>(task_id, task) {
+						return Rollback(Err(DispatchError::Other("time slot full")))
 					}
+					<ScheduledTasksV3<T>>::insert(*time, scheduled_tasks);
 				}
 
 				Commit(Ok(task_id))
@@ -1341,11 +1272,12 @@ pub mod pallet {
 			.map_err(|_| Error::<T>::TimeSlotFull)
 		}
 
+		/// TODO ENG-538: Refactor validate_and_schedule_task function
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
 		pub fn validate_and_schedule_task(
-			action: Action<T>,
-			who: T::AccountId,
+			action: ActionOf<T>,
+			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			mut execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
@@ -1362,55 +1294,78 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap());
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			// Execution fee
+			let exeuction_fee =
+				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
 
-			let task_id =
-				Self::schedule_task(who.clone(), provided_id.clone(), execution_times.clone())?;
-			let executions_left: u32 = execution_times.len().try_into().unwrap();
-			let task: Task<T> = Task::<T> {
-				owner_id: who.clone(),
-				provided_id,
-				execution_times: execution_times.try_into().unwrap(),
-				executions_left,
-				action,
+			// XCMP fee
+			let xcmp_fee: u128 = match action {
+				Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
+					T::XcmpTransactor::get_xcm_fee(
+						u32::from(para_id),
+						currency_id,
+						encoded_call_weight.clone(),
+					)?
+					.saturating_mul(execution_times.len().try_into().unwrap()),
+				_ => 0u32.into(),
 			};
-			<Tasks<T>>::insert(task_id, task);
+
+			// Note: will need to account for fees in non-native tokens once we start accepting them
+			T::FeeHandler::can_pay_fee(
+				&owner_id,
+				exeuction_fee
+					.clone()
+					.saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
+			)
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
+
+			let task = TaskOf::<T>::new(
+				owner_id.clone(),
+				provided_id.clone(),
+				execution_times.clone().try_into().unwrap(),
+				action.clone(),
+			);
+			let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
+			AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
 
 			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&owner_id, exeuction_fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
+			// Pay XCMP fees
+			match action {
+				Action::XCMP { .. } =>
+					T::XcmpTransactor::pay_xcm_fee(owner_id.clone(), xcmp_fee).unwrap(),
+				_ => (),
+			};
+
+			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
 		}
 
 		/// Reschedules an existing task for a given number of execution times
 		fn reschedule_existing_task(
-			task_id: T::Hash,
-			who: T::AccountId,
-			action: &Action<T>,
+			task_id: TaskId<T>,
+			task: &TaskOf<T>,
 			execution_times: Vec<UnixTime>,
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
-			let fee = Self::calculate_execution_fee(action, new_executions);
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
+
+			let fee = Self::calculate_execution_fee(&task.action, new_executions)?;
+			T::FeeHandler::can_pay_fee(&task.owner_id, fee.clone())
 				.map_err(|_| Error::<T>::InsufficientBalance)?;
 
-			Self::insert_scheduled_tasks(task_id, execution_times.clone())?;
+			Self::insert_scheduled_tasks(task_id, task, execution_times.clone())?;
 
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&task.owner_id, fee.clone())
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
 			Ok(())
 		}
 
-		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskId<T> {
+			let task_hash_input = TaskHashInput::new(owner_id, provided_id);
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
@@ -1428,23 +1383,26 @@ pub mod pallet {
 		///
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(action: &Action<T>, executions: u32) -> BalanceOf<T> {
-			let action_weight = match action {
-				Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
-				Action::NativeTransfer { .. } =>
-					<T as Config>::WeightInfo::run_native_transfer_task(),
-				// Adding 1 DB write that doesn't get accounted for in the benchmarks to run an xcmp task
-				Action::XCMP { .. } => T::DbWeight::get()
-					.writes(1)
-					.saturating_add(<T as Config>::WeightInfo::run_xcmp_task()),
-				Action::AutoCompoundDelegatedStake { .. } =>
-					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-			};
-
-			let total_weight = action_weight.saturating_mul(executions.into());
+		pub fn calculate_execution_fee(
+			action: &ActionOf<T>,
+			executions: u32,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
 			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
 
-			T::ExecutionWeightFee::get().saturating_mul(weight_as_balance)
+			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
+		}
+	}
+
+	impl<T: Config> pallet_valve::Shutdown for Pallet<T> {
+		fn is_shutdown() -> bool {
+			Self::is_shutdown()
+		}
+		fn shutdown() {
+			Shutdown::<T>::put(true);
+		}
+		fn restart() {
+			Shutdown::<T>::put(false);
 		}
 	}
 }

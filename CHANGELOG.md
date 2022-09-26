@@ -1,11 +1,28 @@
-# CHANGELOG
+# CHANGELOG -- DEPRECATED
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+# Deprecated in favor of [Releases](https://github.com/OAK-Foundation/OAK-blockchain/releases)
 
+## [1.7.0] - 2022-08-18
+- Adding try-runtime to Turing
+- Adding Currencies, PolkadotXcm, and XTokens to Turing closed call filter (Valve) 
+- Add xcmp-handler pallet to execute xcm, send xcm, and provide xcm fees
+- Add pallet-utility
+- Schedule XCM through automation-time extrinsic
+- Price triggers (Alpha)
+
+## [1.6.0] - 2022-08-10
+- Update to substrate 0.9.26
+- Added base XCMP-handler pallet
+- Updated XCMP-handler pallet to store chain/currency information
+- Updated XCMP-handler pallet to create XCM instructions for a Transact with OAK tokens
+- RPC to get accountId for XCM Descend + Transact
+- RPC to get fees for scheduling an XCM task
+- Update auto-compounding to work with new parachain-staking locks
+- Removed tight coupling between valve and automation-time pallet
 
 ## [1.5.0] - 2022-07-19
 - RPC to get execution fee for automation time

@@ -23,7 +23,7 @@ use sp_runtime::{
 	MultiAddress, MultiSignature,
 };
 
-pub mod tokens;
+pub mod assets;
 
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 
@@ -48,6 +48,9 @@ pub type Hash = H256;
 
 /// An index to a block.
 pub type BlockNumber = u32;
+
+/// Identifier of a token or asset
+pub type TokenId = u32;
 
 /// The address format for describing accounts.
 pub type Address = MultiAddress<AccountId, ()>;

@@ -1,23 +1,25 @@
+use std::net::SocketAddr;
+
+use codec::Encode;
+use cumulus_client_cli::generate_genesis_block;
+use cumulus_primitives_core::ParaId;
+use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
+use log::info;
+use sc_cli::{
+	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
+	NetworkParams, Result, RuntimeVersion, SharedParams, SubstrateCli,
+};
+use sc_service::config::{BasePath, PrometheusConfig};
+use sp_core::hexdisplay::HexDisplay;
+use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
+
 use crate::{
 	chain_spec::{self, IdentifyVariant},
 	cli::{Cli, RelayChainCli, Subcommand},
 	service,
 };
-use codec::Encode;
-use cumulus_client_service::genesis::generate_genesis_block;
-use cumulus_primitives_core::ParaId;
-use frame_benchmarking_cli::{BenchmarkCmd, SUBSTRATE_REFERENCE_HARDWARE};
-use log::info;
-use sc_cli::{
-	CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams, NetworkParams,
-	Result, RuntimeVersion, SharedParams, SubstrateCli,
-};
-use sc_service::config::{BasePath, PrometheusConfig};
-use sp_core::hexdisplay::HexDisplay;
-use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
-use std::{io::Write, net::SocketAddr};
 
-fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 	Ok(match id {
 		#[cfg(feature = "neumann-node")]
 		"dev" => Box::new(chain_spec::neumann::development_config()),
@@ -33,25 +35,42 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, St
 		"turing-staging" => Box::new(chain_spec::turing::turing_staging()?),
 		#[cfg(feature = "turing-node")]
 		"turing" => Box::new(chain_spec::turing::turing_live()?),
+		#[cfg(feature = "oak-node")]
+		"oak-dev" => Box::new(chain_spec::oak::oak_development_config()),
+		#[cfg(feature = "oak-node")]
+		"oak-staging" => Box::new(chain_spec::oak::oak_staging()),
+		#[cfg(feature = "oak-node")]
+		"oak" => Box::new(chain_spec::oak::oak_live()),
 		path => {
 			let path = std::path::PathBuf::from(path);
 			let chain_spec = Box::new(chain_spec::DummyChainSpec::from_json_file(path.clone())?)
 				as Box<dyn sc_service::ChainSpec>;
 
-			if chain_spec.is_turing() {
-				#[cfg(feature = "turing-node")]
-				{
-					Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
-				}
-				#[cfg(not(feature = "turing-node"))]
-				return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into())
-			} else {
-				#[cfg(feature = "neumann-node")]
-				{
-					Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
-				}
-				#[cfg(not(feature = "neumann-node"))]
-				return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into())
+			match chain_spec {
+				chain_spec if chain_spec.is_turing() => {
+					#[cfg(feature = "turing-node")]
+					{
+						Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "turing-node"))]
+					return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into())
+				},
+				chain_spec if chain_spec.is_oak() => {
+					#[cfg(feature = "oak-node")]
+					{
+						Box::new(chain_spec::oak::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "oak-node"))]
+					return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into())
+				},
+				_ => {
+					#[cfg(feature = "neumann-node")]
+					{
+						Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
+					}
+					#[cfg(not(feature = "neumann-node"))]
+					return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into())
+				},
 			}
 		},
 	})
@@ -67,11 +86,13 @@ impl SubstrateCli for Cli {
 	}
 
 	fn description() -> String {
-		"OAK Collator\n\nThe command-line arguments provided first will be \
-		passed to the parachain node, while the arguments provided after -- will be passed \
-		to the relay chain node.\n\n\
-		oak-collator <parachain-args> -- <relay-chain-args>"
-			.into()
+		format!(
+			"OAK Collator\n\nThe command-line arguments provided first will be \
+			passed to the parachain node, while the arguments provided after -- will be passed \
+			to the relay chain node.\n\n\
+			{} <parachain-args> -- <relay-chain-args>",
+			Self::executable_name()
+		)
 	}
 
 	fn author() -> String {
@@ -101,6 +122,13 @@ impl SubstrateCli for Cli {
 				#[cfg(feature = "turing-node")]
 				return &service::turing_runtime::VERSION
 			},
+			chain_spec if chain_spec.is_oak() => {
+				#[cfg(not(feature = "oak-node"))]
+				panic!("{}", service::OAK_RUNTIME_NOT_AVAILABLE);
+
+				#[cfg(feature = "oak-node")]
+				return &service::oak_runtime::VERSION
+			},
 			_ => {
 				#[cfg(not(feature = "neumann-node"))]
 				panic!("{}", service::NEUMANN_RUNTIME_NOT_AVAILABLE);
@@ -122,11 +150,13 @@ impl SubstrateCli for RelayChainCli {
 	}
 
 	fn description() -> String {
-		"OAK Collator\n\nThe command-line arguments provided first will be \
-		passed to the parachain node, while the arguments provided after -- will be passed \
-		to the relay chain node.\n\n\
-		oak-collator <parachain-args> -- <relay-chain-args>"
-			.into()
+		format!(
+			"OAK Collator\n\nThe command-line arguments provided first will be \
+			passed to the parachain node, while the arguments provided after -- will be passed \
+			to the relay chain node.\n\n\
+			{} <parachain-args> -- <relay-chain-args>",
+			Self::executable_name()
+		)
 	}
 
 	fn author() -> String {
@@ -159,16 +189,6 @@ impl SubstrateCli for RelayChainCli {
 	}
 }
 
-#[allow(clippy::borrowed_box)]
-fn extract_genesis_wasm(chain_spec: &Box<dyn sc_service::ChainSpec>) -> Result<Vec<u8>> {
-	let mut storage = chain_spec.build_storage()?;
-
-	storage
-		.top
-		.remove(sp_core::storage::well_known_keys::CODE)
-		.ok_or_else(|| "Could not find wasm file in genesis state!".into())
-}
-
 macro_rules! construct_async_run {
 	(|$components:ident, $cli:ident, $cmd:ident, $config:ident| $( $code:tt )* ) => {{
 		let runner = $cli.create_runner($cmd)?;
@@ -195,24 +215,37 @@ macro_rules! construct_async_run {
 
 macro_rules! with_runtime_or_err {
 	($chain_spec:expr, { $( $code:tt )* }) => {
-		if $chain_spec.is_turing() {
-			#[cfg(feature = "turing-node")]
-			#[allow(unused_imports)]
-			use service::{turing_runtime::{Block, RuntimeApi}, TuringExecutor as Executor};
-			#[cfg(feature = "turing-node")]
-			$( $code )*
+		match $chain_spec {
+			chain_spec if chain_spec.is_turing() => {
+				#[cfg(feature = "turing-node")]
+				#[allow(unused_imports)]
+				use service::{turing_runtime::{Block, RuntimeApi}, TuringExecutor as Executor};
+				#[cfg(feature = "turing-node")]
+				$( $code )*
 
-			#[cfg(not(feature = "turing-node"))]
-			return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into());
-		} else {
-			#[cfg(feature = "neumann-node")]
-			#[allow(unused_imports)]
-			use service::{neumann_runtime::{Block, RuntimeApi}, NeumannExecutor as Executor};
-			#[cfg(feature = "neumann-node")]
-			$( $code )*
+				#[cfg(not(feature = "turing-node"))]
+				return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into());
+			},
+			chain_spec if chain_spec.is_oak() => {
+				#[cfg(feature = "oak-node")]
+				#[allow(unused_imports)]
+				use service::{oak_runtime::{Block, RuntimeApi}, OakExecutor as Executor};
+				#[cfg(feature = "oak-node")]
+				$( $code )*
 
-			#[cfg(not(feature = "neumann-node"))]
-			return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into());
+				#[cfg(not(feature = "oak-node"))]
+				return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into());
+			},
+			_ => {
+				#[cfg(feature = "neumann-node")]
+				#[allow(unused_imports)]
+				use service::{neumann_runtime::{Block, RuntimeApi}, NeumannExecutor as Executor};
+				#[cfg(feature = "neumann-node")]
+				$( $code )*
+
+				#[cfg(not(feature = "neumann-node"))]
+				return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into());
+			},
 		}
 	}
 }
@@ -246,6 +279,11 @@ pub fn run() -> Result<()> {
 				Ok(cmd.run(components.client, components.import_queue))
 			})
 		},
+		Some(Subcommand::Revert(cmd)) => {
+			construct_async_run!(|components, cli, cmd, config| {
+				Ok(cmd.run(components.client, components.backend, None))
+			})
+		},
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 
@@ -265,58 +303,26 @@ pub fn run() -> Result<()> {
 				cmd.run(config, polkadot_config)
 			})
 		},
-		Some(Subcommand::Revert(cmd)) => {
-			construct_async_run!(|components, cli, cmd, config| {
-				Ok(cmd.run(components.client, components.backend, None))
-			})
-		},
-		Some(Subcommand::ExportGenesisState(params)) => {
-			let mut builder = sc_cli::LoggerBuilder::new("");
-			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
-			let _ = builder.init();
-
-			let chain_spec = cli.load_spec(&params.chain.clone().unwrap_or_default())?;
-			let state_version = Cli::native_runtime_version(&chain_spec).state_version();
-
+		Some(Subcommand::ExportGenesisState(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
 			with_runtime_or_err!(chain_spec, {
 				{
-					let block: Block = generate_genesis_block(&chain_spec, state_version)?;
-					let raw_header = block.header().encode();
-					let output_buf = if params.raw {
-						raw_header
-					} else {
-						format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
-					};
-					if let Some(output) = &params.output {
-						std::fs::write(output, output_buf)?;
-					} else {
-						std::io::stdout().write_all(&output_buf)?;
-					}
+					runner.sync_run(|_config| {
+						let spec =
+							cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+						let state_version = Cli::native_runtime_version(&spec).state_version();
+						cmd.run::<Block>(&*spec, state_version)
+					})
 				}
-			});
-
-			Ok(())
+			})
 		},
-		Some(Subcommand::ExportGenesisWasm(params)) => {
-			let mut builder = sc_cli::LoggerBuilder::new("");
-			builder.with_profiling(sc_tracing::TracingReceiver::Log, "");
-			let _ = builder.init();
-
-			let raw_wasm_blob =
-				extract_genesis_wasm(&cli.load_spec(&params.chain.clone().unwrap_or_default())?)?;
-			let output_buf = if params.raw {
-				raw_wasm_blob
-			} else {
-				format!("0x{:?}", HexDisplay::from(&raw_wasm_blob)).into_bytes()
-			};
-
-			if let Some(output) = &params.output {
-				std::fs::write(output, output_buf)?;
-			} else {
-				std::io::stdout().write_all(&output_buf)?;
-			}
-
-			Ok(())
+		Some(Subcommand::ExportGenesisWasm(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|_config| {
+				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+				cmd.run(&*spec)
+			})
 		},
 		Some(Subcommand::Benchmark(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -358,6 +364,26 @@ pub fn run() -> Result<()> {
 				}
 			})
 		},
+		#[cfg(feature = "try-runtime")]
+		Some(Subcommand::TryRuntime(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
+			with_runtime_or_err!(chain_spec, {
+				{
+					// grab the task manager.
+					let registry =
+						&runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
+					let task_manager = sc_service::TaskManager::new(
+						runner.config().tokio_handle.clone(),
+						*registry,
+					)
+					.map_err(|e| format!("Error: {:?}", e))?;
+
+					runner
+						.async_run(|config| Ok((cmd.run::<Block, Executor>(config), task_manager)))
+				}
+			})
+		},
 		None => {
 			let runner = cli.create_runner(&cli.run.normalize())?;
 			let collator_options = cli.run.collator_options();
@@ -394,7 +420,7 @@ pub fn run() -> Result<()> {
 
 				let genesis_state = with_runtime_or_err!(chain_spec, {
 					{
-						let block: Block = generate_genesis_block(&chain_spec, state_version)?;
+						let block: Block = generate_genesis_block(&**chain_spec, state_version)?;
 						format!("0x{:?}", HexDisplay::from(&block.header().encode()))
 					}
 				});
