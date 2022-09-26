@@ -139,8 +139,8 @@ where
 		if call_information.token_id == NATIVE_TOKEN_ID {
 			// NativeFeeProcessor::<T, C>::withdraw_fee(who, fee, tip)
 			<pallet_transaction_payment::CurrencyAdapter<C, OU> as OnChargeTransaction<T>>::withdraw_fee(
-                who, call, _info, fee, tip
-            )
+				who, call, _info, fee, tip
+			)
 		} else {
 			ForeignFeeProcessor::<T, MC, TA>::withdraw_fee(who, fee.into(), call_information)?;
 			Ok(None)
