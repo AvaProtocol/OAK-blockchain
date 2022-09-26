@@ -280,29 +280,30 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = match T::GetNativeCurrencyId::get() == currency_id {
-				true => Self::get_local_currency_instructions(
+			let instructions = if T::GetNativeCurrencyId::get() == currency_id {
+				Self::get_local_currency_instructions(
 					para_id,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
 					weight,
 					fee,
-				)?,
-				false
-					if XcmChainCurrencyData::<T>::get(para_id, currency_id)
-						.ok_or(Error::<T>::CurrencyChainComboNotFound)?
-						.native == true =>
-					Self::get_foreign_currency_instructions(
-						para_id,
-						currency_id,
-						descend_location,
-						transact_encoded_call,
-						transact_encoded_call_weight,
-						weight,
-						fee,
-					)?,
-				_ => Err(Error::<T>::CurrencyChainComboNotSupported)?,
+				)?
+			} else if XcmChainCurrencyData::<T>::get(para_id, currency_id)
+				.ok_or(Error::<T>::CurrencyChainComboNotFound)?
+				.native
+			{
+				Self::get_foreign_currency_instructions(
+					para_id,
+					currency_id,
+					descend_location,
+					transact_encoded_call,
+					transact_encoded_call_weight,
+					weight,
+					fee,
+				)?
+			} else {
+				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			};
 
 			Ok(instructions)
