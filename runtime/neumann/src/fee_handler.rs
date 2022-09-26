@@ -72,6 +72,10 @@ where
 			.ok_or(TransactionValidityError::Invalid(InvalidTransaction::Payment))?
 			.saturated_into();
 
+		if foreign_fee.is_zero() {
+			return Err(TransactionValidityError::Invalid(InvalidTransaction::Payment))
+		}
+
 		// orml_tokens doesn't provide withdraw that allows setting existence so prevent
 		// withdraw if they don't have enough to avoid reaping
 		MC::ensure_can_withdraw(
