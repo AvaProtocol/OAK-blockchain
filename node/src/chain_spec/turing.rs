@@ -9,8 +9,8 @@ use crate::chain_spec::{
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use primitives::{AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig
+	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
+	XcmpHandlerConfig,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";

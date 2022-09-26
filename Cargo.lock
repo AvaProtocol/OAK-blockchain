@@ -11547,6 +11547,7 @@ dependencies = [
  "orml-xtokens",
  "pallet-aura",
  "pallet-authorship",
+ "pallet-automation-price",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",

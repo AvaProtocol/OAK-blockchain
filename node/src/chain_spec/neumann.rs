@@ -14,7 +14,7 @@ use crate::chain_spec::{
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use neumann_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig
+	VestingConfig, XcmpHandlerConfig,
 };
 use primitives::{AccountId, AuraId, Balance, TokenId};
 
