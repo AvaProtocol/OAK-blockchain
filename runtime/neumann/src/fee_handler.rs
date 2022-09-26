@@ -1,6 +1,6 @@
 use crate::{AssetRegistry, Balance, Call, XcmpHandler, NATIVE_TOKEN_ID, TOKEN_DECIMALS};
 use frame_support::{
-	traits::{Currency, ExistenceRequirement, Imbalance, OnUnbalanced, WithdrawReasons},
+	traits::{Currency, Imbalance, OnUnbalanced},
 	unsigned::TransactionValidityError,
 };
 use orml_asset_registry::AssetMetadata;
