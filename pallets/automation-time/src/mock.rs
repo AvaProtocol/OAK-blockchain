@@ -307,7 +307,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPerSlot = MaxWeightPerSlot;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
-	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
+	type FeeHandler = FeeHandler<Test, DealWithExecutionFees<Test>>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
