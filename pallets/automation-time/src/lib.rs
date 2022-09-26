@@ -1294,22 +1294,22 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			let fee_handler = T::FeeHandler::build(
-				&owner_id,
-				&action,
-				execution_times.len().try_into().unwrap(),
-			)?;
-
 			let task = TaskOf::<T>::new(
 				owner_id.clone(),
 				provided_id.clone(),
 				execution_times.clone().try_into().unwrap(),
 				action.clone(),
 			);
-			let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
-			AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
-
-			fee_handler.pay_fees()?;
+			let task_id = T::FeeHandler::pay_checked_fees_for(
+				&owner_id,
+				&action,
+				execution_times.len().try_into().unwrap(),
+				|| {
+					let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
+					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
+					Ok(task_id)
+				},
+			)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
@@ -1323,11 +1323,15 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
 
-			let fee_handler = T::FeeHandler::build(&task.owner_id, &task.action, new_executions)?;
-
-			Self::insert_scheduled_tasks(task_id, task, execution_times.clone())?;
-
-			fee_handler.pay_fees()?;
+			T::FeeHandler::pay_checked_fees_for(
+				&task.owner_id,
+				&task.action,
+				new_executions,
+				|| {
+					Self::insert_scheduled_tasks(task_id, task, execution_times.clone())
+						.map_err(|e| e.into())
+				},
+			)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
 			Ok(())

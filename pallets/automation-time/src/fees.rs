@@ -32,18 +32,13 @@ type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
 >>::NegativeImbalance;
 
 /// Handle execution fee payments in the context of automation actions
-pub trait HandleFees<T: Config>
-where
-	Self: Sized,
-{
-	/// Build a FeeHandler instance to validate and pay fees for a specific user action
-	fn build(
-		owner: &T::AccountId,
+pub trait HandleFees<T: Config> {
+	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
+		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
 		executions: u32,
-	) -> Result<Self, DispatchError>;
-	/// Execute the fee handler and withdraw fees
-	fn pay_fees(self) -> DispatchResult;
+		work: F,
+	) -> Result<R, DispatchError>;
 }
 
 pub struct FeeHandler<T: Config, OU> {
@@ -58,8 +53,57 @@ where
 	T: Config,
 	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
 {
+	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
+		owner: &AccountOf<T>,
+		action: &ActionOf<T>,
+		executions: u32,
+		prework: F,
+	) -> Result<R, DispatchError> {
+		let fee_handler = Self::build_checked_handler(owner, action, executions)?;
+		let outcome = prework()?;
+		fee_handler.pay_fees()?;
+		Ok(outcome)
+	}
+}
+
+impl<T, OU> FeeHandler<T, OU>
+where
+	T: Config,
+	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
+{
+	// Ensure the fee can be paid.
+	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+		if fee.is_zero() {
+			return Ok(())
+		}
+
+		let free_balance = T::Currency::free_balance(who);
+		let new_amount =
+			free_balance.checked_sub(&fee).ok_or(DispatchError::Token(BelowMinimum))?;
+		T::Currency::ensure_can_withdraw(who, fee, WithdrawReasons::FEE, new_amount)?;
+
+		Ok(())
+	}
+
+	/// Withdraw the fee.
+	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+		if fee.is_zero() {
+			return Ok(())
+		}
+
+		let withdraw_reason = WithdrawReasons::FEE;
+
+		match T::Currency::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
+			Ok(imbalance) => {
+				OU::on_unbalanceds(Some(imbalance).into_iter());
+				Ok(())
+			},
+			Err(_) => Err(DispatchError::Token(BelowMinimum)),
+		}
+	}
+
 	/// Builds a validated instance of the struct
-	fn build(
+	fn build_checked_handler(
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
 		executions: u32,
@@ -102,42 +146,5 @@ where
 		}
 
 		Ok(())
-	}
-}
-
-impl<T, OU> FeeHandler<T, OU>
-where
-	T: Config,
-	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
-{
-	// Ensure the fee can be paid.
-	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
-		if fee.is_zero() {
-			return Ok(())
-		}
-
-		let free_balance = T::Currency::free_balance(who);
-		let new_amount =
-			free_balance.checked_sub(&fee).ok_or(DispatchError::Token(BelowMinimum))?;
-		T::Currency::ensure_can_withdraw(who, fee, WithdrawReasons::FEE, new_amount)?;
-
-		Ok(())
-	}
-
-	/// Withdraw the fee.
-	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
-		if fee.is_zero() {
-			return Ok(())
-		}
-
-		let withdraw_reason = WithdrawReasons::FEE;
-
-		match T::Currency::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => {
-				OU::on_unbalanceds(Some(imbalance).into_iter());
-				Ok(())
-			},
-			Err(_) => Err(DispatchError::Token(BelowMinimum)),
-		}
 	}
 }
