@@ -288,7 +288,7 @@ pub mod pallet {
 				fun: Fungibility::Fungible(fee),
 			};
 
-			let mut base_instruction_set = Self::get_base_currency_instructions(
+			let mut instruction_set = Self::get_base_currency_instructions(
 				para_id,
 				asset.clone().into(),
 				descend_location,
@@ -298,17 +298,17 @@ pub mod pallet {
 			)?;
 
 			if T::GetNativeCurrencyId::get() == currency_id {
-				Self::add_local_native_instructions(&mut base_instruction_set, asset, para_id)?;
+				Self::add_local_native_instructions(&mut instruction_set, asset, para_id)?;
 			} else if XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?
 				.native
 			{
-				Self::add_foreign_native_instructions(&mut base_instruction_set, asset, para_id)?;
+				Self::add_foreign_native_instructions(&mut instruction_set, asset, para_id)?;
 			} else {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			};
 
-			Ok(base_instruction_set)
+			Ok(instruction_set)
 		}
 
 		/// Construct the base instructions for a transact xcm.
