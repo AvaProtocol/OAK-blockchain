@@ -6,10 +6,11 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
 	Extensions,
 };
+use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use primitives::{AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
+	XcmpHandlerConfig,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -177,7 +178,7 @@ fn testnet_genesis(
 mod tests {
 	use super::*;
 	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
-	use turing_runtime::EXISTENTIAL_DEPOSIT;
+	use common_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
 
 	#[test]
 	fn validate_turing_allocation() {
