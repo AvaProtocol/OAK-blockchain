@@ -276,4 +276,10 @@ mod tests {
 
 		assert_eq!(asset.convert_fee_into_foreign(200), Some(400))
 	}
+
+	#[test]
+	fn works_with_large_decimal_Diff() {
+		let asset = test_asset!(20, 10000:1);
+		assert_eq!(asset.convert_fee_into_foreign(1000000000), Some(1000))
+	}
 }
