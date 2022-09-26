@@ -38,8 +38,8 @@ where
 {
 	/// Build a FeeHandler instance to validate and pay fees for a specific user action
 	fn build(
-		owner: T::AccountId,
-		action: ActionOf<T>,
+		owner: &T::AccountId,
+		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError>;
 	/// Execute the fee handler and withdraw fees
@@ -60,13 +60,13 @@ where
 {
 	/// Builds a validated instance of the struct
 	fn build(
-		owner: AccountOf<T>,
-		action: ActionOf<T>,
+		owner: &AccountOf<T>,
+		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let execution_fee = Pallet::<T>::calculate_execution_fee(&action, executions)?;
+		let execution_fee = Pallet::<T>::calculate_execution_fee(action, executions)?;
 
-		let xcmp_fee = match action {
+		let xcmp_fee = match *action {
 			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } => Some(
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
@@ -80,11 +80,8 @@ where
 		};
 
 		// Note: will need to account for fees in non-native tokens once we start accepting them
-		Self::can_pay_fee(
-			&owner,
-			execution_fee.clone().saturating_add(xcmp_fee.unwrap_or(0u32.into())),
-		)
-		.map_err(|_| Error::<T>::InsufficientBalance)?;
+		Self::can_pay_fee(owner, execution_fee.saturating_add(xcmp_fee.unwrap_or(0u32.into())))
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 		Ok(Self {
 			owner: owner.clone(),

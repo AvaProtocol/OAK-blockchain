@@ -1295,8 +1295,8 @@ pub mod pallet {
 			}
 
 			let fee_handler = T::FeeHandler::build(
-				owner_id.clone(),
-				action.clone(),
+				&owner_id,
+				&action,
 				execution_times.len().try_into().unwrap(),
 			)?;
 
@@ -1323,8 +1323,7 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
 
-			let fee_handler =
-				T::FeeHandler::build(task.owner_id.clone(), task.action.clone(), new_executions)?;
+			let fee_handler = T::FeeHandler::build(&task.owner_id, &task.action, new_executions)?;
 
 			Self::insert_scheduled_tasks(task_id, task, execution_times.clone())?;
 
