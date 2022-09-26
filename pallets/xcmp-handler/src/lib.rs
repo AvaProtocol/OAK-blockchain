@@ -55,7 +55,7 @@ pub mod pallet {
 	use frame_system::pallet_prelude::*;
 	use orml_traits::MultiCurrency;
 	use polkadot_parachain::primitives::Sibling;
-	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion, Saturating};
+	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
 	use xcm::latest::prelude::*;
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
@@ -280,36 +280,81 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = if T::GetNativeCurrencyId::get() == currency_id {
-				Self::get_local_currency_instructions(
-					para_id,
-					descend_location,
-					transact_encoded_call,
-					transact_encoded_call_weight,
-					weight,
-					fee,
-				)?
+			let currency_multilocation = T::CurrencyIdConvert::convert(currency_id)
+				.ok_or(Error::<T>::FailedCurrencyIdToMultiLocation)?;
+
+			let asset = MultiAsset {
+				id: Concrete(currency_multilocation),
+				fun: Fungibility::Fungible(fee),
+			};
+
+			let mut base_instruction_set = Self::get_base_currency_instructions(
+				para_id,
+				asset.clone().into(),
+				descend_location,
+				transact_encoded_call,
+				transact_encoded_call_weight,
+				weight,
+			)?;
+
+			if T::GetNativeCurrencyId::get() == currency_id {
+				Self::add_local_native_instructions(&mut base_instruction_set, asset, para_id)?;
 			} else if XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?
 				.native
 			{
-				Self::get_foreign_currency_instructions(
-					para_id,
-					currency_id,
-					descend_location,
-					transact_encoded_call,
-					transact_encoded_call_weight,
-					weight,
-					fee,
-				)?
+				Self::add_foreign_native_instructions(&mut base_instruction_set, asset, para_id)?;
 			} else {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			};
 
-			Ok(instructions)
+			Ok(base_instruction_set)
 		}
 
-		/// Construct the instructions for a transact xcm with our local currency.
+		/// Construct the base instructions for a transact xcm.
+		///
+		/// Local instructions
+		/// 	- WithdrawAsset
+		///
+		/// Target instructions
+		/// 	- BuyExecution
+		/// 	- DescendOrigin
+		/// 	- Transact
+		/// 	- RefundSurplus
+		/// 	- DepositAsset
+		pub fn get_base_currency_instructions(
+			para_id: ParachainId,
+			asset: MultiAsset,
+			descend_location: Junctions,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+			xcm_weight: u64,
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
+			let local_xcm =
+				Xcm(vec![WithdrawAsset::<<T as pallet::Config>::Call>(asset.clone().into())]);
+
+			let target_xcm = Xcm(vec![
+				Self::buy_execution_instruction(
+					asset.clone().into(),
+					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					xcm_weight,
+				)?,
+				DescendOrigin::<()>(descend_location),
+				Self::transact_instruction(transact_encoded_call, transact_encoded_call_weight)?,
+				RefundSurplus::<()>,
+				Self::deposit_asset_target_instruction(MultiLocation {
+					parents: 1,
+					interior: X1(Parachain(T::SelfParaId::get().into())),
+				})?,
+			]);
+
+			Ok((local_xcm, target_xcm))
+		}
+
+		/// Construct Local Native instructions from base instructions set.
 		///
 		/// Local instructions
 		/// 	- WithdrawAsset
@@ -322,127 +367,128 @@ pub mod pallet {
 		/// 	- Transact
 		/// 	- RefundSurplus
 		/// 	- DepositAsset
-		pub fn get_local_currency_instructions(
+		fn add_local_native_instructions(
+			base_instructions: &mut (
+				xcm::latest::Xcm<<T as pallet::Config>::Call>,
+				xcm::latest::Xcm<()>,
+			),
+			asset: MultiAsset,
 			para_id: ParachainId,
-			descend_location: Junctions,
-			transact_encoded_call: Vec<u8>,
-			transact_encoded_call_weight: u64,
-			xcm_weight: u64,
-			fee: u128,
-		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
-			DispatchError,
-		> {
-			// XCM for local chain
-			let local_asset = MultiAsset {
-				id: Concrete(MultiLocation::new(0, Here)),
-				fun: Fungibility::Fungible(fee),
-			};
-
-			let local_xcm = Xcm(vec![
-				WithdrawAsset::<<T as pallet::Config>::Call>(local_asset.clone().into()),
-				DepositAsset::<<T as pallet::Config>::Call> {
-					assets: Wild(All),
-					max_assets: 1,
-					beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(para_id)) },
-				},
-			]);
-
-			// XCM for target chain
-			let local_asset = local_asset
-				.reanchored(
+		) -> Result<(), DispatchError> {
+			let (local_instructions, target_instructions) = base_instructions;
+			local_instructions.0.insert(
+				1,
+				Self::deposit_asset_local_instruction(MultiLocation {
+					parents: 1,
+					interior: X1(Parachain(para_id)),
+				})?,
+			);
+			target_instructions.0.insert(
+				0,
+				Self::reserve_asset_deposited_instruction(
+					asset.clone().into(),
 					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-					&T::LocationInverter::ancestry(),
-				)
-				.map_err(|_| Error::<T>::CannotReanchor)?;
+				)?,
+			);
 
-			let target_xcm = Xcm(vec![
-				ReserveAssetDeposited::<()>(local_asset.clone().into()),
-				BuyExecution::<()> { fees: local_asset, weight_limit: Limited(xcm_weight) },
-				DescendOrigin::<()>(descend_location),
-				Transact::<()> {
-					origin_type: OriginKind::SovereignAccount,
-					require_weight_at_most: transact_encoded_call_weight,
-					call: transact_encoded_call.into(),
-				},
-				RefundSurplus::<()>,
-				DepositAsset::<()> {
-					assets: Wild(All),
-					max_assets: 1,
-					beneficiary: MultiLocation {
-						parents: 1,
-						interior: X1(Parachain(T::SelfParaId::get().into())),
-					},
-				},
-			]);
-
-			Ok((local_xcm, target_xcm))
+			Ok(().into())
 		}
 
-		/// Construct the instructions for a transact xcm with a foreign currency.
+		/// Construct Foreign Native instructions from base instructions set.
 		///
 		/// Local instructions
 		/// 	- WithdrawAsset
 		///
 		/// Target instructions
 		/// 	- WithdrawAsset
+		/// 	- ReserveAssetDeposited
 		/// 	- BuyExecution
 		/// 	- DescendOrigin
 		/// 	- Transact
 		/// 	- RefundSurplus
 		/// 	- DepositAsset
-		pub fn get_foreign_currency_instructions(
+		fn add_foreign_native_instructions(
+			base_instructions: &mut (
+				xcm::latest::Xcm<<T as pallet::Config>::Call>,
+				xcm::latest::Xcm<()>,
+			),
+			asset: MultiAsset,
 			para_id: ParachainId,
-			currency_id: T::CurrencyId,
-			descend_location: Junctions,
-			transact_encoded_call: Vec<u8>,
-			transact_encoded_call_weight: u64,
-			xcm_weight: u64,
-			fee: u128,
-		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
-			DispatchError,
-		> {
-			let fee_location: MultiLocation = T::CurrencyIdConvert::convert(currency_id)
-				.ok_or(Error::<T>::FailedCurrencyIdToMultiLocation)?;
-
-			let foreign_asset =
-				MultiAsset { id: Concrete(fee_location), fun: Fungibility::Fungible(fee) };
-
-			// This message deducts and burns "amount" from the caller when executed
-			let local_xcm = Xcm(vec![WithdrawAsset::<<T as pallet::Config>::Call>(
-				foreign_asset.clone().into(),
-			)]);
-
-			// XCM for target chain
-			let foreign_asset = foreign_asset
-				.reanchored(
+		) -> Result<(), DispatchError> {
+			let (_local_instructions, target_instructions) = base_instructions;
+			target_instructions.0.insert(
+				0,
+				Self::withdraw_on_target_instruction(
+					asset.clone().into(),
 					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-					&T::LocationInverter::ancestry(),
-				)
-				.map_err(|_| Error::<T>::CannotReanchor)?;
+				)?,
+			);
 
-			let target_xcm = Xcm(vec![
-				WithdrawAsset::<()>(foreign_asset.clone().into()),
-				BuyExecution::<()> { fees: foreign_asset, weight_limit: Limited(xcm_weight) },
-				DescendOrigin::<()>(descend_location),
-				Transact::<()> {
-					origin_type: OriginKind::SovereignAccount,
-					require_weight_at_most: transact_encoded_call_weight,
-					call: transact_encoded_call.into(),
-				},
-				RefundSurplus::<()>,
-				DepositAsset::<()> {
-					assets: Wild(All),
-					max_assets: 1,
-					beneficiary: MultiLocation {
-						parents: 1,
-						interior: X1(Parachain(T::SelfParaId::get().into())),
-					},
-				},
-			]);
+			Ok(().into())
+		}
 
-			Ok((local_xcm, target_xcm))
+		/// Construct a withdraw instruction on target chain from a sovereign account
+		fn withdraw_on_target_instruction(
+			asset: MultiAsset,
+			at: &MultiLocation,
+		) -> Result<Instruction<()>, DispatchError> {
+			let ancestry = T::LocationInverter::ancestry();
+			let fees = asset.reanchored(at, &ancestry).map_err(|_| Error::<T>::CannotReanchor)?;
+
+			Ok(WithdrawAsset::<()>(fees.into()))
+		}
+
+		/// Construct a withdraw instruction on target chain from a sovereign account
+		fn reserve_asset_deposited_instruction(
+			asset: MultiAsset,
+			at: &MultiLocation,
+		) -> Result<Instruction<()>, DispatchError> {
+			let ancestry = T::LocationInverter::ancestry();
+			let fees = asset.reanchored(at, &ancestry).map_err(|_| Error::<T>::CannotReanchor)?;
+
+			Ok(ReserveAssetDeposited::<()>(fees.clone().into()))
+		}
+
+		/// Construct a buy execution xcm order with the provided parameters
+		fn buy_execution_instruction(
+			asset: MultiAsset,
+			at: &MultiLocation,
+			weight: u64,
+		) -> Result<Instruction<()>, DispatchError> {
+			let ancestry = T::LocationInverter::ancestry();
+			let fees = asset.reanchored(at, &ancestry).map_err(|_| Error::<T>::CannotReanchor)?;
+
+			Ok(BuyExecution::<()> { fees, weight_limit: WeightLimit::Limited(weight) })
+		}
+
+		/// Construct a transact xcm order with a sovereign account
+		fn transact_instruction(
+			call: Vec<u8>,
+			weight: u64,
+		) -> Result<Instruction<()>, DispatchError> {
+			Ok(Transact::<()> {
+				origin_type: OriginKind::SovereignAccount,
+				require_weight_at_most: weight,
+				call: call.into(),
+			})
+		}
+
+		/// Construct a deposit asset xcm order to execute locally.
+		fn deposit_asset_local_instruction(
+			beneficiary: MultiLocation,
+		) -> Result<Instruction<<T as pallet::Config>::Call>, DispatchError> {
+			Ok(DepositAsset::<<T as pallet::Config>::Call> {
+				assets: Wild(All),
+				max_assets: 1,
+				beneficiary,
+			})
+		}
+
+		/// Construct a deposit asset xcm order to execute on target chain.
+		fn deposit_asset_target_instruction(
+			beneficiary: MultiLocation,
+		) -> Result<Instruction<()>, DispatchError> {
+			Ok(DepositAsset::<()> { assets: Wild(All), max_assets: 1, beneficiary })
 		}
 
 		/// Transact XCM instructions on local chain
@@ -533,17 +579,7 @@ pub mod pallet {
 			let local_sovereign_account =
 				Sibling::from(T::SelfParaId::get()).into_account_truncating();
 
-			ensure!(
-				T::MultiCurrency::ensure_can_withdraw(
-					currency_id,
-					&source,
-					<BalanceOf<T>>::saturated_from(fee)
-						.saturating_add(T::MultiCurrency::minimum_balance(currency_id)),
-				)
-				.is_ok(),
-				Error::<T>::InsufficientFundsToPayFees
-			);
-
+			// Account is checked for sufficient balance in Automation-Time Pallet
 			match T::MultiCurrency::transfer(
 				currency_id,
 				&source,

@@ -16,7 +16,7 @@ use core::convert::TryInto;
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
+use crate::{mock::*, Config, Error, XcmChainCurrencyData, XcmCurrencyData};
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
@@ -298,15 +298,37 @@ fn get_instruction_set_local_currency_instructions() {
 		.unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-		let expected_instructions = XcmpHandler::get_local_currency_instructions(
-			PARA_ID,
-			descend_location,
-			transact_encoded_call.clone(),
-			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
-		)
+		let fee_location: MultiLocation = MultiLocation::new(0, Here).into();
+		let asset = MultiAsset {
+			id: Concrete(fee_location.clone().into()),
+			fun: Fungibility::Fungible(xcm_fee),
+		};
+		let (mut expected_local_instructions, mut expected_target_instructions) =
+			XcmpHandler::get_base_currency_instructions(
+				PARA_ID,
+				asset,
+				descend_location,
+				transact_encoded_call.clone(),
+				transact_encoded_call_weight,
+				xcm_weight,
+			)
+			.unwrap();
+
+		let assets: MultiAssets = vec![MultiAsset {
+			id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
+			fun: Fungible(xcm_fee.into()),
+		}]
+		.try_into()
 		.unwrap();
+		expected_local_instructions.0.insert(
+			1,
+			DepositAsset::<<Test as Config>::Call> {
+				assets: Wild(All),
+				max_assets: 1,
+				beneficiary: MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) },
+			},
+		);
+		expected_target_instructions.0.insert(0, ReserveAssetDeposited(assets));
 
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
@@ -317,7 +339,7 @@ fn get_instruction_set_local_currency_instructions() {
 				transact_encoded_call_weight
 			)
 			.unwrap(),
-			expected_instructions
+			(expected_local_instructions, expected_target_instructions)
 		);
 	});
 }
@@ -340,16 +362,27 @@ fn get_instruction_set_foreign_currency_instructions() {
 				.unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-		let expected_instructions = XcmpHandler::get_foreign_currency_instructions(
-			PARA_ID,
-			RELAY,
-			descend_location,
-			transact_encoded_call.clone(),
-			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
-		)
-		.unwrap();
+		let fee_location: MultiLocation = MultiLocation::parent().into();
+		let asset = MultiAsset {
+			id: Concrete(fee_location.clone().into()),
+			fun: Fungibility::Fungible(xcm_fee),
+		};
+		let (expected_local_instructions, mut expected_target_instructions) =
+			XcmpHandler::get_base_currency_instructions(
+				PARA_ID,
+				asset,
+				descend_location,
+				transact_encoded_call.clone(),
+				transact_encoded_call_weight,
+				xcm_weight,
+			)
+			.unwrap();
+
+		let assets: MultiAssets =
+			vec![MultiAsset { id: Concrete(fee_location), fun: Fungible(xcm_fee.into()) }]
+				.try_into()
+				.unwrap();
+		expected_target_instructions.0.insert(0, WithdrawAsset(assets));
 
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
@@ -360,89 +393,45 @@ fn get_instruction_set_foreign_currency_instructions() {
 				transact_encoded_call_weight
 			)
 			.unwrap(),
-			expected_instructions
+			(expected_local_instructions, expected_target_instructions)
 		);
-	});
-}
-
-// get_foreign_currency_instructions
-// TODO: use xcm_simulator to test these instructions.
-#[test]
-fn get_foreign_currency_instructions_works() {
-	new_test_ext(None).execute_with(|| {
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = 100_000_000;
-		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
-		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
-		let descend_location: Junctions =
-			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-
-		let (local, target) = XcmpHandler::get_foreign_currency_instructions(
-			PARA_ID,
-			RELAY,
-			descend_location,
-			transact_encoded_call,
-			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
-		)
-		.unwrap();
-		assert_eq!(local.0.len(), 1);
-		assert_eq!(target.0.len(), 6);
-	});
-}
-
-// get_local_currency_instructions
-// TODO: use xcm_simulator to test these instructions.
-#[test]
-fn get_local_currency_instructions_works() {
-	new_test_ext(None).execute_with(|| {
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = 100_000_000;
-		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
-		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
-		let descend_location: Junctions =
-			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-
-		let (local, target) = XcmpHandler::get_local_currency_instructions(
-			PARA_ID,
-			descend_location,
-			transact_encoded_call,
-			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
-		)
-		.unwrap();
-		assert_eq!(local.0.len(), 2);
-		assert_eq!(target.0.len(), 6);
 	});
 }
 
 #[test]
 fn transact_in_local_chain_works() {
-	new_test_ext(None).execute_with(|| {
+	let genesis_config = vec![(
+		PARA_ID,
+		NATIVE,
+		XCM_DATA_NATIVE.native,
+		XCM_DATA_NATIVE.fee_per_second,
+		XCM_DATA_NATIVE.instruction_weight,
+	)];
+
+	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
-		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
-		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
+		let (xcm_fee, _) = XcmpHandler::calculate_xcm_fee_and_weight(
+			PARA_ID,
+			NATIVE,
+			transact_encoded_call_weight,
+		)
+		.unwrap();
 		let asset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 0, interior: Here }),
 			fun: Fungible(xcm_fee),
 		};
-		let descend_location: Junctions =
-			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
-		let (local_instructions, _) = XcmpHandler::get_local_currency_instructions(
+		let (expected_local_instructions, _) = XcmpHandler::get_instruction_set(
 			PARA_ID,
-			descend_location,
-			transact_encoded_call.clone(),
+			NATIVE,
+			ALICE,
+			transact_encoded_call,
 			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
 		)
 		.unwrap();
 
-		assert_ok!(XcmpHandler::transact_in_local_chain(local_instructions));
+		assert_ok!(XcmpHandler::transact_in_local_chain(expected_local_instructions));
 		assert_eq!(
 			transact_asset(),
 			vec![
@@ -464,25 +453,34 @@ fn transact_in_local_chain_works() {
 
 #[test]
 fn transact_in_target_chain_works() {
-	new_test_ext(None).execute_with(|| {
+	let genesis_config = vec![(
+		PARA_ID,
+		NATIVE,
+		XCM_DATA_NATIVE.native,
+		XCM_DATA_NATIVE.fee_per_second,
+		XCM_DATA_NATIVE.instruction_weight,
+	)];
+
+	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
-		let xcm_weight = 100_000_000 + transact_encoded_call_weight;
-		let xcm_fee = xcm_weight as u128 * 5_000_000_000u128;
+		let (xcm_fee, xcm_weight) = XcmpHandler::calculate_xcm_fee_and_weight(
+			PARA_ID,
+			NATIVE,
+			transact_encoded_call_weight,
+		)
+		.unwrap();
 		let asset = MultiAsset {
 			id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
 			fun: Fungible(xcm_fee),
 		};
-		let descend_location: Junctions =
-			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
-		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
+		let (_, target_instructions) = XcmpHandler::get_instruction_set(
 			PARA_ID,
-			descend_location,
+			NATIVE,
+			ALICE,
 			transact_encoded_call.clone(),
-			transact_encoded_call_weight,
-			xcm_weight,
-			xcm_fee,
+			transact_encoded_call_weight.clone(),
 		)
 		.unwrap();
 
@@ -539,25 +537,6 @@ fn pay_xcm_fee_works() {
 		assert_ok!(XcmpHandler::pay_xcm_fee(0, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
 		assert_eq!(Balances::free_balance(local_sovereign_account), fee);
-	});
-}
-
-#[test]
-fn pay_xcm_fee_keeps_wallet_alive() {
-	new_test_ext(None).execute_with(|| {
-		let local_sovereign_account: AccountId =
-			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
-		let fee = 3_500_000;
-		let alice_balance = fee;
-
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
-
-		assert_noop!(
-			XcmpHandler::pay_xcm_fee(0, ALICE, fee.try_into().unwrap()),
-			Error::<Test>::InsufficientFundsToPayFees
-		);
-		assert_eq!(Balances::free_balance(ALICE), alice_balance.try_into().unwrap());
-		assert_eq!(Balances::free_balance(local_sovereign_account), 0);
 	});
 }
 
