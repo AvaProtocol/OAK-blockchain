@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate as pallet_xcmp_handler;
-use codec::{Decode, Encode, MaxEncodedLen};
 use core::cell::RefCell;
 use frame_support::{
 	parameter_types,
@@ -26,13 +25,11 @@ use frame_support::{
 use frame_system as system;
 use pallet_xcm::XcmPassthrough;
 use polkadot_parachain::primitives::Sibling;
-use scale_info::TypeInfo;
-use serde::{Deserialize, Serialize};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, Convert, IdentityLookup},
-	AccountId32, RuntimeDebug,
+	AccountId32,
 };
 use xcm::latest::prelude::*;
 use xcm_builder::{
