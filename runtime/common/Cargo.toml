@@ -28,11 +28,11 @@ primitives = { path = "../../primitives", default-features = false }
 [features]
 default = ["std"]
 std = [
-	"frame-support/std",
-	"sp-runtime/std",
-	"sp-std/std",
-	"pallet-balances/std",
-	"pallet-transaction-payment/std",
-	"pallet-treasury/std",
-	"primitives/std"
+  "frame-support/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "pallet-balances/std",
+  "pallet-transaction-payment/std",
+  "pallet-treasury/std",
+  "primitives/std",
 ]
