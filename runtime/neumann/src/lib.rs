@@ -862,7 +862,7 @@ impl pallet_automation_time::Config for Runtime {
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
-	type FeeHandler = pallet_automation_time::FeeHandler<DealWithExecutionFees<Runtime>>;
+	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, DealWithExecutionFees<Runtime>>;
 	type DelegatorActions = ParachainStaking;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
