@@ -157,10 +157,11 @@ mod tests {
 	use frame_support::sp_runtime::AccountId32;
 
 	#[test]
-	fn executes_prereq_function() {
+	fn pay_checked_fees_for_success() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
 			get_funds(alice.clone());
+			let starting_funds = Balances::free_balance(alice.clone());
 			let mut spy = 0;
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
@@ -173,6 +174,7 @@ mod tests {
 			);
 			assert_eq!(result.expect("success"), "called");
 			assert_eq!(spy, 1);
+			assert!(starting_funds > Balances::free_balance(alice))
 		})
 	}
 
@@ -187,22 +189,6 @@ mod tests {
 				|| Ok(()),
 			);
 			assert_err!(result, Error::<Test>::InsufficientBalance);
-		})
-	}
-
-	#[test]
-	fn charges_fees() {
-		new_test_ext(0).execute_with(|| {
-			let alice = AccountId32::new(ALICE);
-			get_funds(alice.clone());
-			let starting_funds = Balances::free_balance(alice.clone());
-			let _ = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
-				&alice,
-				&Action::Notify { message: vec![0] },
-				1,
-				|| Ok(()),
-			);
-			assert!(starting_funds > Balances::free_balance(alice))
 		})
 	}
 
