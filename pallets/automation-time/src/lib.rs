@@ -1294,50 +1294,22 @@ pub mod pallet {
 				Self::is_valid_time(*time)?;
 			}
 
-			// Execution fee
-			let exeuction_fee =
-				Self::calculate_execution_fee(&action, execution_times.len().try_into().unwrap())?;
-
-			// XCMP fee
-			let xcmp_fee: u128 = match action {
-				Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
-					T::XcmpTransactor::get_xcm_fee(
-						u32::from(para_id),
-						currency_id,
-						encoded_call_weight.clone(),
-					)?
-					.saturating_mul(execution_times.len().try_into().unwrap()),
-				_ => 0u32.into(),
-			};
-
-			// Note: will need to account for fees in non-native tokens once we start accepting them
-			T::FeeHandler::can_pay_fee(
-				&owner_id,
-				exeuction_fee
-					.clone()
-					.saturating_add(<BalanceOf<T>>::saturated_from(xcmp_fee.clone())),
-			)
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
-
 			let task = TaskOf::<T>::new(
 				owner_id.clone(),
 				provided_id.clone(),
 				execution_times.clone().try_into().unwrap(),
 				action.clone(),
 			);
-			let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
-			AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
-
-			// This should never error if can_pay_fee passed.
-			T::FeeHandler::withdraw_fee(&owner_id, exeuction_fee.clone())
-				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
-
-			// Pay XCMP fees
-			match action {
-				Action::XCMP { .. } =>
-					T::XcmpTransactor::pay_xcm_fee(owner_id.clone(), xcmp_fee).unwrap(),
-				_ => (),
-			};
+			let task_id = T::FeeHandler::pay_checked_fees_for(
+				&owner_id,
+				&action,
+				execution_times.len().try_into().unwrap(),
+				|| {
+					let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
+					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
+					Ok(task_id)
+				},
+			)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
@@ -1351,14 +1323,15 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let new_executions = execution_times.len().try_into().unwrap();
 
-			let fee = Self::calculate_execution_fee(&task.action, new_executions)?;
-			T::FeeHandler::can_pay_fee(&task.owner_id, fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
-
-			Self::insert_scheduled_tasks(task_id, task, execution_times.clone())?;
-
-			T::FeeHandler::withdraw_fee(&task.owner_id, fee.clone())
-				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
+			T::FeeHandler::pay_checked_fees_for(
+				&task.owner_id,
+				&task.action,
+				new_executions,
+				|| {
+					Self::insert_scheduled_tasks(task_id, task, execution_times.clone())
+						.map_err(|e| e.into())
+				},
+			)?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
 			Ok(())

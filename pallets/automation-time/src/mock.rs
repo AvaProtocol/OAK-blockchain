@@ -17,12 +17,13 @@
 
 use super::*;
 use crate as pallet_automation_time;
+use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, OnUnbalanced},
 	weights::Weight,
 };
-use frame_system as system;
+use frame_system::{self as system, RawOrigin};
 use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
@@ -307,7 +308,7 @@ impl pallet_automation_time::Config for Test {
 	type MaxWeightPerSlot = MaxWeightPerSlot;
 	type Currency = Balances;
 	type CurrencyId = CurrencyId;
-	type FeeHandler = FeeHandler<DealWithExecutionFees<Test>>;
+	type FeeHandler = FeeHandler<Test, DealWithExecutionFees<Test>>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
@@ -322,4 +323,122 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 	ext.execute_with(|| System::set_block_number(1));
 	ext.execute_with(|| Timestamp::set_timestamp(state_block_time));
 	ext
+}
+
+pub fn schedule_task(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	scheduled_times: Vec<u64>,
+	message: Vec<u8>,
+) -> sp_core::H256 {
+	get_funds(AccountId32::new(owner));
+	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
+	assert_ok!(AutomationTime::schedule_notify_task(
+		Origin::signed(AccountId32::new(owner)),
+		provided_id,
+		scheduled_times,
+		message,
+	));
+	BlakeTwo256::hash_of(&task_hash_input)
+}
+
+pub fn add_task_to_task_queue(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	scheduled_times: Vec<u64>,
+	action: ActionOf<Test>,
+) -> sp_core::H256 {
+	let task_id = create_task(owner, provided_id, scheduled_times, action);
+	let mut task_queue = AutomationTime::get_task_queue();
+	task_queue.push((AccountId32::new(owner), task_id));
+	TaskQueueV2::<Test>::put(task_queue);
+	task_id
+}
+
+pub fn add_task_to_missed_queue(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	scheduled_times: Vec<u64>,
+	action: ActionOf<Test>,
+) -> sp_core::H256 {
+	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
+	let missed_task =
+		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
+	let mut missed_queue = AutomationTime::get_missed_queue();
+	missed_queue.push(missed_task);
+	MissedQueueV2::<Test>::put(missed_queue);
+	task_id
+}
+
+pub fn create_task(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	scheduled_times: Vec<u64>,
+	action: ActionOf<Test>,
+) -> sp_core::H256 {
+	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
+	let task_id = BlakeTwo256::hash_of(&task_hash_input);
+	let task =
+		TaskOf::<Test>::new(owner.into(), provided_id, scheduled_times.try_into().unwrap(), action);
+	AccountTasks::<Test>::insert(AccountId::new(owner), task_id, task);
+	task_id
+}
+
+pub fn events() -> Vec<Event> {
+	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+
+	System::reset_events();
+
+	evt
+}
+
+pub fn last_event() -> Event {
+	events().pop().unwrap()
+}
+
+pub fn get_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+}
+
+pub fn get_minimum_funds(account: AccountId, executions: u32) {
+	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(executions);
+	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+}
+
+pub fn get_xcmp_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_xcmp_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	let with_xcm_fees = max_execution_fee + XmpFee::get();
+	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
+}
+
+// TODO: swap above to this pattern
+pub fn fund_account_dynamic_dispatch(
+	account: &AccountId,
+	execution_count: usize,
+	encoded_call: Vec<u8>,
+) -> Result<(), DispatchError> {
+	let action: ActionOf<Test> = Action::DynamicDispatch { encoded_call };
+	let action_weight = action.execution_weight::<Test>()?;
+	fund_account(account, action_weight, execution_count, None);
+	Ok(())
+}
+
+pub fn fund_account(
+	account: &AccountId,
+	action_weight: u64,
+	execution_count: usize,
+	additional_amount: Option<u128>,
+) {
+	let amount: u128 =
+		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128 +
+			additional_amount.unwrap_or(0) +
+			u128::from(ExistentialDeposit::get());
+	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }
