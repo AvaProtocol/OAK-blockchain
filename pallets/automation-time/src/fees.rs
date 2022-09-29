@@ -37,7 +37,7 @@ pub trait HandleFees<T: Config> {
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
 		executions: u32,
-		work: F,
+		prereq: F,
 	) -> Result<R, DispatchError>;
 }
 
@@ -57,10 +57,10 @@ where
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
 		executions: u32,
-		prework: F,
+		prereq: F,
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::build_checked_handler(owner, action, executions)?;
-		let outcome = prework()?;
+		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
 		Ok(outcome)
 	}
@@ -146,5 +146,80 @@ where
 		}
 
 		Ok(())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{mock::*, Action};
+	use frame_benchmarking::frame_support::assert_err;
+	use frame_support::sp_runtime::AccountId32;
+
+	#[test]
+	fn executes_prereq_function() {
+		new_test_ext(0).execute_with(|| {
+			let alice = AccountId32::new(ALICE);
+			get_funds(alice.clone());
+			let mut spy = 0;
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&Action::Notify { message: vec![0] },
+				1,
+				|| {
+					spy += 1;
+					Ok("called")
+				},
+			);
+			assert_eq!(result.expect("success"), "called");
+			assert_eq!(spy, 1);
+		})
+	}
+
+	#[test]
+	fn errors_when_not_enough_funds_for_fee() {
+		new_test_ext(0).execute_with(|| {
+			let alice = AccountId32::new(ALICE);
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&Action::Notify { message: vec![0] },
+				1,
+				|| Ok(()),
+			);
+			assert_err!(result, Error::<Test>::InsufficientBalance);
+		})
+	}
+
+	#[test]
+	fn charges_fees() {
+		new_test_ext(0).execute_with(|| {
+			let alice = AccountId32::new(ALICE);
+			get_funds(alice.clone());
+			let starting_funds = Balances::free_balance(alice.clone());
+			let _ = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&Action::Notify { message: vec![0] },
+				1,
+				|| Ok(()),
+			);
+			assert!(starting_funds > Balances::free_balance(alice))
+		})
+	}
+
+	#[test]
+	fn does_not_charge_fees_when_prereq_errors() {
+		new_test_ext(0).execute_with(|| {
+			let alice = AccountId32::new(ALICE);
+			get_funds(alice.clone());
+			let starting_funds = Balances::free_balance(alice.clone());
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for::<(), _>(
+				&alice,
+				&Action::Notify { message: vec![0] },
+				1,
+				|| Err("error".into()),
+			);
+			assert_err!(result, DispatchError::Other("error"));
+			assert_eq!(starting_funds, Balances::free_balance(alice))
+		})
 	}
 }
