@@ -960,6 +960,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-runtime"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "pallet-balances",
+ "pallet-transaction-payment",
+ "pallet-treasury",
+ "primitives",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4638,6 +4651,7 @@ dependencies = [
 name = "neumann-runtime"
 version = "0.1.0"
 dependencies = [
+ "common-runtime",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -4836,6 +4850,7 @@ version = "1.7.0"
 dependencies = [
  "async-trait",
  "clap",
+ "common-runtime",
  "cumulus-client-cli",
  "cumulus-client-collator",
  "cumulus-client-consensus-aura",
@@ -4911,6 +4926,7 @@ dependencies = [
 name = "oak-runtime"
 version = "0.1.0"
 dependencies = [
+ "common-runtime",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",
@@ -11504,6 +11520,7 @@ checksum = "5e66dcbec4290c69dd03c57e76c2469ea5c7ce109c6dd4351c13055cf71ea055"
 name = "turing-runtime"
 version = "0.1.0"
 dependencies = [
+ "common-runtime",
  "cumulus-pallet-aura-ext",
  "cumulus-pallet-dmp-queue",
  "cumulus-pallet-parachain-system",

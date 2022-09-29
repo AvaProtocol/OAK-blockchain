@@ -32,8 +32,7 @@ use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, DispatchError, FixedPointNumber, ModuleError, Percent,
-	RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, DispatchError, ModuleError, Percent, RuntimeDebug,
 };
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
@@ -51,10 +50,10 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
 		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
-		EnsureOriginWithArg, Imbalance, InstanceFilter, OnUnbalanced, PrivilegeCmp,
+		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
 	},
 	weights::{
-		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
+		constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight},
 		ConstantMultiplier, DispatchClass, Weight,
 	},
 	PalletId,
@@ -63,8 +62,6 @@ use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
 };
-use pallet_balances::NegativeImbalance;
-use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
 #[cfg(any(feature = "std", test))]
@@ -84,6 +81,18 @@ pub mod xcm_config;
 pub mod weights;
 
 // Common imports
+use common_runtime::{
+	constants::{
+		currency::{deposit, CENT, DOLLAR, EXISTENTIAL_DEPOSIT, UNIT},
+		fees::SlowAdjustingFeeUpdate,
+		time::{DAYS, HOURS, SLOT_DURATION},
+		weight_ratios::{
+			AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT, NORMAL_DISPATCH_RATIO,
+			SCHEDULED_TASKS_INITIALIZE_RATIO,
+		},
+	},
+	fees::{DealWithExecutionFees, DealWithInclusionFees},
+};
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
 };
@@ -162,52 +171,6 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 };
 
 pub const NATIVE_TOKEN_ID: TokenId = 0;
-
-/// This determines the average expected block time that we are targeting.
-/// Blocks will be produced at a minimum duration defined by `SLOT_DURATION`.
-/// `SLOT_DURATION` is picked up by `pallet_timestamp` which is in turn picked
-/// up by `pallet_aura` to implement `fn slot_duration()`.
-///
-/// Change this to adjust the block time.
-pub const MILLISECS_PER_BLOCK: u64 = 12000;
-
-// NOTE: Currently it is not possible to change the slot duration after the chain has started.
-//       Attempting to do so will brick block production.
-pub const SLOT_DURATION: u64 = MILLISECS_PER_BLOCK;
-
-// Time is measured by number of blocks.
-pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
-pub const HOURS: BlockNumber = MINUTES * 60;
-pub const DAYS: BlockNumber = HOURS * 24;
-
-pub const TOKEN_DECIMALS: u32 = 10;
-const TOKEN_BASE: u128 = 10;
-// Unit = the base number of indivisible units for balances
-pub const UNIT: Balance = TOKEN_BASE.pow(TOKEN_DECIMALS); // 10_000_000_000
-pub const DOLLAR: Balance = UNIT; // 10_000_000_000
-pub const CENT: Balance = DOLLAR / 100; // 100_000_000
-pub const MILLICENT: Balance = CENT / 1_000; // 100_000
-
-pub const fn deposit(items: u32, bytes: u32) -> Balance {
-	items as Balance * 2_000 * CENT + (bytes as Balance) * 100 * MILLICENT
-}
-
-/// The existential deposit. Set to 1/100 of the Connected Relay Chain.
-pub const EXISTENTIAL_DEPOSIT: Balance = CENT;
-
-/// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
-const SCHEDULED_TASKS_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
-
-/// We assume that ~5% of the block weight is consumed by `on_initialize` handlers. This is
-/// used to limit the maximal weight of a single extrinsic.
-const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(5);
-
-/// We allow `Normal` extrinsics to fill up the block up to 75%, the rest can be used by
-/// `Operational` extrinsics.
-const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
-
-/// We allow for 0.5 of a second of compute with a 12 second average block time.
-const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND / 2;
 
 /// The version information used to identify this runtime when compiled natively.
 #[cfg(feature = "std")]
@@ -528,52 +491,8 @@ impl orml_asset_registry::Config for Runtime {
 }
 
 parameter_types! {
-	/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
-	/// than this will decrease the weight and more will increase.
-	pub const TargetBlockFullness: Perquintill = Perquintill::from_percent(1);
-	/// The adjustment variable of the runtime. Higher values will cause `TargetBlockFullness` to
-	/// change the fees more rapidly.
-	pub AdjustmentVariable: Multiplier = Multiplier::saturating_from_rational(3, 100_000);
-	/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
-	/// that combined with `AdjustmentVariable`, we can recover from the minimum.
-	/// See `multiplier_can_grow_from_zero`.
-	pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	pub const TransactionByteFee: Balance = 0;
 	pub const WeightToFeeScalar: Balance = 6;
-}
-
-/// Parameterized slow adjusting fee updated based on
-/// https://w3f-research.readthedocs.io/en/latest/polkadot/overview/2-token-economics.html#-2.-slow-adjusting-mechanism // editorconfig-checker-disable-line
-///
-/// The adjustment algorithm boils down to:
-///
-/// diff = (previous_block_weight - target) / maximum_block_weight
-/// next_multiplier = prev_multiplier * (1 + (v * diff) + ((v * diff)^2 / 2))
-/// assert(next_multiplier > min)
-///     where: v is AdjustmentVariable
-///            target is TargetBlockFullness
-///            min is MinimumMultiplier
-pub type SlowAdjustingFeeUpdate<R> =
-	TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
-
-pub struct DealWithInclusionFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithInclusionFees<R>
-where
-	R: pallet_balances::Config + pallet_treasury::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-{
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
-		if let Some(mut fees) = fees_then_tips.next() {
-			if let Some(tips) = fees_then_tips.next() {
-				tips.merge_into(&mut fees);
-			}
-			// 20% burned, 80% to the treasury
-			let (_, to_treasury) = fees.ration(20, 80);
-			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
-			// total_supply accordingly
-			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
-		}
-	}
 }
 
 impl pallet_transaction_payment::Config for Runtime {
@@ -934,23 +853,6 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
-}
-
-pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
-where
-	R: pallet_balances::Config + pallet_treasury::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-{
-	fn on_unbalanceds<B>(mut fees: impl Iterator<Item = NegativeImbalance<R>>) {
-		if let Some(fees) = fees.next() {
-			// 20% burned, 80% to the treasury
-			let (_, to_treasury) = fees.ration(20, 80);
-			// Balances pallet automatically burns dropped Negative Imbalances by decreasing
-			// total_supply accordingly
-			<pallet_treasury::Pallet<R> as OnUnbalanced<_>>::on_unbalanced(to_treasury);
-		}
-	}
 }
 
 pub struct ScheduleAllowList;

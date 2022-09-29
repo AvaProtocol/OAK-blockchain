@@ -23,6 +23,7 @@ smallvec = "1.8.1"
 hex-literal = "0.3.1"
 
 # Local Dependencies
+common-runtime = { path = "../common", default-features = false }
 pallet-automation-price = { path = "../../pallets/automation-price", default-features = false }
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
 pallet-automation-time-rpc-runtime-api = { path = "../../pallets/automation-time/rpc/runtime-api", default-features = false }
@@ -114,6 +115,7 @@ default = [
 ]
 std = [
 	"codec/std",
+	"common-runtime/std",
 	"serde",
 	"scale-info/std",
 	"log/std",

@@ -11,9 +11,10 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
 	Extensions,
 };
+use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use neumann_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig, DOLLAR, TOKEN_DECIMALS,
+	VestingConfig, XcmpHandlerConfig,
 };
 use primitives::{AccountId, AuraId, Balance, TokenId};
 
@@ -369,7 +370,7 @@ fn testnet_genesis(
 mod tests {
 	use super::*;
 	use crate::chain_spec::test::{validate_allocation, validate_total_tokens, validate_vesting};
-	use neumann_runtime::EXISTENTIAL_DEPOSIT;
+	use common_runtime::constants::currency::EXISTENTIAL_DEPOSIT;
 
 	#[test]
 	fn validate_neumann_allocation() {

@@ -1,0 +1,38 @@
+[package]
+name = "common-runtime"
+version = "0.1.0"
+description = "The commonalities between runtimes"
+authors = ["OAK Developement Team"]
+license = "GPL-3.0"
+homepage = "https://oak.tech"
+repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
+edition = "2021"
+
+[dependencies]
+# Substrate Dependencies
+## Substrate Primitive Dependencies
+sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+
+## Substrate FRAME Dependencies
+frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+
+## Substrate Pallet Dependencies
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.26" }
+
+# Local Dependencies
+primitives = { path = "../../primitives", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "frame-support/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "pallet-balances/std",
+  "pallet-transaction-payment/std",
+  "pallet-treasury/std",
+  "primitives/std",
+]
