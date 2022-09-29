@@ -48,6 +48,7 @@ tracing-core = "=0.1.26"
 jsonrpsee = { version = "0.14.0", features = ["server"] }
 
 # Local Dependencies
+common-runtime = { path = "../runtime/common"}
 neumann-runtime = { path = "../runtime/neumann", optional = true}
 oak-runtime = { path ='../runtime/oak', optional = true}
 turing-runtime = { path ='../runtime/turing', optional = true}

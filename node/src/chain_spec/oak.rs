@@ -11,9 +11,10 @@ use crate::chain_spec::{
 	test::{validate_allocation, validate_vesting},
 	Extensions,
 };
+use common_runtime::constants::currency::{DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS};
 use oak_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig, DOLLAR, EXISTENTIAL_DEPOSIT, TOKEN_DECIMALS,
+	VestingConfig, XcmpHandlerConfig,
 };
 use primitives::{AccountId, AuraId, Balance, TokenId};
 
