@@ -1,4 +1,4 @@
-use crate::{weights::WeightInfo, Config, Error};
+use crate::{weights::WeightInfo, Config, Error, Pallet};
 
 use frame_support::{pallet_prelude::*, traits::Get, weights::GetDispatchInfo};
 
@@ -33,7 +33,6 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		delegator: AccountId,
 		collator: AccountId,
 		account_minimum: Balance,
-		frequency: Seconds,
 	},
 	DynamicDispatch {
 		encoded_call: Vec<u8>,
@@ -83,9 +82,81 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				delegator: default_account.clone(),
 				collator: default_account,
 				account_minimum: 0u32.into(),
-				frequency: 0,
 			},
 		}
+	}
+}
+
+#[derive(Debug, Encode, Decode, TypeInfo)]
+#[scale_info(skip_type_params(MaxExecutionTimes))]
+pub enum Schedule<MaxExecutionTimes: Get<u32>> {
+	Fixed { execution_times: BoundedVec<UnixTime, MaxExecutionTimes>, executions_left: u32 },
+	Recurring { next_execution_time: UnixTime, frequency: Seconds },
+}
+
+impl<B: Get<u32>> PartialEq for Schedule<B> {
+	fn eq(&self, other: &Self) -> bool {
+		match (self, other) {
+			(
+				Schedule::Fixed { execution_times: t1, executions_left: l1 },
+				Schedule::Fixed { execution_times: t2, executions_left: l2 },
+			) => t1.to_vec() == t2.to_vec() && l1 == l2,
+			(
+				Schedule::Recurring { next_execution_time: t1, frequency: f1 },
+				Schedule::Recurring { next_execution_time: t2, frequency: f2 },
+			) => t1 == t2 && f1 == f2,
+			_ => false,
+		}
+	}
+}
+
+impl<MaxExecutionTimes: Get<u32>> Schedule<MaxExecutionTimes> {
+	pub fn new_fixed_schedule<T: Config>(
+		mut execution_times: Vec<UnixTime>,
+	) -> Result<Self, DispatchError> {
+		Pallet::<T>::clean_execution_times_vector(&mut execution_times);
+		let executions_left = execution_times.len() as u32;
+		let execution_times: BoundedVec<UnixTime, MaxExecutionTimes> =
+			execution_times.try_into().map_err(|_| Error::<T>::TooManyExecutionsTimes)?;
+		let schedule = Self::Fixed { execution_times, executions_left };
+		schedule.valid::<T>()?;
+		Ok(schedule)
+	}
+
+	pub fn new_recurring_schedule<T: Config>(
+		next_execution_time: UnixTime,
+		frequency: Seconds,
+	) -> Result<Self, DispatchError> {
+		let schedule = Self::Recurring { next_execution_time, frequency };
+		schedule.valid::<T>()?;
+		Ok(schedule)
+	}
+
+	pub fn number_of_known_executions(&self) -> u32 {
+		match self {
+			Self::Fixed { executions_left, .. } => *executions_left,
+			Self::Recurring { .. } => 1,
+		}
+	}
+
+	fn valid<T: Config>(&self) -> DispatchResult {
+		match self {
+			Self::Fixed { execution_times, .. } =>
+				for time in execution_times.iter() {
+					Pallet::<T>::is_valid_time(*time)?;
+				},
+			Self::Recurring { next_execution_time, frequency } => {
+				Pallet::<T>::is_valid_time(*next_execution_time)?;
+				// Validate frequency by ensuring that the next proposed execution is at a valid time
+				let next_recurrence =
+					next_execution_time.checked_add(*frequency).ok_or(Error::<T>::TimeTooFarOut)?;
+				if *next_execution_time == next_recurrence {
+					Err(Error::<T>::InvalidTime)?;
+				}
+				Pallet::<T>::is_valid_time(next_recurrence)?;
+			},
+		}
+		Ok(())
 	}
 }
 
@@ -95,8 +166,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 pub struct Task<AccountId, Balance, CurrencyId, MaxExecutionTimes: Get<u32>> {
 	pub owner_id: AccountId,
 	pub provided_id: Vec<u8>,
-	pub execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
-	pub executions_left: u32,
+	pub schedule: Schedule<MaxExecutionTimes>,
 	pub action: Action<AccountId, Balance, CurrencyId>,
 }
 
@@ -107,10 +177,7 @@ impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord, MaxExecutionTimes: Get<u32>>
 		self.owner_id == other.owner_id &&
 			self.provided_id == other.provided_id &&
 			self.action == other.action &&
-			self.executions_left == other.executions_left &&
-			self.execution_times.len() == other.execution_times.len() &&
-			self.execution_times.capacity() == other.execution_times.capacity() &&
-			self.execution_times.to_vec() == other.execution_times.to_vec()
+			self.schedule == other.schedule
 	}
 }
 
@@ -125,63 +192,77 @@ impl<AccountId: Clone, Balance, CurrencyId, MaxExecutionTimes: Get<u32>>
 	pub fn new(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+		schedule: Schedule<MaxExecutionTimes>,
 		action: Action<AccountId, Balance, CurrencyId>,
 	) -> Self {
-		let executions_left: u32 = execution_times.len().try_into().unwrap();
-		Self { owner_id, provided_id, execution_times, executions_left, action }
+		Self { owner_id, provided_id, schedule, action }
 	}
 
-	pub fn create_event_task(
+	pub fn create_event_task<T: Config>(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
-	) -> Self {
+	) -> Result<Self, DispatchError> {
 		let action = Action::Notify { message };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
 
-	pub fn create_native_transfer_task(
+	pub fn create_native_transfer_task<T: Config>(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+		execution_times: Vec<UnixTime>,
 		recipient_id: AccountId,
 		amount: Balance,
-	) -> Self {
+	) -> Result<Self, DispatchError> {
 		let action =
 			Action::NativeTransfer { sender: owner_id.clone(), recipient: recipient_id, amount };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
 
-	pub fn create_xcmp_task(
+	pub fn create_xcmp_task<T: Config>(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_times: BoundedVec<UnixTime, MaxExecutionTimes>,
+		execution_times: Vec<UnixTime>,
 		para_id: ParaId,
 		currency_id: CurrencyId,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
-	) -> Self {
+	) -> Result<Self, DispatchError> {
 		let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
-		Self::new(owner_id, provided_id, execution_times, action)
+		let schedule = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
 
-	pub fn create_auto_compound_delegated_stake_task(
+	pub fn create_auto_compound_delegated_stake_task<T: Config>(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
-		execution_time: UnixTime,
+		next_execution_time: UnixTime,
 		frequency: Seconds,
 		collator_id: AccountId,
 		account_minimum: Balance,
-	) -> Self {
+	) -> Result<Self, DispatchError> {
 		let action = Action::AutoCompoundDelegatedStake {
 			delegator: owner_id.clone(),
 			collator: collator_id,
 			account_minimum,
-			frequency,
 		};
-		Self::new(owner_id, provided_id, vec![execution_time].try_into().unwrap(), action)
+		let schedule = Schedule::<MaxExecutionTimes>::new_recurring_schedule::<T>(
+			next_execution_time,
+			frequency,
+		)?;
+		Ok(Self::new(owner_id, provided_id, schedule, action))
+	}
+
+	pub fn execution_times(&self) -> Vec<UnixTime> {
+		match &self.schedule {
+			Schedule::Fixed { execution_times, .. } => execution_times.to_vec(),
+			Schedule::Recurring { next_execution_time, .. } => {
+				vec![*next_execution_time]
+			},
+		}
 	}
 }
 
@@ -251,7 +332,10 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::mock::*;
+	use crate::{
+		mock::*,
+		tests::{SCHEDULED_TIME, START_BLOCK_TIME},
+	};
 
 	mod scheduled_tasks {
 		use super::*;
@@ -261,13 +345,14 @@ mod tests {
 
 		#[test]
 		fn try_push_errors_when_slot_is_full_by_weight() {
-			new_test_ext(0).execute_with(|| {
-				let task = TaskOf::<Test>::create_event_task(
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
 					vec![0],
-					vec![0].try_into().unwrap(),
+					vec![SCHEDULED_TIME],
 					vec![0],
-				);
+				)
+				.unwrap();
 				let task_id = TaskId::<Test>::default();
 				assert_err!(
 					ScheduledTasksOf::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
@@ -279,15 +364,16 @@ mod tests {
 
 		#[test]
 		fn try_push_errors_when_slot_is_full_by_task_count() {
-			new_test_ext(0).execute_with(|| {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
 				let alice = AccountId32::new(ALICE);
 				let id = (alice.clone(), TaskId::<Test>::default());
-				let task = TaskOf::<Test>::create_event_task(
+				let task = TaskOf::<Test>::create_event_task::<Test>(
 					alice.clone(),
 					vec![0],
-					vec![0].try_into().unwrap(),
+					vec![SCHEDULED_TIME],
 					vec![0],
-				);
+				)
+				.unwrap();
 				let tasks = (0..MaxTasksPerSlot::get()).fold::<Vec<AccountTaskId<Test>>, _>(
 					vec![],
 					|mut tasks, _| {
@@ -306,13 +392,14 @@ mod tests {
 
 		#[test]
 		fn try_push_works_when_slot_is_not_full() {
-			new_test_ext(0).execute_with(|| {
-				let task = TaskOf::<Test>::create_event_task(
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
 					vec![0],
-					vec![0].try_into().unwrap(),
+					vec![SCHEDULED_TIME],
 					vec![0],
-				);
+				)
+				.unwrap();
 				let task_id = TaskId::<Test>::default();
 				let mut scheduled_tasks = ScheduledTasksOf::<Test>::default();
 				scheduled_tasks
@@ -320,6 +407,213 @@ mod tests {
 					.expect("slot is not full");
 				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
 				assert_eq!(scheduled_tasks.weight, 20_000);
+			})
+		}
+	}
+
+	mod schedule {
+		use super::*;
+		use frame_support::{assert_err, assert_ok};
+
+		#[test]
+		fn partial_eq() {
+			new_test_ext(0).execute_with(|| {
+				assert_eq!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![1].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					}
+				);
+				assert_eq!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					},
+					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 1,
+						frequency: 3600
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 7200
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+				assert_ne!(
+					Schedule::<MaxExecutionTimes>::Fixed {
+						execution_times: vec![0].try_into().unwrap(),
+						executions_left: 1
+					},
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: 0,
+						frequency: 3600
+					}
+				);
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_sets_executions_left() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let t1 = SCHEDULED_TIME + 3600;
+				let t2 = SCHEDULED_TIME + 3600 * 2;
+				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let s = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![t1, t2, t3])
+					.unwrap();
+				if let Schedule::Fixed { executions_left, .. } = s {
+					assert_eq!(executions_left, 3);
+				} else {
+					panic!("Exepected Schedule::Fixed");
+				}
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_errors_with_too_many_executions() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(
+					(0u64..=MaxExecutionTimes::get() as u64).collect(),
+				);
+				assert_err!(s, Error::<Test>::TooManyExecutionsTimes);
+			})
+		}
+
+		#[test]
+		fn new_fixed_schedule_cleans_execution_times() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let t1 = SCHEDULED_TIME + 3600;
+				let t2 = SCHEDULED_TIME + 3600 * 2;
+				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let s = Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![
+					t1, t3, t2, t3, t3,
+				]);
+				if let Schedule::Fixed { execution_times, .. } = s.unwrap() {
+					assert_eq!(execution_times, vec![t1, t2, t3]);
+				} else {
+					panic!("Exepected Schedule::Fixed");
+				}
+			})
+		}
+
+		#[test]
+		fn checks_for_fixed_schedule_validity() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				assert_ok!(Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![
+					SCHEDULED_TIME + 3600
+				]));
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(vec![
+						SCHEDULED_TIME + 3600,
+						SCHEDULED_TIME + 3650
+					]),
+					Error::<Test>::InvalidTime
+				);
+			})
+		}
+
+		#[test]
+		fn checks_for_recurring_schedule_validity() {
+			let start_time = 1_663_225_200;
+			new_test_ext(start_time * 1_000).execute_with(|| {
+				assert_ok!(Schedule::<MaxExecutionTimes>::Recurring {
+					next_execution_time: start_time + 3600,
+					frequency: 3600
+				}
+				.valid::<Test>());
+				// Next execution time not at hour granuality
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3650,
+						frequency: 3600
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				// Frequency not at hour granularity
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3650,
+						frequency: 3650
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				// Frequency of 0
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3600,
+						frequency: 0
+					}
+					.valid::<Test>(),
+					Error::<Test>::InvalidTime
+				);
+				// Frequency too far out
+				assert_err!(
+					Schedule::<MaxExecutionTimes>::Recurring {
+						next_execution_time: start_time + 3600,
+						frequency: start_time + 3600
+					}
+					.valid::<Test>(),
+					Error::<Test>::TimeTooFarOut
+				);
+			})
+		}
+
+		#[test]
+		fn number_of_known_executions_for_fixed() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::Fixed {
+					execution_times: vec![].try_into().unwrap(),
+					executions_left: 5,
+				};
+				assert_eq!(s.number_of_known_executions(), 5);
+			})
+		}
+
+		#[test]
+		fn number_of_known_executions_for_recurring() {
+			new_test_ext(0).execute_with(|| {
+				let s = Schedule::<MaxExecutionTimes>::Recurring {
+					next_execution_time: 0,
+					frequency: 0,
+				};
+				assert_eq!(s.number_of_known_executions(), 1);
 			})
 		}
 	}

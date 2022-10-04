@@ -237,6 +237,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		20_000
 	}
+	fn migration_add_schedule_to_task(_: u32) -> Weight {
+		0
+	}
 }
 
 pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
@@ -348,7 +351,31 @@ pub fn add_task_to_task_queue(
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, scheduled_times, action);
+	let schedule =
+		Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(scheduled_times).unwrap();
+	add_to_task_queue(owner, provided_id, schedule, action)
+}
+
+pub fn add_recurring_task_to_task_queue(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	scheduled_time: u64,
+	frequency: u64,
+	action: ActionOf<Test>,
+) -> sp_core::H256 {
+	let schedule =
+		Schedule::<MaxExecutionTimes>::new_recurring_schedule::<Test>(scheduled_time, frequency)
+			.unwrap();
+	add_to_task_queue(owner, provided_id, schedule, action)
+}
+
+pub fn add_to_task_queue(
+	owner: [u8; 32],
+	provided_id: Vec<u8>,
+	schedule: Schedule<MaxExecutionTimes>,
+	action: ActionOf<Test>,
+) -> sp_core::H256 {
+	let task_id = create_task(owner, provided_id, schedule, action);
 	let mut task_queue = AutomationTime::get_task_queue();
 	task_queue.push((AccountId32::new(owner), task_id));
 	TaskQueueV2::<Test>::put(task_queue);
@@ -361,7 +388,9 @@ pub fn add_task_to_missed_queue(
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, scheduled_times.clone(), action);
+	let schedule =
+		Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
+	let task_id = create_task(owner, provided_id, schedule, action);
 	let missed_task =
 		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
@@ -373,13 +402,12 @@ pub fn add_task_to_missed_queue(
 pub fn create_task(
 	owner: [u8; 32],
 	provided_id: Vec<u8>,
-	scheduled_times: Vec<u64>,
+	schedule: Schedule<MaxExecutionTimes>,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
 	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task =
-		TaskOf::<Test>::new(owner.into(), provided_id, scheduled_times.try_into().unwrap(), action);
+	let task = TaskOf::<Test>::new(owner.into(), provided_id, schedule, action);
 	AccountTasks::<Test>::insert(AccountId::new(owner), task_id, task);
 	task_id
 }

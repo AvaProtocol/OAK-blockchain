@@ -244,7 +244,7 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
-		// Cancelled a task.
+		/// Cancelled a task.
 		TaskCancelled {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
@@ -304,6 +304,23 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
+		/// A recurring task was rescheduled
+		TaskRescheduled {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+		},
+		/// A recurring task was not rescheduled
+		TaskNotRescheduled {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			error: DispatchError,
+		},
+		/// A recurring task attempted but failed to be rescheduled
+		TaskFailedToReschedule {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			error: DispatchError,
+		},
 	}
 
 	#[pallet::hooks]
@@ -353,11 +370,13 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 			Self::validate_and_schedule_task(
 				Action::Notify { message },
 				who,
 				provided_id,
-				execution_times,
+				schedule,
 			)?;
 			Ok(().into())
 		}
@@ -405,7 +424,9 @@ pub mod pallet {
 			}
 			let action =
 				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -443,8 +464,10 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -476,21 +499,16 @@ pub mod pallet {
 			let provided_id: Vec<u8> =
 				Self::generate_auto_compound_delegated_stake_provided_id(&who, &collator_id);
 
-			// Validate frequency by ensuring that the next proposed execution is at a valid time
-			let next_execution =
-				execution_time.checked_add(frequency).ok_or(Error::<T>::TimeTooFarOut)?;
-			Self::is_valid_time(next_execution)?;
-			if next_execution == execution_time {
-				Err(Error::<T>::InvalidTime)?;
-			}
-
 			let action = Action::AutoCompoundDelegatedStake {
 				delegator: who.clone(),
 				collator: collator_id,
 				account_minimum,
-				frequency,
 			};
-			Self::validate_and_schedule_task(action, who, provided_id, vec![execution_time; 1])?;
+			let schedule = Schedule::<T::MaxExecutionTimes>::new_recurring_schedule::<T>(
+				execution_time,
+				frequency,
+			)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -519,8 +537,10 @@ pub mod pallet {
 
 			let encoded_call = call.encode();
 			let action = Action::DynamicDispatch { encoded_call };
+			let schedule =
+				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, execution_times)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
@@ -595,7 +615,7 @@ pub mod pallet {
 		/// - End in a whole hour
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
-		fn is_valid_time(scheduled_time: UnixTime) -> Result<(), DispatchError> {
+		pub fn is_valid_time(scheduled_time: UnixTime) -> DispatchResult {
 			#[cfg(feature = "dev-queue")]
 			if scheduled_time == 0 {
 				return Ok(())
@@ -623,7 +643,7 @@ pub mod pallet {
 		}
 
 		/// Cleans the executions times by removing duplicates and putting in ascending order.
-		fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
+		pub fn clean_execution_times_vector(execution_times: &mut Vec<UnixTime>) {
 			execution_times.sort_unstable();
 			execution_times.dedup();
 		}
@@ -853,8 +873,8 @@ pub mod pallet {
 						});
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
-					Some(mut task) => {
-						let task_action_weight = match task.action.clone() {
+					Some(task) => {
+						let (task_action_weight, dispatch_error) = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
@@ -875,20 +895,13 @@ pub mod pallet {
 								delegator,
 								collator,
 								account_minimum,
-								frequency,
-							} => {
-								let (mut_task, weight) =
-									Self::run_auto_compound_delegated_stake_task(
-										delegator,
-										collator,
-										account_minimum,
-										frequency,
-										*task_id,
-										task,
-									);
-								task = mut_task;
-								weight
-							},
+							} => Self::run_auto_compound_delegated_stake_task(
+								delegator,
+								collator,
+								account_minimum,
+								*task_id,
+								&task,
+							),
 							Action::DynamicDispatch { encoded_call } =>
 								Self::run_dynamic_dispatch_action(
 									task.owner_id.clone(),
@@ -896,7 +909,7 @@ pub mod pallet {
 									*task_id,
 								),
 						};
-						Self::decrement_task_and_remove_if_complete(*task_id, task);
+						Self::handle_task_post_processing(*task_id, task, dispatch_error);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1 as Weight))
 							.saturating_add(T::DbWeight::get().reads(1 as Weight))
@@ -944,7 +957,7 @@ pub mod pallet {
 								task_id: missed_task.task_id.clone(),
 								execution_time: missed_task.execution_time,
 							});
-							Self::decrement_task_and_remove_if_complete(missed_task.task_id, task);
+							Self::handle_task_post_processing(missed_task.task_id, task, None);
 							<T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 						},
 					};
@@ -964,9 +977,9 @@ pub mod pallet {
 		}
 
 		/// Fire the notify event with the custom message.
-		pub fn run_notify_task(message: Vec<u8>) -> Weight {
+		pub fn run_notify_task(message: Vec<u8>) -> (Weight, Option<DispatchError>) {
 			Self::deposit_event(Event::Notify { message });
-			<T as Config>::WeightInfo::run_notify_task()
+			(<T as Config>::WeightInfo::run_notify_task(), None)
 		}
 
 		pub fn run_native_transfer_task(
@@ -974,18 +987,22 @@ pub mod pallet {
 			recipient: AccountOf<T>,
 			amount: BalanceOf<T>,
 			task_id: T::Hash,
-		) -> Weight {
+		) -> (Weight, Option<DispatchError>) {
 			match T::Currency::transfer(
 				&sender,
 				&recipient,
 				amount,
 				ExistenceRequirement::KeepAlive,
 			) {
-				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
-				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
-			};
-
-			<T as Config>::WeightInfo::run_native_transfer_task()
+				Ok(_number) => {
+					Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id });
+					(<T as Config>::WeightInfo::run_native_transfer_task(), None)
+				},
+				Err(e) => {
+					Self::deposit_event(Event::TransferFailed { task_id, error: e });
+					(<T as Config>::WeightInfo::run_native_transfer_task(), Some(e))
+				},
+			}
 		}
 
 		pub fn run_xcmp_task(
@@ -995,7 +1012,7 @@ pub mod pallet {
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			task_id: TaskId<T>,
-		) -> Weight {
+		) -> (Weight, Option<DispatchError>) {
 			match T::XcmpTransactor::transact_xcm(
 				para_id.into(),
 				currency_id,
@@ -1005,13 +1022,13 @@ pub mod pallet {
 			) {
 				Ok(()) => {
 					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, para_id });
+					(<T as Config>::WeightInfo::run_xcmp_task(), None)
 				},
 				Err(e) => {
 					Self::deposit_event(Event::XcmpTaskFailed { task_id, para_id, error: e });
+					(<T as Config>::WeightInfo::run_xcmp_task(), Some(e))
 				},
 			}
-
-			<T as Config>::WeightInfo::run_xcmp_task()
 		}
 
 		/// Executes auto compounding delegation and reschedules task on success
@@ -1019,10 +1036,9 @@ pub mod pallet {
 			delegator: AccountOf<T>,
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
-			frequency: Seconds,
 			task_id: TaskId<T>,
-			mut task: TaskOf<T>,
-		) -> (TaskOf<T>, Weight) {
+			task: &TaskOf<T>,
+		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum
 				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
@@ -1031,48 +1047,25 @@ pub mod pallet {
 				&collator,
 				reserved_funds,
 			) {
-				Ok(delegation) =>
+				Ok(delegation) => {
 					Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
 						task_id,
 						amount: delegation,
-					}),
+					});
+					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
+				},
 				Err(e) => {
 					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 						task_id,
 						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
 						error: e,
 					});
-					return (
-						task,
-						// TODO: benchmark and return a smaller weight here to account for the early exit
+					(
 						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+						Some(e.error),
 					)
 				},
 			}
-
-			let new_execution_times: Vec<UnixTime> =
-				task.execution_times.iter().map(|when| when.saturating_add(frequency)).collect();
-			let _ = Self::reschedule_existing_task(task_id, &task, new_execution_times.clone())
-				.map(|_| {
-					let new_executions_left: u32 = new_execution_times.len().try_into().unwrap();
-					task.executions_left += new_executions_left;
-					new_execution_times.iter().try_for_each(|t| {
-						task.execution_times.try_push(*t).and_then(|_| {
-							task.execution_times.remove(0);
-							Ok(())
-						})
-					})
-				})
-				.map_err(|e| {
-					let err: DispatchErrorWithPostInfo = e.into();
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-						task_id,
-						error_message: Into::<&str>::into(err).as_bytes().to_vec(),
-						error: err,
-					});
-				});
-
-			(task, <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task())
 		}
 
 		/// Attempt to decode and run the call.
@@ -1080,7 +1073,7 @@ pub mod pallet {
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
 			task_id: TaskId<T>,
-		) -> Weight {
+		) -> (Weight, Option<DispatchError>) {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
 					let mut dispatch_origin: T::Origin =
@@ -1103,15 +1096,21 @@ pub mod pallet {
 						result,
 					});
 
-					maybe_actual_call_weight
-						.unwrap_or(call_weight)
-						.saturating_add(<T as Config>::WeightInfo::run_dynamic_dispatch_action())
+					(
+						maybe_actual_call_weight.unwrap_or(call_weight).saturating_add(
+							<T as Config>::WeightInfo::run_dynamic_dispatch_action(),
+						),
+						result.err(),
+					)
 				},
 				Err(_) => {
 					// TODO: If the call cannot be decoded then cancel the task.
 
 					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
-					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
+					(
+						<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode(),
+						Some(Error::<T>::CallCannotBeDecoded.into()),
+					)
 				},
 			}
 		}
@@ -1120,18 +1119,24 @@ pub mod pallet {
 		/// If task is complete then removes task. If task not complete update task map.
 		/// A task has been completed if executions left equals 0.
 		fn decrement_task_and_remove_if_complete(task_id: TaskId<T>, mut task: TaskOf<T>) {
-			task.executions_left = task.executions_left.saturating_sub(1);
-			if task.executions_left <= 0 {
-				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			} else {
-				AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+			match task.schedule {
+				Schedule::Fixed { ref mut executions_left, .. } => {
+					*executions_left = executions_left.saturating_sub(1);
+					if *executions_left <= 0 {
+						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+					} else {
+						AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
+					}
+				},
+				Schedule::Recurring { .. } => {},
 			}
 		}
 
 		/// Removes the task of the provided task_id and all scheduled tasks, including those in the task queue.
 		fn remove_task(task_id: TaskId<T>, task: TaskOf<T>) {
 			let mut found_task: bool = false;
-			Self::clean_execution_times_vector(&mut task.execution_times.to_vec());
+			let mut execution_times = task.execution_times();
+			Self::clean_execution_times_vector(&mut execution_times);
 			let current_time_slot = match Self::get_current_time_slot() {
 				Ok(time_slot) => time_slot,
 				// This will only occur for the first block in the chain.
@@ -1139,7 +1144,7 @@ pub mod pallet {
 			};
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
-				for execution_time in task.execution_times.iter().rev() {
+				for execution_time in execution_times.iter().rev() {
 					// Execution time is less than current time slot and in the past.  No more execution times need to be removed.
 					if *execution_time < current_time_slot {
 						break
@@ -1187,7 +1192,7 @@ pub mod pallet {
 				}
 			} else {
 				// If last time slot does not exist then check each time in scheduled tasks and remove if exists.
-				for execution_time in task.execution_times.iter().rev() {
+				for execution_time in execution_times.iter().rev() {
 					if let Some(ScheduledTasksOf::<T> { tasks: mut account_task_ids, weight }) =
 						Self::get_scheduled_tasks(*execution_time)
 					{
@@ -1228,10 +1233,10 @@ pub mod pallet {
 		pub fn schedule_task(
 			task: &TaskOf<T>,
 			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
 		) -> Result<TaskId<T>, Error<T>> {
 			let owner_id = task.owner_id.clone();
 			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
+			let execution_times = task.execution_times();
 
 			if AccountTasks::<T>::contains_key(owner_id.clone(), task_id) {
 				Err(Error::<T>::DuplicateTask)?;
@@ -1279,62 +1284,91 @@ pub mod pallet {
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
-			mut execution_times: Vec<UnixTime>,
-		) -> Result<(), DispatchError> {
+			schedule: Schedule<T::MaxExecutionTimes>,
+		) -> DispatchResult {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			Self::clean_execution_times_vector(&mut execution_times);
-			let max_allowed_executions: usize = T::MaxExecutionTimes::get().try_into().unwrap();
-			if execution_times.len() > max_allowed_executions {
-				Err(Error::<T>::TooManyExecutionsTimes)?;
-			}
-			for time in execution_times.iter() {
-				Self::is_valid_time(*time)?;
-			}
+			let executions = schedule.number_of_known_executions();
 
-			let task = TaskOf::<T>::new(
-				owner_id.clone(),
-				provided_id.clone(),
-				execution_times.clone().try_into().unwrap(),
-				action.clone(),
-			);
-			let task_id = T::FeeHandler::pay_checked_fees_for(
-				&owner_id,
-				&action,
-				execution_times.len().try_into().unwrap(),
-				|| {
-					let task_id = Self::schedule_task(&task, provided_id, execution_times)?;
+			let task =
+				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());
+			let task_id =
+				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
+					let task_id = Self::schedule_task(&task, provided_id)?;
 					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
 					Ok(task_id)
-				},
-			)?;
+				})?;
 
 			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 			Ok(())
 		}
 
-		/// Reschedules an existing task for a given number of execution times
-		fn reschedule_existing_task(
+		fn reschedule_or_remove_task(
 			task_id: TaskId<T>,
-			task: &TaskOf<T>,
-			execution_times: Vec<UnixTime>,
-		) -> Result<(), DispatchError> {
-			let new_executions = execution_times.len().try_into().unwrap();
+			mut task: TaskOf<T>,
+			dispatch_error: Option<DispatchError>,
+		) {
+			if let Some(err) = dispatch_error {
+				Self::deposit_event(Event::<T>::TaskNotRescheduled {
+					who: task.owner_id.clone(),
+					task_id,
+					error: err,
+				});
+				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+			} else {
+				let owner_id = task.owner_id.clone();
+				match Self::reschedule_existing_task(task_id, &mut task) {
+					Ok(_) => {
+						Self::deposit_event(Event::<T>::TaskRescheduled { who: owner_id, task_id });
+					},
+					Err(err) => {
+						Self::deposit_event(Event::<T>::TaskFailedToReschedule {
+							who: task.owner_id.clone(),
+							task_id,
+							error: err,
+						});
+						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+					},
+				};
+			}
+		}
 
-			T::FeeHandler::pay_checked_fees_for(
-				&task.owner_id,
-				&task.action,
-				new_executions,
-				|| {
-					Self::insert_scheduled_tasks(task_id, task, execution_times.clone())
-						.map_err(|e| e.into())
+		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
+			match task.schedule {
+				Schedule::Recurring { ref mut next_execution_time, frequency } => {
+					let new_execution_time = next_execution_time
+						.checked_add(frequency)
+						.ok_or(Error::<T>::InvalidTime)?;
+					*next_execution_time = new_execution_time;
+
+					// TODO: should execution fee depend on whether task is recurring?
+					T::FeeHandler::pay_checked_fees_for(&task.owner_id, &task.action, 1, || {
+						Self::insert_scheduled_tasks(task_id, task, vec![new_execution_time])
+							.map_err(|e| e.into())
+					})?;
+
+					let owner_id = task.owner_id.clone();
+					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
+
+					Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
 				},
-			)?;
-
-			Self::deposit_event(Event::<T>::TaskScheduled { who: task.owner_id.clone(), task_id });
+				Schedule::Fixed { .. } => {},
+			}
 			Ok(())
+		}
+
+		fn handle_task_post_processing(
+			task_id: TaskId<T>,
+			task: TaskOf<T>,
+			error: Option<DispatchError>,
+		) {
+			match task.schedule {
+				Schedule::Fixed { .. } =>
+					Self::decrement_task_and_remove_if_complete(task_id, task),
+				Schedule::Recurring { .. } => Self::reschedule_or_remove_task(task_id, task, error),
+			}
 		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskId<T> {

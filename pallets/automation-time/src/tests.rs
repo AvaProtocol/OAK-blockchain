@@ -29,8 +29,8 @@ use sp_runtime::{
 	AccountId32,
 };
 
-const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
+pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
+pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
 #[test]
@@ -157,12 +157,13 @@ fn schedule_notify_works() {
 						panic!("A task should exist if it was scheduled")
 					},
 					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_event_task(
+						let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 							AccountId32::new(ALICE),
 							vec![50],
-							vec![SCHEDULED_TIME].try_into().unwrap(),
+							vec![SCHEDULED_TIME],
 							message,
-						);
+						)
+						.unwrap();
 
 						assert_eq!(task, expected_task);
 					},
@@ -227,13 +228,14 @@ fn schedule_native_transfer_works() {
 						panic!("A task should exist if it was scheduled")
 					},
 					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_native_transfer_task(
+						let expected_task = TaskOf::<Test>::create_native_transfer_task::<Test>(
 							AccountId32::new(ALICE),
 							vec![50],
-							vec![SCHEDULED_TIME].try_into().unwrap(),
+							vec![SCHEDULED_TIME],
 							AccountId32::new(BOB),
 							1,
-						);
+						)
+						.unwrap();
 
 						assert_eq!(task, expected_task);
 					},
@@ -304,14 +306,15 @@ fn schedule_auto_compound_delegated_stake() {
 			.clone();
 		assert_eq!(
 			AutomationTime::get_account_task(account_task_id.0.clone(), account_task_id.1),
-			Some(TaskOf::<Test>::create_auto_compound_delegated_stake_task(
+			TaskOf::<Test>::create_auto_compound_delegated_stake_task::<Test>(
 				alice.clone(),
 				AutomationTime::generate_auto_compound_delegated_stake_provided_id(&alice, &bob),
 				SCHEDULED_TIME,
 				3_600,
 				bob,
 				1_000_000_000,
-			))
+			)
+			.ok()
 		);
 	})
 }
@@ -423,12 +426,13 @@ fn schedule_execution_times_removes_dupes() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				let expected_task = TaskOf::<Test>::create_event_task(
+				let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
 					vec![50],
-					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800].try_into().unwrap(),
+					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800],
 					vec![2, 4],
-				);
+				)
+				.unwrap();
 
 				assert_eq!(task, expected_task);
 			},
@@ -578,7 +582,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -608,7 +612,7 @@ fn cancel_works_for_an_executed_task() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 
@@ -666,12 +670,13 @@ fn cancel_works_for_tasks_in_queue() {
 #[test]
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task = TaskOf::<Test>::create_event_task(
+		let task = TaskOf::<Test>::create_event_task::<Test>(
 			AccountId32::new(ALICE),
 			vec![40],
-			vec![SCHEDULED_TIME].try_into().unwrap(),
+			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
-		);
+		)
+		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);
 
 		assert_noop!(
@@ -685,12 +690,13 @@ fn cancel_task_must_exist() {
 fn cancel_task_not_found() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task = TaskOf::<Test>::create_event_task(
+		let task = TaskOf::<Test>::create_event_task::<Test>(
 			owner.clone(),
 			vec![40],
-			vec![SCHEDULED_TIME].try_into().unwrap(),
+			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
-		);
+		)
+		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);
 		AccountTasks::<Test>::insert(owner.clone(), task_id, task);
 
@@ -774,7 +780,7 @@ mod run_dynamic_dispatch_action {
 			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
 			let bad_encoded_call: Vec<u8> = vec![1];
 
-			let weight = AutomationTime::run_dynamic_dispatch_action(
+			let (weight, _) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				bad_encoded_call,
 				task_id,
@@ -953,8 +959,12 @@ fn trigger_tasks_handles_missed_slots() {
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let missing_task_id0 =
-			add_task_to_task_queue(ALICE, vec![40], vec![0], Action::Notify { message: vec![40] });
+		let missing_task_id0 = add_task_to_task_queue(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![40] },
+		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
 		let missing_task_id1 =
@@ -1036,14 +1046,14 @@ fn trigger_tasks_completes_all_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1094,14 +1104,14 @@ fn trigger_tasks_completes_some_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1125,13 +1135,13 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		let task_id1 = add_task_to_missed_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -1144,12 +1154,12 @@ fn trigger_tasks_completes_all_missed_tasks() {
 				Event::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
 					task_id: task_id1,
-					execution_time: 0
+					execution_time: SCHEDULED_TIME
 				}),
 				Event::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
 					task_id: task_id2,
-					execution_time: 0
+					execution_time: SCHEDULED_TIME
 				}),
 			]
 		);
@@ -1182,7 +1192,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1190,7 +1200,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1219,7 +1229,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 		match AutomationTime::get_account_task(owner.clone(), task_id2) {
@@ -1227,7 +1237,7 @@ fn missed_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 	})
@@ -1256,7 +1266,7 @@ fn missed_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1360,15 +1370,15 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
 		let account_minimum = before_balance / 2;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			3600,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency: 3600,
 			},
 		);
 
@@ -1411,15 +1421,15 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		let account_minimum = before_balance / 2;
 		let frequency = 3_600;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency,
 			},
 		);
 
@@ -1443,8 +1453,8 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 			.expect("Task should have been rescheduled");
 		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
 			.expect("Task should not have been removed from task map");
-		assert_eq!(task.executions_left, 1);
-		assert_eq!(task.execution_times.to_vec(), vec![next_scheduled_time]);
+		assert_eq!(task.schedule.number_of_known_executions(), 1);
+		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
 
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
 		get_funds(AccountId32::new(ALICE));
@@ -1478,7 +1488,6 @@ fn auto_compound_delegated_stake_without_minimum_balance() {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency: 3600,
 			},
 		);
 
@@ -1509,15 +1518,15 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 		let account_minimum = before_balance * 2;
 		let frequency = 3_600;
 
-		let task_id = add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
 				collator: AccountId32::new(BOB),
 				account_minimum,
-				frequency,
 			},
 		);
 
@@ -1561,7 +1570,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 2);
+				assert_eq!(task.schedule.number_of_known_executions(), 2);
 			},
 		}
 
@@ -1579,7 +1588,7 @@ fn trigger_tasks_updates_executions_left() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 	})
@@ -1602,7 +1611,7 @@ fn trigger_tasks_removes_completed_tasks() {
 				panic!("A task should exist if it was scheduled")
 			},
 			Some(task) => {
-				assert_eq!(task.executions_left, 1);
+				assert_eq!(task.schedule.number_of_known_executions(), 1);
 			},
 		}
 
@@ -1627,18 +1636,22 @@ fn on_init_runs_tasks() {
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
 			ALICE,
 			vec![50],
-			vec![0],
+			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
 		);
-		let task_id3 =
-			add_task_to_task_queue(ALICE, vec![60], vec![0], Action::Notify { message: vec![50] });
+		let task_id3 = add_task_to_task_queue(
+			ALICE,
+			vec![60],
+			vec![SCHEDULED_TIME],
+			Action::Notify { message: vec![50] },
+		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);

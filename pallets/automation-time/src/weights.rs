@@ -105,6 +105,7 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight;
 }
 
 /// Weights for pallet_automation_time using the Substrate node and recommended hardware.
@@ -319,6 +320,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(1 as Weight))
 			.saturating_add(T::DbWeight::get().writes(1 as Weight))
 	}
+	// Storage: AutomationTime AccountTasks (r:2 w:1)
+	/// The range of component `v` is `[1, 100]`.
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
+		(0 as Weight)
+			// Standard Error: 10_000
+			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+	}
 }
 
 // For backwards compatibility and tests
@@ -531,5 +542,15 @@ impl WeightInfo for () {
 		(29_532_000 as Weight)
 			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
 			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+	}
+	// Storage: AutomationTime AccountTasks (r:2 w:1)
+	/// The range of component `v` is `[1, 100]`.
+	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
+		(0 as Weight)
+			// Standard Error: 10_000
+			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))
+			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
 	}
 }
