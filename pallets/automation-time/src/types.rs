@@ -87,27 +87,10 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 	}
 }
 
-#[derive(Debug, Encode, Decode, TypeInfo)]
+#[derive(Debug, Encode, Decode, PartialEq, TypeInfo)]
 pub enum Schedule {
 	Fixed { execution_times: Vec<UnixTime>, executions_left: u32 },
 	Recurring { next_execution_time: UnixTime, frequency: Seconds },
-}
-
-// TODO: Can PartialEq be derived now?
-impl PartialEq for Schedule {
-	fn eq(&self, other: &Self) -> bool {
-		match (self, other) {
-			(
-				Schedule::Fixed { execution_times: t1, executions_left: l1 },
-				Schedule::Fixed { execution_times: t2, executions_left: l2 },
-			) => t1.to_vec() == t2.to_vec() && l1 == l2,
-			(
-				Schedule::Recurring { next_execution_time: t1, frequency: f1 },
-				Schedule::Recurring { next_execution_time: t2, frequency: f2 },
-			) => t1 == t2 && f1 == f2,
-			_ => false,
-		}
-	}
 }
 
 impl Schedule {
