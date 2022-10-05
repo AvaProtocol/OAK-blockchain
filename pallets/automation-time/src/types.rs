@@ -397,40 +397,6 @@ mod tests {
 		use frame_support::{assert_err, assert_ok};
 
 		#[test]
-		fn partial_eq() {
-			new_test_ext(0).execute_with(|| {
-				assert_eq!(
-					Schedule::Fixed { execution_times: vec![0], executions_left: 1 },
-					Schedule::Fixed { execution_times: vec![0], executions_left: 1 }
-				);
-				assert_ne!(
-					Schedule::Fixed { execution_times: vec![1], executions_left: 1 },
-					Schedule::Fixed { execution_times: vec![0], executions_left: 1 }
-				);
-				assert_ne!(
-					Schedule::Fixed { execution_times: vec![0, 1], executions_left: 1 },
-					Schedule::Fixed { execution_times: vec![0, 1], executions_left: 2 }
-				);
-				assert_eq!(
-					Schedule::Recurring { next_execution_time: 0, frequency: 3600 },
-					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
-				);
-				assert_ne!(
-					Schedule::Recurring { next_execution_time: 1, frequency: 3600 },
-					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
-				);
-				assert_ne!(
-					Schedule::Recurring { next_execution_time: 0, frequency: 7200 },
-					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
-				);
-				assert_ne!(
-					Schedule::Fixed { execution_times: vec![0], executions_left: 1 },
-					Schedule::Recurring { next_execution_time: 0, frequency: 3600 }
-				);
-			})
-		}
-
-		#[test]
 		fn new_fixed_schedule_sets_executions_left() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
 				let t1 = SCHEDULED_TIME + 3600;
