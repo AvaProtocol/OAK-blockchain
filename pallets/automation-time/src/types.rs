@@ -115,7 +115,7 @@ impl Schedule {
 		mut execution_times: Vec<UnixTime>,
 	) -> Result<Self, DispatchError> {
 		Pallet::<T>::clean_execution_times_vector(&mut execution_times);
-		let executions_left = execution_times.len();
+		let executions_left = execution_times.len() as u32;
 		let schedule = Self::Fixed { execution_times, executions_left };
 		schedule.valid::<T>()?;
 		Ok(schedule)
@@ -248,7 +248,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 
 	pub fn execution_times(&self) -> Vec<UnixTime> {
 		match &self.schedule {
-			Schedule::Fixed { execution_times, .. } => execution_times,
+			Schedule::Fixed { execution_times, .. } => execution_times.to_vec(),
 			Schedule::Recurring { next_execution_time, .. } => {
 				vec![*next_execution_time]
 			},
