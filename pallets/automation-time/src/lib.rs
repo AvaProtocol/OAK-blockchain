@@ -1290,7 +1290,7 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			let executions = schedule.number_of_known_executions();
+			let executions = schedule.known_executions_left();
 
 			let task =
 				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());

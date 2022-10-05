@@ -132,7 +132,7 @@ impl<MaxExecutionTimes: Get<u32>> Schedule<MaxExecutionTimes> {
 		Ok(schedule)
 	}
 
-	pub fn number_of_known_executions(&self) -> u32 {
+	pub fn known_executions_left(&self) -> u32 {
 		match self {
 			Self::Fixed { executions_left, .. } => *executions_left,
 			Self::Recurring { .. } => 1,
@@ -602,7 +602,7 @@ mod tests {
 					execution_times: vec![].try_into().unwrap(),
 					executions_left: 5,
 				};
-				assert_eq!(s.number_of_known_executions(), 5);
+				assert_eq!(s.known_executions_left(), 5);
 			})
 		}
 
@@ -613,7 +613,7 @@ mod tests {
 					next_execution_time: 0,
 					frequency: 0,
 				};
-				assert_eq!(s.number_of_known_executions(), 1);
+				assert_eq!(s.known_executions_left(), 1);
 			})
 		}
 	}
