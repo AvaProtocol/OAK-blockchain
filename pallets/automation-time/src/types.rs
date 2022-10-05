@@ -2,7 +2,7 @@ use crate::{weights::WeightInfo, Config, Error, Pallet};
 
 use frame_support::{pallet_prelude::*, traits::Get, weights::GetDispatchInfo};
 
-use sp_runtime::traits::AtLeast32BitUnsigned;
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
 use sp_std::prelude::*;
 
 use cumulus_primitives_core::ParaId;
@@ -139,10 +139,18 @@ impl Schedule {
 
 	fn valid<T: Config>(&self) -> DispatchResult {
 		match self {
-			Self::Fixed { execution_times, .. } =>
+			Self::Fixed { execution_times, .. } => {
+				let number_of_executions: u32 = execution_times
+					.len()
+					.checked_into()
+					.ok_or(Error::<T>::TooManyExecutionsTimes)?;
+				if number_of_executions > T::MaxExecutionTimes::get() {
+					Err(Error::<T>::TooManyExecutionsTimes)?;
+				}
 				for time in execution_times.iter() {
 					Pallet::<T>::is_valid_time(*time)?;
-				},
+				}
+			},
 			Self::Recurring { next_execution_time, frequency } => {
 				Pallet::<T>::is_valid_time(*next_execution_time)?;
 				// Validate frequency by ensuring that the next proposed execution is at a valid time
