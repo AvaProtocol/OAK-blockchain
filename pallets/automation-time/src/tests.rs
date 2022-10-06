@@ -16,8 +16,8 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, ScheduledTasksOf,
-	TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, Schedule,
+	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
 use core::convert::TryInto;
@@ -255,7 +255,7 @@ fn schedule_xcmp_works() {
 		assert_ok!(AutomationTime::schedule_xcmp_task(
 			Origin::signed(alice.clone()),
 			vec![50],
-			vec![SCHEDULED_TIME],
+			Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
 			PARA_ID.try_into().unwrap(),
 			NATIVE,
 			call.clone(),
@@ -276,7 +276,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 			AutomationTime::schedule_xcmp_task(
 				Origin::signed(alice.clone()),
 				vec![50],
-				vec![SCHEDULED_TIME],
+				Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
 				PARA_ID.try_into().unwrap(),
 				NATIVE,
 				call.clone(),
