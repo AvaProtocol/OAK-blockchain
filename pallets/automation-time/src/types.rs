@@ -87,7 +87,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 	}
 }
 
-#[derive(Debug, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, Decode, Encode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub enum Schedule<MaxExecutionTimes: Get<u32>> {
 	Fixed { execution_times: BoundedVec<UnixTime, MaxExecutionTimes>, executions_left: u32 },
@@ -132,9 +132,28 @@ impl<MaxExecutionTimes: Get<u32>> Schedule<MaxExecutionTimes> {
 		Ok(schedule)
 	}
 
+	pub fn new_validated_schedule_from<T: Config>(schedule: Self) -> Result<Self, DispatchError> {
+		match schedule {
+			Self::Fixed { execution_times, .. } =>
+				Self::new_fixed_schedule::<T>(execution_times.into()),
+			Self::Recurring { next_execution_time, frequency } =>
+				Self::new_recurring_schedule::<T>(next_execution_time, frequency),
+		}
+	}
+
 	pub fn known_executions_left(&self) -> u32 {
 		match self {
 			Self::Fixed { executions_left, .. } => *executions_left,
+			Self::Recurring { .. } => 1,
+		}
+	}
+
+	/// Calculated number of executions
+	/// Useful for weight calculations for worst case runtimes
+	pub fn number_of_known_executions(&self) -> u32 {
+		match self {
+			Self::Fixed { execution_times, .. } =>
+				execution_times.len().try_into().expect("bounded by u32"),
 			Self::Recurring { .. } => 1,
 		}
 	}
