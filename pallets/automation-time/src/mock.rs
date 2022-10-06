@@ -351,8 +351,7 @@ pub fn add_task_to_task_queue(
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let schedule =
-		Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(scheduled_times).unwrap();
+	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times).unwrap();
 	add_to_task_queue(owner, provided_id, schedule, action)
 }
 
@@ -363,16 +362,14 @@ pub fn add_recurring_task_to_task_queue(
 	frequency: u64,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let schedule =
-		Schedule::<MaxExecutionTimes>::new_recurring_schedule::<Test>(scheduled_time, frequency)
-			.unwrap();
+	let schedule = Schedule::new_recurring_schedule::<Test>(scheduled_time, frequency).unwrap();
 	add_to_task_queue(owner, provided_id, schedule, action)
 }
 
 pub fn add_to_task_queue(
 	owner: [u8; 32],
 	provided_id: Vec<u8>,
-	schedule: Schedule<MaxExecutionTimes>,
+	schedule: Schedule,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
 	let task_id = create_task(owner, provided_id, schedule, action);
@@ -388,8 +385,7 @@ pub fn add_task_to_missed_queue(
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
-	let schedule =
-		Schedule::<MaxExecutionTimes>::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
+	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
 	let task_id = create_task(owner, provided_id, schedule, action);
 	let missed_task =
 		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
@@ -402,7 +398,7 @@ pub fn add_task_to_missed_queue(
 pub fn create_task(
 	owner: [u8; 32],
 	provided_id: Vec<u8>,
-	schedule: Schedule<MaxExecutionTimes>,
+	schedule: Schedule,
 	action: ActionOf<Test>,
 ) -> sp_core::H256 {
 	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());

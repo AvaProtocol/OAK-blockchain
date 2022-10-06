@@ -28,7 +28,7 @@ impl<T: Config> From<OldTask<T>> for TaskOf<T> {
 				frequency,
 			},
 			_ => Schedule::Fixed {
-				execution_times: task.execution_times,
+				execution_times: task.execution_times.to_vec(),
 				executions_left: task.executions_left,
 			},
 		};
