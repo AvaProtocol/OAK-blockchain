@@ -515,6 +515,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		// TODO: needs real benchmarking
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
