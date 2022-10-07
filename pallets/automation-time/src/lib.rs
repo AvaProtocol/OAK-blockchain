@@ -520,14 +520,14 @@ pub mod pallet {
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
+			schedule: Schedule,
 			call: Box<<T as Config>::Call>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let encoded_call = call.encode();
 			let action = Action::DynamicDispatch { encoded_call };
-			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
+			let schedule = Schedule::new_validated_schedule_from::<T>(schedule)?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())

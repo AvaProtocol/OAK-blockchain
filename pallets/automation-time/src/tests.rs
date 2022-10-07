@@ -757,7 +757,7 @@ mod extrinsics {
 				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 					Origin::signed(account_id.clone()),
 					provided_id,
-					vec![SCHEDULED_TIME],
+					Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
 					Box::new(call)
 				));
 				assert_eq!(
