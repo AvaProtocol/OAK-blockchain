@@ -1125,14 +1125,14 @@ impl_runtime_apis! {
 						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
 						_ => "cannot get xcmp fee"
 					}
-				})?.0.saturating_mul(schedule.number_of_known_executions() as u128);
+				})?.0.saturating_mul(schedule.number_of_executions() as u128);
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
 					.ok_or("cannot get inclusion fee")?
 					.base_fee;
 				let execution_fee = AutomationTime::calculate_execution_fee(
 					&(AutomationAction::XCMP.into()),
-					schedule.number_of_known_executions()
+					schedule.number_of_executions()
 				).expect("Can only fail for DynamicDispatch and this is always XCMP");
 
 				return Ok(xcm_fee.saturating_add(inclusion_fee).saturating_add(execution_fee))
