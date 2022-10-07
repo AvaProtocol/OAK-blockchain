@@ -85,12 +85,7 @@ pub mod pallet {
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
 	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
-	pub type TaskOf<T> = Task<
-		AccountOf<T>,
-		BalanceOf<T>,
-		<T as Config>::CurrencyId,
-		<T as Config>::MaxExecutionTimes,
-	>;
+	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
 
@@ -370,8 +365,7 @@ pub mod pallet {
 				Err(Error::<T>::EmptyMessage)?
 			}
 
-			let schedule =
-				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 			Self::validate_and_schedule_task(
 				Action::Notify { message },
 				who,
@@ -424,8 +418,7 @@ pub mod pallet {
 			}
 			let action =
 				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
-			let schedule =
-				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
@@ -464,8 +457,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
-			let schedule =
-				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
@@ -504,10 +496,7 @@ pub mod pallet {
 				collator: collator_id,
 				account_minimum,
 			};
-			let schedule = Schedule::<T::MaxExecutionTimes>::new_recurring_schedule::<T>(
-				execution_time,
-				frequency,
-			)?;
+			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
@@ -537,8 +526,7 @@ pub mod pallet {
 
 			let encoded_call = call.encode();
 			let action = Action::DynamicDispatch { encoded_call };
-			let schedule =
-				Schedule::<T::MaxExecutionTimes>::new_fixed_schedule::<T>(execution_times)?;
+			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
@@ -1284,7 +1272,7 @@ pub mod pallet {
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
-			schedule: Schedule<T::MaxExecutionTimes>,
+			schedule: Schedule,
 		) -> DispatchResult {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
