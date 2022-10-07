@@ -16,7 +16,7 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, Schedule,
+	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, ScheduleParam,
 	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
@@ -255,7 +255,7 @@ fn schedule_xcmp_works() {
 		assert_ok!(AutomationTime::schedule_xcmp_task(
 			Origin::signed(alice.clone()),
 			vec![50],
-			Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			PARA_ID.try_into().unwrap(),
 			NATIVE,
 			call.clone(),
@@ -276,7 +276,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 			AutomationTime::schedule_xcmp_task(
 				Origin::signed(alice.clone()),
 				vec![50],
-				Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				PARA_ID.try_into().unwrap(),
 				NATIVE,
 				call.clone(),
@@ -757,46 +757,13 @@ mod extrinsics {
 				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 					Origin::signed(account_id.clone()),
 					provided_id,
-					Schedule::Fixed { execution_times: vec![SCHEDULED_TIME], executions_left: 1 },
+					ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 					Box::new(call)
 				));
 				assert_eq!(
 					last_event(),
 					Event::AutomationTime(crate::Event::TaskScheduled { who: account_id, task_id })
 				);
-			})
-		}
-
-		#[test]
-		fn cleans_schedule_params() {
-			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let account_id = AccountId32::new(ALICE);
-				let execution_times = vec![SCHEDULED_TIME];
-				let provided_id = vec![0];
-				let task_id =
-					AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
-				let call: Call = frame_system::Call::remark { remark: vec![] }.into();
-				assert_ok!(fund_account_dynamic_dispatch(
-					&account_id,
-					execution_times.len(),
-					call.encode()
-				));
-
-				let schedule = Schedule::Fixed {
-					execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME],
-					executions_left: 2,
-				};
-
-				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
-					Origin::signed(account_id.clone()),
-					provided_id,
-					schedule,
-					Box::new(call)
-				));
-
-				let task = AccountTasks::<Test>::get(account_id, task_id).expect("scheduled");
-				assert_eq!(task.execution_times(), vec![SCHEDULED_TIME]);
-				assert_eq!(task.schedule.known_executions_left(), 1);
 			})
 		}
 	}

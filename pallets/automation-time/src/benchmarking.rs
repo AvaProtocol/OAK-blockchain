@@ -206,7 +206,7 @@ benchmarks! {
 			let hour: u64 = (3600 * i).try_into().unwrap();
 			times.push(hour);
 		}
-		let schedule = Schedule::Fixed { execution_times: times.clone(), executions_left: v };
+		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);

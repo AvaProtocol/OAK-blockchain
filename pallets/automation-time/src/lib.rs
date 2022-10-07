@@ -445,11 +445,11 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_known_executions()))]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			schedule: Schedule,
+			schedule: ScheduleParam,
 			para_id: ParaId,
 			currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
@@ -457,7 +457,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
-			let schedule = Schedule::new_validated_schedule_from::<T>(schedule)?;
+			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
@@ -520,14 +520,14 @@ pub mod pallet {
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
-			schedule: Schedule,
+			schedule: ScheduleParam,
 			call: Box<<T as Config>::Call>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let encoded_call = call.encode();
 			let action = Action::DynamicDispatch { encoded_call };
-			let schedule = Schedule::new_validated_schedule_from::<T>(schedule)?;
+			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
