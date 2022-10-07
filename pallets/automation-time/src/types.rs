@@ -127,6 +127,9 @@ impl Schedule {
 					.len()
 					.checked_into()
 					.ok_or(Error::<T>::TooManyExecutionsTimes)?;
+				if number_of_executions == 0 {
+					Err(Error::<T>::InvalidTime)?;
+				}
 				if number_of_executions > T::MaxExecutionTimes::get() {
 					Err(Error::<T>::TooManyExecutionsTimes)?;
 				}
