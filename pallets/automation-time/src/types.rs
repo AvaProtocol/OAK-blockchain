@@ -127,6 +127,9 @@ impl Schedule {
 					.len()
 					.checked_into()
 					.ok_or(Error::<T>::TooManyExecutionsTimes)?;
+				if number_of_executions == 0 {
+					Err(Error::<T>::InvalidTime)?;
+				}
 				if number_of_executions > T::MaxExecutionTimes::get() {
 					Err(Error::<T>::TooManyExecutionsTimes)?;
 				}
@@ -440,11 +443,17 @@ mod tests {
 		fn checks_for_fixed_schedule_validity() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
 				assert_ok!(Schedule::new_fixed_schedule::<Test>(vec![SCHEDULED_TIME + 3600]));
+				// Execution time does not end in whole hour
 				assert_err!(
 					Schedule::new_fixed_schedule::<Test>(vec![
 						SCHEDULED_TIME + 3600,
 						SCHEDULED_TIME + 3650
 					]),
+					Error::<Test>::InvalidTime
+				);
+				// No execution times
+				assert_err!(
+					Schedule::new_fixed_schedule::<Test>(vec![]),
 					Error::<Test>::InvalidTime
 				);
 			})
