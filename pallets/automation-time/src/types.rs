@@ -87,7 +87,35 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 	}
 }
 
-#[derive(Debug, Encode, Decode, PartialEq, TypeInfo)]
+/// API Param for Scheduling
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
+pub enum ScheduleParam {
+	Fixed { execution_times: Vec<UnixTime> },
+	Recurring { next_execution_time: UnixTime, frequency: Seconds },
+}
+
+impl ScheduleParam {
+	/// Convert from ScheduleParam to Schedule
+	pub fn validated_into<T: Config>(self) -> Result<Schedule, DispatchError> {
+		match self {
+			Self::Fixed { execution_times, .. } =>
+				Schedule::new_fixed_schedule::<T>(execution_times),
+			Self::Recurring { next_execution_time, frequency } =>
+				Schedule::new_recurring_schedule::<T>(next_execution_time, frequency),
+		}
+	}
+
+	/// Number of known executions at the time of scheduling the task
+	pub fn number_of_executions(&self) -> u32 {
+		match self {
+			Self::Fixed { execution_times } =>
+				execution_times.len().try_into().expect("bounded by u32"),
+			Self::Recurring { .. } => 1,
+		}
+	}
+}
+
+#[derive(Clone, Debug, Decode, Encode, PartialEq, TypeInfo)]
 pub enum Schedule {
 	Fixed { execution_times: Vec<UnixTime>, executions_left: u32 },
 	Recurring { next_execution_time: UnixTime, frequency: Seconds },
@@ -113,7 +141,7 @@ impl Schedule {
 		Ok(schedule)
 	}
 
-	pub fn number_of_known_executions(&self) -> u32 {
+	pub fn known_executions_left(&self) -> u32 {
 		match self {
 			Self::Fixed { executions_left, .. } => *executions_left,
 			Self::Recurring { .. } => 1,
@@ -320,11 +348,11 @@ mod tests {
 		mock::*,
 		tests::{SCHEDULED_TIME, START_BLOCK_TIME},
 	};
+	use frame_support::{assert_err, assert_ok};
 
 	mod scheduled_tasks {
 		use super::*;
 		use crate::{AccountTaskId, BalanceOf, ScheduledTasksOf, TaskId, TaskOf};
-		use frame_support::assert_err;
 		use sp_runtime::AccountId32;
 
 		#[test]
@@ -395,9 +423,80 @@ mod tests {
 		}
 	}
 
+	mod schedule_param {
+		use super::*;
+
+		#[test]
+		fn sets_executions_left() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let t1 = SCHEDULED_TIME + 3600;
+				let t2 = SCHEDULED_TIME + 3600 * 2;
+				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let s = ScheduleParam::Fixed { execution_times: vec![t1, t2, t3] }
+					.validated_into::<Test>()
+					.expect("valid");
+				if let Schedule::Fixed { executions_left, .. } = s {
+					assert_eq!(executions_left, 3);
+				} else {
+					panic!("Exepected Schedule::Fixed");
+				}
+			})
+		}
+
+		#[test]
+		fn validates_fixed_schedule() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let t1 = SCHEDULED_TIME + 1800;
+				let s = ScheduleParam::Fixed { execution_times: vec![t1] }.validated_into::<Test>();
+				assert_err!(s, Error::<Test>::InvalidTime);
+			})
+		}
+
+		#[test]
+		fn validates_recurring_schedule() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let s = ScheduleParam::Recurring {
+					next_execution_time: SCHEDULED_TIME,
+					frequency: 3600,
+				}
+				.validated_into::<Test>()
+				.expect("valid");
+				if let Schedule::Recurring { next_execution_time, .. } = s {
+					assert_eq!(next_execution_time, SCHEDULED_TIME);
+				} else {
+					panic!("Exepected Schedule::Recurring");
+				}
+
+				let s = ScheduleParam::Recurring {
+					next_execution_time: SCHEDULED_TIME,
+					frequency: 3601,
+				}
+				.validated_into::<Test>();
+				assert_err!(s, Error::<Test>::InvalidTime);
+			})
+		}
+
+		#[test]
+		fn counts_executions() {
+			new_test_ext(START_BLOCK_TIME).execute_with(|| {
+				let t1 = SCHEDULED_TIME + 3600;
+				let t2 = SCHEDULED_TIME + 3600 * 2;
+				let t3 = SCHEDULED_TIME + 3600 * 3;
+
+				let s = ScheduleParam::Fixed { execution_times: vec![t1, t2, t3] };
+				assert_eq!(s.number_of_executions(), 3);
+
+				let s = ScheduleParam::Recurring {
+					next_execution_time: SCHEDULED_TIME,
+					frequency: 3600,
+				};
+				assert_eq!(s.number_of_executions(), 1);
+			})
+		}
+	}
+
 	mod schedule {
 		use super::*;
-		use frame_support::{assert_err, assert_ok};
 
 		#[test]
 		fn new_fixed_schedule_sets_executions_left() {
@@ -505,7 +604,7 @@ mod tests {
 					execution_times: vec![].try_into().unwrap(),
 					executions_left: 5,
 				};
-				assert_eq!(s.number_of_known_executions(), 5);
+				assert_eq!(s.known_executions_left(), 5);
 			})
 		}
 
@@ -513,7 +612,7 @@ mod tests {
 		fn number_of_known_executions_for_recurring() {
 			new_test_ext(0).execute_with(|| {
 				let s = Schedule::Recurring { next_execution_time: 0, frequency: 0 };
-				assert_eq!(s.number_of_known_executions(), 1);
+				assert_eq!(s.known_executions_left(), 1);
 			})
 		}
 	}

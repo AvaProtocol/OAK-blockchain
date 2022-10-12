@@ -1121,7 +1121,7 @@ impl_runtime_apis! {
 		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
 			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
 			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				execution_times, para_id, currency_id, encoded_call_weight, ..
+				schedule, para_id, currency_id, encoded_call_weight, ..
 			}) = extrinsic.clone().function {
 				let len = encoded_xt.len() as u32;
 
@@ -1134,14 +1134,14 @@ impl_runtime_apis! {
 						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
 						_ => "cannot get xcmp fee"
 					}
-				})?.0.saturating_mul(execution_times.len() as u128);
+				})?.0.saturating_mul(schedule.number_of_executions() as u128);
 				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
 					.inclusion_fee
 					.ok_or("cannot get inclusion fee")?
 					.base_fee;
 				let execution_fee = AutomationTime::calculate_execution_fee(
 					&(AutomationAction::XCMP.into()),
-					execution_times.len() as u32,
+					schedule.number_of_executions()
 				).expect("Can only fail for DynamicDispatch and this is always XCMP");
 
 				return Ok(xcm_fee.saturating_add(inclusion_fee).saturating_add(execution_fee))

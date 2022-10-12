@@ -206,13 +206,14 @@ benchmarks! {
 			let hour: u64 = (3600 * i).try_into().unwrap();
 			times.push(hour);
 		}
+		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
 		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
-		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times.clone(), max_tasks_per_slot - 1);
+		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, times, para_id.into(), currency_id, call, 1_000)
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, call, 1_000)
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
