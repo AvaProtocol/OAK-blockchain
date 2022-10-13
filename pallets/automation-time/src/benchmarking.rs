@@ -264,6 +264,7 @@ benchmarks! {
 		let times = (1..=v).map(|i| {
 			3600 * i as UnixTime
 		}).collect();
+		let schedule = ScheduleParam::Fixed { execution_times: times };
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
@@ -273,7 +274,7 @@ benchmarks! {
 
 		let provided_id = vec![1, 2, 3];
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
-	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, times, Box::new(call))
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
 	verify {
 		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: Default::default() }.into())
 	}
