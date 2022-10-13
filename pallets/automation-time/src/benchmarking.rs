@@ -258,6 +258,26 @@ benchmarks! {
 		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), max_tasks_per_slot - 1);
 	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), time, 3600 , collator, account_minimum)
 
+	schedule_dynamic_dispatch_task {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		let times = (1..=v).map(|i| {
+			3600 * i as UnixTime
+		}).collect();
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+
+		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+
+		let provided_id = vec![1, 2, 3];
+		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, times, Box::new(call))
+	verify {
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: Default::default() }.into())
+	}
+
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let mut times: Vec<u64> = vec![];
