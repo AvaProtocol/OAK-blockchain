@@ -272,11 +272,37 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
 
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
 
 		let provided_id = vec![1, 2, 3];
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
+	verify {
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
+	}
+
+	schedule_dynamic_dispatch_task_full {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
+		let times: Vec<UnixTime> = (1..=v).map(|i| {
+			3600 * i as UnixTime
+		}).collect();
+		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+
+		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+
+		let provided_id = vec![1, 2, 3];
+		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
+
+		// Almost fill up all time slots
+		schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
 	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
 	verify {
 		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
