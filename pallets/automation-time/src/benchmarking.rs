@@ -547,4 +547,10 @@ benchmarks! {
 	verify {
 		assert_eq!(v, crate::AccountTasks::<T>::iter().count() as u32);
 	}
+
+	impl_benchmark_test_suite!(
+		AutomationTime,
+		crate::mock::new_test_ext(crate::tests::START_BLOCK_TIME),
+		crate::mock::Test
+	);
 }
