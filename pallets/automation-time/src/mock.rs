@@ -183,6 +183,12 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		0
 	}
+	fn schedule_dynamic_dispatch_task(_v: u32) -> Weight {
+		0
+	}
+	fn schedule_dynamic_dispatch_task_full(_v: u32) -> Weight {
+		0
+	}
 	fn schedule_xcmp_task_full(_v: u32) -> Weight {
 		0
 	}
