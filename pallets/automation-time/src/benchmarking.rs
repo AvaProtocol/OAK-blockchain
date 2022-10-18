@@ -20,7 +20,7 @@
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
-use pallet_timestamp;
+use pallet_timestamp::Pallet as Timestamp;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
@@ -44,7 +44,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
 	);
 	let time_moment: u32 = times[0].saturated_into();
-	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	Timestamp::<T>::set_timestamp(time_moment.into());
 	let mut provided_id = vec![0u8];
 
 	for _ in 0..count {
@@ -65,7 +65,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 
 fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) -> Vec<u8> {
 	let time_moment: u32 = time.saturated_into();
-	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	Timestamp::<T>::set_timestamp(time_moment.into());
 	let recipient: T::AccountId = account("recipient", 0, SEED);
 	let amount: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	let mut provided_id = vec![0u8];
@@ -95,7 +95,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 	);
 	let para_id: u32 = 2001;
 	let time_moment: u32 = times[0].saturated_into();
-	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	Timestamp::<T>::set_timestamp(time_moment.into());
 	let mut provided_id = vec![0u8];
 
 	for _ in 0..count {
@@ -123,7 +123,7 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 	count: u32,
 ) -> Vec<(T::Hash, TaskOf<T>)> {
 	let time_moment: u32 = time.saturated_into();
-	<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+	Timestamp::<T>::set_timestamp(time_moment.into());
 
 	let mut tasks = Vec::with_capacity(count.try_into().unwrap());
 	for i in 0..count {
@@ -164,7 +164,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 7200;
 		let time_moment: u32 = time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		Timestamp::<T>::set_timestamp(time_moment.into());
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_notify_task(RawOrigin::Signed(caller), vec![10], vec![time], vec![4, 5])
@@ -221,7 +221,7 @@ benchmarks! {
 		let time: u64 = 7200;
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		let time_moment: u32 = time.try_into().unwrap();
-		<pallet_timestamp::Pallet<T>>::set_timestamp(time_moment.into());
+		Timestamp::<T>::set_timestamp(time_moment.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], vec![time], recipient, transfer_amount)
 
@@ -244,19 +244,69 @@ benchmarks! {
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
 	schedule_auto_compound_delegated_stake_task_full {
-		let max_tasks_per_slot: u32 = (
-			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task() as u128
-		).try_into().unwrap();
+		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task();
+		let max_tasks_per_slot_by_weight: u32 = (T::MaxWeightPerSlot::get() / task_weight as u128).try_into().unwrap();
+		let max_tasks_per_slot = max_tasks_per_slot_by_weight.min(T::MaxTasksPerSlot::get());
 
 		let delegator: T::AccountId = account("delegator", 0, SEED);
 		let collator: T::AccountId = account("collator", 0, max_tasks_per_slot);
 		let account_minimum = T::Currency::minimum_balance();
-		let starting_balance = account_minimum.saturating_mul(ED_MULTIPLIER.into());
+		let starting_balance = account_minimum.saturating_mul(ED_MULTIPLIER.into())
+			.saturating_add(task_weight.saturating_mul(T::ExecutionWeightFee::get().saturated_into()).saturated_into());
 		let time: u64 = 3600;
 
-		T::Currency::deposit_creating(&delegator, starting_balance);
+		T::Currency::deposit_creating(&delegator, starting_balance.saturated_into());
 		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), max_tasks_per_slot - 1);
 	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), time, 3600 , collator, account_minimum)
+
+	schedule_dynamic_dispatch_task {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
+		let times = (1..=v).map(|i| {
+			3600 * i as UnixTime
+		}).collect();
+		let schedule = ScheduleParam::Fixed { execution_times: times };
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+
+		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+
+		let provided_id = vec![1, 2, 3];
+		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
+	verify {
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
+	}
+
+	schedule_dynamic_dispatch_task_full {
+		let v in 1 .. T::MaxExecutionTimes::get();
+
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
+		let times: Vec<UnixTime> = (1..=v).map(|i| {
+			3600 * i as UnixTime
+		}).collect();
+		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
+
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+
+		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+
+		let provided_id = vec![1, 2, 3];
+		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
+
+		// Almost fill up all time slots
+		schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
+	verify {
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
+	}
 
 	cancel_scheduled_task_full {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -373,6 +423,8 @@ benchmarks! {
 	run_missed_tasks_many_found {
 		let v in 0 .. 1;
 
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
 		let weight_left = 50_000_000_000;
 		let mut missed_tasks = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -411,6 +463,9 @@ benchmarks! {
 	*/
 	run_tasks_many_found {
 		let v in 0 .. 1;
+
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
 		let weight_left = 500_000_000_000;
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -456,8 +511,11 @@ benchmarks! {
 	}: { AutomationTime::<T>::update_task_queue(weight_left) }
 
 	append_to_missed_tasks {
-		let weight_left = 500_000_000_000;
 		let v in 0 .. 2;
+
+		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
+
+		let weight_left = 500_000_000_000;
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let last_time_slot: u64 = 3600;
 		let time = last_time_slot;
@@ -480,6 +538,7 @@ benchmarks! {
 		let last_time_slot: u64 = 7200;
 		let current_time = 10800;
 		let mut provided_id = vec![0u8];
+		Timestamp::<T>::set_timestamp(current_time.saturated_into::<u32>().into());
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			provided_id = increment_provided_id(provided_id);
@@ -526,4 +585,10 @@ benchmarks! {
 	verify {
 		assert_eq!(v, crate::AccountTasks::<T>::iter().count() as u32);
 	}
+
+	impl_benchmark_test_suite!(
+		AutomationTime,
+		crate::mock::new_test_ext(crate::tests::START_BLOCK_TIME),
+		crate::mock::Test
+	);
 }
