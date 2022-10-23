@@ -1,4 +1,4 @@
-name: Release
+name: Publish Neumann Docker Image
 
 on:
   workflow_dispatch:
