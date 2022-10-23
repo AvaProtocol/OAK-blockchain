@@ -20,7 +20,7 @@ jobs:
         run: rustup show
       - name: Build
         run: |
-          cargo build --locked --release --features neumann-node
+          cargo build --locked --release --features neumann-node --features dev-queue
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
   build-docker:
