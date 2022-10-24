@@ -1,0 +1,142 @@
+version: "3.7"
+services:
+  relaychain-alice:
+    ports:
+      - 9944:9944
+      - 9933:9933
+      - 30333:30333
+    volumes:
+      - relaychain-alice:/data
+    build:
+      context: .
+      dockerfile: relaychain.Dockerfile
+    command:
+      - --base-path=/data
+      - --chain=/app/rococo-local.json
+      - --validator
+      - --ws-external
+      - --rpc-external
+      - --rpc-cors=all
+      - --name=alice
+      - --alice
+      - --rpc-methods=unsafe
+      - --force-authoring
+    environment:
+      RUST_LOG: babe=debug
+    ulimits:
+      &a1
+      nofile:
+        soft: 65536
+        hard: 65536
+  relaychain-bob:
+    ports:
+      - 9945:9944
+      - 9934:9933
+      - 30334:30333
+    volumes:
+      - relaychain-bob:/data
+    build:
+      context: .
+      dockerfile: relaychain.Dockerfile
+    command:
+      - --base-path=/data
+      - --chain=/app/rococo-local.json
+      - --validator
+      - --ws-external
+      - --rpc-external
+      - --rpc-cors=all
+      - --name=bob
+      - --bob
+      - --rpc-methods=unsafe
+    environment:
+      RUST_LOG: parachain::candidate-backing=trace
+    ulimits: *a1
+  relaychain-charlie:
+    ports:
+      - 9946:9944
+      - 9935:9933
+      - 30335:30333
+    volumes:
+      - relaychain-charlie:/data
+    build:
+      context: .
+      dockerfile: relaychain.Dockerfile
+    command:
+      - --base-path=/data
+      - --chain=/app/rococo-local.json
+      - --validator
+      - --ws-external
+      - --rpc-external
+      - --rpc-cors=all
+      - --name=charlie
+      - --charlie
+      - --rpc-methods=unsafe
+    environment:
+      RUST_LOG: parachain::candidate-backing=trace
+    ulimits: *a1
+  parachain-2000-0:
+    ports:
+      - 9947:9944
+      - 9936:9933
+      - 30336:30333
+    volumes:
+      - parachain-2000-0:/data
+    build:
+      context: .
+      dockerfile: parachain-2000.Dockerfile
+    command:
+      - --base-path=/data
+      - --chain=/app/local-2000.json
+      - --ws-external
+      - --rpc-external
+      - --rpc-cors=all
+      - --name=parachain-2000-0
+      - --collator
+      - --rpc-methods=unsafe
+      - --force-authoring
+      - --execution=wasm
+      - --alice
+      - --node-key=6876ee5e966d94253b11cacf8467b4f086e0155c279740c04c48c9a8d8aed073
+      - --listen-addr=/ip4/0.0.0.0/tcp/30333
+      - --
+      - --chain=/app/rococo-local.json
+      - --execution=wasm
+      - --name=relaychain-alice
+    environment: {}
+    ulimits: *a1
+  parachain-2000-1:
+    ports:
+      - 9948:9944
+      - 9937:9933
+      - 30337:30333
+    volumes:
+      - parachain-2000-1:/data
+    build:
+      context: .
+      dockerfile: parachain-2000.Dockerfile
+    command:
+      - --base-path=/data
+      - --chain=/app/local-2000.json
+      - --ws-external
+      - --rpc-external
+      - --rpc-cors=all
+      - --name=parachain-2000-1
+      - --collator
+      - --rpc-methods=unsafe
+      - --force-authoring
+      - --execution=wasm
+      - --bob
+      - >-
+        --bootnodes=/dns/parachain-2000-0/tcp/30333/p2p/12D3KooWBPJrQ6apEPC2anmq8DXJEP7UNFa4dXxAoKM2rFpPv9gj
+      - --listen-addr=/ip4/0.0.0.0/tcp/30333
+      - --
+      - --chain=/app/rococo-local.json
+      - --execution=wasm
+    environment: {}
+    ulimits: *a1
+volumes:
+  relaychain-alice: null
+  relaychain-bob: null
+  relaychain-charlie: null
+  parachain-2000-0: null
+  parachain-2000-1: null
