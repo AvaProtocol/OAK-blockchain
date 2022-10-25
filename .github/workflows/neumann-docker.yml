@@ -23,6 +23,11 @@ jobs:
           cargo build --locked --release --features neumann-node --features dev-queue
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
+      - name: Upload binary
+        uses: actions/upload-artifact@v2
+        with:
+          name: oak-collator
+          path: artifacts/
   build-docker:
     name: Build Docker
     runs-on: ubuntu-latest
