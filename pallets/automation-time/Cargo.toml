@@ -47,7 +47,7 @@ pallet-valve = { path = "../valve", default-features = false }
 pallet-xcmp-handler = { path = "../xcmp-handler", default-features = false }
 
 [dev-dependencies]
-serde = { version = "1.0.137" }
+serde = { version = "1.0.144" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
