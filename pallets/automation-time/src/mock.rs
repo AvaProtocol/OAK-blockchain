@@ -157,7 +157,7 @@ parameter_types! {
 	#[derive(Debug)]
 	pub const MaxExecutionTimes: u32 = 3;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = 1_000_000;
+	pub const MaxBlockWeight: u64 = 1_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
@@ -169,82 +169,82 @@ parameter_types! {
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
 	fn schedule_notify_task_empty() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_notify_task_full(_v: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_native_transfer_task_empty() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_dynamic_dispatch_task(_v: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_dynamic_dispatch_task_full(_v: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 	fn schedule_xcmp_task_full(_v: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 	fn cancel_scheduled_task_full() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn force_cancel_scheduled_task() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn force_cancel_scheduled_task_full() -> Weight {
-		0
+		Weight::zero()
 	}
 	fn run_notify_task() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_native_transfer_task() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_xcmp_task() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_dynamic_dispatch_action() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
-		(10_000 * v).into()
+		Weight::from_ref_time(10_000 * v as u64)
 	}
 	fn run_missed_tasks_many_missing(v: u32) -> Weight {
-		(10_000 * v).into()
+		Weight::from_ref_time(10_000 * v as u64)
 	}
 	fn run_tasks_many_found(v: u32) -> Weight {
-		(50_000 * v).into()
+		Weight::from_ref_time(50_000 * v as u64)
 	}
 	fn run_tasks_many_missing(v: u32) -> Weight {
-		(10_000 * v).into()
+		Weight::from_ref_time(10_000 * v as u64)
 	}
 	fn update_task_queue_overhead() -> Weight {
-		10_000
+		Weight::from_ref_time(10_000)
 	}
 	fn append_to_missed_tasks(v: u32) -> Weight {
-		(20_000 * v).into()
+		Weight::from_ref_time(20_000 * v as u64)
 	}
 	fn update_scheduled_task_queue() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn shift_missed_tasks() -> Weight {
-		20_000
+		Weight::from_ref_time(20_000)
 	}
 	fn migration_add_schedule_to_task(_: u32) -> Weight {
-		0
+		Weight::zero()
 	}
 }
 
@@ -428,21 +428,21 @@ pub fn last_event() -> Event {
 
 pub fn get_funds(account: AccountId) {
 	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
-	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
 	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
-	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 
 pub fn get_xcmp_funds(account: AccountId) {
 	let double_action_weight = MockWeight::<Test>::run_xcmp_task() * 2;
-	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight);
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
 	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
