@@ -67,14 +67,14 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
 	fn add_chain_currency_data() -> Weight {
-		(14_433_000 as Weight)
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(14_433_000 as u64)
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
 	fn remove_chain_currency_data() -> Weight {
-		(16_265_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(16_265_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
 
@@ -82,13 +82,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
 	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
 	fn add_chain_currency_data() -> Weight {
-		(14_433_000 as Weight)
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(14_433_000 as u64)
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
 	fn remove_chain_currency_data() -> Weight {
-		(16_265_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(16_265_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

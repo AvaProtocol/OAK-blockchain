@@ -237,7 +237,7 @@ pub mod pallet {
 				.fee_per_second
 				.checked_mul(weight as u128)
 				.ok_or(Error::<T>::FeeOverflow)
-				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND as u128))?;
+				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
 
 			Ok((fee, weight))
 		}
