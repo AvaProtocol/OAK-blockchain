@@ -27,7 +27,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		para_id: ParaId,
 		currency_id: CurrencyId,
 		encoded_call: Vec<u8>,
-		encoded_call_weight: Weight,
+		encoded_call_weight: u64,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
@@ -40,7 +40,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 }
 
 impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
-	pub fn execution_weight<T: Config>(&self) -> Result<Weight, DispatchError> {
+	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
@@ -54,7 +54,7 @@ impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
 					.saturating_add(scheduled_call.get_dispatch_info().weight)
 			},
 		};
-		Ok(weight)
+		Ok(weight.ref_time())
 	}
 }
 
@@ -244,7 +244,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		para_id: ParaId,
 		currency_id: CurrencyId,
 		encoded_call: Vec<u8>,
-		encoded_call_weight: Weight,
+		encoded_call_weight: u64,
 	) -> Result<Self, DispatchError> {
 		let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
