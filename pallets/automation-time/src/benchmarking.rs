@@ -191,7 +191,7 @@ benchmarks! {
 		let v in 1..T::MaxExecutionTimes::get();
 
 		let mut max_tasks_per_slot: u32 = (
-			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task() as u128
+			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task().ref_time() as u128
 		).try_into().unwrap();
 		max_tasks_per_slot = cmp::min(max_tasks_per_slot, T::MaxTasksPerSlot::get());
 
@@ -244,7 +244,7 @@ benchmarks! {
 	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
 
 	schedule_auto_compound_delegated_stake_task_full {
-		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task();
+		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task().ref_time();
 		let max_tasks_per_slot_by_weight: u32 = (T::MaxWeightPerSlot::get() / task_weight as u128).try_into().unwrap();
 		let max_tasks_per_slot = max_tasks_per_slot_by_weight.min(T::MaxTasksPerSlot::get());
 
@@ -425,7 +425,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = 50_000_000_000;
+		let weight_left = Weight::from_ref_time(50_000_000_000);
 		let mut missed_tasks = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u32 = 10800;
@@ -446,7 +446,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
 		let mut missed_tasks = vec![];
-		let weight_left = 500_000_000_000;
+		let weight_left = Weight::from_ref_time(500_000_000_000);
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -466,7 +466,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = 500_000_000_000;
+		let weight_left = Weight::from_ref_time(500_000_000_000);
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time = 10800;
@@ -490,7 +490,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
 		let mut task_ids = vec![];
-		let weight_left = 500_000_000_000;
+		let weight_left = Weight::from_ref_time(500_000_000_000);
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -507,7 +507,7 @@ benchmarks! {
 	*/
 
 	update_task_queue_overhead {
-		let weight_left = 500_000_000_000;
+		let weight_left = Weight::from_ref_time(500_000_000_000);
 	}: { AutomationTime::<T>::update_task_queue(weight_left) }
 
 	append_to_missed_tasks {
@@ -515,7 +515,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = 500_000_000_000;
+		let weight_left = Weight::from_ref_time(500_000_000_000);
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let last_time_slot: u64 = 3600;
 		let time = last_time_slot;
