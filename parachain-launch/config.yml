@@ -2,7 +2,7 @@
 # Relaychain Configuration
 # `parachain-launch  generate --config=parachain-launch/config.yml --output=parachain-launch`
 relaychain:
-  image: parity/polkadot:v0.9.26 # the docker image to use
+  image: parity/polkadot:v0.9.29 # the docker image to use
   chain: rococo-local # the chain to use
   runtimeGenesisConfig: # additonal genesis override
     configuration:
