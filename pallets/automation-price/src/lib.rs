@@ -154,7 +154,7 @@ pub mod pallet {
 
 		/// The maximum weight per block.
 		#[pallet::constant]
-		type MaxBlockWeight: Get<Weight>;
+		type MaxBlockWeight: Get<u64>;
 
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
@@ -305,11 +305,12 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
-				return T::DbWeight::get().reads(1 as Weight)
+				return T::DbWeight::get().reads(1u64)
 			}
 
-			let max_weight: Weight =
-				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
+			let max_weight: Weight = Weight::from_ref_time(
+				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+			);
 			Self::trigger_tasks(max_weight)
 		}
 	}
@@ -523,7 +524,7 @@ pub mod pallet {
 		/// Complete as many tasks as possible given the maximum weight.
 		pub fn trigger_tasks(max_weight: Weight) -> Weight {
 			let mut weight_left: Weight = max_weight;
-			let check_time_and_deletion_weight = T::DbWeight::get().reads(2 as Weight);
+			let check_time_and_deletion_weight = T::DbWeight::get().reads(2u64);
 			if weight_left < check_time_and_deletion_weight {
 				return weight_left
 			}
@@ -563,9 +564,9 @@ pub mod pallet {
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
 			weight_left = weight_left
-				.saturating_sub(T::DbWeight::get().reads(1 as Weight))
+				.saturating_sub(T::DbWeight::get().reads(1u64))
 				// For measuring the TaskQueue::<T>::put(tasks_left);
-				.saturating_sub(T::DbWeight::get().writes(1 as Weight));
+				.saturating_sub(T::DbWeight::get().writes(1u64));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				weight_left = new_weight_left;
@@ -704,16 +705,16 @@ pub mod pallet {
 						};
 						Tasks::<T>::remove(task_id);
 						task_action_weight
-							.saturating_add(T::DbWeight::get().writes(1 as Weight))
-							.saturating_add(T::DbWeight::get().reads(1 as Weight))
+							.saturating_add(T::DbWeight::get().writes(1u64))
+							.saturating_add(T::DbWeight::get().reads(1u64))
 					},
 				};
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
 				let run_another_task_weight = <T as Config>::WeightInfo::emit_event()
-					.saturating_add(T::DbWeight::get().writes(1 as Weight))
-					.saturating_add(T::DbWeight::get().reads(1 as Weight));
+					.saturating_add(T::DbWeight::get().writes(1u64))
+					.saturating_add(T::DbWeight::get().reads(1u64));
 				if weight_left < run_another_task_weight {
 					break
 				}
