@@ -118,12 +118,12 @@ cumulus-relay-chain-inprocess-interface = { git = "https://github.com/paritytech
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
 
 # Polkadot dependencies
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.26" }
+polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
 
 # Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.29" }
