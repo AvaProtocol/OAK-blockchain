@@ -1,5 +1,5 @@
-<a href="https://github.com/w3f/Open-Grants-Program/pull/268"><img src="https://user-images.githubusercontent.com/1693789/156277834-ed433b60-9e82-4267-8b4f-e30438dbec54.png" alt="oak-web3-open-grant" /></a>
-OAK(Onchain Autonomous Framework) is a unique blockchain built on Substrate framework with event-driven smart contract VM, autonomous transactions, and on-chain scheduler.
+<div><a href="https://github.com/w3f/Open-Grants-Program/pull/268"><img src="https://user-images.githubusercontent.com/1693789/156277834-ed433b60-9e82-4267-8b4f-e30438dbec54.png" alt="oak-web3-open-grant" style="width:40%" /></a></div>
+OAK(Onchain Autonomous Framework) is a unique blockchain built on Substrate framework with event-driven execution model, autonomous transactions, and on-chain scheduling.
 
 Documentation
 ----------
@@ -23,16 +23,14 @@ Introduction
 Based on the above, OAK has some features.
 - **OAK Virtual Machine**
 - **Autonomous Transactions**
-- **On-chain Relayer**
+- **On-chain Scheduler**
 - **Collator Staking**
 
 Live Networks
 ============
-
-- `neumann`: testnet parachain (January 2022)
 - `turing-staging`: rococo parachain (May 2022)
 - `turing`: kusama parachain (April 2022)
-- `oak`: polkadot parachain (coming soon)
+- `oak`: polkadot parachain (Q1 2023)
 
 Install OAK Blockchain 
 =============
@@ -50,6 +48,10 @@ Ensure you have Rust and the support software (see shell.nix for the latest func
 
     rustup update nightly
     rustup target add wasm32-unknown-unknown --toolchain nightly
+
+    # Make sure the rustup default is compatible with your machine, for example, if you are building using Apple M1 ARM you need to run
+    rustup install stable-aarch64-apple-darwin
+    rustup default stable-aarch64-apple-darwin
 
 You will also need to install the following dependencies:
 
@@ -80,30 +82,39 @@ Note: local PARA_ID is defaulted to 2000
 
 ### Launch the Relay Chain
 
+Please check out paritytech/polkadot’s [Build from Source](https://github.com/paritytech/polkadot/releases/) for full instructions, but first find the latest stable tag on [Polkadot Releases](https://github.com/paritytech/polkadot/releases/), for example, using `v0.9.31` as the `<latest_stable_tag>` below.
+
 ```bash
 # Compile Polkadot with the real overseer feature
 git clone https://github.com/paritytech/polkadot
+git checkout tags/<latest_stable_tag>
 cargo build --release
-
-# Alice
-./target/release/polkadot \
---alice \
---validator \
---tmp \
---chain ../OAK-blockchain/resources/rococo-local.json \
---port 30333 \
---ws-port 9944
-
-# Bob (In a separate terminal)
-./target/release/polkadot \
---bob \
---validator \
---tmp \
---chain ../OAK-blockchain/resources/rococo-local.json \
---port 30334 \
---ws-port 9945
 ```
 
+Once the build succeeds, open up two terminal windows to run two nodes separately.
+
+1. Run node Alice in the first terminal window
+    ```bash
+    ./target/release/polkadot \
+    --alice \
+    --validator \
+    --tmp \
+    --chain ../OAK-blockchain/resources/rococo-local.json \
+    --port 30333 \
+    --ws-port 9944
+    ```
+1. Run node Bob in the second terminal window
+    ```bash
+    # Bob (In a separate terminal)
+    ./target/release/polkadot \
+    --bob \
+    --validator \
+    --tmp \
+    --chain ../OAK-blockchain/resources/rococo-local.json \
+    --port 30334 \
+    --ws-port 9945
+    ```
+At this point, your local relay chain network should be running. Next, we will connect Turing node to the relay chain network as a parachain.
 ### Reserve the Parachain slot
 
 1. Navigate to [Local relay parachain screen](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads)
@@ -114,19 +125,27 @@ cargo build --release
     - `reserved deposit`: <whatever the default is>
 
 
-### Prep the Parachain
+### Compile and run our parachain
+First, make sure your `rustup default` output is compatible with your machine, and compile the code into a build.
 
 ```bash
-# Compile
 git clone https://github.com/OAK-Foundation/OAK-blockchain
 cargo build --release --features neumann-node
+```
+> Alternatively, to make local testing easy use a `dev-queue` flag, which will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`. For example, `cargo build --release --features neumann-node --features dev-queue`
 
-# Export genesis state
+
+Second, prepare two files, genesis-state and genesis-wasm, for parachain registration.
+```bash
+# Generate a genesis state file
 ./target/release/oak-collator export-genesis-state > genesis-state
 
-# Export genesis wasm
+# Generate a genesis wasm file
 ./target/release/oak-collator export-genesis-wasm > genesis-wasm
+```
 
+Third, start up the build.
+```bash
 # Collator1
 ./target/release/oak-collator \
 --alice \
@@ -142,42 +161,31 @@ cargo build --release --features neumann-node
 --ws-port 9977 
 ```
 
-To make testing locally easier use the command below.  The `dev-queue` flag will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
-```
-cargo build --release --features neumann-node --features dev-queue
-```
-
 ### Register the parachain
 
 1. Navigate to [Local relay sudo extrinsic](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/sudo)
-2. Register your local parachain with the local relay chain (see the image below for the extrinsic). 
-Note** the files mentioned are the ones you generated above.
-
-![image](https://user-images.githubusercontent.com/2915325/99548884-1be13580-2987-11eb-9a8b-20be658d34f9.png)
+2. Register your local parachain on the local relay chain by calling `parasSudoWrapper.sudoScheduleParaInitialize` (see the screenshot below). 
+3. Parameters:
+    1. id: 2000 (this is paraId of the parachain)
+    2. genesisHead: the above generated `genesis-state` file.
+    3. validationCode, the `genesis-wasm` file.
+    4. parachain: Yes.
+![image](./media/readme-parachain-registration.png)
+1. Once submitted, you should be able to see the id:2000 from the [Parathread](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads) tab, and after a short period on the [Parachains](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains) tab.![image](./media/readme-parachain-post-registration.png)
+    
 
 
 ### Test the parachain
 
 1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
-2. WAIT.... It takes a while for the registration process to finish. 
 
-Future Work
-------------
-Here are the key milestones.
-
-1. Start the crowdloan with Kusama network
-2. Become a Kusama Parachain (TBA)
-3. Become a Polkadot Parachain. (TBA)
-
-If you have any questions, please ask us on [Discord](https://discord.gg/7W9UDvsbwh)
 
 Contacts
 --------
+Maintainers: [OAK Development Team](https://github.com/orgs/OAK-Foundation/people)
 
-**Maintainers**
-
-* [OAK Development Team](https://github.com/orgs/OAK-Foundation/people)
+If you have any questions, please ask our devs on [Discord](https://discord.gg/7W9UDvsbwh)
 
 * * *
 
-OAK blockchain is licensed under the GPLv3.0 by OAK Foundation.
+OAK blockchain is licensed under the GPLv3.0 by the OAK Network team.
