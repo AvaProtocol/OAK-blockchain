@@ -4,6 +4,7 @@ use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use sp_core::{crypto::UncheckedInto, sr25519};
+use sp_runtime::{Perbill, Percent};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
@@ -375,7 +376,10 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(oak_runtime::DefaultBlocksPerRound::get(), 0),
+			inflation_config: inflation_config(1800, 5),
+			blocks_per_round: 1800,
+			collator_commission: Perbill::from_percent(20),
+			parachain_bond_reserve_percent: Percent::from_percent(30),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.

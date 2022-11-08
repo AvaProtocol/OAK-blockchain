@@ -1,6 +1,7 @@
 use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 use sp_core::sr25519;
+use sp_runtime::{Perbill, Percent};
 
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
@@ -150,7 +151,10 @@ fn testnet_genesis(
 				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
-			inflation_config: inflation_config(turing_runtime::DefaultBlocksPerRound::get(), 5),
+			inflation_config: inflation_config(600, 5),
+			blocks_per_round: 600,
+			collator_commission: Perbill::from_percent(20),
+			parachain_bond_reserve_percent: Percent::from_percent(30),
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
