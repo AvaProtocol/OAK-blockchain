@@ -20,13 +20,11 @@ use crate as pallet_vesting;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, GenesisBuild},
-	weights::Weight,
 };
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
 };
 
 pub type AccountId = u64;
