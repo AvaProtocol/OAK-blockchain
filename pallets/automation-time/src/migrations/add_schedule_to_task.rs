@@ -56,7 +56,7 @@ pub enum OldAction<T: Config> {
 		para_id: ParaId,
 		currency_id: T::CurrencyId,
 		encoded_call: Vec<u8>,
-		encoded_call_weight: Weight,
+		encoded_call_weight: u64,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: T::AccountId,

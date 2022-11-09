@@ -80,64 +80,64 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:1)
 	fn close_valve() -> Weight {
-		(17_690_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_690_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:1)
 	fn open_valve() -> Weight {
-		(17_999_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_999_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	fn close_pallet_gate_new() -> Weight {
-		(23_010_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(23_010_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	fn close_pallet_gate_existing() -> Weight {
-		(11_142_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(11_142_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	fn open_pallet_gate() -> Weight {
-		(23_062_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(23_062_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	// Storage: Valve ClosedPallets (r:0 w:5)
 	fn open_pallet_gates() -> Weight {
-		(23_877_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(6 as Weight))
+		Weight::from_ref_time(23_877_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(6 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: AutomationTime Shutdown (r:1 w:1)
 	fn stop_scheduled_tasks() -> Weight {
-		(17_241_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_241_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: AutomationTime Shutdown (r:1 w:1)
 	fn start_scheduled_tasks() -> Weight {
-		(17_663_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_663_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 }
 
@@ -146,63 +146,63 @@ impl WeightInfo for () {
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:1)
 	fn close_valve() -> Weight {
-		(17_690_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_690_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:1)
 	fn open_valve() -> Weight {
-		(17_999_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_999_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	fn close_pallet_gate_new() -> Weight {
-		(23_010_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(23_010_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	fn close_pallet_gate_existing() -> Weight {
-		(11_142_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(11_142_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:1)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	fn open_pallet_gate() -> Weight {
-		(23_062_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(23_062_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: Valve ClosedPalletCount (r:1 w:1)
 	// Storage: Valve ClosedPallets (r:0 w:5)
 	fn open_pallet_gates() -> Weight {
-		(23_877_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(6 as Weight))
+		Weight::from_ref_time(23_877_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(6 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: AutomationTime Shutdown (r:1 w:1)
 	fn stop_scheduled_tasks() -> Weight {
-		(17_241_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_241_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: TechnicalMembership Members (r:1 w:0)
 	// Storage: AutomationTime Shutdown (r:1 w:1)
 	fn start_scheduled_tasks() -> Weight {
-		(17_663_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(17_663_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 }

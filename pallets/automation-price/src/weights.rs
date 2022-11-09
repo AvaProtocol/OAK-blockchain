@@ -33,50 +33,50 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
 	fn emit_event() -> Weight {
-		(20_000_000 as Weight)
+		Weight::from_ref_time(20_000_000 as u64)
 	}
 	fn run_native_transfer_task() -> Weight {
-		(230_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(230_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	fn reset_asset(v: u32, ) -> Weight {
-		(200_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-			.saturating_add((20_000_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads((4 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((5 as Weight).saturating_mul(v as Weight)))
+		Weight::from_ref_time(200_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(Weight::from_ref_time(20_000_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads((4 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(v as u64)))
 	}
 	fn update_asset_reset() -> Weight{
-		(200_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(200_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	fn delete_asset_tasks() -> Weight{
-		(200_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(200_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	fn delete_asset_extrinsic() -> Weight{
-		(220_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(7 as Weight))
+		Weight::from_ref_time(220_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(7 as u64))
 	}
 	fn asset_price_update_extrinsic() -> Weight{
-		(220_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-			.saturating_add(RocksDbWeight::get().reads(21 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(21 as Weight))
+		Weight::from_ref_time(220_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads(21 as u64))
+			.saturating_add(RocksDbWeight::get().writes(21 as u64))
 	}
 	fn add_asset_extrinsic() -> Weight{
-		(220_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(5 as Weight))
+		Weight::from_ref_time(220_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight{
-		(200_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(6 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(200_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(6 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 }

@@ -20,7 +20,6 @@ use core::cell::RefCell;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, GenesisBuild},
-	weights::Weight,
 };
 use frame_system as system;
 use pallet_xcm::XcmPassthrough;
@@ -179,7 +178,7 @@ impl SendXcm for TestSendXcm {
 
 // XCMP Mocks
 parameter_types! {
-	pub const UnitWeightCost: Weight = 10;
+	pub const UnitWeightCost: u64 = 10;
 	pub const MaxInstructions: u32 = 100;
 }
 pub struct DummyWeightTrader;
@@ -188,7 +187,7 @@ impl WeightTrader for DummyWeightTrader {
 		DummyWeightTrader
 	}
 
-	fn buy_weight(&mut self, _weight: Weight, _payment: Assets) -> Result<Assets, XcmError> {
+	fn buy_weight(&mut self, _weight: u64, _payment: Assets) -> Result<Assets, XcmError> {
 		Ok(Assets::default())
 	}
 }

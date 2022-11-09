@@ -118,9 +118,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_notify_task_empty() -> Weight {
-		(58_311_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(58_311_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -128,13 +128,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_notify_task_full(v: u32, ) -> Weight {
-		(74_430_000 as Weight)
+		Weight::from_ref_time(74_430_000 as u64)
 			// Standard Error: 40_000
-			.saturating_add((34_085_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(34_085_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
@@ -144,22 +144,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_xcmp_task_full(v: u32, ) -> Weight {
-		(111_741_000 as Weight)
+		Weight::from_ref_time(111_741_000 as u64)
 			// Standard Error: 32_000
-			.saturating_add((32_935_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(7 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(32_935_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(7 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_native_transfer_task_empty() -> Weight {
-		(58_346_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(58_346_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -167,22 +167,22 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		(81_795_000 as Weight)
+		Weight::from_ref_time(81_795_000 as u64)
 			// Standard Error: 45_000
-			.saturating_add((33_404_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(33_404_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
-		(89_414_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(5 as Weight))
-			.saturating_add(T::DbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(89_414_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(5 as u64))
+			.saturating_add(T::DbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -190,13 +190,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_dynamic_dispatch_task(v: u32, ) -> Weight {
-		(45_793_000 as Weight)
+		Weight::from_ref_time(45_793_000 as u64)
 			// Standard Error: 15_000
-			.saturating_add((3_890_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(3_890_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -204,49 +204,49 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_dynamic_dispatch_task_full(v: u32, ) -> Weight {
-		(52_072_000 as Weight)
+		Weight::from_ref_time(52_072_000 as u64)
 			// Standard Error: 130_000
-			.saturating_add((33_164_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(33_164_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:24 w:24)
 	fn cancel_scheduled_task_full() -> Weight {
-		(807_870_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(27 as Weight))
-			.saturating_add(T::DbWeight::get().writes(25 as Weight))
+		Weight::from_ref_time(807_870_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(27 as u64))
+			.saturating_add(T::DbWeight::get().writes(25 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn force_cancel_scheduled_task() -> Weight {
-		(28_072_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(4 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(28_072_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(4 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:24 w:24)
 	fn force_cancel_scheduled_task_full() -> Weight {
-		(809_933_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(27 as Weight))
-			.saturating_add(T::DbWeight::get().writes(25 as Weight))
+		Weight::from_ref_time(809_933_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(27 as u64))
+			.saturating_add(T::DbWeight::get().writes(25 as u64))
 	}
 	fn run_notify_task() -> Weight {
-		(8_851_000 as Weight)
+		Weight::from_ref_time(8_851_000 as u64)
 	}
 	// Storage: System Account (r:2 w:2)
 	fn run_native_transfer_task() -> Weight {
-		(33_995_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(33_995_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
 	}
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
@@ -256,9 +256,9 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(102_000_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(8 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(102_000_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(8 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
@@ -271,94 +271,94 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: ParachainStaking Total (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		(105_359_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(11 as Weight))
-			.saturating_add(T::DbWeight::get().writes(9 as Weight))
+		Weight::from_ref_time(105_359_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(11 as u64))
+			.saturating_add(T::DbWeight::get().writes(9 as u64))
 	}
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:0)
 	fn run_dynamic_dispatch_action() -> Weight {
-		(17_152_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(2 as Weight))
+		Weight::from_ref_time(17_152_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(2 as u64))
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
-		(8_984_000 as Weight)
+		Weight::from_ref_time(8_984_000 as u64)
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
-		(191_000 as Weight)
+		Weight::from_ref_time(191_000 as u64)
 			// Standard Error: 64_000
-			.saturating_add((14_895_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(14_895_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:0)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
-		(189_000 as Weight)
+		Weight::from_ref_time(189_000 as u64)
 			// Standard Error: 29_000
-			.saturating_add((11_304_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(11_304_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_tasks_many_found(v: u32, ) -> Weight {
-		(247_000 as Weight)
+		Weight::from_ref_time(247_000 as u64)
 			// Standard Error: 30_000
-			.saturating_add((39_253_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(39_253_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads((3 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes((3 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:0)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_tasks_many_missing(v: u32, ) -> Weight {
-		(184_000 as Weight)
+		Weight::from_ref_time(184_000 as u64)
 			// Standard Error: 32_000
-			.saturating_add((11_425_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(11_425_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	fn update_task_queue_overhead() -> Weight {
-		(1_974_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
+		Weight::from_ref_time(1_974_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
 	}
 	// Storage: AutomationTime MissedQueueV2 (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[0, 2]`.
 	fn append_to_missed_tasks(v: u32, ) -> Weight {
-		(1_919_000 as Weight)
+		Weight::from_ref_time(1_919_000 as u64)
 			// Standard Error: 238_000
-			.saturating_add((2_500_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(2_500_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime TaskQueueV2 (r:1 w:1)
 	// Storage: AutomationTime MissedQueueV2 (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn update_scheduled_task_queue() -> Weight {
-		(45_209_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(45_209_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn shift_missed_tasks() -> Weight {
-		(29_532_000 as Weight)
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(29_532_000 as u64)
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
 	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
-		(0 as Weight)
+		Weight::from_ref_time(0 as u64)
 			// Standard Error: 10_000
-			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(1 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(8_680_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(1 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 }
 
@@ -369,9 +369,9 @@ impl WeightInfo for () {
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_notify_task_empty() -> Weight {
-		(58_311_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(58_311_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -379,13 +379,13 @@ impl WeightInfo for () {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_notify_task_full(v: u32, ) -> Weight {
-		(74_430_000 as Weight)
+		Weight::from_ref_time(74_430_000 as u64)
 			// Standard Error: 40_000
-			.saturating_add((34_085_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(34_085_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
@@ -395,22 +395,22 @@ impl WeightInfo for () {
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_xcmp_task_full(v: u32, ) -> Weight {
-		(111_741_000 as Weight)
+		Weight::from_ref_time(111_741_000 as u64)
 			// Standard Error: 32_000
-			.saturating_add((32_935_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(7 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(32_935_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(7 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_native_transfer_task_empty() -> Weight {
-		(58_346_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(58_346_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -418,22 +418,22 @@ impl WeightInfo for () {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		(81_795_000 as Weight)
+		Weight::from_ref_time(81_795_000 as u64)
 			// Standard Error: 45_000
-			.saturating_add((33_404_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(33_404_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
-		(89_414_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(5 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(4 as Weight))
+		Weight::from_ref_time(89_414_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(5 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -441,13 +441,13 @@ impl WeightInfo for () {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_dynamic_dispatch_task(v: u32, ) -> Weight {
-		(45_793_000 as Weight)
+		Weight::from_ref_time(45_793_000 as u64)
 			// Standard Error: 15_000
-			.saturating_add((3_890_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(3_890_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: System Account (r:2 w:2)
@@ -455,49 +455,49 @@ impl WeightInfo for () {
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[1, 24]`.
 	fn schedule_dynamic_dispatch_task_full(v: u32, ) -> Weight {
-		(52_072_000 as Weight)
+		Weight::from_ref_time(52_072_000 as u64)
 			// Standard Error: 130_000
-			.saturating_add((33_164_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(33_164_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:24 w:24)
 	fn cancel_scheduled_task_full() -> Weight {
-		(807_870_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(27 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(25 as Weight))
+		Weight::from_ref_time(807_870_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(27 as u64))
+			.saturating_add(RocksDbWeight::get().writes(25 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn force_cancel_scheduled_task() -> Weight {
-		(28_072_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(4 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(28_072_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(4 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: Timestamp Now (r:1 w:0)
 	// Storage: AutomationTime LastTimeSlot (r:1 w:0)
 	// Storage: AutomationTime ScheduledTasksV3 (r:24 w:24)
 	fn force_cancel_scheduled_task_full() -> Weight {
-		(809_933_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(27 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(25 as Weight))
+		Weight::from_ref_time(809_933_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(27 as u64))
+			.saturating_add(RocksDbWeight::get().writes(25 as u64))
 	}
 	fn run_notify_task() -> Weight {
-		(8_851_000 as Weight)
+		Weight::from_ref_time(8_851_000 as u64)
 	}
 	// Storage: System Account (r:2 w:2)
 	fn run_native_transfer_task() -> Weight {
-		(33_995_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
+		Weight::from_ref_time(33_995_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
 	}
 	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:0)
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
@@ -507,9 +507,9 @@ impl WeightInfo for () {
 	// Storage: ParachainSystem HostConfiguration (r:1 w:0)
 	// Storage: ParachainSystem PendingUpwardMessages (r:1 w:1)
 	fn run_xcmp_task() -> Weight {
-		(102_000_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(8 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(102_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(8 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: System Account (r:2 w:2)
 	// Storage: ParachainStaking DelegatorState (r:1 w:1)
@@ -522,93 +522,93 @@ impl WeightInfo for () {
 	// Storage: ParachainStaking Total (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		(105_359_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(11 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(9 as Weight))
+		Weight::from_ref_time(105_359_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(11 as u64))
+			.saturating_add(RocksDbWeight::get().writes(9 as u64))
 	}
 	// Storage: Valve ValveClosed (r:1 w:0)
 	// Storage: Valve ClosedPallets (r:1 w:0)
 	fn run_dynamic_dispatch_action() -> Weight {
-		(17_152_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(2 as Weight))
+		Weight::from_ref_time(17_152_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(2 as u64))
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
-		(8_984_000 as Weight)
+		Weight::from_ref_time(8_984_000 as u64)
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_missed_tasks_many_found(v: u32, ) -> Weight {
-		(191_000 as Weight)
+		Weight::from_ref_time(191_000 as u64)
 			// Standard Error: 64_000
-			.saturating_add((14_895_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(14_895_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:0)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_missed_tasks_many_missing(v: u32, ) -> Weight {
-		(189_000 as Weight)
+		Weight::from_ref_time(189_000 as u64)
 			// Standard Error: 29_000
-			.saturating_add((11_304_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(11_304_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:1)
 	// Storage: System Account (r:2 w:2)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_tasks_many_found(v: u32, ) -> Weight {
-		(247_000 as Weight)
+		Weight::from_ref_time(247_000 as u64)
 			// Standard Error: 30_000
-			.saturating_add((39_253_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads((3 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((3 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(39_253_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads((3 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes((3 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime AccountTasks (r:1 w:0)
 	/// The range of component `v` is `[0, 1]`.
 	fn run_tasks_many_missing(v: u32, ) -> Weight {
-		(184_000 as Weight)
+		Weight::from_ref_time(184_000 as u64)
 			// Standard Error: 32_000
-			.saturating_add((11_425_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(11_425_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
 	fn update_task_queue_overhead() -> Weight {
-		(1_974_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
+		Weight::from_ref_time(1_974_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 	}
 	// Storage: AutomationTime MissedQueueV2 (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	/// The range of component `v` is `[0, 2]`.
 	fn append_to_missed_tasks(v: u32, ) -> Weight {
-		(1_919_000 as Weight)
+		Weight::from_ref_time(1_919_000 as u64)
 			// Standard Error: 238_000
-			.saturating_add((2_500_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(2_500_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: AutomationTime TaskQueueV2 (r:1 w:1)
 	// Storage: AutomationTime MissedQueueV2 (r:1 w:1)
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn update_scheduled_task_queue() -> Weight {
-		(45_209_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(3 as Weight))
+		Weight::from_ref_time(45_209_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
 	fn shift_missed_tasks() -> Weight {
-		(29_532_000 as Weight)
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().writes(1 as Weight))
+		Weight::from_ref_time(29_532_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
 	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
-		(0 as Weight)
+		Weight::from_ref_time(0 as u64)
 			// Standard Error: 10_000
-			.saturating_add((8_680_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(1 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(8_680_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(1 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 }

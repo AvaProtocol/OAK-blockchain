@@ -69,13 +69,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: Vesting TotalUnvestedAllocation (r:1 w:1)
 	/// The range of component `v` is `[0, 20]`.
 	fn vest(v: u32, ) -> Weight {
-		(14_789_000 as Weight)
+		Weight::from_ref_time(14_789_000 as u64)
 			// Standard Error: 28_000
-			.saturating_add((20_657_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(T::DbWeight::get().reads(3 as Weight))
-			.saturating_add(T::DbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(T::DbWeight::get().writes(2 as Weight))
-			.saturating_add(T::DbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(20_657_000 as u64).saturating_mul(v as u64))
+			.saturating_add(T::DbWeight::get().reads(3 as u64))
+			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(T::DbWeight::get().writes(2 as u64))
+			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 }
 
@@ -87,12 +87,12 @@ impl WeightInfo for () {
 	// Storage: Vesting TotalUnvestedAllocation (r:1 w:1)
 	/// The range of component `v` is `[0, 20]`.
 	fn vest(v: u32, ) -> Weight {
-		(14_789_000 as Weight)
+		Weight::from_ref_time(14_789_000 as u64)
 			// Standard Error: 28_000
-			.saturating_add((20_657_000 as Weight).saturating_mul(v as Weight))
-			.saturating_add(RocksDbWeight::get().reads(3 as Weight))
-			.saturating_add(RocksDbWeight::get().reads((1 as Weight).saturating_mul(v as Weight)))
-			.saturating_add(RocksDbWeight::get().writes(2 as Weight))
-			.saturating_add(RocksDbWeight::get().writes((1 as Weight).saturating_mul(v as Weight)))
+			.saturating_add(Weight::from_ref_time(20_657_000 as u64).saturating_mul(v as u64))
+			.saturating_add(RocksDbWeight::get().reads(3 as u64))
+			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
+			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 }

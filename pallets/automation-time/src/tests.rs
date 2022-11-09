@@ -21,7 +21,7 @@ use crate::{
 };
 use codec::Encode;
 use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize};
+use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
 use sp_runtime::{
@@ -605,7 +605,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 		}
 
-		AutomationTime::trigger_tasks(200_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
 		assert_eq!(events(), [Event::AutomationTime(crate::Event::Notify { message: vec![50] }),]);
 		match AutomationTime::get_account_task(owner.clone(), task_id1) {
 			None => {
@@ -877,7 +877,7 @@ mod run_dynamic_dispatch_action {
 #[test]
 fn trigger_tasks_handles_first_run() {
 	new_test_ext(0).execute_with(|| {
-		AutomationTime::trigger_tasks(30_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(30_000));
 
 		assert_eq!(events(), vec![],);
 	})
@@ -888,7 +888,7 @@ fn trigger_tasks_nothing_to_do() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(30_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(30_000));
 
 		assert_eq!(events(), vec![],);
 	})
@@ -914,7 +914,7 @@ fn trigger_tasks_updates_queues() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(50_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(50_000));
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue()[0], missed_task);
@@ -946,7 +946,7 @@ fn trigger_tasks_handles_missed_slots() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(90_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(90_000));
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 2);
 		assert_eq!(AutomationTime::get_missed_queue()[1], missed_task);
@@ -982,7 +982,7 @@ fn trigger_tasks_limits_missed_slots() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(200_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
 
 		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
 			AutomationTime::get_last_slot()
@@ -1058,7 +1058,7 @@ fn trigger_tasks_completes_all_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		assert_eq!(
 			events(),
@@ -1084,7 +1084,7 @@ fn trigger_tasks_handles_nonexisting_tasks() {
 		TaskQueueV2::<Test>::put(task_queue);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(90_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(90_000));
 
 		assert_eq!(
 			events(),
@@ -1116,7 +1116,7 @@ fn trigger_tasks_completes_some_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(80_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(80_000));
 
 		assert_eq!(
 			events(),
@@ -1146,7 +1146,7 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(130_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
 
 		assert_eq!(
 			events(),
@@ -1205,7 +1205,7 @@ fn missed_tasks_updates_executions_left() {
 		}
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
-		AutomationTime::trigger_tasks(130_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
 
 		assert_eq!(
 			events(),
@@ -1272,7 +1272,7 @@ fn missed_tasks_removes_completed_tasks() {
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
-		AutomationTime::trigger_tasks(130_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
 
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -1322,7 +1322,7 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		assert_eq!(
 			Balances::free_balance(AccountId32::new(ALICE)),
@@ -1351,7 +1351,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		assert_eq!(
 			events(),
@@ -1385,7 +1385,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		let new_balance = Balances::free_balance(AccountId32::new(ALICE));
 		assert!(new_balance < before_balance);
@@ -1400,7 +1400,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 			})
 			.expect("AutoCompound success event should have been emitted");
 		let execution_weight = MockWeight::<Test>::run_auto_compound_delegated_stake_task();
-		let fee = ExecutionWeightFee::get().saturating_mul(execution_weight.into());
+		let fee = ExecutionWeightFee::get().saturating_mul(execution_weight.ref_time().into());
 		assert_eq!(
 			delegation_event,
 			Event::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
@@ -1435,7 +1435,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		events()
 			.into_iter()
@@ -1459,7 +1459,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
 		get_funds(AccountId32::new(ALICE));
 		System::reset_events();
-		AutomationTime::trigger_tasks(100_000_000_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(100_000_000_000));
 
 		events()
 			.into_iter()
@@ -1494,7 +1494,7 @@ fn auto_compound_delegated_stake_without_minimum_balance() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		let new_balance = Balances::free_balance(AccountId32::new(ALICE));
 		assert_eq!(new_balance, balance);
@@ -1533,7 +1533,7 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		events()
 			.into_iter()
@@ -1577,7 +1577,7 @@ fn trigger_tasks_updates_executions_left() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		assert_eq!(
 			events(),
@@ -1618,7 +1618,7 @@ fn trigger_tasks_removes_completed_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(120_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		assert_eq!(
 			events(),

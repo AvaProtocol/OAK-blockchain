@@ -453,6 +453,9 @@ impl orml_tokens::Config for Runtime {
 	type DustRemovalWhitelist = DustRemovalWhitelist;
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
+	type OnSlash = ();
+	type OnDeposit = ();
+	type OnTransfer = ();
 }
 
 parameter_types! {
@@ -507,8 +510,8 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
-	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT / 4;
+	pub const ReservedXcmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
+	pub const ReservedDmpWeight: Weight = MAXIMUM_BLOCK_WEIGHT.saturating_div(4);
 }
 
 impl cumulus_pallet_parachain_system::Config for Runtime {
@@ -551,12 +554,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	/// Default fixed percent a collator takes off the top of due rewards
-	pub const DefaultCollatorCommission: Perbill = Perbill::from_percent(20);
-	/// Default percent of inflation set aside for parachain bond every round
-	pub const DefaultParachainBondReservePercent: Percent = Percent::from_percent(30);
-	/// Blocks per round
-	pub const DefaultBlocksPerRound: u32 = 2 * HOURS;
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
@@ -568,7 +565,6 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
 	/// Minimum round length is 2 minutes (10 * 12 second block times)
 	type MinBlocksPerRound = ConstU32<10>;
-	type DefaultBlocksPerRound = DefaultBlocksPerRound;
 	/// Rounds before the collator leaving the candidates request can be executed
 	type LeaveCandidatesDelay = ConstU32<24>;
 	/// Rounds before the candidate bond increase/decrease can be executed
@@ -589,8 +585,6 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<100>;
-	type DefaultCollatorCommission = DefaultCollatorCommission;
-	type DefaultParachainBondReservePercent = DefaultParachainBondReservePercent;
 	type MinCollatorStk = MinCollatorStk;
 	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
@@ -845,7 +839,7 @@ impl pallet_democracy::Config for Runtime {
 
 parameter_types! {
 	pub const MaxScheduleSeconds: u64 = 6 * 30 * 24 * 60 * 60;
-	pub const MaxBlockWeight: Weight = MAXIMUM_BLOCK_WEIGHT;
+	pub const MaxBlockWeight: u64 = MAXIMUM_BLOCK_WEIGHT.ref_time();
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
@@ -1228,8 +1222,18 @@ impl_runtime_apis! {
 			(weight, RuntimeBlockWeights::get().max_block)
 		}
 
-		fn execute_block_no_check(block: Block) -> Weight {
-			Executive::execute_block_no_check(block)
+		fn execute_block(
+			block: Block,
+			state_root_check: bool,
+			select: frame_try_runtime::TryStateSelect
+		) -> Weight {
+			log::info!(
+				"try-runtime: executing block {:?} / root checks: {:?} / try-state-select: {:?}",
+				block.header.hash(),
+				state_root_check,
+				select,
+			);
+			Executive::try_execute_block(block, state_root_check, select).expect("execute-block failed")
 		}
 	}
 

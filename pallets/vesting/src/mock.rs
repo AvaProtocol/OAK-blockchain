@@ -20,13 +20,11 @@ use crate as pallet_vesting;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, GenesisBuild},
-	weights::Weight,
 };
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
-	Perbill,
 };
 
 pub type AccountId = u64;
@@ -54,9 +52,6 @@ construct_runtime!(
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
-	pub const MaximumBlockWeight: Weight = 1024;
-	pub const MaximumBlockLength: u32 = 2 * 1024;
-	pub const AvailableBlockRatio: Perbill = Perbill::one();
 	pub const SS58Prefix: u8 = 51;
 }
 impl frame_system::Config for Test {

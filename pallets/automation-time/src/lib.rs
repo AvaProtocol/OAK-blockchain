@@ -110,7 +110,7 @@ pub mod pallet {
 
 		/// The maximum weight per block.
 		#[pallet::constant]
-		type MaxBlockWeight: Get<Weight>;
+		type MaxBlockWeight: Get<u64>;
 
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
@@ -322,11 +322,12 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
-				return T::DbWeight::get().reads(1 as Weight)
+				return T::DbWeight::get().reads(1u64)
 			}
 
-			let max_weight: Weight =
-				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get());
+			let max_weight: Weight = Weight::from_ref_time(
+				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+			);
 			Self::trigger_tasks(max_weight)
 		}
 	}
@@ -453,7 +454,7 @@ pub mod pallet {
 			para_id: ParaId,
 			currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: Weight,
+			encoded_call_weight: u64,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
@@ -644,43 +645,42 @@ pub mod pallet {
 
 			// The last_missed_slot might not be caught up within just 1 block.
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
-			let max_update_weight: Weight = T::UpdateQueueRatio::get().mul_floor(weight_left);
+			let max_update_weight: Weight =
+				Weight::from_ref_time(T::UpdateQueueRatio::get().mul_floor(weight_left.ref_time()));
 			let update_weight = Self::update_task_queue(max_update_weight);
 
 			weight_left = weight_left.saturating_sub(update_weight);
 
 			// need to calculate the weight of running just 1 task below.
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
-				.saturating_add(T::DbWeight::get().reads(1 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight));
+				.saturating_add(T::DbWeight::get().reads(1u64))
+				.saturating_add(T::DbWeight::get().writes(1u64));
 			if weight_left < run_task_weight {
 				return weight_left
 			}
 
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
-			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
+			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
 			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueueV2::<T>::put(tasks_left);
-				weight_left =
-					new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
+				weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1u64));
 			}
 
 			// if there is weight left we need to handled the missed tasks
 			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
-				.saturating_add(T::DbWeight::get().reads(1 as Weight))
-				.saturating_add(T::DbWeight::get().writes(1 as Weight));
+				.saturating_add(T::DbWeight::get().reads(1u64))
+				.saturating_add(T::DbWeight::get().writes(1u64));
 			if weight_left >= run_missed_task_weight {
 				let missed_queue = Self::get_missed_queue();
-				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1 as Weight));
+				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
 				if missed_queue.len() > 0 {
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
 					MissedQueueV2::<T>::put(tasks_left);
-					weight_left =
-						new_weight_left.saturating_sub(T::DbWeight::get().writes(1 as Weight));
+					weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1u64));
 				}
 			}
 
@@ -705,8 +705,8 @@ pub mod pallet {
 
 			if let Some((last_time_slot, last_missed_slot)) = Self::get_last_slot() {
 				let missed_queue_allotted_weight = allotted_weight
-					.saturating_sub(T::DbWeight::get().reads(1 as Weight))
-					.saturating_sub(T::DbWeight::get().writes(1 as Weight))
+					.saturating_sub(T::DbWeight::get().reads(1u64))
+					.saturating_sub(T::DbWeight::get().writes(1u64))
 					.saturating_sub(<T as Config>::WeightInfo::update_scheduled_task_queue());
 				let (updated_last_time_slot, scheduled_queue_update_weight) =
 					Self::update_scheduled_task_queue(current_time_slot, last_time_slot);
@@ -720,12 +720,12 @@ pub mod pallet {
 				total_weight = total_weight
 					.saturating_add(missed_queue_update_weight)
 					.saturating_add(scheduled_queue_update_weight)
-					.saturating_add(T::DbWeight::get().reads(1 as Weight));
+					.saturating_add(T::DbWeight::get().reads(1u64));
 			} else {
 				LastTimeSlot::<T>::put((current_time_slot, current_time_slot));
 				total_weight = total_weight
-					.saturating_add(T::DbWeight::get().writes(1 as Weight))
-					.saturating_add(T::DbWeight::get().reads(1 as Weight));
+					.saturating_add(T::DbWeight::get().writes(1u64))
+					.saturating_add(T::DbWeight::get().reads(1u64));
 			}
 
 			total_weight
@@ -738,7 +738,7 @@ pub mod pallet {
 		pub fn update_scheduled_task_queue(
 			current_time_slot: u64,
 			last_time_slot: u64,
-		) -> (Weight, u64) {
+		) -> (u64, Weight) {
 			if current_time_slot != last_time_slot {
 				let missed_tasks = Self::get_task_queue();
 				let mut missed_queue = Self::get_missed_queue();
@@ -768,7 +768,7 @@ pub mod pallet {
 			current_time_slot: u64,
 			last_missed_slot: u64,
 			allotted_weight: Weight,
-		) -> (Weight, u64) {
+		) -> (u64, Weight) {
 			if current_time_slot != last_missed_slot {
 				// will need to move missed time slots into missed queue
 				let (append_weight, missed_slots_moved) = Self::append_to_missed_tasks(
@@ -782,7 +782,7 @@ pub mod pallet {
 				let used_weight = append_weight;
 				(last_missed_slot_tracker, used_weight)
 			} else {
-				(last_missed_slot, 0)
+				(last_missed_slot, Weight::zero())
 			}
 		}
 
@@ -899,8 +899,8 @@ pub mod pallet {
 						};
 						Self::handle_task_post_processing(*task_id, task, dispatch_error);
 						task_action_weight
-							.saturating_add(T::DbWeight::get().writes(1 as Weight))
-							.saturating_add(T::DbWeight::get().reads(1 as Weight))
+							.saturating_add(T::DbWeight::get().writes(1u64))
+							.saturating_add(T::DbWeight::get().reads(1u64))
 					},
 				};
 
@@ -998,7 +998,7 @@ pub mod pallet {
 			caller: T::AccountId,
 			currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: Weight,
+			encoded_call_weight: u64,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
 			match T::XcmpTransactor::transact_xcm(
