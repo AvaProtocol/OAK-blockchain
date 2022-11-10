@@ -6,42 +6,42 @@ timeout = 1000
 default_command = "../polkadot/target/release/polkadot"
 chain = "rococo-local"
 
-  [[relaychain.nodes]]
-  name = "alice"
+[[relaychain.nodes]]
+name = "alice"
 
-  [[relaychain.nodes]]
-  name = "bob"
+[[relaychain.nodes]]
+name = "bob"
 
 [[parachains]]
 id = 2114
 cumulus_based = true
-chain = "dev"
+chain = "neumann-local"
 
-  [parachains.collator]
-  name = "collator2114"
-  command = "./target/release/oak-collator"
-  ws_port = 9946
-  rpc_port = 8855
+[parachains.collator]
+name = "collator2114"
+command = "./target/release/oak-collator"
+ws_port = 9946
+rpc_port = 8855
 
 [[parachains]]
 id = 1999
 cumulus_based = true
 chain = "local"
 
-  [parachains.collator]
-  name = "collator1999"
-  command = "../substrate-parachain-template/target/release/parachain-template-node"
-  ws_port = 9947
-  rpc_port = 8866
+[parachains.collator]
+name = "collator1999"
+command = "../substrate-parachain-template/target/release/parachain-template-node"
+ws_port = 9947
+rpc_port = 8866
 
-[[hrmpChannels]]
+[[hrmp_channels]]
 sender = 2114
 recipient = 1999
-maxCapacity = 8
-maxMessageSize = 512
+max_capacity = 8
+max_message_size = 512
 
-[[hrmpChannels]]
+[[hrmp_channels]]
 sender = 1999
 recipient = 2114
-maxCapacity = 8
-maxMessageSize = 512
+max_capacity = 8
+max_message_size = 512
