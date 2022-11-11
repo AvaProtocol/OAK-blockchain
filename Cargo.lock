@@ -4904,6 +4904,7 @@ dependencies = [
  "log",
  "neumann-runtime",
  "oak-runtime",
+ "orml-asset-registry",
  "pallet-automation-time-rpc",
  "pallet-parachain-staking",
  "pallet-transaction-payment-rpc",
