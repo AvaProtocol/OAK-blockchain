@@ -37,7 +37,7 @@ Install OAK Blockchain
 
 * OAK releases [releases](https://github.com/OAK-Foundation/OAK-blockchain/releases).
 
-Building from source
+Build from source
 --------------------
 
 Ensure you have Rust and the support software (see shell.nix for the latest functional toolchain):
@@ -69,25 +69,42 @@ Install the OAK node from git source:
 
 Build your executable:
 ```bash
-    cargo build --release --features neumann-node
-    # OR
-    cargo build --release --features turing-node
+    cargo build --release --features turing-node --features dev-queue
 ```
 
-Run your Local Network
+Quickstart: run Local Network with Zombienet
 -----------
+We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Substate Parachain Template node in [zombienets/turing](https://github.com/OAK-Foundation/OAK-blockchain/tree/master/zombienets/turing), so the easiest way to spin up a local network is through below steps.
 
+1. Clone and build source of [Zombienet]
+   1. Find the latest stable tag from [Releases](https://github.com/paritytech/zombienet/releases), for example, `v1.3.17`
+   2. `git clone https://github.com/paritytech/zombienet.git`
+   3. `cd zombienet && git fetch --all --tags`
+   4. `git checkout tags/v1.3.17`
+   5. `cd javascript`
+   6. Make sure your node version is compatible with that in [javascript/package.json](https://github.com/paritytech/zombienet/blob/main/javascript/package.json), for example `"node": ">=16"`.
+   7. `npm install`
+   8. `npm run build`
+2. After a successful build, you should be able to test run `npm run zombie`.
+3. Create an alias to the zombie program(on MacOS). Since the actual command of `npm run zombie` is `node ./packages/cli/dist/cli.js`, we can add an alias to it by editing the `~/.bash_profile` file. Simply, run `vim ~/.bash_profile` add one line `alias zombie="node <your_absolute_path>/zombienet/javascript/packages/cli/dist/cli.js"` to it.
+4. Run `source ~/.bash_profile`. This will reload your command-line.
+5. Cd into OAK-blockchain folder, `cd ../../OAK-blockchain`.
+6. Spawn Turing config, `zombie spawn zombienets/turing/xcmp.toml`.
+
+The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Substate Parachain Template node, and set up an HRMP channel between the parachains.
+
+Run Local Network from source
+-----------
 Launch a local setup including a Relay Chain and a Parachain.
 Note: local PARA_ID is defaulted to 2000
 
 ### Launch the Relay Chain
 
-Please check out paritytech/polkadot’s [Build from Source](https://github.com/paritytech/polkadot/releases/) for full instructions, but first find the latest stable tag on [Polkadot Releases](https://github.com/paritytech/polkadot/releases/), for example, using `v0.9.31` as the `<latest_stable_tag>` below.
+First, find out a compatible version of the relay chain’s code from `polkadot-parachain` reference in [runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example, `branch "release-v0.9.29" on "https://github.com/paritytech/polkadot"`. That is the code of the relay chain to run, and then build the source with the below commands.
 
 ```bash
 # Compile Polkadot with the real overseer feature
-git clone https://github.com/paritytech/polkadot
-git checkout tags/<latest_stable_tag>
+git clone --branch release-v0.9.29 https://github.com/paritytech/polkadot
 cargo build --release
 ```
 
@@ -130,9 +147,9 @@ First, make sure your `rustup default` output is compatible with your machine, a
 
 ```bash
 git clone https://github.com/OAK-Foundation/OAK-blockchain
-cargo build --release --features neumann-node
+cargo build --release --features turing-node --features dev-queue
 ```
-> Alternatively, to make local testing easy use a `dev-queue` flag, which will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`. For example, `cargo build --release --features neumann-node --features dev-queue`
+> Alternatively, to make local testing easy use a `dev-queue` flag, which will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
 
 
 Second, prepare two files, genesis-state and genesis-wasm, for parachain registration.
@@ -178,7 +195,6 @@ Third, start up the build.
 ### Test the parachain
 
 1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
-
 
 Contacts
 --------
