@@ -187,8 +187,8 @@ After this command you should be able to see the stream output of the node.
 1. Once submitted, you should be able to see the id:2114 from the [Parathread](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads) tab, and after a short period on the [Parachains](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains) tab.![image](./media/readme-parachain-post-registration.png)
 2. Once Turing is onboarded as a parachain, you should see block number increases on [Turing explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer).
 
-### 3. Launch Turing Network as a parachain
-This step is optional as you can spin up another Turing Network as the second parachain, but for testing XCM functionality we use another parachain, Mangata, as an example here.
+### 3. Launch Mangata as a parachain
+This step is optional as you can spin up another project or Turing Network as the second parachain, but for testing XCM functionality we use another parachain, Mangata, as an example here.
 First, compile the code from Mangata’s repo with `mangata-rococo` feature for a parachain.
 
 ```
