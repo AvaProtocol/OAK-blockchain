@@ -7,11 +7,16 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
 	Extensions,
 };
+use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
-use primitives::{AccountId, AuraId, Balance, TokenId};
+use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig, VestingConfig,
-	XcmpHandlerConfig,
+	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
+	VestingConfig, XcmpHandlerConfig,
+};
+use xcm::{
+	opaque::latest::{Junctions::Here, MultiLocation},
+	VersionedMultiLocation::V1,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -174,7 +179,25 @@ fn testnet_genesis(
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
-		asset_registry: Default::default(),
+		asset_registry: AssetRegistryConfig {
+			assets: vec![(
+				0,
+				orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+					&orml_asset_registry::AssetMetadata {
+						decimals: TOKEN_DECIMALS,
+						name: "Native".as_bytes().to_vec(),
+						symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+						existential_deposit: 100_000_000,
+						location: Some(V1(MultiLocation { parents: 0, interior: Here })),
+						additional: CustomMetadata {
+							fee_per_second: Some(416_000_000_000),
+							conversion_rate: None,
+						},
+					},
+				),
+			)],
+			last_asset_id: 0,
+		},
 	}
 }
 
