@@ -189,12 +189,11 @@ After this command you should be able to see the stream output of the node.
 
 ### 3. Launch Turing Network as a parachain
 This step is optional as you can spin up another Turing Network as the second parachain, but for testing XCM functionality we use another parachain, Mangata, as an example here.
-First, compile the code from Mangata’s repo. Currently due to a bug we need to call cargo build twice, with the second including `--features mangata-rococo`.
+First, compile the code from Mangata’s repo with `mangata-rococo` feature for a parachain.
 
 ```
 git clone --branch feature/compound https://github.com/mangata-finance/mangata-node.git
 cd mangata-node
-cargo build --release 
 cargo build --release --features mangata-rococo
 ```
 
