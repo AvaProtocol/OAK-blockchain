@@ -69,7 +69,7 @@ Install the OAK node from git source:
 
 Build your executable:
 ```bash
-    cargo build --release --features turing-node --features dev-queue
+cargo build --release --features turing-node
 ```
 
 Quickstart: run Local Network with Zombienet
@@ -95,16 +95,22 @@ The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Substate Para
 
 Run Local Network from source
 -----------
-Launch a local setup including a Relay Chain and a Parachain.
-Note: local PARA_ID is defaulted to 2000
+In this section we will go through the steps for launching a local network including a Rococo relay chain, a Turing Network parachain and a Mangata parachain.
 
-### Launch the Relay Chain
+Before compiling anything, make sure your `rustup default` output is compatible with your machine, for example, if you are building using Apple M1 ARM you need to run,
+```
+rustup install stable-aarch64-apple-darwin
+rustup default stable-aarch64-apple-darwin
+```
 
-First, find out a compatible version of the relay chain’s code from `polkadot-parachain` reference in [runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example, `branch "release-v0.9.29" on "https://github.com/paritytech/polkadot"`. That is the code of the relay chain to run, and then build the source with the below commands.
+### 1. Launch a Rococo relay chain
+
+First, find out a compatible version of the relay chain’s code from `polkadot-parachain` reference in [./runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example, `branch "release-v0.9.29" on "https://github.com/paritytech/polkadot"`. That is the version of relay chain to run, so let’s build its source with the below commands.
 
 ```bash
 # Compile Polkadot with the real overseer feature
 git clone --branch release-v0.9.29 https://github.com/paritytech/polkadot
+cd polkadot
 cargo build --release
 ```
 
@@ -131,70 +137,96 @@ Once the build succeeds, open up two terminal windows to run two nodes separatel
     --port 30334 \
     --ws-port 9945
     ```
-At this point, your local relay chain network should be running. Next, we will connect Turing node to the relay chain network as a parachain.
-### Reserve the Parachain slot
+At this point, your local relay chain network should be running. Next, we will launch a Turing Network node and connect it to the relay chain as a parachain.
 
-1. Navigate to [Local relay parachain screen](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads)
-2. Click `+ ParaId`
-3. Reserve `paraid` with the following paramaters
-    - `reserve from`: `Alice`
-    - `parachain id`: 2000
-    - `reserved deposit`: <whatever the default is>
-
-
-### Compile and run our parachain
-First, make sure your `rustup default` output is compatible with your machine, and compile the code into a build.
+### 2. Launch Turing Network as a parachain
+First, compile the code from this repo.
 
 ```bash
 git clone https://github.com/OAK-Foundation/OAK-blockchain
+cd OAK-blockchain
 cargo build --release --features turing-node --features dev-queue
 ```
-> Alternatively, to make local testing easy use a `dev-queue` flag, which will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
-
+> In order to make local testing easy, use a `dev-queue` flag which will allow for putting a task directly on the task queue as opposed to waiting until the next hour to schedule a task.  This works when the `execution_times` passed to schedule a task equals `[0]`.
 
 Second, prepare two files, genesis-state and genesis-wasm, for parachain registration.
 ```bash
 # Generate a genesis state file
-./target/release/oak-collator export-genesis-state > genesis-state
+./target/release/oak-collator export-genesis-state --chain=turing-dev > genesis-state
 
 # Generate a genesis wasm file
-./target/release/oak-collator export-genesis-wasm > genesis-wasm
+./target/release/oak-collator export-genesis-wasm --chain=turing-dev > genesis-wasm
 ```
 
 Third, start up the build.
 ```bash
-# Collator1
 ./target/release/oak-collator \
 --alice \
 --collator \
 --force-authoring \
 --tmp \
+--chain=turing-dev \
 --port 40333 \
 --ws-port 9946 \
 -- \
 --execution wasm \
---chain resources/rococo-local.json \
+--chain ./resources/rococo-local.json \
 --port 30335 \
 --ws-port 9977 
 ```
-
-### Register the parachain
-
+After this command you should be able to see the stream output of the node.
+#### Register Turing on Rococo
 1. Navigate to [Local relay sudo extrinsic](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/sudo)
 2. Register your local parachain on the local relay chain by calling `parasSudoWrapper.sudoScheduleParaInitialize` (see the screenshot below). 
 3. Parameters:
-    1. id: 2000 (this is paraId of the parachain)
-    2. genesisHead: the above generated `genesis-state` file.
-    3. validationCode, the `genesis-wasm` file.
+    1. id: **2114**
+    2. genesisHead: switch on "File upload" and drag in the above generated `genesis-state` file.
+    3. validationCode: switch on "File upload" and drag in the `genesis-wasm` file.
     4. parachain: Yes.
 ![image](./media/readme-parachain-registration.png)
-1. Once submitted, you should be able to see the id:2000 from the [Parathread](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads) tab, and after a short period on the [Parachains](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains) tab.![image](./media/readme-parachain-post-registration.png)
-    
+1. Once submitted, you should be able to see the id:2114 from the [Parathread](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains/parathreads) tab, and after a short period on the [Parachains](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/parachains) tab.![image](./media/readme-parachain-post-registration.png)
+2. Once Turing is onboarded as a parachain, you should see block number increases on [Turing explorer](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer).
 
+### 3. Launch Turing Network as a parachain
+This step is optional as you can spin up another Turing Network as the second parachain, but for testing XCM functionality we use another parachain, Mangata, as an example here.
+First, compile the code from Mangata’s repo. Currently due to a bug we need to call cargo build twice, with the second including `--features mangata-rococo`.
 
-### Test the parachain
+```
+git clone --branch feature/compound https://github.com/mangata-finance/mangata-node.git
+cd mangata-node
+cargo build --release 
+cargo build --release --features mangata-rococo
+```
 
-1. Navigate to [Local parachain](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9946#/explorer)
+Second, prepare two files, genesis-state and genesis-wasm, for parachain registration.
+```bash
+# Generate a genesis state file
+./target/release/mangata-node export-genesis-state  --chain=mangata-rococo-local-testnet > genesis-state
+
+# Generate a genesis wasm file
+./target/release/mangata-node export-genesis-wasm  --chain=mangata-rococo-local-testnet > genesis-wasm
+```
+
+Lastly, start up the build.
+```
+./target/release/mangata-node --alice --collator --force-authoring --tmp --chain=mangata-rococo-local-testnet --port 50333 --ws-port 9947 -- --execution wasm  --chain ../OAK-blockchain/resources/rococo-local.json --port 30336 --ws-port 9978
+```
+
+> Note that,
+> - `–chain=mangata-rococo-local-testnet` is necessary for the chain config.
+> - The relay chain config is the same as that of Turing, as in from the file `../OAK-blockchain/resources/rococo-local.json`
+> - Port numbers need to be different from those of Turing, otherwise there will be port collision
+
+Up to this point the mangata node is up and running. We will repeat the parachain onboarding process to connect it to Rococo.
+#### Register Mangata on Rococo
+1. Navigate to [Local relay sudo extrinsic](https://polkadot.js.org/apps/?rpc=ws%3A%2F%2F127.0.0.1%3A9944#/sudo)
+2. Register Mangata on the local Rococo by calling `parasSudoWrapper.sudoScheduleParaInitialize`. 
+3. Parameters:
+    1. id: **2110**
+    2. genesisHead: switch on "File upload" and drag in the above generated `genesis-state` file.
+    3. validationCode: switch on "File upload" and drag in the `genesis-wasm` file.
+    4. parachain: Yes.
+
 
 Contacts
 --------
