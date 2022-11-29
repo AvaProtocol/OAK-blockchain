@@ -24,24 +24,24 @@ ws_port = 9946
 rpc_port = 8855
 
 [[parachains]]
-id = 1999
+id = 2110
 cumulus_based = true
-chain = "local"
+chain = "mangata-rococo-local-testnet"
 
 [parachains.collator]
-name = "template-col-1"
-command = "../substrate-parachain-template/target/release/parachain-template-node"
+name = "mangata-col-1"
+command = "../mangata-node/target/release/mangata-node"
 ws_port = 9947
 rpc_port = 8866
 
 [[hrmp_channels]]
 sender = 2114
-recipient = 1999
+recipient = 2110
 max_capacity = 8
 max_message_size = 512
 
 [[hrmp_channels]]
-sender = 1999
+sender = 2110
 recipient = 2114
 max_capacity = 8
 max_message_size = 512

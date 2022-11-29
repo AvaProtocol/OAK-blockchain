@@ -105,7 +105,7 @@ pub fn development_config() -> ChainSpec {
 		None,
 		None,
 		None,
-		None,
+		Some(properties),
 		Extensions {
 			relay_chain: RELAY_CHAIN.into(), // You MUST set this to the correct network!
 			para_id: DEFAULT_PARA_ID,
