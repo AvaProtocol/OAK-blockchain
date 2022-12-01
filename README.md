@@ -19,8 +19,8 @@ Benefits of OAK technology,
 ## Community
 * General discussion: [Telegram](https://t.me/OAK_Announcements)
 * Technical discussion: [Discord](https://discord.gg/7W9UDvsbwh)
-* Subscribe on [OAK Twitter](https://twitter.com/oak_network)
-* Subscribe on [Founder's Twitter](https://twitter.com/chrisli2046)
+* Follow us on [Twitter](https://twitter.com/oak_network)
+* Subscribe to [Medium Newsletter](https://medium.com/oak-blockchain)
 
 # Run the blockchain
 Binaries of Turing Network can be found on [Releases](https://github.com/OAK-Foundation/OAK-blockchain/releases) page of this repo.
