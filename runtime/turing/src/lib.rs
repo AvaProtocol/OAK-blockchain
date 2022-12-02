@@ -134,7 +134,10 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
-	pallet_automation_time::migrations::add_schedule_to_task::AddScheduleToTask<Runtime>,
+	(
+        pallet_automation_time::migrations::add_schedule_to_task::AddScheduleToTask<Runtime>,
+	    pallet_xcmp_handler::migrations::add_mgx_tur_chain_currency_combo::AddMgxTurChainCurrencyCombo<Runtime>
+    ),
 >;
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
