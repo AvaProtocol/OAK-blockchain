@@ -87,7 +87,13 @@ pub fn turing_development_config() -> ChainSpec {
 				],
 				vec![
 					(1999, turing_runtime::NATIVE_TOKEN_ID, false, 419_000_000_000, 1_000_000_000),
-					(2110, turing_runtime::NATIVE_TOKEN_ID, false, 419_000_000_000, 1_000_000_000),
+					(
+						2110,
+						turing_runtime::NATIVE_TOKEN_ID,
+						false,
+						5_376_000_000_000,
+						1_000_000_000,
+					),
 				],
 			)
 		},
