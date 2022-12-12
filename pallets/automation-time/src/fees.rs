@@ -43,8 +43,8 @@ pub trait HandleFees<T: Config> {
 
 pub struct FeeHandler<T: Config, OU> {
 	owner: T::AccountId,
-	execution_fee: BalanceOf<T>,
-	xcmp_fee: Option<BalanceOf<T>>,
+	pub execution_fee: BalanceOf<T>,
+	pub xcmp_fee: BalanceOf<T>,
 	_phantom_data: PhantomData<OU>,
 }
 
@@ -59,7 +59,10 @@ where
 		executions: u32,
 		prereq: F,
 	) -> Result<R, DispatchError> {
-		let fee_handler = Self::build_checked_handler(owner, action, executions)?;
+		let fee_handler = Self::new(owner, action, executions)?;
+		// Note: will need to account for fees in non-native tokens once we start accepting them
+		Self::can_pay_fee(owner, fee_handler.execution_fee.saturating_add(fee_handler.xcmp_fee))
+			.map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
 		Ok(outcome)
@@ -71,7 +74,7 @@ where
 	T: Config,
 	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
 {
-	// Ensure the fee can be paid.
+	/// Ensure the fee can be paid.
 	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
 		if fee.is_zero() {
 			return Ok(())
@@ -102,8 +105,8 @@ where
 		}
 	}
 
-	/// Builds a validated instance of the struct
-	fn build_checked_handler(
+	/// Builds an instance of the struct
+	pub fn new(
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
 		executions: u32,
@@ -111,7 +114,7 @@ where
 		let execution_fee = Pallet::<T>::calculate_execution_fee(action, executions)?;
 
 		let xcmp_fee = match *action {
-			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } => Some(
+			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
 					currency_id,
@@ -119,13 +122,8 @@ where
 				)?
 				.saturating_mul(executions.into())
 				.saturated_into(),
-			),
-			_ => None,
+			_ => 0u32.saturated_into(),
 		};
-
-		// Note: will need to account for fees in non-native tokens once we start accepting them
-		Self::can_pay_fee(owner, execution_fee.saturating_add(xcmp_fee.unwrap_or(0u32.into())))
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
 
 		Ok(Self {
 			owner: owner.clone(),
@@ -135,14 +133,14 @@ where
 		})
 	}
 
-	/// Executes the fee handler. Should never fail when running on a validated instance.
+	/// Executes the fee handler
 	fn pay_fees(self) -> DispatchResult {
 		// This should never error if can_pay_fee passed.
 		Self::withdraw_fee(&self.owner, self.execution_fee)
 			.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-		if let Some(xcmp_fee) = self.xcmp_fee {
-			T::XcmpTransactor::pay_xcm_fee(self.owner, xcmp_fee.saturated_into())?;
+		if self.xcmp_fee > BalanceOf::<T>::zero() {
+			T::XcmpTransactor::pay_xcm_fee(self.owner, self.xcmp_fee.saturated_into())?;
 		}
 
 		Ok(())
