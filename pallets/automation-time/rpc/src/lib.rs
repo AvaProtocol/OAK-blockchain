@@ -26,6 +26,7 @@ use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_core::Bytes;
+use sp_rpc::number::NumberOrHex;
 use sp_runtime::{
 	generic::BlockId,
 	traits::{Block as BlockT, MaybeDisplay},
@@ -49,7 +50,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 		&self,
 		encoded_xt: Bytes,
 		at: Option<BlockHash>,
-	) -> RpcResult<FeeDetails<u64>>;
+	) -> RpcResult<FeeDetails<NumberOrHex>>;
 
 	#[method(name = "automationTime_getTimeAutomationFees")]
 	fn get_time_automation_fees(
@@ -107,7 +108,8 @@ impl<C, Block, AccountId, Hash, Balance>
 	for AutomationTime<C, Block>
 where
 	Block: BlockT,
-	Balance: Codec + MaybeDisplay + Copy + TryInto<u64> + Send + Sync + 'static,
+	Balance:
+		Codec + MaybeDisplay + Copy + TryInto<NumberOrHex> + TryInto<u64> + Send + Sync + 'static,
 	C: Send + Sync + 'static + ProvideRuntimeApi<Block> + HeaderBackend<Block>,
 	C::Api: AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
 	AccountId: Codec,
@@ -137,7 +139,7 @@ where
 		&self,
 		encoded_xt: Bytes,
 		at: Option<Block::Hash>,
-	) -> RpcResult<FeeDetails<u64>> {
+	) -> RpcResult<FeeDetails<NumberOrHex>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -169,7 +171,7 @@ where
 			value.try_into().map_err(|_| {
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
-					format!("{} doesn't fit in u64 representation", value),
+					format!("{} doesn't fit in NumberOrHex representation", value),
 					None::<()>,
 				)))
 			})
