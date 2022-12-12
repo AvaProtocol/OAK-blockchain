@@ -23,7 +23,9 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
-use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult};
+use pallet_automation_time_rpc_runtime_api::{
+	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
+};
 use primitives::{assets::CustomMetadata, TokenId};
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
@@ -1099,6 +1101,38 @@ impl_runtime_apis! {
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
 			AutomationTime::generate_task_id(account_id, provided_id)
 		}
+
+		fn query_fee_details(
+			uxt: <Block as BlockT>::Extrinsic,
+		) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
+			use pallet_automation_time::Action;
+
+			let (action, executions) = match uxt.function {
+				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+					para_id, currency_id, encoded_call, encoded_call_weight, schedule, ..
+				}) => {
+					let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+					Ok((action, schedule.number_of_executions()))
+				},
+				Call::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
+					call, schedule, ..
+				}) => {
+					let action = Action::DynamicDispatch { encoded_call: call.encode() };
+					Ok((action, schedule.number_of_executions()))
+				},
+				_ => Err("Unsupported Extrinsic".as_bytes())
+			}?;
+
+			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
+				.map_err(|_| "Unable to parse fee".as_bytes())?;
+
+			Ok(AutomationFeeDetails {
+				execution_fee: fee_handler.execution_fee.into(),
+				xcmp_fee: fee_handler.xcmp_fee.into()
+			})
+		}
+
 		/**
 		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
 		 * This function requires the action type and the number of executions in order to generate an estimate.

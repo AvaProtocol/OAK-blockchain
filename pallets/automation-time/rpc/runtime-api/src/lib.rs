@@ -41,6 +41,14 @@ pub enum AutomationAction {
 	AutoCompoundDelegatedStake,
 }
 
+#[derive(Debug, PartialEq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+pub struct FeeDetails<Balance> {
+	pub execution_fee: Balance,
+	pub xcmp_fee: Balance,
+}
+
 sp_api::decl_runtime_apis! {
 	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
 		AccountId: Codec,
@@ -48,6 +56,7 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
+		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
 		fn get_time_automation_fees(action: AutomationAction, executions: u32) -> Balance;
 		fn calculate_optimal_autostaking(
 			principal: i128,
