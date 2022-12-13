@@ -12,7 +12,7 @@ use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig,
+	VestingConfig, XcmpHandlerConfig, Parachain, X1,
 };
 use xcm::{
 	opaque::latest::{Junctions::Here, MultiLocation},
@@ -183,23 +183,43 @@ fn testnet_genesis(
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
 		asset_registry: AssetRegistryConfig {
-			assets: vec![(
-				0,
-				orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-					&orml_asset_registry::AssetMetadata {
-						decimals: TOKEN_DECIMALS,
-						name: "Native".as_bytes().to_vec(),
-						symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
-						existential_deposit: 100_000_000,
-						location: Some(V1(MultiLocation { parents: 0, interior: Here })),
-						additional: CustomMetadata {
-							fee_per_second: Some(416_000_000_000),
-							conversion_rate: None,
+			assets: vec![
+				(
+					0,
+					orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+						&orml_asset_registry::AssetMetadata {
+							decimals: TOKEN_DECIMALS,
+							name: "Native".as_bytes().to_vec(),
+							symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+							existential_deposit: 100_000_000,
+							location: Some(V1(MultiLocation { parents: 0, interior: Here })),
+							additional: CustomMetadata {
+								fee_per_second: Some(416_000_000_000),
+								conversion_rate: None,
+							},
 						},
-					},
+					),
 				),
-			)],
-			last_asset_id: 0,
+				(
+					1,
+					orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+						&orml_asset_registry::AssetMetadata {
+							decimals: 18,
+							name: b"Shibuya".to_vec(),
+							symbol: b"SBY".to_vec(),
+							additional: CustomMetadata {
+								fee_per_second: Some(416_000_000_000),
+								conversion_rate: None,
+							},
+							existential_deposit: Default::default(),
+							location: Some(
+								MultiLocation::new(1, X1(Parachain(2000))).into(),
+							),
+						},
+					),
+				),
+			],
+			last_asset_id: 1,
 		},
 	}
 }
