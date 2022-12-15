@@ -11,8 +11,8 @@ use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig, Parachain, X1,
+	AssetRegistryConfig, CouncilConfig, Parachain, PolkadotXcmConfig, TechnicalMembershipConfig,
+	ValveConfig, VestingConfig, XcmpHandlerConfig, X1,
 };
 use xcm::{
 	opaque::latest::{Junctions::Here, MultiLocation},
@@ -207,14 +207,12 @@ fn testnet_genesis(
 							decimals: 18,
 							name: b"Mangata".to_vec(),
 							symbol: b"MGX".to_vec(),
+							existential_deposit: Default::default(),
+							location: Some(MultiLocation::new(1, X1(Parachain(2110))).into()),
 							additional: CustomMetadata {
 								fee_per_second: Some(416_000_000_000),
 								conversion_rate: None,
 							},
-							existential_deposit: Default::default(),
-							location: Some(
-								MultiLocation::new(1, X1(Parachain(2110))).into(),
-							),
 						},
 					),
 				),
@@ -225,14 +223,12 @@ fn testnet_genesis(
 							decimals: 18,
 							name: b"Rocstar".to_vec(),
 							symbol: b"RSTR".to_vec(),
+							existential_deposit: Default::default(),
+							location: Some(MultiLocation::new(1, X1(Parachain(2006))).into()),
 							additional: CustomMetadata {
 								fee_per_second: Some(416_000_000_000),
 								conversion_rate: None,
 							},
-							existential_deposit: Default::default(),
-							location: Some(
-								MultiLocation::new(1, X1(Parachain(2006))).into(),
-							),
 						},
 					),
 				),
@@ -243,14 +239,12 @@ fn testnet_genesis(
 							decimals: 18,
 							name: b"Shiden".to_vec(),
 							symbol: b"SDN".to_vec(),
+							existential_deposit: Default::default(),
+							location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
 							additional: CustomMetadata {
 								fee_per_second: Some(416_000_000_000),
 								conversion_rate: None,
 							},
-							existential_deposit: Default::default(),
-							location: Some(
-								MultiLocation::new(1, X1(Parachain(2007))).into(),
-							),
 						},
 					),
 				),
