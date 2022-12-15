@@ -205,21 +205,57 @@ fn testnet_genesis(
 					orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
 						&orml_asset_registry::AssetMetadata {
 							decimals: 18,
-							name: b"Shibuya".to_vec(),
-							symbol: b"SBY".to_vec(),
+							name: b"Mangata".to_vec(),
+							symbol: b"MGX".to_vec(),
 							additional: CustomMetadata {
 								fee_per_second: Some(416_000_000_000),
 								conversion_rate: None,
 							},
 							existential_deposit: Default::default(),
 							location: Some(
-								MultiLocation::new(1, X1(Parachain(2000))).into(),
+								MultiLocation::new(1, X1(Parachain(2110))).into(),
+							),
+						},
+					),
+				),
+				(
+					2,
+					orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+						&orml_asset_registry::AssetMetadata {
+							decimals: 18,
+							name: b"Rocstar".to_vec(),
+							symbol: b"RSTR".to_vec(),
+							additional: CustomMetadata {
+								fee_per_second: Some(416_000_000_000),
+								conversion_rate: None,
+							},
+							existential_deposit: Default::default(),
+							location: Some(
+								MultiLocation::new(1, X1(Parachain(2006))).into(),
+							),
+						},
+					),
+				),
+				(
+					3,
+					orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+						&orml_asset_registry::AssetMetadata {
+							decimals: 18,
+							name: b"Shiden".to_vec(),
+							symbol: b"SDN".to_vec(),
+							additional: CustomMetadata {
+								fee_per_second: Some(416_000_000_000),
+								conversion_rate: None,
+							},
+							existential_deposit: Default::default(),
+							location: Some(
+								MultiLocation::new(1, X1(Parachain(2007))).into(),
 							),
 						},
 					),
 				),
 			],
-			last_asset_id: 1,
+			last_asset_id: 3,
 		},
 	}
 }
