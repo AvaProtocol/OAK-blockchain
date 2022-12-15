@@ -18,7 +18,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::Codec;
-use sp_core::Bytes;
 use sp_runtime::AccountId32;
 use sp_std::vec::Vec;
 
@@ -27,6 +26,5 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>>;
-		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>>;
 	}
 }

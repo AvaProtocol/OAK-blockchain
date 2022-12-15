@@ -1091,10 +1091,6 @@ impl_runtime_apis! {
 			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
 				.map_err(|_| "unable to convert account".into())
 		}
-
-		fn fees(_encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
-			Ok(10_000_000 as Balance)
-		}
 	}
 
 	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {

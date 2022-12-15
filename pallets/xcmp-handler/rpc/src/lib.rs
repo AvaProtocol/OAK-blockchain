@@ -24,7 +24,6 @@ use jsonrpsee::{
 pub use pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi as XcmpHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_core::Bytes;
 use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
 
@@ -33,8 +32,6 @@ use std::{fmt::Debug, sync::Arc};
 pub trait XcmpHandlerApi<Block, Balance> {
 	#[method(name = "xcmpHandler_crossChainAccount")]
 	fn cross_chain_account(&self, account: AccountId32) -> RpcResult<AccountId32>;
-	#[method(name = "xcmpHandler_fees")]
-	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64>;
 }
 
 /// An implementation of XCMP-specific RPC methods on full client.
@@ -87,36 +84,5 @@ where
 		runtime_api_result
 			.map_err(|e| mapped_err(format!("{:?}", e)))
 			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
-	}
-
-	fn fees(&self, encoded_xt: Bytes) -> RpcResult<u64> {
-		let api = self.client.runtime_api();
-		let at = BlockId::hash(self.client.info().best_hash);
-
-		api.fees(&at, encoded_xt)
-			.map_err(|e| {
-				// panic errors
-				CallError::Custom(ErrorObject::owned(
-					Error::RuntimeError.into(),
-					"Unable to get fees",
-					Some(e.to_string()),
-				))
-			})?
-			.map_err(|e| {
-				// our named errors
-				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-					Error::RuntimeError.into(),
-					"Unable to get fees",
-					Some(String::from_utf8(e).unwrap_or(String::default())),
-				)))
-			})?
-			.try_into()
-			.map_err(|_| {
-				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-					Error::RuntimeError.into(),
-					"RPC value doesn't fit in u64 representation",
-					Some(format!("RPC value cannot be translated into u64 representation")),
-				)))
-			})
 	}
 }
