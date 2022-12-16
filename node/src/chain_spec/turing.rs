@@ -178,7 +178,7 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
-	additonal_assets: Vec<(u32, Vec<u8>)>,
+	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
 		turing_runtime::MinCollatorStk::get(),
@@ -202,7 +202,7 @@ fn testnet_genesis(
 				},
 			),
 		)],
-		additonal_assets,
+		additional_assets,
 	]
 	.concat();
 
