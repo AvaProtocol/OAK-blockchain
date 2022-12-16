@@ -36,7 +36,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
 };
-pub use xcm::{
+use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
 	v1::Junction::Parachain,
 };
