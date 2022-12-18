@@ -206,12 +206,7 @@ fn testnet_genesis(
 	]
 	.concat();
 
-	let mut last_asset_id = assets[0].0;
-	for asset in &assets {
-		if asset.0 > last_asset_id {
-			last_asset_id = asset.0;
-		}
-	}
+	let last_asset_id = assets.iter().map(|asset| asset.0).max().expect("At least 1 item!");
 
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
