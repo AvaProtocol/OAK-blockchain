@@ -29,12 +29,12 @@ use pallet_automation_time_rpc_runtime_api::{
 };
 use primitives::{assets::CustomMetadata, TokenId};
 use sp_api::impl_runtime_apis;
-use sp_core::{crypto::KeyTypeId, Bytes, OpaqueMetadata};
+use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, DispatchError, ModuleError, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
 };
 use xcm::{
 	latest::{prelude::*, MultiLocation, NetworkId},
@@ -1115,38 +1115,6 @@ impl_runtime_apis! {
 
 			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
 				.map_err(|_| "unable to convert account".into())
-		}
-
-		fn fees(encoded_xt: Bytes) -> Result<Balance, Vec<u8>> {
-			let extrinsic: <Block as BlockT>::Extrinsic = Decode::decode(&mut &*encoded_xt).unwrap();
-			if let Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-				schedule, para_id, currency_id, encoded_call_weight, ..
-			}) = extrinsic.clone().function {
-				let len = encoded_xt.len() as u32;
-
-				let xcm_fee = XcmpHandler::calculate_xcm_fee_and_weight(
-					u32::from(para_id),
-					currency_id,
-					encoded_call_weight,
-				).map_err(|e| {
-					match e {
-						DispatchError::Module(ModuleError{ message: Some(msg), .. }) => msg,
-						_ => "cannot get xcmp fee"
-					}
-				})?.0.saturating_mul(schedule.number_of_executions() as u128);
-				let inclusion_fee = TransactionPayment::query_fee_details(extrinsic, len)
-					.inclusion_fee
-					.ok_or("cannot get inclusion fee")?
-					.base_fee;
-				let execution_fee = AutomationTime::calculate_execution_fee(
-					&(AutomationAction::XCMP.into()),
-					schedule.number_of_executions()
-				).expect("Can only fail for DynamicDispatch and this is always XCMP");
-
-				return Ok(xcm_fee.saturating_add(inclusion_fee).saturating_add(execution_fee))
-			}
-
-			Err("unsupported extrinsic".into())
 		}
 	}
 

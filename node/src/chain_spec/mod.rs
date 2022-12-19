@@ -19,6 +19,7 @@ pub mod oak;
 #[cfg(feature = "turing-node")]
 pub mod turing;
 
+#[allow(dead_code)]
 pub const TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 pub type DummyChainSpec = sc_service::GenericChainSpec<(), Extensions>;
 
@@ -122,6 +123,7 @@ pub mod test {
 	/// Validate that the allocated fits the following criteria:
 	/// - no duplicate accounts
 	/// - total allocated is equal to total_tokens
+	#[allow(dead_code)]
 	pub fn validate_allocation(
 		allocated_accounts: Vec<(AccountId, Balance)>,
 		total_tokens: u128,
@@ -152,6 +154,7 @@ pub mod test {
 
 	/// Validate that the vested fits the following criteria:
 	/// - allocated and vesting tokens add up to equal total number of expected tokens
+	#[allow(dead_code)]
 	pub fn validate_total_tokens(
 		allocated_accounts: Vec<(AccountId, Balance)>,
 		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
@@ -182,6 +185,7 @@ pub mod test {
 	/// - no duplicate accountIds per timestamp
 	/// - total amount vested is correct
 	/// - times are within a given range
+	#[allow(dead_code)]
 	pub fn validate_vesting(
 		vesting_timeslots: Vec<(u64, Vec<(AccountId, Balance)>)>,
 		total_tokens: u128,

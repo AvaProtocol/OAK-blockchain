@@ -388,6 +388,7 @@ pub mod pallet {
 			para_id: ParachainId,
 			target_instructions: xcm::v2::Xcm<()>,
 		) -> Result<(), DispatchError> {
+			#[allow(unused_variables)]
 			let destination_location = Junction::Parachain(para_id.into());
 
 			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
