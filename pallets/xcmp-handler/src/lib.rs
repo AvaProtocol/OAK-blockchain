@@ -44,11 +44,12 @@ pub mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
+use cumulus_primitives_core::ParaId;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use codec::Decode;
-	use cumulus_primitives_core::ParaId;
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
 		weights::constants::WEIGHT_PER_SECOND,
@@ -107,6 +108,9 @@ pub mod pallet {
 
 		/// Utility for determining XCM instruction weights.
 		type Weigher: WeightBounds<<Self as pallet::Config>::Call>;
+
+		/// XCM Flow Selection Matcher
+		type XcmFlowSelector: XcmFlowSelector;
 	}
 
 	#[pallet::pallet]
@@ -568,5 +572,20 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
 
 		Ok(().into())
+	}
+}
+
+pub enum XcmFlow {
+	Normal,
+	Alternate,
+}
+
+pub trait XcmFlowSelector {
+	fn flow_for(para_id: ParaId) -> XcmFlow;
+}
+
+impl XcmFlowSelector for () {
+	fn flow_for(_para_id: ParaId) -> XcmFlow {
+		XcmFlow::Normal
 	}
 }

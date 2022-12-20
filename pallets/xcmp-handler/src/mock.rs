@@ -275,6 +275,7 @@ impl pallet_xcmp_handler::Config for Test {
 	type XcmSender = TestSendXcm;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
+	type XcmFlowSelector = ();
 }
 
 // Build genesis storage according to the mock runtime.
