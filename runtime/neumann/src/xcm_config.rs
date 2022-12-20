@@ -388,6 +388,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type Currency = pallet_balances::Pallet<Runtime>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type CurrencyIdToMultiLocation = TokenIdConvert;
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
