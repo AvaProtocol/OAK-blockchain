@@ -55,4 +55,65 @@ impl OnRuntimeUpgrade for AddShidenAsset {
 		// Storage: AssetRegistry LastAssetId (r:1 w:1)
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(3u64, 3u64)
 	}
+
+	#[cfg(feature = "try-runtime")]
+	fn pre_upgrade() -> Result<(), &'static str> {
+		use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+		log::info!(
+			target: "asset_registry",
+			"pre_upgrade check"
+		);
+
+		let asset_metadata_count =
+			orml_asset_registry::Metadata::<Runtime>::iter().collect::<Vec<_>>().len();
+		Self::set_temp_storage::<u32>(
+			asset_metadata_count.try_into().unwrap(),
+			"pre_asset_metadata_count",
+		);
+
+		let location_to_asset_id_count = orml_asset_registry::LocationToAssetId::<Runtime>::iter()
+			.collect::<Vec<_>>()
+			.len();
+		Self::set_temp_storage::<u32>(
+			location_to_asset_id_count.try_into().unwrap(),
+			"pre_location_to_asset_id_count",
+		);
+
+		let last_asset_id = LastAssetId::<Runtime>::get().unwrap();
+		Self::set_temp_storage::<u32>(last_asset_id, "pre_last_asset_id");
+
+		Ok(())
+	}
+
+	#[cfg(feature = "try-runtime")]
+	fn post_upgrade() -> Result<(), &'static str> {
+		use frame_support::traits::OnRuntimeUpgradeHelpersExt;
+
+		log::info!(
+			target: "asset_registry",
+			"post_upgrade check"
+		);
+
+		let asset_metadata_count =
+			orml_asset_registry::Metadata::<Runtime>::iter().collect::<Vec<_>>().len();
+		let pre_asset_metadata_count =
+			Self::get_temp_storage::<u32>("pre_asset_metadata_count").unwrap();
+		assert_eq!(pre_asset_metadata_count + 1, asset_metadata_count as u32);
+
+		let location_to_asset_id_count = orml_asset_registry::LocationToAssetId::<Runtime>::iter()
+			.collect::<Vec<_>>()
+			.len();
+		let pre_location_to_asset_id_count =
+			Self::get_temp_storage::<u32>("pre_location_to_asset_id_count").unwrap();
+		assert_eq!(pre_location_to_asset_id_count + 1, location_to_asset_id_count as u32);
+
+		let last_asset_id = LastAssetId::<Runtime>::get().unwrap();
+		let pre_last_asset_id = Self::get_temp_storage::<u32>("pre_last_asset_id").unwrap();
+		assert_eq!(pre_last_asset_id + 1, last_asset_id);
+
+		log::info!(target: "asset_registry", "added shiden native token to asset registry; last asset id: {:?}", last_asset_id);
+
+		Ok(())
+	}
 }
