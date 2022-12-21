@@ -138,7 +138,8 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	(
         pallet_automation_time::migrations::add_schedule_to_task::AddScheduleToTask<Runtime>,
-	    pallet_xcmp_handler::migrations::add_mgx_tur_chain_currency_combo::AddMgxTurChainCurrencyCombo<Runtime>
+	    pallet_xcmp_handler::migrations::add_mgx_tur_chain_currency_combo::AddMgxTurChainCurrencyCombo<Runtime>,
+        migrations::register_shiden_asset::AddShidenAsset
     ),
 >;
 
