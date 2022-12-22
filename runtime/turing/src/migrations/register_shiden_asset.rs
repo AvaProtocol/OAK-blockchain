@@ -31,7 +31,7 @@ impl OnRuntimeUpgrade for AddShidenAsset {
 			symbol: b"SDN".to_vec(),
 			additional: CustomMetadata {
 				fee_per_second: Some(416_000_000_000),
-				conversion_rate: Some(ConversionRate { native: 1, foreign: 1 }),
+				conversion_rate: None,
 			},
 			existential_deposit: cent(18),
 			location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
