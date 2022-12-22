@@ -61,19 +61,21 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::GetDispatchInfo,
+	weights::{constants::WEIGHT_PER_SECOND, GetDispatchInfo},
 };
 use frame_system::pallet_prelude::*;
+use orml_traits::FixedConversionRateProvider;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
+use xcm::opaque::latest::MultiLocation;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -141,6 +143,12 @@ pub mod pallet {
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// Converts CurrencyId to Multiloc
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
+
+		/// Converts between comparable currencies
+		type FeeConversionRateProvider: FixedConversionRateProvider;
 
 		/// The currencyId for the native currency.
 		#[pallet::constant]
@@ -1383,9 +1391,22 @@ pub mod pallet {
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
+			let currency_id = action.currency_id::<T>();
+			let fee = if currency_id == T::GetNativeCurrencyId::get() {
+				T::ExecutionWeightFee::get()
+					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
+			} else {
+				let loc =
+					T::CurrencyIdConvert::convert(currency_id).ok_or("CouldNotConvertMultiLoc")?;
+				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
+					.ok_or("CouldNotDetermineFeePerSecond")?
+					.checked_mul(total_weight as u128)
+					.ok_or("FeeOverflow")
+					.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
+				<BalanceOf<T>>::saturated_from(raw_fee)
+			};
 
-			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
+			Ok(fee)
 		}
 	}
 

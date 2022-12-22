@@ -304,6 +304,13 @@ impl Contains<Call> for ScheduleAllowList {
 	}
 }
 
+pub struct MockConversionRateProvider;
+impl FixedConversionRateProvider for MockConversionRateProvider {
+	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
+		None
+	}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -323,6 +330,8 @@ impl pallet_automation_time::Config for Test {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
+	type CurrencyIdConvert = ();
+	type FeeConversionRateProvider = MockConversionRateProvider;
 }
 
 // Build genesis storage according to the mock runtime.

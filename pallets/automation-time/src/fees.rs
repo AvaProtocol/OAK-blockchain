@@ -43,6 +43,7 @@ pub trait HandleFees<T: Config> {
 
 pub struct FeeHandler<T: Config, OU> {
 	owner: T::AccountId,
+	pub currency_id: T::CurrencyId,
 	pub execution_fee: BalanceOf<T>,
 	pub xcmp_fee: BalanceOf<T>,
 	_phantom_data: PhantomData<OU>,
@@ -113,6 +114,7 @@ where
 		executions: u32,
 	) -> Result<Self, DispatchError> {
 		let execution_fee = Pallet::<T>::calculate_execution_fee(action, executions)?;
+		let currency_id = action.currency_id::<T>();
 
 		let xcmp_fee = match *action {
 			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
@@ -128,6 +130,7 @@ where
 
 		Ok(Self {
 			owner: owner.clone(),
+			currency_id,
 			execution_fee,
 			xcmp_fee,
 			_phantom_data: Default::default(),
