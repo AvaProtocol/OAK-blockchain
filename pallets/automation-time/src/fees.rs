@@ -61,8 +61,7 @@ where
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
 		// Note: will need to account for fees in non-native tokens once we start accepting them
-		Self::can_pay_fee(owner, fee_handler.execution_fee.saturating_add(fee_handler.xcmp_fee))
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
+		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
 		Ok(outcome)
@@ -75,15 +74,17 @@ where
 	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
 {
 	/// Ensure the fee can be paid.
-	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+	fn can_pay_fee(&self) -> Result<(), DispatchError> {
+		let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+
 		if fee.is_zero() {
 			return Ok(())
 		}
 
-		let free_balance = T::Currency::free_balance(who);
+		let free_balance = T::Currency::free_balance(&self.owner);
 		let new_amount =
 			free_balance.checked_sub(&fee).ok_or(DispatchError::Token(BelowMinimum))?;
-		T::Currency::ensure_can_withdraw(who, fee, WithdrawReasons::FEE, new_amount)?;
+		T::Currency::ensure_can_withdraw(&self.owner, fee, WithdrawReasons::FEE, new_amount)?;
 
 		Ok(())
 	}
