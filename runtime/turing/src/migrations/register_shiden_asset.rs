@@ -1,7 +1,7 @@
 use crate::*;
 use frame_support::{pallet_prelude::Weight, traits::OnRuntimeUpgrade};
 use orml_asset_registry::AssetMetadata;
-use primitives::assets::{ConversionRate, CustomMetadata};
+use primitives::assets::CustomMetadata;
 
 pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata>;
 
