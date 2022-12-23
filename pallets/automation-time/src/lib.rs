@@ -64,7 +64,7 @@ use frame_support::{
 	weights::{constants::WEIGHT_PER_SECOND, GetDispatchInfo},
 };
 use frame_system::pallet_prelude::*;
-use orml_traits::FixedConversionRateProvider;
+use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
@@ -84,12 +84,17 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type MultiBalanceOf<T> =
+		<<T as Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
 	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
 	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
+	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -132,6 +137,9 @@ pub mod pallet {
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
+		/// The MultiCurrency type for interacting with balances
+		type MultiCurrency: MultiCurrency<Self::AccountId>;
+
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
 			+ Member
@@ -139,7 +147,8 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ Ord
 			+ TypeInfo
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ Into<MultiCurrencyId<Self>>;
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;

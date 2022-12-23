@@ -64,7 +64,7 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 	{
 		match self {
 			Action::XCMP { currency_id, .. } => currency_id.clone(),
-			_ => T::GetNativeCurrencyId::get().into(),
+			_ => CurrencyId::from(T::GetNativeCurrencyId::get()),
 		}
 	}
 }
