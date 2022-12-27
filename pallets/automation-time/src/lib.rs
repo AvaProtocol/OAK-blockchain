@@ -84,8 +84,9 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
-	pub type MultiBalanceOf<T> =
-		<<T as Config>::MultiCurrency as MultiCurrency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type MultiBalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
 	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
