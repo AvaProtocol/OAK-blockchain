@@ -44,11 +44,12 @@ pub mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
+use cumulus_primitives_core::ParaId;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use codec::Decode;
-	use cumulus_primitives_core::ParaId;
 	use frame_support::{
 		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
 		weights::constants::WEIGHT_PER_SECOND,
@@ -93,6 +94,9 @@ pub mod pallet {
 		/// Convert an accountId to a multilocation.
 		type AccountIdToMultiLocation: Convert<Self::AccountId, MultiLocation>;
 
+		/// Convert a CurrencyId to a MultiLocation.
+		type CurrencyIdToMultiLocation: Convert<Self::CurrencyId, Option<MultiLocation>>;
+
 		/// Means of inverting a location.
 		type LocationInverter: InvertLocation;
 
@@ -107,6 +111,9 @@ pub mod pallet {
 
 		/// Utility for determining XCM instruction weights.
 		type Weigher: WeightBounds<<Self as pallet::Config>::Call>;
+
+		/// XCM Flow Selection Matcher
+		type XcmFlowSelector: XcmFlowSelector;
 	}
 
 	#[pallet::pallet]
@@ -151,6 +158,8 @@ pub mod pallet {
 		XcmExecutionFailed,
 		/// Failed to get weight of call.
 		ErrorGettingCallWeight,
+		/// Currency not supported
+		CurrencyNotSupported,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -273,14 +282,25 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = Self::get_local_currency_instructions(
-				para_id,
-				descend_location,
-				transact_encoded_call,
-				transact_encoded_call_weight,
-				weight,
-				fee,
-			)?;
+			let instructions = match T::XcmFlowSelector::flow_for(ParaId::from(para_id)) {
+				XcmFlow::Normal => Self::get_local_currency_instructions(
+					para_id,
+					descend_location,
+					transact_encoded_call,
+					transact_encoded_call_weight,
+					weight,
+					fee,
+				)?,
+				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
+					para_id,
+					currency_id,
+					descend_location,
+					transact_encoded_call,
+					transact_encoded_call_weight,
+					weight,
+					fee,
+				)?,
+			};
 
 			Ok(instructions)
 		}
@@ -353,6 +373,59 @@ pub mod pallet {
 			]);
 
 			Ok((local_xcm, target_xcm))
+		}
+
+		/// Construct the alternate xcm flow instructions
+		///
+		/// There are no local instructions since the user's account is already funded on the target chain
+		///
+		/// Target instructions
+		/// 	- DescendOrigin
+		///     - WithdrawAsset
+		/// 	- BuyExecution
+		/// 	- Transact
+		/// 	- RefundSurplus
+		/// 	- DepositAsset
+		fn get_alternate_flow_instructions(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+			descend_location: Junctions,
+			transact_encoded_call: Vec<u8>,
+			transact_encoded_call_weight: u64,
+			xcm_weight: u64,
+			fee: u128,
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
+			let target_asset_loc = T::CurrencyIdToMultiLocation::convert(currency_id)
+				.ok_or(Error::<T>::CurrencyNotSupported)?;
+			let target_asset =
+				MultiAsset { id: Concrete(target_asset_loc), fun: Fungibility::Fungible(fee) }
+					.reanchored(
+						&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+						&T::LocationInverter::ancestry(),
+					)
+					.map_err(|_| Error::<T>::CannotReanchor)?;
+
+			let target_xcm = Xcm(vec![
+				DescendOrigin::<()>(descend_location.clone()),
+				WithdrawAsset::<()>(target_asset.clone().into()),
+				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(xcm_weight) },
+				Transact::<()> {
+					origin_type: OriginKind::SovereignAccount,
+					require_weight_at_most: transact_encoded_call_weight,
+					call: transact_encoded_call.into(),
+				},
+				RefundSurplus::<()>,
+				DepositAsset::<()> {
+					assets: Wild(All),
+					max_assets: 1,
+					beneficiary: MultiLocation { parents: 1, interior: descend_location },
+				},
+			]);
+
+			Ok((Xcm(vec![]), target_xcm))
 		}
 
 		/// Transact XCM instructions on local chain
@@ -568,5 +641,20 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
 
 		Ok(().into())
+	}
+}
+
+pub enum XcmFlow {
+	Normal,
+	Alternate,
+}
+
+pub trait XcmFlowSelector {
+	fn flow_for(para_id: ParaId) -> XcmFlow;
+}
+
+impl XcmFlowSelector for () {
+	fn flow_for(_para_id: ParaId) -> XcmFlow {
+		XcmFlow::Normal
 	}
 }

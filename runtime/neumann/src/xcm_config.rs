@@ -1,13 +1,13 @@
 use super::{
 	AccountId, Balance, Call, Currencies, Event, Origin, ParachainInfo, ParachainSystem,
-	PolkadotXcm, Runtime, TokenId, TreasuryAccount, UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT,
-	NATIVE_TOKEN_ID,
+	PolkadotXcm, Runtime, TokenId, TreasuryAccount, UnknownTokens, Vec, XcmpQueue,
+	MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
 use core::marker::PhantomData;
 use frame_support::{
-	log, match_types, parameter_types,
-	traits::{Everything, Nothing},
+	ensure, log, match_types, parameter_types,
+	traits::{Contains, Everything, Nothing},
 	weights::Weight,
 };
 use frame_system::EnsureRoot;
@@ -166,11 +166,52 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 	}
 }
 
+/// Allows execution from `origin` if it is contained in `T` (i.e. `T::Contains(origin)`) taking
+/// payments into account.
+///
+/// Only allows for sequence `DescendOrigin` -> `WithdrawAsset` -> `BuyExecution`
+pub struct AllowPaidExecWithDescendOriginFrom<T>(PhantomData<T>);
+impl<T: Contains<MultiLocation>> ShouldExecute for AllowPaidExecWithDescendOriginFrom<T> {
+	fn should_execute<RuntimeCall>(
+		origin: &MultiLocation,
+		message: &mut Xcm<RuntimeCall>,
+		max_weight: u64,
+		_weight_credit: &mut u64,
+	) -> Result<(), ()> {
+		log::trace!(
+			target: "xcm::barriers",
+			"AllowPaidExecWithDescendOriginFrom origin: {:?}, message: {:?}, max_weight: {:?}, weight_credit: {:?}",
+			origin, message, max_weight, _weight_credit,
+		);
+		ensure!(T::contains(origin), ());
+		let iter = message.0.iter_mut();
+
+		match iter.take(3).collect::<Vec<_>>().as_mut_slice() {
+			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: Limited(ref mut limit), .. }]
+				if *limit >= max_weight =>
+			{
+				*limit = max_weight;
+				Ok(())
+			},
+
+			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: ref mut limit @ Unlimited, .. }] =>
+			{
+				*limit = Limited(max_weight);
+				Ok(())
+			},
+
+			_ => return Err(()),
+		}
+	}
+}
+
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
 		TakeWeightCredit,
 		AllowTopLevelPaidExecutionFrom<Everything>,
+		// Allow xcm flow where execution fee is paid directly from DescendOrigin account
+		AllowPaidExecWithDescendOriginFrom<Everything>,
 		// Expected responses are OK.
 		AllowKnownQueryResponses<PolkadotXcm>,
 		// Subscriptions for version tracking are OK.
@@ -347,11 +388,13 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type Currency = pallet_balances::Pallet<Runtime>;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type CurrencyIdToMultiLocation = TokenIdConvert;
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
+	type XcmFlowSelector = ();
 }
 
 pub struct TokenIdConvert;
