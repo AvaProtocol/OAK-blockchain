@@ -270,11 +270,13 @@ impl pallet_xcmp_handler::Config for Test {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Test>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
+	type CurrencyIdToMultiLocation = ();
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmSender = TestSendXcm;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
+	type XcmFlowSelector = ();
 }
 
 // Build genesis storage according to the mock runtime.
