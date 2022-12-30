@@ -16,9 +16,10 @@
 // limitations under the License.
 
 /// ! Traits and default implementation for paying execution fees.
-use crate::{AccountOf, Action, ActionOf, BalanceOf, Config, Error, Pallet};
+use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, MultiCurrencyId, Pallet};
 
-use frame_support::traits::{Currency, ExistenceRequirement, OnUnbalanced, WithdrawReasons};
+use frame_support::traits::{Currency, OnUnbalanced};
+use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::XcmpTransactor;
 use sp_runtime::{
 	traits::{CheckedSub, Saturating, Zero},
@@ -43,8 +44,9 @@ pub trait HandleFees<T: Config> {
 
 pub struct FeeHandler<T: Config, OU> {
 	owner: T::AccountId,
-	pub execution_fee: BalanceOf<T>,
-	pub xcmp_fee: BalanceOf<T>,
+	pub currency_id: MultiCurrencyId<T>,
+	pub execution_fee: MultiBalanceOf<T>,
+	pub xcmp_fee: MultiBalanceOf<T>,
 	_phantom_data: PhantomData<OU>,
 }
 
@@ -61,8 +63,7 @@ where
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
 		// Note: will need to account for fees in non-native tokens once we start accepting them
-		Self::can_pay_fee(owner, fee_handler.execution_fee.saturating_add(fee_handler.xcmp_fee))
-			.map_err(|_| Error::<T>::InsufficientBalance)?;
+		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
 		Ok(outcome)
@@ -75,30 +76,36 @@ where
 	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
 {
 	/// Ensure the fee can be paid.
-	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+	fn can_pay_fee(&self) -> Result<(), DispatchError> {
+		let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+
 		if fee.is_zero() {
 			return Ok(())
 		}
 
-		let free_balance = T::Currency::free_balance(who);
-		let new_amount =
-			free_balance.checked_sub(&fee).ok_or(DispatchError::Token(BelowMinimum))?;
-		T::Currency::ensure_can_withdraw(who, fee, WithdrawReasons::FEE, new_amount)?;
+		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
+		let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
+		free_balance
+			.checked_sub(&fee)
+			.ok_or(DispatchError::Token(BelowMinimum))?
+			.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
+			.ok_or(DispatchError::Token(BelowMinimum))?;
+		T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
 
 		Ok(())
 	}
 
 	/// Withdraw the fee.
-	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+	fn withdraw_fee(&self) -> Result<(), DispatchError> {
+		let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+
 		if fee.is_zero() {
 			return Ok(())
 		}
 
-		let withdraw_reason = WithdrawReasons::FEE;
-
-		match T::Currency::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => {
-				OU::on_unbalanceds(Some(imbalance).into_iter());
+		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, fee) {
+			Ok(_) => {
+				// TODO: fees need to go to multi currency enabled treasury
 				Ok(())
 			},
 			Err(_) => Err(DispatchError::Token(BelowMinimum)),
@@ -111,7 +118,9 @@ where
 		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let execution_fee = Pallet::<T>::calculate_execution_fee(action, executions)?;
+		let currency_id = action.currency_id::<T>().into();
+		let execution_fee: u128 =
+			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
 		let xcmp_fee = match *action {
 			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
@@ -127,7 +136,8 @@ where
 
 		Ok(Self {
 			owner: owner.clone(),
-			execution_fee,
+			currency_id,
+			execution_fee: execution_fee.saturated_into(),
 			xcmp_fee,
 			_phantom_data: Default::default(),
 		})
@@ -136,10 +146,9 @@ where
 	/// Executes the fee handler
 	fn pay_fees(self) -> DispatchResult {
 		// This should never error if can_pay_fee passed.
-		Self::withdraw_fee(&self.owner, self.execution_fee)
-			.map_err(|_| Error::<T>::LiquidityRestrictions)?;
+		self.withdraw_fee().map_err(|_| Error::<T>::LiquidityRestrictions)?;
 
-		if self.xcmp_fee > BalanceOf::<T>::zero() {
+		if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
 			T::XcmpTransactor::pay_xcm_fee(self.owner, self.xcmp_fee.saturated_into())?;
 		}
 
