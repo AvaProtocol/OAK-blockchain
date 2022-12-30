@@ -211,6 +211,31 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 	});
 }
 
+#[test]
+fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
+	let genesis_config = vec![(
+		ALTERNATE_FLOW_PARA_ID,
+		NATIVE,
+		XCM_DATA.native,
+		XCM_DATA.fee_per_second,
+		XCM_DATA.instruction_weight,
+	)];
+
+	new_test_ext(Some(genesis_config)).execute_with(|| {
+		let transact_encoded_call_weight: u64 = 100_000_000;
+
+		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight;
+		assert_ok!(
+			XcmpHandler::calculate_xcm_fee_and_weight(
+				ALTERNATE_FLOW_PARA_ID,
+				NATIVE,
+				transact_encoded_call_weight
+			),
+			(0, expected_weight),
+		);
+	});
+}
+
 // get_instruction_set
 #[test]
 fn get_instruction_set_only_support_local_currency() {

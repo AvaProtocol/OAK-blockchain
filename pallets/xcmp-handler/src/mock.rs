@@ -16,7 +16,9 @@
 // limitations under the License.
 
 use crate as pallet_xcmp_handler;
+use crate::{XcmFlow, XcmFlowSelector};
 use core::cell::RefCell;
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	parameter_types,
 	traits::{Everything, GenesisBuild},
@@ -50,6 +52,7 @@ pub type CurrencyId = u32;
 
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 pub const LOCAL_PARA_ID: u32 = 2114;
+pub const ALTERNATE_FLOW_PARA_ID: u32 = 9999;
 pub const NATIVE: CurrencyId = 0;
 pub const RELAY: CurrencyId = 1;
 
@@ -257,6 +260,17 @@ impl cumulus_pallet_xcm::Config for Test {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
 
+pub struct XcmFlowMatcher;
+impl XcmFlowSelector for XcmFlowMatcher {
+	fn flow_for(para_id: ParaId) -> XcmFlow {
+		if ParaId::from(ALTERNATE_FLOW_PARA_ID) == para_id {
+			XcmFlow::Alternate
+		} else {
+			XcmFlow::Normal
+		}
+	}
+}
+
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -276,7 +290,7 @@ impl pallet_xcmp_handler::Config for Test {
 	type XcmSender = TestSendXcm;
 	type Weigher = FixedWeightBounds<UnitWeightCost, Call, MaxInstructions>;
 	type WeightInfo = ();
-	type XcmFlowSelector = ();
+	type XcmFlowSelector = XcmFlowMatcher;
 }
 
 // Build genesis storage according to the mock runtime.

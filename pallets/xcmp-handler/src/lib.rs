@@ -243,6 +243,13 @@ pub mod pallet {
 				.instruction_weight
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
+
+			if T::XcmFlowSelector::flow_for(para_id.into()) == XcmFlow::Alternate {
+				// In the alternate flow the fee is paid directly from the
+				// DescendOrigin derived account on the target chain
+				return Ok((0u128, weight))
+			}
+
 			let fee = xcm_data
 				.fee_per_second
 				.checked_mul(weight as u128)
@@ -644,6 +651,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	}
 }
 
+#[derive(PartialEq)]
 pub enum XcmFlow {
 	Normal,
 	Alternate,
