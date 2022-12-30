@@ -121,7 +121,7 @@ pub fn turing_development_config() -> ChainSpec {
 								decimals: 18,
 								name: b"Rocstar".to_vec(),
 								symbol: b"RSTR".to_vec(),
-								existential_deposit: Default::default(),
+								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2006))).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
@@ -137,7 +137,7 @@ pub fn turing_development_config() -> ChainSpec {
 								decimals: 18,
 								name: b"Shiden".to_vec(),
 								symbol: b"SDN".to_vec(),
-								existential_deposit: Default::default(),
+								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
