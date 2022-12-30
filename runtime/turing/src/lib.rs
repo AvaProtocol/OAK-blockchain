@@ -77,6 +77,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
+use xcm_config::{FeePerSecondProvider, TokenIdConvert};
 
 pub mod weights;
 
@@ -138,7 +139,8 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 	(
         pallet_automation_time::migrations::add_schedule_to_task::AddScheduleToTask<Runtime>,
-	    pallet_xcmp_handler::migrations::add_mgx_tur_chain_currency_combo::AddMgxTurChainCurrencyCombo<Runtime>
+	    pallet_xcmp_handler::migrations::add_mgx_tur_chain_currency_combo::AddMgxTurChainCurrencyCombo<Runtime>,
+        migrations::register_shiden_asset::AddShidenAsset
     ),
 >;
 
@@ -875,11 +877,14 @@ impl pallet_automation_time::Config for Runtime {
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type Currency = Balances;
+	type MultiCurrency = Currencies;
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, DealWithExecutionFees<Runtime>>;
 	type DelegatorActions = ParachainStaking;
+	type CurrencyIdConvert = TokenIdConvert;
+	type FeeConversionRateProvider = FeePerSecondProvider;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
 }

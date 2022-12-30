@@ -39,7 +39,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 	},
 }
 
-impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
+impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyId> {
 	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
@@ -55,6 +55,17 @@ impl<AccountId, Balance, CurrencyId> Action<AccountId, Balance, CurrencyId> {
 			},
 		};
 		Ok(weight.ref_time())
+	}
+
+	// Defaults to Native Currency Id
+	pub fn currency_id<T: Config>(&self) -> CurrencyId
+	where
+		CurrencyId: From<T::CurrencyId>,
+	{
+		match self {
+			Action::XCMP { currency_id, .. } => currency_id.clone(),
+			_ => CurrencyId::from(T::GetNativeCurrencyId::get()),
+		}
 	}
 }
 

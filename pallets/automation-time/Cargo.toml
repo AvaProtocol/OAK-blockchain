@@ -13,8 +13,12 @@ readme = 'README.md'
 targets = ['x86_64-unknown-linux-gnu']
 
 [dependencies]
-codec = { package = "parity-scale-codec", version = "3.0.0", features = ["derive"], default-features = false }
-scale-info = { version = "2.1", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.0.0", features = [
+  "derive",
+], default-features = false }
+scale-info = { version = "2.1", default-features = false, features = [
+  "derive",
+] }
 log = { version = "0.4.17", default-features = false }
 
 # Polkadot
@@ -41,6 +45,9 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", default-fe
 ## Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.29" }
 
+## ORML
+orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+
 ## Local
 pallet-automation-time-rpc-runtime-api = { path = "./rpc/runtime-api", default-features = false }
 pallet-valve = { path = "../valve", default-features = false }
@@ -56,33 +63,39 @@ pallet-xcm = { git = 'https://github.com/paritytech/polkadot', default-features 
 xcm-builder = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = 'release-v0.9.29' }
 xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = 'release-v0.9.29' }
 
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+
 [features]
 default = ["std"]
 runtime-benchmarks = [
-	"frame-benchmarking",
-	"pallet-parachain-staking/runtime-benchmarks",
-	"pallet-xcmp-handler/runtime-benchmarks",
+  "frame-benchmarking",
+  "pallet-parachain-staking/runtime-benchmarks",
+  "pallet-xcmp-handler/runtime-benchmarks",
 ]
 try-runtime = ["frame-support/try-runtime"]
 std = [
-	"codec/std",
-	"cumulus-pallet-xcm/std",
-	"cumulus-primitives-core/std",
-	"frame-benchmarking/std",
-	"frame-support/std",
-	"frame-system/std",
-	"pallet-automation-time-rpc-runtime-api/std",
-	"pallet-timestamp/std",
-	"pallet-xcm/std",
-	"pallet-parachain-staking/std",
-	"pallet-valve/std",
-	"pallet-xcmp-handler/std",
-	"polkadot-parachain/std",
-	"scale-info/std",
-	"sp-runtime/std",
-	"sp-std/std",
-	"xcm/std",
-	"xcm-builder/std",
-	"xcm-executor/std",
+  "codec/std",
+  "cumulus-pallet-xcm/std",
+  "cumulus-primitives-core/std",
+  "frame-benchmarking/std",
+  "frame-support/std",
+  "frame-system/std",
+  "orml-currencies/std",
+  "orml-tokens/std",
+  "orml-traits/std",
+  "pallet-automation-time-rpc-runtime-api/std",
+  "pallet-timestamp/std",
+  "pallet-xcm/std",
+  "pallet-parachain-staking/std",
+  "pallet-valve/std",
+  "pallet-xcmp-handler/std",
+  "polkadot-parachain/std",
+  "scale-info/std",
+  "sp-runtime/std",
+  "sp-std/std",
+  "xcm/std",
+  "xcm-builder/std",
+  "xcm-executor/std",
 ]
 dev-queue = []

@@ -22,13 +22,15 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Everything, OnUnbalanced},
 	weights::Weight,
+	PalletId,
 };
 use frame_system::{self as system, RawOrigin};
+use orml_traits::parameter_type_with_key;
 use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{BlakeTwo256, CheckedSub, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, IdentityLookup},
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -54,6 +56,8 @@ construct_runtime!(
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
+		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
 	}
 );
@@ -107,6 +111,42 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Default::default()
+	};
+}
+parameter_types! {
+	pub DustAccount: AccountId = PalletId(*b"auto/dst").into_account_truncating();
+}
+
+impl orml_tokens::Config for Test {
+	type Event = Event;
+	type Balance = Balance;
+	type Amount = i64;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type OnDust = orml_tokens::TransferDust<Test, DustAccount>;
+	type OnSlash = ();
+	type OnDeposit = ();
+	type OnTransfer = ();
+	type MaxLocks = ConstU32<100_000>;
+	type MaxReserves = ConstU32<100_000>;
+	type ReserveIdentifier = [u8; 8];
+	type DustRemovalWhitelist = frame_support::traits::Nothing;
+	type OnNewTokenAccount = ();
+	type OnKilledTokenAccount = ();
+}
+
+impl orml_currencies::Config for Test {
+	type MultiCurrency = Tokens;
+	type NativeCurrency = AdaptedBasicCurrency;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
+}
+pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
 	pub const MinimumPeriod: u64 = 1000;
@@ -304,6 +344,13 @@ impl Contains<Call> for ScheduleAllowList {
 	}
 }
 
+pub struct MockConversionRateProvider;
+impl FixedConversionRateProvider for MockConversionRateProvider {
+	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
+		None
+	}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -316,6 +363,7 @@ impl pallet_automation_time::Config for Test {
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type MaxWeightPerSlot = MaxWeightPerSlot;
 	type Currency = Balances;
+	type MultiCurrency = Currencies;
 	type CurrencyId = CurrencyId;
 	type FeeHandler = FeeHandler<Test, DealWithExecutionFees<Test>>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
@@ -323,6 +371,8 @@ impl pallet_automation_time::Config for Test {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
+	type CurrencyIdConvert = ();
+	type FeeConversionRateProvider = MockConversionRateProvider;
 }
 
 // Build genesis storage according to the mock runtime.

@@ -61,19 +61,21 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::GetDispatchInfo,
+	weights::{constants::WEIGHT_PER_SECOND, GetDispatchInfo},
 };
 use frame_system::pallet_prelude::*;
+use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, Dispatchable, SaturatedConversion, Saturating},
+	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
+use xcm::opaque::latest::MultiLocation;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -82,12 +84,18 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type MultiBalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
 	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
 	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
+	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -130,6 +138,9 @@ pub mod pallet {
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
+		/// The MultiCurrency type for interacting with balances
+		type MultiCurrency: MultiCurrency<Self::AccountId>;
+
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
 			+ Member
@@ -137,10 +148,17 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ Ord
 			+ TypeInfo
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ Into<MultiCurrencyId<Self>>;
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// Converts CurrencyId to Multiloc
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
+
+		/// Converts between comparable currencies
+		type FeeConversionRateProvider: FixedConversionRateProvider;
 
 		/// The currencyId for the native currency.
 		#[pallet::constant]
@@ -1383,9 +1401,22 @@ pub mod pallet {
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
-			let weight_as_balance = <BalanceOf<T>>::saturated_from(total_weight);
+			let currency_id = action.currency_id::<T>();
+			let fee = if currency_id == T::GetNativeCurrencyId::get() {
+				T::ExecutionWeightFee::get()
+					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
+			} else {
+				let loc =
+					T::CurrencyIdConvert::convert(currency_id).ok_or("CouldNotConvertMultiLoc")?;
+				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
+					.ok_or("CouldNotDetermineFeePerSecond")?
+					.checked_mul(total_weight as u128)
+					.ok_or("FeeOverflow")
+					.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
+				<BalanceOf<T>>::saturated_from(raw_fee)
+			};
 
-			Ok(T::ExecutionWeightFee::get().saturating_mul(weight_as_balance))
+			Ok(fee)
 		}
 	}
 
