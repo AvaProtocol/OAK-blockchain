@@ -15,7 +15,9 @@ use turing_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use xcm::{
+	latest::prelude::X1,
 	opaque::latest::{Junctions::Here, MultiLocation},
+	v1::Junction::Parachain,
 	VersionedMultiLocation::V1,
 };
 
@@ -95,6 +97,56 @@ pub fn turing_development_config() -> ChainSpec {
 						1_000_000_000,
 					),
 				],
+				vec![
+					(
+						1,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Mangata Rococo".to_vec(),
+								symbol: b"MGR".to_vec(),
+								existential_deposit: Default::default(),
+								location: Some(MultiLocation::new(1, X1(Parachain(2110))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
+					(
+						2,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Rocstar".to_vec(),
+								symbol: b"RSTR".to_vec(),
+								existential_deposit: 10_000_000_000_000_000,
+								location: Some(MultiLocation::new(1, X1(Parachain(2006))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
+					(
+						3,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Shiden".to_vec(),
+								symbol: b"SDN".to_vec(),
+								existential_deposit: 10_000_000_000_000_000,
+								location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
+				],
 			)
 		},
 		Vec::new(),
@@ -126,11 +178,36 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
+	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
 		turing_runtime::MinCollatorStk::get(),
 		turing_runtime::MinCandidateStk::get(),
 	);
+
+	let assets = [
+		vec![(
+			0,
+			orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+				&orml_asset_registry::AssetMetadata {
+					decimals: TOKEN_DECIMALS,
+					name: "Native".as_bytes().to_vec(),
+					symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+					existential_deposit: 100_000_000,
+					location: Some(V1(MultiLocation { parents: 0, interior: Here })),
+					additional: CustomMetadata {
+						fee_per_second: Some(416_000_000_000),
+						conversion_rate: None,
+					},
+				},
+			),
+		)],
+		additional_assets,
+	]
+	.concat();
+
+	let last_asset_id = assets.iter().map(|asset| asset.0).max().expect("At least 1 item!");
+
 	turing_runtime::GenesisConfig {
 		system: turing_runtime::SystemConfig {
 			code: turing_runtime::WASM_BINARY
@@ -182,25 +259,7 @@ fn testnet_genesis(
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
 		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
-		asset_registry: AssetRegistryConfig {
-			assets: vec![(
-				0,
-				orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-					&orml_asset_registry::AssetMetadata {
-						decimals: TOKEN_DECIMALS,
-						name: "Native".as_bytes().to_vec(),
-						symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
-						existential_deposit: 100_000_000,
-						location: Some(V1(MultiLocation { parents: 0, interior: Here })),
-						additional: CustomMetadata {
-							fee_per_second: Some(416_000_000_000),
-							conversion_rate: None,
-						},
-					},
-				),
-			)],
-			last_asset_id: 0,
-		},
+		asset_registry: AssetRegistryConfig { assets, last_asset_id },
 	}
 }
 
