@@ -19,21 +19,18 @@ use super::*;
 use crate as pallet_automation_time;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
-	construct_runtime, parameter_types,
-	traits::{Everything, OnUnbalanced},
-	weights::Weight,
-	PalletId,
+	construct_runtime, parameter_types, traits::Everything, weights::Weight, PalletId,
 };
 use frame_system::{self as system, RawOrigin};
 use orml_traits::parameter_type_with_key;
-use pallet_balances::NegativeImbalance;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
+use xcm::v2::Junctions::Here;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -288,14 +285,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 }
 
-pub struct DealWithExecutionFees<R>(sp_std::marker::PhantomData<R>);
-impl<R> OnUnbalanced<NegativeImbalance<R>> for DealWithExecutionFees<R>
-where
-	R: pallet_balances::Config,
-{
-	fn on_unbalanceds<B>(_fees: impl Iterator<Item = NegativeImbalance<R>>) {}
-}
-
 pub struct MockXcmpTransactor<T, C>(PhantomData<(T, C)>);
 impl<T, C> pallet_xcmp_handler::XcmpTransactor<T::AccountId, CurrencyId>
 	for MockXcmpTransactor<T, C>
@@ -351,6 +340,17 @@ impl FixedConversionRateProvider for MockConversionRateProvider {
 	}
 }
 
+pub struct MockTokenIdConvert;
+impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
+	fn convert(id: CurrencyId) -> Option<MultiLocation> {
+		if id == NATIVE {
+			Some(MultiLocation::new(1, Here))
+		} else {
+			None
+		}
+	}
+}
+
 impl pallet_automation_time::Config for Test {
 	type Event = Event;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -365,13 +365,13 @@ impl pallet_automation_time::Config for Test {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = CurrencyId;
-	type FeeHandler = FeeHandler<Test, DealWithExecutionFees<Test>>;
+	type FeeHandler = FeeHandler<Test, ()>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
-	type CurrencyIdConvert = ();
+	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
 }
 

@@ -18,19 +18,16 @@
 /// ! Traits and default implementation for paying execution fees.
 use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, MultiCurrencyId, Pallet};
 
-use frame_support::traits::{Currency, OnUnbalanced};
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::XcmpTransactor;
 use sp_runtime::{
-	traits::{CheckedSub, Saturating, Zero},
+	traits::{CheckedSub, Convert, Saturating, Zero},
 	DispatchError, DispatchResult, SaturatedConversion,
 	TokenError::BelowMinimum,
 };
 use sp_std::marker::PhantomData;
-
-type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
+use xcm::latest::prelude::*;
+use xcm_builder::TakeRevenue;
 
 /// Handle execution fee payments in the context of automation actions
 pub trait HandleFees<T: Config> {
@@ -42,18 +39,18 @@ pub trait HandleFees<T: Config> {
 	) -> Result<R, DispatchError>;
 }
 
-pub struct FeeHandler<T: Config, OU> {
+pub struct FeeHandler<T: Config, TR> {
 	owner: T::AccountId,
 	pub currency_id: MultiCurrencyId<T>,
 	pub execution_fee: MultiBalanceOf<T>,
 	pub xcmp_fee: MultiBalanceOf<T>,
-	_phantom_data: PhantomData<OU>,
+	_phantom_data: PhantomData<TR>,
 }
 
-impl<T, OU> HandleFees<T> for FeeHandler<T, OU>
+impl<T, TR> HandleFees<T> for FeeHandler<T, TR>
 where
 	T: Config,
-	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
+	TR: TakeRevenue,
 {
 	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
 		owner: &AccountOf<T>,
@@ -70,10 +67,10 @@ where
 	}
 }
 
-impl<T, OU> FeeHandler<T, OU>
+impl<T, TR> FeeHandler<T, TR>
 where
 	T: Config,
-	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
+	TR: TakeRevenue,
 {
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(&self) -> Result<(), DispatchError> {
@@ -105,7 +102,21 @@ where
 
 		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, fee) {
 			Ok(_) => {
-				// TODO: fees need to go to multi currency enabled treasury
+				TR::take_revenue(MultiAsset {
+					id: AssetId::Concrete(
+						T::CurrencyIdConvert::convert(self.currency_id.into())
+							.ok_or("IncoveribleCurrencyId")?,
+					),
+					fun: Fungibility::Fungible(self.execution_fee.saturated_into()),
+				});
+
+				if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
+					T::XcmpTransactor::pay_xcm_fee(
+						self.owner.clone(),
+						self.xcmp_fee.saturated_into(),
+					)?;
+				}
+
 				Ok(())
 			},
 			Err(_) => Err(DispatchError::Token(BelowMinimum)),
@@ -147,11 +158,6 @@ where
 	fn pay_fees(self) -> DispatchResult {
 		// This should never error if can_pay_fee passed.
 		self.withdraw_fee().map_err(|_| Error::<T>::LiquidityRestrictions)?;
-
-		if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
-			T::XcmpTransactor::pay_xcm_fee(self.owner, self.xcmp_fee.saturated_into())?;
-		}
-
 		Ok(())
 	}
 }

@@ -79,7 +79,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
-use xcm_config::{FeePerSecondProvider, TokenIdConvert};
+use xcm_config::{FeePerSecondProvider, ToTreasury, TokenIdConvert};
 
 pub mod weights;
 
@@ -94,7 +94,7 @@ use common_runtime::{
 			SCHEDULED_TASKS_INITIALIZE_RATIO,
 		},
 	},
-	fees::{DealWithExecutionFees, DealWithInclusionFees},
+	fees::DealWithInclusionFees,
 };
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
@@ -880,7 +880,7 @@ impl pallet_automation_time::Config for Runtime {
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
-	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, DealWithExecutionFees<Runtime>>;
+	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, ToTreasury>;
 	type DelegatorActions = ParachainStaking;
 	type CurrencyIdConvert = TokenIdConvert;
 	type FeeConversionRateProvider = FeePerSecondProvider;
