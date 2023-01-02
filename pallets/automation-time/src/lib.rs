@@ -149,6 +149,7 @@ pub mod pallet {
 			+ Ord
 			+ TypeInfo
 			+ MaxEncodedLen
+			+ From<MultiCurrencyId<Self>>
 			+ Into<MultiCurrencyId<Self>>;
 
 		/// Utility for sending XCM messages
