@@ -25,6 +25,7 @@ impl OnRuntimeUpgrade for AddShidenAsset {
 			"on_runtime_upgrade: add shiden asset"
 		);
 
+		let location = MultiLocation::new(1, X1(Parachain(2007)));
 		let asset = AssetMetadataOf {
 			decimals: 18,
 			name: b"Shiden".to_vec(),
@@ -34,8 +35,17 @@ impl OnRuntimeUpgrade for AddShidenAsset {
 				conversion_rate: None,
 			},
 			existential_deposit: cent(18),
-			location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
+			location: Some(location.clone().into()),
 		};
+
+		// Skip migration if asset already exists
+		if let Some(_) = orml_asset_registry::LocationToAssetId::<Runtime>::get(location) {
+			log::info!(
+				target: "asset_registry",
+				"skipping migration; shiden asset already exists"
+			);
+			return <Runtime as frame_system::Config>::DbWeight::get().reads_writes(1u64, 0u64)
+		}
 
 		let _ = orml_asset_registry::Pallet::<Runtime>::do_register_asset(asset.clone(), None)
 			.map_err(|e| {
@@ -51,7 +61,7 @@ impl OnRuntimeUpgrade for AddShidenAsset {
 		);
 
 		// Storage: AssetRegistry Metadata (r:1 w:1)
-		// Storage: AssetRegistry LocationToAssetId (r:1 w:1)
+		// Storage: AssetRegistry LocationToAssetId (r:2 w:1)
 		// Storage: AssetRegistry LastAssetId (r:1 w:1)
 		<Runtime as frame_system::Config>::DbWeight::get().reads_writes(3u64, 3u64)
 	}
