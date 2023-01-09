@@ -247,7 +247,7 @@ pub mod pallet {
 			if T::XcmFlowSelector::flow_for(para_id.into()) == XcmFlow::Alternate {
 				// In the alternate flow the fee is paid directly from the
 				// DescendOrigin derived account on the target chain
-				return Ok((0u128, weight))
+				return Ok((0u128, weight + 5000000000))
 			}
 
 			let fee = xcm_data
@@ -284,6 +284,8 @@ pub mod pallet {
 				currency_id,
 				transact_encoded_call_weight,
 			)?;
+
+			log::error!("weight {:?}", weight);
 
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
@@ -407,14 +409,11 @@ pub mod pallet {
 		> {
 			let target_asset_loc = T::CurrencyIdToMultiLocation::convert(currency_id)
 				.ok_or(Error::<T>::CurrencyNotSupported)?;
-			let target_asset =
-				MultiAsset { id: Concrete(target_asset_loc), fun: Fungibility::Fungible(fee) }
-					.reanchored(
-						&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-						&T::LocationInverter::ancestry(),
-					)
-					.map_err(|_| Error::<T>::CannotReanchor)?;
-
+			log::error!("target_asset_loc {:?}", target_asset_loc);
+			log::error!("descend_location {:?}", descend_location);
+			let target_asset = MultiAsset { id: Concrete(MultiLocation::new(0, Here)), fun: Fungibility::Fungible(6255948005536808) };
+			log::error!("target_asset {:?}", target_asset);
+			log::error!("xcm_weight {:?}", xcm_weight);
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
 				WithdrawAsset::<()>(target_asset.clone().into()),
@@ -663,6 +662,9 @@ pub trait XcmFlowSelector {
 
 impl XcmFlowSelector for () {
 	fn flow_for(_para_id: ParaId) -> XcmFlow {
+		if _para_id == ParaId::from(2000) {
+			return XcmFlow::Alternate;
+		}
 		XcmFlow::Normal
 	}
 }
