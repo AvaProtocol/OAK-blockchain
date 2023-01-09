@@ -31,8 +31,8 @@ chain = "shibuya-dev"
 [parachains.collator]
 name = "shibuya-col-1"
 command = "../Astar/target/release/astar-collator"
-ws_port = 9947
-rpc_port = 8866
+ws_port = 9948
+rpc_port = 8867
 
 [[hrmp_channels]]
 sender = 2114
