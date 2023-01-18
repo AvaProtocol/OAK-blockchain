@@ -51,6 +51,6 @@ jobs:
           tag=${{ github.event.inputs.tag }}
           docker_tag="${tag:1}"
           docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing-dev:$docker_tag .
-          docker tag oaknetwork/turing:$docker_tag oaknetwork/turing-dev:latest
+          docker tag oaknetwork/turing-dev:$docker_tag oaknetwork/turing-dev:latest
           docker push oaknetwork/turing-dev:$docker_tag
           docker push oaknetwork/turing-dev:latest
