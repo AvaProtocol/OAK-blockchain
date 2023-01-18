@@ -83,35 +83,35 @@ pallet-treasury = { git = "https://github.com/paritytech/substrate", default-fea
 pallet-utility = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.29" }
 
 # Cumulus dependencies
-cumulus-pallet-aura-ext = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-pallet-dmp-queue = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-pallet-parachain-system = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-pallet-xcmp-queue = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-primitives-timestamp = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-cumulus-primitives-utility = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
-parachain-info = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-pallet-aura-ext = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-pallet-dmp-queue = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-pallet-parachain-system = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-pallet-xcm = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-pallet-xcmp-queue = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-primitives-core = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-primitives-timestamp = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+cumulus-primitives-utility = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
+parachain-info = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29', default-features = false }
 
 # Polkadot Dependencies
-pallet-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
-polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
-xcm = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
+pallet-xcm = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
+polkadot-parachain = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
+polkadot-runtime-common = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
+xcm = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
+xcm-builder = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
+xcm-executor = { git = "https://github.com/imstar15/polkadot", default-features = false, branch = "release-v0.9.29" }
 
 # Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.29" }
+pallet-parachain-staking = { git = "https://github.com/imstar15/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.29" }
 
 # ORML Dependencies
-orml-asset-registry = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-xcm-support = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-xtokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
-orml-unknown-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-currencies = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-traits = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-xcm-support = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-xtokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
+orml-unknown-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
 
 [features]
 default = ["std"]

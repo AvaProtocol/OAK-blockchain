@@ -104,32 +104,32 @@ sp-timestamp = { git = "https://github.com/paritytech/substrate", branch = "polk
 sp-transaction-pool = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.29" }
 
 # Cumulus dependencies
-cumulus-client-cli = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-collator = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-consensus-aura = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-consensus-common = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-network = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-service = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-client-consensus-relay-chain = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
-cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-primitives-parachain-inherent = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.29' }
-cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
-cumulus-relay-chain-inprocess-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
-cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.29" }
+cumulus-client-cli = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-collator = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-consensus-aura = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-consensus-common = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-network = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-service = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-client-consensus-relay-chain = { git = "https://github.com/imstar15/cumulus", branch = "polkadot-v0.9.29" }
+cumulus-primitives-core = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-primitives-parachain-inherent = { git = 'https://github.com/imstar15/cumulus', branch = 'polkadot-v0.9.29' }
+cumulus-relay-chain-interface = { git = "https://github.com/imstar15/cumulus", branch = "polkadot-v0.9.29" }
+cumulus-relay-chain-inprocess-interface = { git = "https://github.com/imstar15/cumulus", branch = "polkadot-v0.9.29" }
+cumulus-relay-chain-rpc-interface = { git = "https://github.com/imstar15/cumulus", branch = "polkadot-v0.9.29" }
 
 # Polkadot dependencies
-polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
-xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.29" }
+polkadot-cli = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
+polkadot-parachain = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
+polkadot-primitives = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
+polkadot-service = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
+polkadot-test-service = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
+xcm = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29" }
 
 # Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-polkadot-v0.9.29" }
+pallet-parachain-staking = { git = "https://github.com/imstar15/moonbeam", branch = "oak-polkadot-v0.9.29" }
 
 # ORML Dependencies
-orml-asset-registry = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "c516e8a186d3ef900d3507a24691219c6c6ea2e3" }
 
 [package.metadata.deb]
 name = "oak-collator"

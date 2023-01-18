@@ -431,6 +431,8 @@ pub mod pallet {
 				},
 			]);
 
+			log::error!("target_xcm {:?}", target_xcm);
+
 			Ok((Xcm(vec![]), target_xcm))
 		}
 
