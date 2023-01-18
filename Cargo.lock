@@ -5125,7 +5125,7 @@ dependencies = [
 [[package]]
 name = "orml-asset-registry"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5144,7 +5144,7 @@ dependencies = [
 [[package]]
 name = "orml-currencies"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5161,7 +5161,7 @@ dependencies = [
 [[package]]
 name = "orml-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5176,7 +5176,7 @@ dependencies = [
 [[package]]
 name = "orml-traits"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5194,7 +5194,7 @@ dependencies = [
 [[package]]
 name = "orml-unknown-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5209,7 +5209,7 @@ dependencies = [
 [[package]]
 name = "orml-utilities"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5223,7 +5223,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm-support"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "frame-support",
  "orml-traits",
@@ -5237,7 +5237,7 @@ dependencies = [
 [[package]]
 name = "orml-xtokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=c516e8a186d3ef900d3507a24691219c6c6ea2e3#c516e8a186d3ef900d3507a24691219c6c6ea2e3"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b#61cd6cc5454fc6bc1db99c7f0c089e6cf6197e1b"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
