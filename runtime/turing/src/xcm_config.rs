@@ -179,7 +179,7 @@ impl<T: Contains<MultiLocation>> ShouldExecute for AllowPaidExecWithDescendOrigi
 		max_weight: u64,
 		_weight_credit: &mut u64,
 	) -> Result<(), ()> {
-		log::trace!(
+		log::error!(
 			target: "xcm::barriers",
 			"AllowPaidExecWithDescendOriginFrom origin: {:?}, message: {:?}, max_weight: {:?}, weight_credit: {:?}",
 			origin, message, max_weight, _weight_credit,
