@@ -129,7 +129,7 @@ xcm = { git = "https://github.com/imstar15/polkadot", branch = "release-v0.9.29"
 pallet-parachain-staking = { git = "https://github.com/imstar15/moonbeam", branch = "oak-polkadot-v0.9.29" }
 
 # ORML Dependencies
-orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4" }
 
 [package.metadata.deb]
 name = "oak-collator"

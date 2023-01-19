@@ -409,21 +409,62 @@ impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
 
 impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
 	fn convert(location: MultiLocation) -> Option<TokenId> {
+		log::error!(
+			target: "xcm::barriers",
+			"TokenIdConvert Self::convert MultiLocation, location: {:?}",
+			location
+		);
 		match location {
 			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
-				if para_id == u32::from(ParachainInfo::parachain_id()) =>
-				Some(NATIVE_TOKEN_ID),
-			_ => AssetRegistryOf::<Runtime>::location_to_asset_id(location.clone()),
+				if para_id == u32::from(ParachainInfo::parachain_id()) => {
+					log::error!(
+						target: "xcm::barriers",
+						"TokenIdConvert Self::convert MultiLocation para_id",
+					);
+					Some(NATIVE_TOKEN_ID)
+				},
+			_ => {
+				log::error!(
+					target: "xcm::barriers",
+					"TokenIdConvert Self::convert MultiLocation, AssetRegistryOf S",
+				);
+				let asset_id = AssetRegistryOf::<Runtime>::location_to_asset_id(location.clone());
+				log::error!(
+					target: "xcm::barriers",
+					"TokenIdConvert Self::convert MultiLocation, AssetRegistryOf, asset_id: {:?}",
+					asset_id
+				);
+				asset_id
+			},
 		}
 	}
 }
 
 impl Convert<MultiAsset, Option<TokenId>> for TokenIdConvert {
 	fn convert(asset: MultiAsset) -> Option<TokenId> {
+		log::error!(
+			target: "xcm::barriers",
+			"TokenIdConvert convert",
+		);
 		if let MultiAsset { id: Concrete(location), .. } = asset {
-			Self::convert(location)
+			log::error!(
+				target: "xcm::barriers",
+				"TokenIdConvert Self::convert,location: {:?} S",
+				location,
+			);
+			let result = Self::convert(location);
+			log::error!(
+				target: "xcm::barriers",
+				"TokenIdConvert Self::convert, result: {:?} E",
+				result
+			);
+			result
 		} else {
+			log::error!(
+				target: "xcm::barriers",
+				"TokenIdConvert None",
+			);
 			None
 		}
 	}

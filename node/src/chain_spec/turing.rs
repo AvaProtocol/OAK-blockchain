@@ -153,6 +153,22 @@ pub fn turing_development_config() -> ChainSpec {
 							},
 						),
 					),
+					(
+						4,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Shibuya".to_vec(),
+								symbol: b"SBY".to_vec(),
+								existential_deposit: 10_000_000_000_000_000,
+								location: Some(MultiLocation::new(1, X1(Parachain(2000))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
 				],
 			)
 		},

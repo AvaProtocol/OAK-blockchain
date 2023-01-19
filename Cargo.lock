@@ -5125,7 +5125,7 @@ dependencies = [
 [[package]]
 name = "orml-asset-registry"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5144,7 +5144,7 @@ dependencies = [
 [[package]]
 name = "orml-currencies"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5161,7 +5161,7 @@ dependencies = [
 [[package]]
 name = "orml-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5176,7 +5176,7 @@ dependencies = [
 [[package]]
 name = "orml-traits"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "impl-trait-for-tuples",
@@ -5194,7 +5194,7 @@ dependencies = [
 [[package]]
 name = "orml-unknown-tokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "frame-system",
@@ -5209,7 +5209,7 @@ dependencies = [
 [[package]]
 name = "orml-utilities"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "parity-scale-codec",
@@ -5223,7 +5223,7 @@ dependencies = [
 [[package]]
 name = "orml-xcm-support"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "frame-support",
  "orml-traits",
@@ -5237,7 +5237,7 @@ dependencies = [
 [[package]]
 name = "orml-xtokens"
 version = "0.4.1-dev"
-source = "git+https://github.com/imstar15/open-runtime-module-library?rev=8846947f02fb3047a8f174d5752b9d75baec33a8#8846947f02fb3047a8f174d5752b9d75baec33a8"
+source = "git+https://github.com/imstar15/open-runtime-module-library?rev=aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4#aeed7bbd86fbaa8864dd0f31c0370c8c71c16dc4"
 dependencies = [
  "cumulus-primitives-core",
  "frame-support",
@@ -11639,7 +11639,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "digest 0.10.3",
  "rand 0.8.5",
  "static_assertions",
