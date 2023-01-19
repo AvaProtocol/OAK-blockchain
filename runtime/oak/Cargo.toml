@@ -105,13 +105,13 @@ xcm-executor = { git = "https://github.com/imstar15/polkadot", default-features 
 pallet-parachain-staking = { git = "https://github.com/imstar15/moonbeam", default-features = false, branch = "oak-polkadot-v0.9.29" }
 
 # ORML Dependencies
-orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-currencies = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-traits = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-xcm-support = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-xtokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
-orml-unknown-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "37032d285ed9dd47302245a9be14a861dcc883c0" }
+orml-asset-registry = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-currencies = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-traits = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-xcm-support = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-xtokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
+orml-unknown-tokens = { git = "https://github.com/imstar15/open-runtime-module-library", default-features = false, rev = "8846947f02fb3047a8f174d5752b9d75baec33a8" }
 
 [features]
 default = ["std"]
