@@ -364,6 +364,7 @@ pub enum ProxyType {
 	Any = 0,
 	Session = 1,
 	Staking = 2,
+	Automation = 3,
 }
 
 impl Default for ProxyType {
@@ -381,6 +382,9 @@ impl InstanceFilter<Call> for ProxyType {
 			},
 			ProxyType::Staking => {
 				matches!(c, Call::ParachainStaking(..) | Call::Session(..))
+			},
+			ProxyType::Automation => {
+				matches!(c, Call::AutomationTime(..))
 			},
 		}
 	}
