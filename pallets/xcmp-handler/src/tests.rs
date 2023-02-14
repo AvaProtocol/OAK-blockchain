@@ -142,7 +142,7 @@ fn calculate_xcm_fee_and_weight_works() {
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight;
+		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight * 6;
 		let expected_fee = XCM_DATA.fee_per_second * (expected_weight as u128) /
 			(WEIGHT_PER_SECOND.ref_time() as u128);
 		assert_ok!(
@@ -224,7 +224,7 @@ fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight;
+		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight * 6;
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				ALTERNATE_FLOW_PARA_ID,

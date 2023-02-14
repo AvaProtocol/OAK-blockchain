@@ -239,8 +239,12 @@ pub mod pallet {
 		) -> Result<(u128, u64), DispatchError> {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+
+			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, currency_id)?;
 			let weight = xcm_data
 				.instruction_weight
+				.checked_mul(target_instructions.len() as u64)
+				.ok_or(Error::<T>::WeightOverflow)?
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
 
@@ -538,6 +542,42 @@ pub mod pallet {
 			};
 
 			Ok(().into())
+		}
+
+		/// Generates a skeleton of the instruction set for fee calculation
+		fn xcm_instruction_skeleton(
+			para_id: ParachainId,
+			currency_id: T::CurrencyId,
+		) -> Result<
+			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
+			DispatchError,
+		> {
+			let nobody: Junctions = T::AccountIdToMultiLocation::convert(
+				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
+					.expect("always works"),
+			)
+			.try_into()
+			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
+
+			match T::XcmFlowSelector::flow_for(ParaId::from(para_id)) {
+				XcmFlow::Normal => Self::get_local_currency_instructions(
+					para_id,
+					nobody,
+					Default::default(),
+					0u64,
+					0u64,
+					0u128,
+				),
+				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
+					para_id,
+					currency_id,
+					nobody,
+					Default::default(),
+					0u64,
+					0u64,
+					0u128,
+				),
+			}
 		}
 	}
 
