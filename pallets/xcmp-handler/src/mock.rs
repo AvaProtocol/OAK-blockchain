@@ -271,6 +271,14 @@ impl XcmFlowSelector for XcmFlowMatcher {
 	}
 }
 
+pub struct TokenIdConvert;
+impl Convert<CurrencyId, Option<MultiLocation>> for TokenIdConvert {
+	fn convert(_id: CurrencyId) -> Option<MultiLocation> {
+		// Mock implementation with default value
+		Some(MultiLocation { parents: 1, interior: Here })
+	}
+}
+
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
@@ -284,7 +292,7 @@ impl pallet_xcmp_handler::Config for Test {
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Test>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
-	type CurrencyIdToMultiLocation = ();
+	type CurrencyIdToMultiLocation = TokenIdConvert;
 	type LocationInverter = LocationInverter<Ancestry>;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmSender = TestSendXcm;
