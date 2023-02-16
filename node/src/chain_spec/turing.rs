@@ -9,6 +9,7 @@ use crate::chain_spec::{
 };
 use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
+use pallet_xcmp_handler::XcmFlow;
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
@@ -88,13 +89,21 @@ pub fn turing_development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 				],
 				vec![
-					(1999, turing_runtime::NATIVE_TOKEN_ID, false, 419_000_000_000, 1_000_000_000),
+					(
+						1999,
+						turing_runtime::NATIVE_TOKEN_ID,
+						false,
+						419_000_000_000,
+						1_000_000_000,
+						XcmFlow::Normal,
+					),
 					(
 						2110,
 						turing_runtime::NATIVE_TOKEN_ID,
 						false,
 						5_376_000_000_000,
 						1_000_000_000,
+						XcmFlow::Normal,
 					),
 				],
 				vec![
@@ -177,7 +186,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
