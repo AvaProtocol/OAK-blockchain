@@ -45,13 +45,13 @@ pub mod weights;
 pub use weights::WeightInfo;
 
 use cumulus_primitives_core::ParaId;
+use frame_support::pallet_prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use codec::Decode;
 	use frame_support::{
-		dispatch::DispatchResultWithPostInfo, pallet_prelude::*, traits::Currency,
+		dispatch::DispatchResultWithPostInfo, traits::Currency,
 		weights::constants::WEIGHT_PER_SECOND,
 	};
 	use frame_system::pallet_prelude::*;
@@ -111,9 +111,6 @@ pub mod pallet {
 
 		/// Utility for determining XCM instruction weights.
 		type Weigher: WeightBounds<<Self as pallet::Config>::Call>;
-
-		/// XCM Flow Selection Matcher
-		type XcmFlowSelector: XcmFlowSelector;
 	}
 
 	#[pallet::pallet]
@@ -163,19 +160,16 @@ pub mod pallet {
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
-	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	#[derive(Clone, Copy, Debug, Encode, Decode, PartialEq, TypeInfo)]
 	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 	pub struct XcmCurrencyData {
 		/// Is the token native to the chain?
 		pub native: bool,
 		pub fee_per_second: u128,
-		/// The weight of the instructions for the chain/currency pair minus the Transact encoded call.
-		/// For example, if the chain is using FixedWeightBounds then the weight is the
-		/// number of instructions times the UnitWeightCost. The number of instructions inlcudes the Transact instruction.
-		///
-		/// FixedWeightBounds link:
-		/// (https://github.com/paritytech/polkadot/blob/63b611e8b1c332e4d7aaaa9ebd99d8d40f2a6f49/xcm/xcm-builder/src/weight.rs#L30)
+		/// The UnitWeightCost of a single instruction on the target chain
 		pub instruction_weight: u64,
+		/// The desired instruction flow for the target chain
+		pub flow: XcmFlow,
 	}
 
 	/// Stores XCM data for a chain/currency pair.
@@ -236,11 +230,12 @@ pub mod pallet {
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
 			transact_encoded_call_weight: u64,
-		) -> Result<(u128, u64), DispatchError> {
+		) -> Result<(u128, u64, XcmCurrencyData), DispatchError> {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
 
-			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, currency_id)?;
+			let (_, target_instructions) =
+				Self::xcm_instruction_skeleton(para_id, currency_id, xcm_data)?;
 			let weight = xcm_data
 				.instruction_weight
 				.checked_mul(target_instructions.len() as u64)
@@ -248,10 +243,10 @@ pub mod pallet {
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
 
-			if T::XcmFlowSelector::flow_for(para_id.into()) == XcmFlow::Alternate {
+			if xcm_data.flow == XcmFlow::Alternate {
 				// In the alternate flow the fee is paid directly from the
 				// DescendOrigin derived account on the target chain
-				return Ok((0u128, weight))
+				return Ok((0u128, weight, xcm_data))
 			}
 
 			let fee = xcm_data
@@ -260,7 +255,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::FeeOverflow)
 				.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
 
-			Ok((fee, weight))
+			Ok((fee, weight, xcm_data))
 		}
 
 		/// Get the instructions for a transact xcm.
@@ -283,7 +278,7 @@ pub mod pallet {
 				Err(Error::<T>::CurrencyChainComboNotSupported)?
 			}
 
-			let (fee, weight) = Self::calculate_xcm_fee_and_weight(
+			let (fee, weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
 				para_id,
 				currency_id,
 				transact_encoded_call_weight,
@@ -293,7 +288,7 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = match T::XcmFlowSelector::flow_for(ParaId::from(para_id)) {
+			let instructions = match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
 					descend_location,
@@ -548,6 +543,7 @@ pub mod pallet {
 		fn xcm_instruction_skeleton(
 			para_id: ParachainId,
 			currency_id: T::CurrencyId,
+			xcm_data: XcmCurrencyData,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
@@ -559,7 +555,7 @@ pub mod pallet {
 			.try_into()
 			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			match T::XcmFlowSelector::flow_for(ParaId::from(para_id)) {
+			match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
 					nobody,
@@ -583,7 +579,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64)>,
+		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64, XcmFlow)>,
 	}
 
 	#[cfg(feature = "std")]
@@ -596,7 +592,7 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			for (para_id, currency_id, native, fee_per_second, instruction_weight) in
+			for (para_id, currency_id, native, fee_per_second, instruction_weight, flow) in
 				self.chain_data.iter()
 			{
 				XcmChainCurrencyData::<T>::insert(
@@ -606,6 +602,7 @@ pub mod pallet {
 						native: *native,
 						fee_per_second: *fee_per_second,
 						instruction_weight: *instruction_weight,
+						flow: *flow,
 					},
 				);
 			}
@@ -661,7 +658,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		currency_id: T::CurrencyId,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
-		let (fee, _weight) =
+		let (fee, _weight, _xcm_data) =
 			Self::calculate_xcm_fee_and_weight(para_id, currency_id, transact_encoded_call_weight)?;
 
 		Ok(fee)
@@ -682,6 +679,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			native: false,
 			fee_per_second: 416_000_000_000,
 			instruction_weight: 600_000_000,
+			flow: XcmFlow::Normal,
 		};
 
 		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
@@ -691,18 +689,9 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	}
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum XcmFlow {
 	Normal,
 	Alternate,
-}
-
-pub trait XcmFlowSelector {
-	fn flow_for(para_id: ParaId) -> XcmFlow;
-}
-
-impl XcmFlowSelector for () {
-	fn flow_for(_para_id: ParaId) -> XcmFlow {
-		XcmFlow::Normal
-	}
 }
