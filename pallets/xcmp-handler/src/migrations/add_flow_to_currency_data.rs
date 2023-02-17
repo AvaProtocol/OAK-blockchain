@@ -1,7 +1,11 @@
 use core::marker::PhantomData;
 
 use codec::{Decode, Encode};
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
+use frame_support::{
+	traits::{Get, OnRuntimeUpgrade},
+	weights::Weight,
+	Twox64Concat,
+};
 use scale_info::TypeInfo;
 
 use crate::{Config, XcmCurrencyData, XcmFlow};
@@ -55,7 +59,7 @@ impl<T: Config> OnRuntimeUpgrade for AddFlowToCurrencyData<T> {
 
 		log::info!(target: "xcmp-handler", "AddFlowToCurrencyData successful! Migrated {} object.", migrated_count);
 
-		Weight::from_ref_time(0u64)
+		T::DbWeight::get().reads_writes(migrated_count as u64, migrated_count as u64)
 	}
 
 	#[cfg(feature = "try-runtime")]
