@@ -105,6 +105,14 @@ pub fn turing_development_config() -> ChainSpec {
 						1_000_000_000,
 						XcmFlow::Normal,
 					),
+					(
+						2000,
+						turing_runtime::NATIVE_TOKEN_ID,
+						false,
+						5_376_000_000_000,
+						1_000_000_000,
+						XcmFlow::Alternate,
+					),
 				],
 				vec![
 					(
@@ -148,6 +156,22 @@ pub fn turing_development_config() -> ChainSpec {
 								symbol: b"SDN".to_vec(),
 								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
+					(
+						4,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Shibuya".to_vec(),
+								symbol: b"SBY".to_vec(),
+								existential_deposit: 10_000_000_000_000_000,
+								location: Some(MultiLocation::new(1, X1(Parachain(2000))).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
 									conversion_rate: None,
