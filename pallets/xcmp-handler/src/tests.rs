@@ -220,7 +220,7 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 }
 
 #[test]
-fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
+fn calculate_xcm_fee_handles_alternate_flow() {
 	let para_id: u32 = 9999;
 	let genesis_config = vec![(
 		para_id,
@@ -241,7 +241,7 @@ fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
 				NATIVE,
 				transact_encoded_call_weight
 			),
-			(0, expected_weight, XcmCurrencyData { flow: XcmFlow::Alternate, ..XCM_DATA }),
+			(35000000, expected_weight, XcmCurrencyData { flow: XcmFlow::Alternate, ..XCM_DATA }),
 		);
 	});
 }

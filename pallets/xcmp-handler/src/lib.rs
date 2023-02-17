@@ -234,20 +234,13 @@ pub mod pallet {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
 
-			let (_, target_instructions) =
-				Self::xcm_instruction_skeleton(para_id, currency_id, xcm_data)?;
+			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, xcm_data)?;
 			let weight = xcm_data
 				.instruction_weight
 				.checked_mul(target_instructions.len() as u64)
 				.ok_or(Error::<T>::WeightOverflow)?
 				.checked_add(transact_encoded_call_weight)
 				.ok_or(Error::<T>::WeightOverflow)?;
-
-			if xcm_data.flow == XcmFlow::Alternate {
-				// In the alternate flow the fee is paid directly from the
-				// DescendOrigin derived account on the target chain
-				return Ok((0u128, weight, xcm_data))
-			}
 
 			let fee = xcm_data
 				.fee_per_second
@@ -298,8 +291,6 @@ pub mod pallet {
 					fee,
 				)?,
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					para_id,
-					currency_id,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
@@ -393,8 +384,6 @@ pub mod pallet {
 		/// 	- RefundSurplus
 		/// 	- DepositAsset
 		fn get_alternate_flow_instructions(
-			para_id: ParachainId,
-			currency_id: T::CurrencyId,
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
@@ -404,15 +393,11 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			let target_asset_loc = T::CurrencyIdToMultiLocation::convert(currency_id)
-				.ok_or(Error::<T>::CurrencyNotSupported)?;
-			let target_asset =
-				MultiAsset { id: Concrete(target_asset_loc), fun: Fungibility::Fungible(fee) }
-					.reanchored(
-						&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-						&T::LocationInverter::ancestry(),
-					)
-					.map_err(|_| Error::<T>::CannotReanchor)?;
+			// Default to native currency of target chain
+			let target_asset = MultiAsset {
+				id: Concrete(MultiLocation::new(0, Here)),
+				fun: Fungibility::Fungible(fee),
+			};
 
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
@@ -542,7 +527,6 @@ pub mod pallet {
 		/// Generates a skeleton of the instruction set for fee calculation
 		fn xcm_instruction_skeleton(
 			para_id: ParachainId,
-			currency_id: T::CurrencyId,
 			xcm_data: XcmCurrencyData,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
@@ -565,8 +549,6 @@ pub mod pallet {
 					0u128,
 				),
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					para_id,
-					currency_id,
 					nobody,
 					Default::default(),
 					0u64,
@@ -658,10 +640,17 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		currency_id: T::CurrencyId,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
-		let (fee, _weight, _xcm_data) =
+		let (fee, _weight, xcm_data) =
 			Self::calculate_xcm_fee_and_weight(para_id, currency_id, transact_encoded_call_weight)?;
 
-		Ok(fee)
+		match xcm_data.flow {
+			XcmFlow::Alternate => {
+				// In the alternate flow the fee is paid directly from the
+				// DescendOrigin derived account on the target chain
+				Ok(0u128)
+			},
+			XcmFlow::Normal => Ok(fee),
+		}
 	}
 
 	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
