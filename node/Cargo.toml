@@ -55,6 +55,7 @@ neumann-runtime = { path = "../runtime/neumann", optional = true }
 oak-runtime = { path = '../runtime/oak', optional = true }
 turing-runtime = { path = '../runtime/turing', optional = true }
 pallet-automation-time-rpc = { path = "../pallets/automation-time/rpc" }
+pallet-xcmp-handler = { path = "../pallets/xcmp-handler" }
 pallet-xcmp-handler-rpc = { path = "../pallets/xcmp-handler/rpc" }
 primitives = { path = "../primitives" }
 

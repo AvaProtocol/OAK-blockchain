@@ -17,6 +17,7 @@ use neumann_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, XcmpHandlerConfig,
 };
+use pallet_xcmp_handler::XcmFlow;
 use primitives::{AccountId, AuraId, Balance, TokenId};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -98,6 +99,7 @@ pub fn development_config() -> ChainSpec {
 					false,
 					419_000_000_000,
 					1_000_000_000,
+					XcmFlow::Normal,
 				)],
 			)
 		},
@@ -312,7 +314,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {

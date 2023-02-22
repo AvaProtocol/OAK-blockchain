@@ -4908,6 +4908,7 @@ dependencies = [
  "pallet-automation-time-rpc",
  "pallet-parachain-staking",
  "pallet-transaction-payment-rpc",
+ "pallet-xcmp-handler",
  "pallet-xcmp-handler-rpc",
  "parity-scale-codec",
  "polkadot-cli",

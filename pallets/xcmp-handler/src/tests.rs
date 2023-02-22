@@ -14,7 +14,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData};
+use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData, XcmFlow};
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
@@ -30,6 +30,7 @@ const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
 	native: false,
 	fee_per_second: 50_000_000_000,
 	instruction_weight: 100_000_000,
+	flow: XcmFlow::Normal,
 };
 
 // add_chain_currency_data
@@ -60,13 +61,18 @@ fn add_chain_currency_data_update_data() {
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
+		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), XCM_DATA);
 
-		let xcm_data_new =
-			XcmCurrencyData { native: false, fee_per_second: 200, instruction_weight: 3_000 };
+		let xcm_data_new = XcmCurrencyData {
+			native: false,
+			fee_per_second: 200,
+			instruction_weight: 3_000,
+			flow: XcmFlow::Normal,
+		};
 
 		assert_ok!(XcmpHandler::add_chain_currency_data(
 			RawOrigin::Root.into(),
@@ -97,6 +103,7 @@ fn remove_chain_currency_data_remove_data() {
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
+		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -137,6 +144,7 @@ fn calculate_xcm_fee_and_weight_works() {
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
+		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -151,14 +159,14 @@ fn calculate_xcm_fee_and_weight_works() {
 				NATIVE,
 				transact_encoded_call_weight
 			),
-			(expected_fee, expected_weight),
+			(expected_fee, expected_weight, XCM_DATA),
 		);
 	});
 }
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
-	let gensis_config = vec![(PARA_ID, NATIVE, false, u128::MAX, 1_000)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, u128::MAX, 1_000, XcmFlow::Normal)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
@@ -176,7 +184,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
-	let gensis_config = vec![(PARA_ID, NATIVE, false, 1_000, u64::MAX)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, 1_000, u64::MAX, XcmFlow::Normal)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = u64::MAX;
@@ -212,13 +220,15 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 }
 
 #[test]
-fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
+fn calculate_xcm_fee_handles_alternate_flow() {
+	let para_id: u32 = 9999;
 	let genesis_config = vec![(
-		ALTERNATE_FLOW_PARA_ID,
+		para_id,
 		NATIVE,
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
+		XcmFlow::Alternate,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -227,11 +237,11 @@ fn calculate_xcm_fee_doesnt_charge_for_alternate_flow() {
 		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight * 6;
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
-				ALTERNATE_FLOW_PARA_ID,
+				para_id,
 				NATIVE,
 				transact_encoded_call_weight
 			),
-			(0, expected_weight),
+			(35000000, expected_weight, XcmCurrencyData { flow: XcmFlow::Alternate, ..XCM_DATA }),
 		);
 	});
 }
@@ -264,12 +274,13 @@ fn get_instruction_set_local_currency_instructions() {
 		XCM_DATA.native,
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
+		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
-		let (xcm_fee, xcm_weight) = XcmpHandler::calculate_xcm_fee_and_weight(
+		let (xcm_fee, xcm_weight, _) = XcmpHandler::calculate_xcm_fee_and_weight(
 			PARA_ID,
 			NATIVE,
 			transact_encoded_call_weight,
