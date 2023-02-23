@@ -109,7 +109,7 @@ pub fn turing_development_config() -> ChainSpec {
 						2000,
 						turing_runtime::NATIVE_TOKEN_ID,
 						false,
-						21_250_000_000_000_000_000_000,
+						10_000_000_000_000_000_000,
 						1_000_000_000,
 						XcmFlow::Alternate,
 					),
