@@ -566,7 +566,7 @@ parameter_types! {
 	/// Minimum stake required to become a collator
 	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
-	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
+	pub const MinCandidateStk: u128 = 1_000_000 * DOLLAR;
 }
 impl pallet_parachain_staking::Config for Runtime {
 	type Event = Event;
