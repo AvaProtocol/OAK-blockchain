@@ -59,7 +59,6 @@ where
 		prereq: F,
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
-		// Note: will need to account for fees in non-native tokens once we start accepting them
 		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
