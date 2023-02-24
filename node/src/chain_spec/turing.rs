@@ -107,7 +107,7 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						2000, // Shibuya
-						4, // SBY Currency ID
+						4,    // SBY Currency ID
 						true,
 						10_000_000_000_000_000_000,
 						1_000_000_000,

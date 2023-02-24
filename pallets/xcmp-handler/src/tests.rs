@@ -248,7 +248,7 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 
 // get_instruction_set
 #[test]
-fn get_instruction_set_only_support_local_currency() {
+fn get_instruction_set_requires_metadata() {
 	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight: u64 = 100_000_000;
@@ -261,7 +261,7 @@ fn get_instruction_set_only_support_local_currency() {
 				transact_encoded_call,
 				transact_encoded_call_weight
 			),
-			Error::<Test>::CurrencyChainComboNotSupported
+			Error::<Test>::CurrencyChainComboNotFound
 		);
 	});
 }
