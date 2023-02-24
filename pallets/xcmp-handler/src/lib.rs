@@ -187,7 +187,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add or update XCM data for a chain/currency pair.
-		/// For now we only support our native currency.
+		/// For now we only support native currencies.
 		#[pallet::weight(T::WeightInfo::add_chain_currency_data())]
 		pub fn add_chain_currency_data(
 			origin: OriginFor<T>,
@@ -197,12 +197,16 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
+			match xcm_data.flow {
+				XcmFlow::Normal if currency_id != T::GetNativeCurrencyId::get() =>
+					Err(Error::<T>::CurrencyChainComboNotSupported)?,
+				XcmFlow::Alternate if !xcm_data.native =>
+					Err(Error::<T>::CurrencyChainComboNotSupported)?,
+				_ => {
+					XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
+					Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
+				},
 			}
-
-			XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
-			Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
 
 			Ok(().into())
 		}
@@ -252,7 +256,6 @@ pub mod pallet {
 		}
 
 		/// Get the instructions for a transact xcm.
-		/// Currently we only support instructions if the currency is the local chain's.
 		///
 		/// Returns two instructions sets.
 		/// The first is to execute locally.
@@ -267,15 +270,19 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
-
 			let (fee, weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
 				para_id,
 				currency_id,
 				transact_encoded_call_weight,
 			)?;
+
+			match xcm_data.flow {
+				XcmFlow::Normal if currency_id != T::GetNativeCurrencyId::get() =>
+					Err(Error::<T>::CurrencyChainComboNotSupported)?,
+				XcmFlow::Alternate if !xcm_data.native =>
+					Err(Error::<T>::CurrencyChainComboNotSupported)?,
+				_ => {},
+			}
 
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
