@@ -29,7 +29,19 @@ cumulus_based = true
 chain = "moonbase-local"
 
 [parachains.collator]
-name = "moonbase-col-1"
+name = "moonbeam-dev-col-1"
 command = "../moonbeam/target/release/moonbeam"
 ws_port = 9949
 rpc_port = 8868
+
+[[hrmp_channels]]
+sender = 2114
+recipient = 1000
+max_capacity = 8
+max_message_size = 512
+
+[[hrmp_channels]]
+sender = 1000
+recipient = 2114
+max_capacity = 8
+max_message_size = 512
