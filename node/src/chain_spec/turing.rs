@@ -113,6 +113,14 @@ pub fn turing_development_config() -> ChainSpec {
 						1_000_000_000,
 						XcmFlow::Alternate,
 					),
+					(
+						1000,
+						turing_runtime::NATIVE_TOKEN_ID,
+						false,
+						10_000_000_000_000_000_000,
+						1_000_000_000,
+						XcmFlow::Alternate,
+					),
 				],
 				vec![
 					(
@@ -174,6 +182,22 @@ pub fn turing_development_config() -> ChainSpec {
 								location: Some(MultiLocation::new(1, X1(Parachain(2000))).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
+									conversion_rate: None,
+								},
+							},
+						),
+					),
+					(
+						5,
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
+							&orml_asset_registry::AssetMetadata {
+								decimals: 18,
+								name: b"Moonbase".to_vec(),
+								symbol: b"DEV".to_vec(),
+								existential_deposit: 1,
+								location: Some(MultiLocation::new(1, X1(Parachain(1000))).into()),
+								additional: CustomMetadata {
+									fee_per_second: Some(10_000_000_000_000_000_000),
 									conversion_rate: None,
 								},
 							},
