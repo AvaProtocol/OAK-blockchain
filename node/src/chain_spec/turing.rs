@@ -16,9 +16,9 @@ use turing_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use xcm::{
-	latest::prelude::X1,
+	latest::prelude::{X1, X2},
 	opaque::latest::{Junctions::Here, MultiLocation},
-	v1::Junction::Parachain,
+	v1::Junction::{PalletInstance, Parachain},
 	VersionedMultiLocation::V1,
 };
 
@@ -195,7 +195,10 @@ pub fn turing_development_config() -> ChainSpec {
 								name: b"Moonbase".to_vec(),
 								symbol: b"DEV".to_vec(),
 								existential_deposit: 1,
-								location: Some(MultiLocation::new(1, X1(Parachain(1000))).into()),
+								location: Some(
+									MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3)))
+										.into(),
+								),
 								additional: CustomMetadata {
 									fee_per_second: Some(10_000_000_000_000_000_000),
 									conversion_rate: None,
