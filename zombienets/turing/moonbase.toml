@@ -29,7 +29,7 @@ cumulus_based = true
 chain = "moonbase-local"
 
 [parachains.collator]
-name = "moonbeam-dev-col-1"
+name = "moonbase-local-col-1"
 command = "../moonbeam/target/release/moonbeam"
 ws_port = 9949
 rpc_port = 8868
