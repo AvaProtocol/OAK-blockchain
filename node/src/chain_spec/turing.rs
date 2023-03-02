@@ -194,7 +194,7 @@ pub fn turing_development_config() -> ChainSpec {
 								decimals: 18,
 								name: b"Moonbase".to_vec(),
 								symbol: b"DEV".to_vec(),
-								existential_deposit: 1_000_000_000_000_000_000,
+								existential_deposit: 1,
 								location: Some(MultiLocation::new(1, X1(Parachain(1000))).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(10_000_000_000_000_000_000),
