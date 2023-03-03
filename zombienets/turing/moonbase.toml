@@ -1,0 +1,47 @@
+[settings]
+provider = "native"
+timeout = 1000
+
+[relaychain]
+default_command = "../polkadot/target/release/polkadot"
+chain = "rococo-local"
+
+[[relaychain.nodes]]
+name = "alice"
+
+[[relaychain.nodes]]
+name = "bob"
+
+[[parachains]]
+id = 2114
+cumulus_based = true
+chain = "turing-dev"
+
+[parachains.collator]
+name = "turing-col-1"
+command = "./target/release/oak-collator"
+ws_port = 9946
+rpc_port = 8855
+
+[[parachains]]
+id = 1000
+cumulus_based = true
+chain = "moonbase-local"
+
+[parachains.collator]
+name = "moonbase-local-col-1"
+command = "../moonbeam/target/release/moonbeam"
+ws_port = 9949
+rpc_port = 8868
+
+[[hrmp_channels]]
+sender = 2114
+recipient = 1000
+max_capacity = 8
+max_message_size = 512
+
+[[hrmp_channels]]
+sender = 1000
+recipient = 2114
+max_capacity = 8
+max_message_size = 512
