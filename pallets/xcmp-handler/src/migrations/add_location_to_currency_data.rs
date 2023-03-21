@@ -53,7 +53,11 @@ impl<T: Config> OnRuntimeUpgrade for AddLocationToCurrencyData<T> {
 		let migrated_count = XcmChainCurrencyData::<T>::iter()
 			.map(|(parachain_id, currency_id, xcm_data)| {
 				let migrated_data = XcmCurrencyData::from(xcm_data);
-				crate::XcmChainCurrencyData::<T>::insert(parachain_id, currency_id, migrated_data.clone());
+				crate::XcmChainCurrencyData::<T>::insert(
+					parachain_id,
+					currency_id,
+					migrated_data.clone(),
+				);
 				log::info!(target: "xcmp-handler", "AddLocationToCurrencyData migrated para_id: {}", parachain_id);
 				migrated_data
 			})

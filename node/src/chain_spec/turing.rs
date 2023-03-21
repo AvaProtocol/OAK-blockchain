@@ -19,8 +19,8 @@ use xcm::{
 	latest::prelude::{X1, X2},
 	opaque::latest::{Junctions::Here, MultiLocation},
 	v1::Junction::{PalletInstance, Parachain},
-	VersionedMultiLocation::V1,
 	VersionedMultiLocation,
+	VersionedMultiLocation::V1,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -124,7 +124,9 @@ pub fn turing_development_config() -> ChainSpec {
 						10_000_000_000_000_000_000,
 						1_000_000_000,
 						XcmFlow::Alternate,
-						Option::<VersionedMultiLocation>::encode(&Some(MultiLocation::new(0, X1(PalletInstance(3))).into())),
+						Option::<VersionedMultiLocation>::encode(&Some(
+							MultiLocation::new(0, X1(PalletInstance(3))).into(),
+						)),
 					),
 				],
 				vec![

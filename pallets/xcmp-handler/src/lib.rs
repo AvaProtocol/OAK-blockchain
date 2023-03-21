@@ -58,7 +58,7 @@ pub mod pallet {
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
-	use xcm::{VersionedMultiLocation, latest::prelude::*};
+	use xcm::{latest::prelude::*, VersionedMultiLocation};
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
@@ -237,8 +237,10 @@ pub mod pallet {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
 
-			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, xcm_data.clone())?;
-			let weight = xcm_data.clone()
+			let (_, target_instructions) =
+				Self::xcm_instruction_skeleton(para_id, xcm_data.clone())?;
+			let weight = xcm_data
+				.clone()
 				.instruction_weight
 				.checked_mul(target_instructions.len() as u64)
 				.ok_or(Error::<T>::WeightOverflow)?
@@ -285,14 +287,12 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
 			let location = match xcm_data.location {
-				Some(loc) => { loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)? },
+				Some(loc) => loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)?,
 				_ => MultiLocation::new(0, Here),
 			};
 
-			let target_asset = MultiAsset {
-				id: Concrete(location),
-				fun: Fungibility::Fungible(fee),
-			};
+			let target_asset =
+				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(fee) };
 
 			let instructions = match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
@@ -541,14 +541,12 @@ pub mod pallet {
 			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
 			let location = match xcm_data.location {
-				Some(loc) => { loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)? },
+				Some(loc) => loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)?,
 				_ => MultiLocation::new(0, Here),
 			};
 
-			let target_asset = MultiAsset {
-				id: Concrete(location),
-				fun: Fungibility::Fungible(0u128),
-			};
+			let target_asset =
+				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(0u128) };
 
 			match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
@@ -585,10 +583,18 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			for (para_id, currency_id, native, fee_per_second, instruction_weight, flow, location_encoded) in
-				self.chain_data.iter()
+			for (
+				para_id,
+				currency_id,
+				native,
+				fee_per_second,
+				instruction_weight,
+				flow,
+				location_encoded,
+			) in self.chain_data.iter()
 			{
-				let location = Option::<VersionedMultiLocation>::decode(&mut &location_encoded[..]).expect("Error decoding VersionedMultiLocation");
+				let location = Option::<VersionedMultiLocation>::decode(&mut &location_encoded[..])
+					.expect("Error decoding VersionedMultiLocation");
 				XcmChainCurrencyData::<T>::insert(
 					para_id,
 					currency_id,
@@ -682,6 +688,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			fee_per_second: 416_000_000_000,
 			instruction_weight: 600_000_000,
 			flow: XcmFlow::Normal,
+			location: None,
 		};
 
 		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);

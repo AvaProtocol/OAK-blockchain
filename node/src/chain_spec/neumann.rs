@@ -12,6 +12,7 @@ use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
 	Extensions,
 };
+use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use neumann_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
@@ -19,6 +20,7 @@ use neumann_runtime::{
 };
 use pallet_xcmp_handler::XcmFlow;
 use primitives::{AccountId, AuraId, Balance, TokenId};
+use xcm::VersionedMultiLocation;
 
 static TOKEN_SYMBOL: &str = "NEU";
 const SS_58_FORMAT: u32 = 51;
@@ -100,6 +102,7 @@ pub fn development_config() -> ChainSpec {
 					419_000_000_000,
 					1_000_000_000,
 					XcmFlow::Normal,
+					Option::<VersionedMultiLocation>::encode(&None),
 				)],
 			)
 		},
@@ -314,7 +317,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow, Vec<u8>)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
