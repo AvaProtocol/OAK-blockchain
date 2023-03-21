@@ -29,7 +29,7 @@ impl From<OldXcmCurrencyData> for XcmCurrencyData {
 			native: data.native,
 			fee_per_second: data.fee_per_second,
 			instruction_weight: data.instruction_weight,
-			flow: XcmFlow::Normal,
+			flow: data.flow,
 			location: None,
 		}
 	}
