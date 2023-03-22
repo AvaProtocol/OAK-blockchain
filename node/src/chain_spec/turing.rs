@@ -19,6 +19,7 @@ use xcm::{
 	latest::prelude::{X1, X2},
 	opaque::latest::{Junctions::Here, MultiLocation},
 	v1::Junction::{PalletInstance, Parachain},
+	VersionedMultiLocation,
 	VersionedMultiLocation::V1,
 };
 
@@ -96,6 +97,7 @@ pub fn turing_development_config() -> ChainSpec {
 						419_000_000_000,
 						1_000_000_000,
 						XcmFlow::Normal,
+						Option::<VersionedMultiLocation>::encode(&None),
 					),
 					(
 						2110,
@@ -104,6 +106,7 @@ pub fn turing_development_config() -> ChainSpec {
 						5_376_000_000_000,
 						1_000_000_000,
 						XcmFlow::Normal,
+						Option::<VersionedMultiLocation>::encode(&None),
 					),
 					(
 						2000,
@@ -112,6 +115,7 @@ pub fn turing_development_config() -> ChainSpec {
 						10_000_000_000_000_000_000,
 						1_000_000_000,
 						XcmFlow::Alternate,
+						Option::<VersionedMultiLocation>::encode(&None),
 					),
 					(
 						1000,
@@ -120,6 +124,9 @@ pub fn turing_development_config() -> ChainSpec {
 						10_000_000_000_000_000_000,
 						1_000_000_000,
 						XcmFlow::Alternate,
+						Option::<VersionedMultiLocation>::encode(&Some(
+							MultiLocation::new(0, X1(PalletInstance(3))).into(),
+						)),
 					),
 				],
 				vec![
@@ -237,7 +244,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow)>,
+	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow, Vec<u8>)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
