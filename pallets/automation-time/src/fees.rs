@@ -59,11 +59,29 @@ where
 		prereq: F,
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
-		// Note: will need to account for fees in non-native tokens once we start accepting them
-		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
-		let outcome = prereq()?;
-		fee_handler.pay_fees()?;
-		Ok(outcome)
+
+		let outcome = match action {
+			Action::XCMP { para_id, .. } => {
+				// TODO:
+				// 1. Calculate the proxy account based on owner and para_id.(Account32Hash ?)
+				// let who = AccountIdConverter::convert_ref(who).map_err(|()| Error::AccountIdConversionFailed)?;
+				// 2. Check whether the owner has added this proxy account.
+				// 3. Calculate which foreign token to use as the fee.
+				// 4. Calculate how much foreign token should be used as task fee.
+				// 5. Withdraw foreign token from proxy account.
+				let outcome = prereq()?;
+				Ok(outcome)
+			},
+			_ => {
+				// Note: will need to account for fees in non-native tokens once we start accepting them
+				fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
+				let outcome = prereq()?;
+				fee_handler.pay_fees()?;
+				Ok(outcome)
+			}
+		};
+
+		outcome
 	}
 }
 
