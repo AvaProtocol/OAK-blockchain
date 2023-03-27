@@ -29,6 +29,13 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 	},
+	XCMPThroughProxy {
+		para_id: ParaId,
+		currency_id: CurrencyId,
+		encoded_call: Vec<u8>,
+		encoded_call_weight: u64,
+		user_account: AccountId,
+	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
 		collator: AccountId,
@@ -45,6 +52,7 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
 			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
+			Action::XCMPThroughProxy { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			Action::DynamicDispatch { encoded_call } => {

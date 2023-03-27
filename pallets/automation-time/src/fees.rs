@@ -61,7 +61,7 @@ where
 		let fee_handler = Self::new(owner, action, executions)?;
 
 		let outcome = match action {
-			Action::XCMP { para_id, .. } => {
+			Action::XCMPThroughProxy { .. } => {
 				// TODO:
 				// 1. Calculate the proxy account based on owner and para_id.(Account32Hash ?)
 				// let who = AccountIdConverter::convert_ref(who).map_err(|()| Error::AccountIdConversionFailed)?;

@@ -482,6 +482,29 @@ pub mod pallet {
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
+		
+		#[pallet::weight(1)]
+		pub fn schedule_xcmp_task_through_proxy(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			schedule: ScheduleParam,
+			para_id: ParaId,
+			currency_id: T::CurrencyId,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: u64,
+			user_account: T::AccountId,
+			fee_asset_id: T::CurrencyId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// TODO: Make sure the owner is the proxy account of the user account.
+
+			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, user_account };
+			let schedule = schedule.validated_into::<T>()?;
+
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			Ok(().into())
+		}
 
 		/// Schedule a task to increase delegation to a specified up to a minimum balance
 		/// Task will reschedule itself to run on a given frequency until a failure occurs
@@ -898,6 +921,20 @@ pub mod pallet {
 								encoded_call_weight,
 								*task_id,
 							),
+							Action::XCMPThroughProxy {
+								para_id,
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+								user_account,
+							} => Self::run_xcmp_task(
+								para_id,
+								user_account,
+								currency_id,
+								encoded_call,
+								encoded_call_weight,
+								*task_id,
+							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
 								collator,
@@ -1308,7 +1345,12 @@ pub mod pallet {
 					Ok(task_id)
 				})?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
+			let scheduler = match action {
+				Action::XCMPThroughProxy { user_account, .. } => user_account,
+				_ => owner_id,
+			};
+
+			Self::deposit_event(Event::<T>::TaskScheduled { who: scheduler, task_id });
 			Ok(())
 		}
 
