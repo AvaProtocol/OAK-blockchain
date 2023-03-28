@@ -32,7 +32,7 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
+	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Zero},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
 };
@@ -49,7 +49,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, parameter_types, ensure,
 	traits::{
 		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
 		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
@@ -102,6 +102,8 @@ use primitives::{
 
 // Custom pallet imports
 pub use pallet_automation_time;
+
+use primitives::EnsureProxy;
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -866,6 +868,23 @@ impl Contains<Call> for ScheduleAllowList {
 	}
 }
 
+pub struct GeneralEnsureProxy;
+impl EnsureProxy<AccountId> for GeneralEnsureProxy {
+	fn ensure_ok(delegator: AccountId, delegatee: AccountId) -> Result<(), &'static str> {
+		// The EVM implicitely contains an Any proxy, so we only allow for "Any" proxies
+		let def: pallet_proxy::ProxyDefinition<AccountId, ProxyType, BlockNumber> =
+			pallet_proxy::Pallet::<Runtime>::find_proxy(
+				&delegator,
+				&delegatee,
+				Some(ProxyType::Any),
+			)
+			.map_err(|_| "proxy error: expected `ProxyType::Any`")?;
+		// We only allow to use it for delay zero proxies, as the call will immediatly be executed
+		ensure!(def.delay.is_zero(), "proxy delay is Non-zero`");
+		Ok(())
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = ConstU32<256>;
@@ -890,6 +909,7 @@ impl pallet_automation_time::Config for Runtime {
 	type FeeConversionRateProvider = FeePerSecondProvider;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
+	type EnsureProxy = GeneralEnsureProxy;
 }
 
 pub struct ClosedCallFilter;

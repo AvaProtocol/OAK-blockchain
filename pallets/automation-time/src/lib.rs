@@ -76,6 +76,7 @@ use sp_runtime::{
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::opaque::latest::MultiLocation;
+use primitives::EnsureProxy;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -179,6 +180,9 @@ pub mod pallet {
 			+ IsType<<Self as frame_system::Config>::Call>;
 
 		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
+
+		/// Ensure proxy
+		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -494,10 +498,18 @@ pub mod pallet {
 			encoded_call_weight: u64,
 			user_account: T::AccountId,
 			fee_asset_id: T::CurrencyId,
-		) -> DispatchResult {
+		) -> DispatchResultWithPostInfo {
 			let who = ensure_signed(origin)?;
 
-			// TODO: Make sure the owner is the proxy account of the user account.
+			// Make sure the owner is the proxy account of the user account.
+			let _ = T::EnsureProxy::ensure_ok( user_account.clone(), who.clone())
+			.map_err(|e| { log::error!("T::EnsureProxy::ensure_ok, error: {:?}", e); sp_runtime::DispatchErrorWithPostInfo {
+				post_info: PostDispatchInfo {
+					actual_weight: Some(T::DbWeight::get().reads(2)),
+					pays_fee: Pays::Yes,
+				},
+				error: sp_runtime::DispatchError::Other(e),
+			}})?;
 
 			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, user_account };
 			let schedule = schedule.validated_into::<T>()?;

@@ -5367,6 +5367,7 @@ dependencies = [
  "pallet-xcmp-handler",
  "parity-scale-codec",
  "polkadot-parachain",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",
