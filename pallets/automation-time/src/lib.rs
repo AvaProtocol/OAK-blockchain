@@ -511,7 +511,7 @@ pub mod pallet {
 				error: sp_runtime::DispatchError::Other(e),
 			}})?;
 
-			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, user_account };
+			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, user_account, fee_asset_id };
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -939,6 +939,7 @@ pub mod pallet {
 								encoded_call,
 								encoded_call_weight,
 								user_account,
+								fee_asset_id,
 							} => Self::run_xcmp_task(
 								para_id,
 								user_account,

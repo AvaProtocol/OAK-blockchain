@@ -35,6 +35,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 		user_account: AccountId,
+		fee_asset_id: CurrencyId,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,

@@ -63,12 +63,10 @@ where
 		let outcome = match action {
 			Action::XCMPThroughProxy { .. } => {
 				// TODO:
-				// 1. Calculate the proxy account based on owner and para_id.(Account32Hash ?)
-				// let who = AccountIdConverter::convert_ref(who).map_err(|()| Error::AccountIdConversionFailed)?;
-				// 2. Check whether the owner has added this proxy account.
-				// 3. Calculate which foreign token to use as the fee.
-				// 4. Calculate how much foreign token should be used as task fee.
-				// 5. Withdraw foreign token from proxy account.
+				// 1. Calculate which foreign token to use as the fee.
+				// 2. Calculate how much foreign token should be used as task fee.
+				// 3. Withdraw foreign token from proxy account.
+				fee_handler.pay_fees_through_proxy()?;
 				let outcome = prereq()?;
 				Ok(outcome)
 			},
@@ -147,7 +145,11 @@ where
 		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let currency_id = action.currency_id::<T>().into();
+		let currency_id = match *action {
+			Action::XCMPThroughProxy { fee_asset_id, .. } => fee_asset_id.into(),
+			_ => action.currency_id::<T>().into(),
+		};
+
 		let execution_fee: u128 =
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
@@ -177,6 +179,17 @@ where
 		// This should never error if can_pay_fee passed.
 		self.withdraw_fee().map_err(|_| Error::<T>::LiquidityRestrictions)?;
 		Ok(())
+	}
+
+	/// Executes the fee handler
+	fn pay_fees_through_proxy(self) -> DispatchResult {
+		let execution_fee = 0u128;
+		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, execution_fee.saturated_into()) {
+			Ok(_) => {
+				Ok(())
+			},
+			Err(_) => Err(DispatchError::Token(BelowMinimum)),
+		}
 	}
 }
 
