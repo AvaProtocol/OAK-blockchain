@@ -183,7 +183,8 @@ where
 
 	/// Executes the fee handler
 	fn pay_fees_through_proxy(self) -> DispatchResult {
-		let execution_fee = 0u128;
+		// TODO: calculate execution_fee
+		let execution_fee = 100u128;
 		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, execution_fee.saturated_into()) {
 			Ok(_) => {
 				Ok(())
