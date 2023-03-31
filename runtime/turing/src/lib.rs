@@ -874,7 +874,7 @@ impl EnsureProxy<AccountId> for GeneralEnsureProxy {
 				&delegatee,
 				Some(ProxyType::Any),
 			)
-			.map_err(|e| { log::error!("ensure_ok, e: {:?}", e); "proxy error: expected `ProxyType::Any`" })?;
+			.map_err(|_| "proxy error: expected `ProxyType::Any`")?;
 		// We only allow to use it for delay zero proxies, as the call will immediatly be executed
 		ensure!(def.delay.is_zero(), "proxy delay is Non-zero`");
 		Ok(())

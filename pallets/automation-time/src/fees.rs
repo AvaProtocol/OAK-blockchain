@@ -59,27 +59,10 @@ where
 		prereq: F,
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
-
-		let outcome = match action {
-			Action::XCMPThroughProxy { .. } => {
-				// TODO:
-				// 1. Calculate which foreign token to use as the fee.
-				// 2. Calculate how much foreign token should be used as task fee.
-				// 3. Withdraw foreign token from proxy account.
-				fee_handler.pay_fees_through_proxy()?;
-				let outcome = prereq()?;
-				Ok(outcome)
-			},
-			_ => {
-				// Note: will need to account for fees in non-native tokens once we start accepting them
-				fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
-				let outcome = prereq()?;
-				fee_handler.pay_fees()?;
-				Ok(outcome)
-			}
-		};
-
-		outcome
+		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
+		let outcome = prereq()?;
+		fee_handler.pay_fees()?;
+		Ok(outcome)
 	}
 }
 
@@ -104,7 +87,6 @@ where
 			.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
 			.ok_or(DispatchError::Token(BelowMinimum))?;
 		T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
-
 		Ok(())
 	}
 
@@ -135,7 +117,9 @@ where
 
 				Ok(())
 			},
-			Err(_) => Err(DispatchError::Token(BelowMinimum)),
+			Err(_) => {
+				Err(DispatchError::Token(BelowMinimum))
+			},
 		}
 	}
 
@@ -146,7 +130,8 @@ where
 		executions: u32,
 	) -> Result<Self, DispatchError> {
 		let currency_id = match *action {
-			Action::XCMPThroughProxy { fee_asset_id, .. } => fee_asset_id.into(),
+			Action::XCMP { currency_id, .. } => currency_id.into(),
+			Action::XCMPThroughProxy { currency_id, .. } => currency_id.into(),
 			_ => action.currency_id::<T>().into(),
 		};
 
@@ -181,17 +166,17 @@ where
 		Ok(())
 	}
 
-	/// Executes the fee handler
-	fn pay_fees_through_proxy(self) -> DispatchResult {
-		// TODO: calculate execution_fee
-		let execution_fee = 100u128;
-		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, execution_fee.saturated_into()) {
-			Ok(_) => {
-				Ok(())
-			},
-			Err(_) => Err(DispatchError::Token(BelowMinimum)),
-		}
-	}
+	// /// Executes the fee handler
+	// fn pay_fees_through_proxy(self) -> DispatchResult {
+	// 	// TODO: calculate execution_fee
+	// 	let execution_fee = 100u128;
+	// 	match T::MultiCurrency::withdraw(self.currency_id, &self.owner, execution_fee.saturated_into()) {
+	// 		Ok(_) => {
+	// 			Ok(())
+	// 		},
+	// 		Err(_) => Err(DispatchError::Token(BelowMinimum)),
+	// 	}
+	// }
 }
 
 #[cfg(test)]

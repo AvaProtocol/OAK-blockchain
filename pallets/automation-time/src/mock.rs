@@ -229,6 +229,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_xcmp_task_full(_v: u32) -> Weight {
 		Weight::zero()
 	}
+	fn schedule_xcmp_task_full_through_proxy(_v: u32) -> Weight {
+		Weight::zero()
+	}
 	fn cancel_scheduled_task_full() -> Weight {
 		Weight::zero()
 	}

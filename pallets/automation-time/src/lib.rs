@@ -487,7 +487,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 		
-		#[pallet::weight(1)]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -496,22 +496,14 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: u64,
-			user_account: T::AccountId,
-			fee_asset_id: T::CurrencyId,
-		) -> DispatchResultWithPostInfo {
+			schedule_as: T::AccountId,
+		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			// Make sure the owner is the proxy account of the user account.
-			let _ = T::EnsureProxy::ensure_ok( user_account.clone(), who.clone())
-			.map_err(|e| { log::error!("T::EnsureProxy::ensure_ok, error: {:?}", e); sp_runtime::DispatchErrorWithPostInfo {
-				post_info: PostDispatchInfo {
-					actual_weight: Some(T::DbWeight::get().reads(2)),
-					pays_fee: Pays::Yes,
-				},
-				error: sp_runtime::DispatchError::Other(e),
-			}})?;
+			T::EnsureProxy::ensure_ok( schedule_as.clone(), who.clone())?;
 
-			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, user_account, fee_asset_id };
+			let action = Action::XCMPThroughProxy { para_id, currency_id, encoded_call, encoded_call_weight, schedule_as };
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -938,11 +930,10 @@ pub mod pallet {
 								currency_id,
 								encoded_call,
 								encoded_call_weight,
-								user_account,
-								fee_asset_id,
+								schedule_as,
 							} => Self::run_xcmp_task(
 								para_id,
-								user_account,
+								schedule_as,
 								currency_id,
 								encoded_call,
 								encoded_call_weight,
@@ -1065,14 +1056,14 @@ pub mod pallet {
 		pub fn run_xcmp_task(
 			para_id: ParaId,
 			caller: T::AccountId,
-			currency_id: T::CurrencyId,
+			_currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: u64,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
 			match T::XcmpTransactor::transact_xcm(
 				para_id.into(),
-				currency_id,
+				T::GetNativeCurrencyId::get(),
 				caller,
 				encoded_call,
 				encoded_call_weight,
@@ -1351,6 +1342,7 @@ pub mod pallet {
 
 			let task =
 				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());
+
 			let task_id =
 				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
 					let task_id = Self::schedule_task(&task, provided_id)?;
@@ -1359,7 +1351,7 @@ pub mod pallet {
 				})?;
 
 			let scheduler = match action {
-				Action::XCMPThroughProxy { user_account, .. } => user_account,
+				Action::XCMPThroughProxy { schedule_as, .. } => schedule_as,
 				_ => owner_id,
 			};
 
