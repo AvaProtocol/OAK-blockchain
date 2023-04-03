@@ -318,9 +318,8 @@ where
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_currency_data(
-		_para_id: u32,
-		_currency_id: CurrencyId,
+	fn setup_chain_asset_data(
+		_asset_location: Multilocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}

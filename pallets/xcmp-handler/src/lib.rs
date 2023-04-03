@@ -121,10 +121,6 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// XCM data was added for a chain/currency pair.
-		XcmDataAdded { para_id: ParachainId, currency_id: T::CurrencyId },
-		/// XCM data was removed for a chain/currency pair.
-		XcmDataRemoved { para_id: ParachainId, currency_id: T::CurrencyId },
 		/// XCM sent to target chain.
 		XcmSent { para_id: ParachainId },
 		/// XCM transacted in local chain.
@@ -133,6 +129,8 @@ pub mod pallet {
 		XcmFeesPaid { source: T::AccountId, dest: T::AccountId },
 		/// XCM fees failed to transfer.
 		XcmFeesFailed { source: T::AccountId, dest: T::AccountId, error: DispatchError },
+		DestAssetConfigChanged { asset_location: MultiLocation },
+		DestAssetConfigRemoved { asset_location: MultiLocation },
 	}
 
 	#[pallet::error]
@@ -160,11 +158,8 @@ pub mod pallet {
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
-	#[derive(Clone, Copy, Debug, Encode, Decode, PartialEq, TypeInfo)]
-	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-	pub struct XcmCurrencyData {
-		/// Is the token native to the chain?
-		pub native: bool,
+	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	pub struct XcmAssetConfig {
 		pub fee_per_second: u128,
 		/// The UnitWeightCost of a single instruction on the target chain
 		pub instruction_weight: u64,
@@ -172,69 +167,66 @@ pub mod pallet {
 		pub flow: XcmFlow,
 	}
 
-	/// Stores XCM data for a chain/currency pair.
+	/// Stores the fee per second for an asset in its reserve chain. This allows us to convert
+	/// from weight to fee
 	#[pallet::storage]
-	#[pallet::getter(fn get_xcm_chain_data)]
-	pub type XcmChainCurrencyData<T: Config> = StorageDoubleMap<
-		_,
-		Twox64Concat,
-		ParachainId,
-		Twox64Concat,
-		T::CurrencyId,
-		XcmCurrencyData,
-	>;
+	#[pallet::getter(fn dest_asset_config)]
+	pub type DestinationAssetConfig<T: Config> =
+		StorageMap<_, Twox64Concat, MultiLocation, XcmAssetConfig>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Add or update XCM data for a chain/currency pair.
 		/// For now we only support our native currency.
-		#[pallet::weight(T::WeightInfo::add_chain_currency_data())]
-		pub fn add_chain_currency_data(
+		#[pallet::weight(1)]
+		pub fn set_asset_config(
 			origin: OriginFor<T>,
-			para_id: ParachainId,
-			currency_id: T::CurrencyId,
-			xcm_data: XcmCurrencyData,
+			asset_location: Box<VersionedMultiLocation>,
+			xcm_asset_config: XcmAssetConfig,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
+			let asset_location =
+				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
 
-			XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
-			Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
+			DestinationAssetConfig::<T>::insert(&asset_location, &xcm_asset_config);
+
+			Self::deposit_event(Event::DestAssetConfigChanged { asset_location });
 
 			Ok(().into())
 		}
 
 		/// Remove XCM data for a chain/currency pair.
-		#[pallet::weight(T::WeightInfo::remove_chain_currency_data())]
-		pub fn remove_chain_currency_data(
-			origin: OriginFor<T>,
-			para_id: ParachainId,
-			currency_id: T::CurrencyId,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
+	#[pallet::weight(1)]
+	pub fn remove_asset_config(
+		origin: OriginFor<T>,
+		location: Box<VersionedMultiLocation>,
+	) -> DispatchResultWithPostInfo {
+		ensure_root(origin)?;
 
-			XcmChainCurrencyData::<T>::take(para_id, currency_id)
-				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
-			Self::deposit_event(Event::XcmDataRemoved { para_id, currency_id });
+		let asset_location =
+			MultiLocation::try_from(*location).map_err(|()| Error::<T>::BadVersion)?;
 
-			Ok(().into())
-		}
+		DestinationAssetConfig::<T>::take(&asset_location)
+			.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+		
+		Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
+
+		Ok(().into())
 	}
+}
 
 	impl<T: Config> Pallet<T> {
 		/// Get the xcm fee and weight for a transact xcm for a given chain/currency pair.
 		pub fn calculate_xcm_fee_and_weight(
 			para_id: ParachainId,
-			currency_id: T::CurrencyId,
+			location: MultiLocation,
 			transact_encoded_call_weight: u64,
-		) -> Result<(u128, u64, XcmCurrencyData), DispatchError> {
-			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
-				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+		) -> Result<(u128, u64, XcmAssetConfig), DispatchError> {
+			let xcm_data = DestinationAssetConfig::<T>::get(location.clone()).ok_or(Error::<T>::CurrencyChainComboNotFound)?;
 
-			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, xcm_data)?;
+			let (_, target_instructions) =
+				Self::xcm_instruction_skeleton(para_id, location, xcm_data.clone())?;
 			let weight = xcm_data
 				.instruction_weight
 				.checked_mul(target_instructions.len() as u64)
@@ -259,7 +251,8 @@ pub mod pallet {
 		/// The second is to execute on the target chain.
 		pub fn get_instruction_set(
 			para_id: ParachainId,
-			currency_id: T::CurrencyId,
+			// currency_id: T::CurrencyId,
+			location: MultiLocation,
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
@@ -267,19 +260,18 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			if currency_id != T::GetNativeCurrencyId::get() {
-				Err(Error::<T>::CurrencyChainComboNotSupported)?
-			}
-
 			let (fee, weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
 				para_id,
-				currency_id,
+				location.clone(),
 				transact_encoded_call_weight,
 			)?;
 
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
+
+			let target_asset =
+				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(fee) };
 
 			let instructions = match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
@@ -291,6 +283,8 @@ pub mod pallet {
 					fee,
 				)?,
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
+					para_id,
+					target_asset,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
@@ -384,6 +378,8 @@ pub mod pallet {
 		/// 	- RefundSurplus
 		/// 	- DepositAsset
 		fn get_alternate_flow_instructions(
+			para_id: ParachainId,
+			target_asset: MultiAsset,
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
@@ -393,11 +389,13 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			// Default to native currency of target chain
-			let target_asset = MultiAsset {
-				id: Concrete(MultiLocation::new(0, Here)),
-				fun: Fungibility::Fungible(fee),
-			};
+			// XCM for target chain
+			let target_asset = target_asset
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					&T::LocationInverter::ancestry(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
@@ -478,14 +476,14 @@ pub mod pallet {
 		/// Send target transact instructions.
 		pub fn transact_xcm(
 			para_id: ParachainId,
-			currency_id: T::CurrencyId,
+			location: MultiLocation,
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
 		) -> Result<(), DispatchError> {
 			let (local_instructions, target_instructions) = Self::get_instruction_set(
 				para_id,
-				currency_id,
+				location,
 				caller,
 				transact_encoded_call,
 				transact_encoded_call_weight,
@@ -527,7 +525,8 @@ pub mod pallet {
 		/// Generates a skeleton of the instruction set for fee calculation
 		fn xcm_instruction_skeleton(
 			para_id: ParachainId,
-			xcm_data: XcmCurrencyData,
+			location: MultiLocation,
+			xcm_data: XcmAssetConfig,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
@@ -539,6 +538,9 @@ pub mod pallet {
 			.try_into()
 			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
+			let target_asset =
+				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(0u128) };
+
 			match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
@@ -549,6 +551,8 @@ pub mod pallet {
 					0u128,
 				),
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
+					para_id,
+					target_asset,
 					nobody,
 					Default::default(),
 					0u64,
@@ -560,33 +564,43 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64, XcmFlow)>,
+	pub struct GenesisConfig {
+		pub asset_data: Vec<(Vec<u8>, u128, u64, XcmFlow)>,
 	}
 
 	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
+	impl Default for GenesisConfig {
 		fn default() -> Self {
-			Self { chain_data: Default::default() }
+			Self { asset_data: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	impl<T: Config> GenesisBuild<T> for GenesisConfig {
 		fn build(&self) {
-			for (para_id, currency_id, native, fee_per_second, instruction_weight, flow) in
-				self.chain_data.iter()
+			for (
+				location_encoded,
+				fee_per_second,
+				instruction_weight,
+				flow,
+			) in self.asset_data.iter()
 			{
-				XcmChainCurrencyData::<T>::insert(
-					para_id,
-					currency_id,
-					XcmCurrencyData {
-						native: *native,
-						fee_per_second: *fee_per_second,
-						instruction_weight: *instruction_weight,
-						flow: *flow,
+				let location = Option::<VersionedMultiLocation>::decode(&mut &location_encoded[..])
+					.expect("Error decoding VersionedMultiLocation");
+				
+				match location {
+					Some(loc) => {
+						DestinationAssetConfig::<T>::insert(
+							MultiLocation::try_from(loc).unwrap(),
+							XcmAssetConfig {
+								fee_per_second: *fee_per_second,
+								instruction_weight: *instruction_weight,
+								flow: *flow,
+							},
+						);
 					},
-				);
+					_ => (),
+				};
 			}
 		}
 	}
@@ -595,7 +609,7 @@ pub mod pallet {
 pub trait XcmpTransactor<AccountId, CurrencyId> {
 	fn transact_xcm(
 		para_id: u32,
-		currency_id: CurrencyId,
+		location: xcm::opaque::latest::MultiLocation,
 		caller: AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: u64,
@@ -603,30 +617,29 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	fn get_xcm_fee(
 		para_id: u32,
-		currency_id: CurrencyId,
+		location: xcm::opaque::latest::MultiLocation,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError>;
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_currency_data(
-		para_id: u32,
-		currency_id: CurrencyId,
+	fn setup_chain_asset_data(
+		location: CurrencyId,
 	) -> Result<(), sp_runtime::DispatchError>;
 }
 
 impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	fn transact_xcm(
 		para_id: u32,
-		currency_id: T::CurrencyId,
+		location: xcm::opaque::latest::MultiLocation,
 		caller: T::AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: u64,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Self::transact_xcm(
 			para_id.into(),
-			currency_id,
+			location,
 			caller,
 			transact_encoded_call,
 			transact_encoded_call_weight,
@@ -637,11 +650,11 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 	fn get_xcm_fee(
 		para_id: u32,
-		currency_id: T::CurrencyId,
+		location: xcm::opaque::latest::MultiLocation,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		let (fee, _weight, xcm_data) =
-			Self::calculate_xcm_fee_and_weight(para_id, currency_id, transact_encoded_call_weight)?;
+			Self::calculate_xcm_fee_and_weight(para_id, location, transact_encoded_call_weight)?;
 
 		match xcm_data.flow {
 			XcmFlow::Alternate => {
@@ -660,19 +673,17 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_currency_data(
-		para_id: u32,
-		currency_id: T::CurrencyId,
+	fn setup_chain_asset_data(
+		asset_location: Multilocation,
 	) -> Result<(), sp_runtime::DispatchError> {
-		let xcm_data = XcmCurrencyData {
-			native: false,
+		let asset_data = XcmAssetConfig {
 			fee_per_second: 416_000_000_000,
 			instruction_weight: 600_000_000,
 			flow: XcmFlow::Normal,
 		};
 
-		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
-		Self::deposit_event(Event::XcmDataAdded { para_id, currency_id });
+		DestinationAssetConfig::<T>::insert(asset_location, asset_data);
+		Self::deposit_event(Event::DestAssetConfigChanged { asset_location });
 
 		Ok(().into())
 	}

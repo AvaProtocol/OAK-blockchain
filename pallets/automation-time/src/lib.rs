@@ -1056,14 +1056,15 @@ pub mod pallet {
 		pub fn run_xcmp_task(
 			para_id: ParaId,
 			caller: T::AccountId,
-			_currency_id: T::CurrencyId,
+			currency_id: T::CurrencyId,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: u64,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
+			let loc = T::CurrencyIdConvert::convert(currency_id).unwrap();
 			match T::XcmpTransactor::transact_xcm(
 				para_id.into(),
-				T::GetNativeCurrencyId::get(),
+				loc,
 				caller,
 				encoded_call,
 				encoded_call_weight,

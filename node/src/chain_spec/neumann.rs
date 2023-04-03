@@ -314,7 +314,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_data: Vec<(u32, TokenId, bool, u128, u64, XcmFlow)>,
+	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, u64, XcmFlow)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -367,7 +367,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { chain_data: xcmp_handler_data },
+		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data  },
 		asset_registry: Default::default(),
 	}
 }

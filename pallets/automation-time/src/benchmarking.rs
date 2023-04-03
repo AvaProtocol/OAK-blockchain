@@ -208,7 +208,7 @@ benchmarks! {
 		}
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
-		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
+		// T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -238,7 +238,7 @@ benchmarks! {
 		}
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
-		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
+		// T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
@@ -409,7 +409,7 @@ benchmarks! {
 			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
-		T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
+		// T::XcmpTransactor::setup_chain_currency_data(para_id.clone(), currency_id.clone())?;
 		let provided_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
 	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, currency_id, call, 100_000, task_id.clone()) }
