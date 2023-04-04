@@ -138,7 +138,7 @@ where
 		let execution_fee: u128 =
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
-		let location = T::CurrencyIdConvert::convert(currency_id.into()).unwrap();
+		let location = T::CurrencyIdConvert::convert(currency_id.into()).ok_or(Error::<T>::IncoveribleCurrencyId)?;
 
 		let xcmp_fee = match *action {
 			Action::XCMP { para_id, encoded_call_weight, .. } =>
@@ -167,18 +167,6 @@ where
 		self.withdraw_fee().map_err(|_| Error::<T>::LiquidityRestrictions)?;
 		Ok(())
 	}
-
-	// /// Executes the fee handler
-	// fn pay_fees_through_proxy(self) -> DispatchResult {
-	// 	// TODO: calculate execution_fee
-	// 	let execution_fee = 100u128;
-	// 	match T::MultiCurrency::withdraw(self.currency_id, &self.owner, execution_fee.saturated_into()) {
-	// 		Ok(_) => {
-	// 			Ok(())
-	// 		},
-	// 		Err(_) => Err(DispatchError::Token(BelowMinimum)),
-	// 	}
-	// }
 }
 
 #[cfg(test)]

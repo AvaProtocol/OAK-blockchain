@@ -252,6 +252,8 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// The call can no longer be decoded.
 		CallCannotBeDecoded,
+		/// Incoverible currency ID.
+		IncoveribleCurrencyId,
 	}
 
 	#[pallet::event]
@@ -1061,10 +1063,16 @@ pub mod pallet {
 			encoded_call_weight: u64,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
-			let loc = T::CurrencyIdConvert::convert(currency_id).unwrap();
+
+			let location = T::CurrencyIdConvert::convert(currency_id);
+			
+			if location.is_none() {
+        return (<T as Config>::WeightInfo::run_xcmp_task(), Some(Error::<T>::IncoveribleCurrencyId.into()));
+			}
+
 			match T::XcmpTransactor::transact_xcm(
 				para_id.into(),
-				loc,
+				location.unwrap(),
 				caller,
 				encoded_call,
 				encoded_call_weight,
@@ -1456,7 +1464,7 @@ pub mod pallet {
 					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
 			} else {
 				let loc =
-					T::CurrencyIdConvert::convert(currency_id).ok_or("CouldNotConvertMultiLoc")?;
+					T::CurrencyIdConvert::convert(currency_id).ok_or("IncoveribleCurrencyId")?;
 				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
 					.ok_or("CouldNotDetermineFeePerSecond")?
 					.checked_mul(total_weight as u128)

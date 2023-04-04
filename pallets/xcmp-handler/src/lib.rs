@@ -585,22 +585,17 @@ pub mod pallet {
 				flow,
 			) in self.asset_data.iter()
 			{
-				let location = Option::<VersionedMultiLocation>::decode(&mut &location_encoded[..])
+				let location = <VersionedMultiLocation>::decode(&mut &location_encoded[..])
 					.expect("Error decoding VersionedMultiLocation");
 				
-				match location {
-					Some(loc) => {
-						DestinationAssetConfig::<T>::insert(
-							MultiLocation::try_from(loc).unwrap(),
-							XcmAssetConfig {
-								fee_per_second: *fee_per_second,
-								instruction_weight: *instruction_weight,
-								flow: *flow,
-							},
-						);
+				DestinationAssetConfig::<T>::insert(
+					MultiLocation::try_from(location).expect("Error converting VersionedMultiLocation"),
+					XcmAssetConfig {
+						fee_per_second: *fee_per_second,
+						instruction_weight: *instruction_weight,
+						flow: *flow,
 					},
-					_ => (),
-				};
+				);
 			}
 		}
 	}
