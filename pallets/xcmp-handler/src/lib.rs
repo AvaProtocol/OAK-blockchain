@@ -155,6 +155,10 @@ pub mod pallet {
 		ErrorGettingCallWeight,
 		/// Currency not supported
 		CurrencyNotSupported,
+		/// The version of the `VersionedMultiLocation` value used is not able
+		/// to be interpreted.
+		BadVersion,
+		AssetNotFound,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
@@ -197,7 +201,7 @@ pub mod pallet {
 		}
 
 		/// Remove XCM data for a chain/currency pair.
-	#[pallet::weight(1)]
+	#[pallet::weight(T::WeightInfo::remove_asset_config())]
 	pub fn remove_asset_config(
 		origin: OriginFor<T>,
 		location: Box<VersionedMultiLocation>,
@@ -207,8 +211,7 @@ pub mod pallet {
 		let asset_location =
 			MultiLocation::try_from(*location).map_err(|()| Error::<T>::BadVersion)?;
 
-		DestinationAssetConfig::<T>::take(&asset_location)
-			.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+		DestinationAssetConfig::<T>::remove(&asset_location);
 		
 		Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
 
@@ -223,7 +226,7 @@ pub mod pallet {
 			location: MultiLocation,
 			transact_encoded_call_weight: u64,
 		) -> Result<(u128, u64, XcmAssetConfig), DispatchError> {
-			let xcm_data = DestinationAssetConfig::<T>::get(location.clone()).ok_or(Error::<T>::CurrencyChainComboNotFound)?;
+			let xcm_data = DestinationAssetConfig::<T>::get(location.clone()).ok_or(Error::<T>::AssetNotFound)?;
 
 			let (_, target_instructions) =
 				Self::xcm_instruction_skeleton(para_id, location, xcm_data.clone())?;
@@ -620,7 +623,7 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		location: CurrencyId,
+		asset_location: xcm::opaque::latest::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError>;
 }
 
@@ -669,7 +672,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		asset_location: Multilocation,
+		asset_location: xcm::opaque::latest::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		let asset_data = XcmAssetConfig {
 			fee_per_second: 416_000_000_000,
@@ -677,7 +680,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			flow: XcmFlow::Normal,
 		};
 
-		DestinationAssetConfig::<T>::insert(asset_location, asset_data);
+		DestinationAssetConfig::<T>::insert(asset_location.clone(), asset_data);
 		Self::deposit_event(Event::DestAssetConfigChanged { asset_location });
 
 		Ok(().into())
