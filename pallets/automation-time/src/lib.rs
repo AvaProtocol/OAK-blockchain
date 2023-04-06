@@ -151,7 +151,8 @@ pub mod pallet {
 			+ TypeInfo
 			+ MaxEncodedLen
 			+ From<MultiCurrencyId<Self>>
-			+ Into<MultiCurrencyId<Self>>;
+			+ Into<MultiCurrencyId<Self>>
+			+ From<u32>;
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;

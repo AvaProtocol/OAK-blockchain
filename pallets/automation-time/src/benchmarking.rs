@@ -21,6 +21,7 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use pallet_timestamp::Pallet as Timestamp;
+use orml_currencies::Pallet as Currencies;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
@@ -203,8 +204,8 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 7200;
-		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
-		let para_id: u32 = 2001;
+		let currency_id: u32 = 1;
+		let para_id: u32 = 2110;
 		let call = vec![4,5,6];
 
 		let mut times: Vec<u64> = vec![];
@@ -220,7 +221,9 @@ benchmarks! {
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, call, 1_000)
+
+		Currencies::<T>::update_balance(&caller, currency_id.into(), 5000000000000000);
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id.into(), call, 1_000)
 
 	schedule_xcmp_task_full_through_proxy {
 		let v in 1..T::MaxExecutionTimes::get();
@@ -234,8 +237,8 @@ benchmarks! {
 		let schedule_as: T::AccountId = account("scheduler", 0, SEED);
 
 		let time: u64 = 7200;
-		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
-		let para_id: u32 = 2001;
+		let currency_id: u32 = 1;
+		let para_id: u32 = 2110;
 		let call = vec![4,5,6];
 
 		let mut times: Vec<u64> = vec![];
@@ -251,7 +254,9 @@ benchmarks! {
 		provided_id = increment_provided_id(provided_id);
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-	}: schedule_xcmp_task_through_proxy(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, call, 1_000, schedule_as)
+
+		Currencies::<T>::update_balance(&caller, currency_id.into(), 5000000000000000);
+	}: schedule_xcmp_task_through_proxy(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id.into(), call, 1_000, schedule_as)
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
