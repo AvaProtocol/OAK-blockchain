@@ -93,14 +93,7 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 				],
-				vec![(
-					1999,
-					neumann_runtime::NATIVE_TOKEN_ID,
-					false,
-					419_000_000_000,
-					1_000_000_000,
-					XcmFlow::Normal,
-				)],
+				vec![],
 			)
 		},
 		Vec::new(),

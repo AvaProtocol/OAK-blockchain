@@ -489,9 +489,8 @@ pub mod pallet {
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
-		
-		// #[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full_through_proxy(schedule.number_of_executions()))]
-		#[pallet::weight(1)]
+
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]		
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,

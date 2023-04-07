@@ -21,7 +21,6 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use pallet_timestamp::Pallet as Timestamp;
-use orml_currencies::Pallet as Currencies;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
@@ -204,7 +203,7 @@ benchmarks! {
 
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 7200;
-		let currency_id: u32 = 1;
+		let currency_id: T::CurrencyId = 1u32.into();
 		let para_id: u32 = 2110;
 		let call = vec![4,5,6];
 
@@ -219,44 +218,12 @@ benchmarks! {
 		T::XcmpTransactor::setup_chain_asset_data(location)?;
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-
-		Currencies::<T>::update_balance(&caller, currency_id.into(), 5000000000000000);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id.into(), call, 1_000)
-
-	schedule_xcmp_task_full_through_proxy {
-		let v in 1..T::MaxExecutionTimes::get();
-
-		let mut max_tasks_per_slot: u32 = (
-			T::MaxWeightPerSlot::get() / <T as Config>::WeightInfo::run_xcmp_task().ref_time() as u128
-		).try_into().unwrap();
-		max_tasks_per_slot = cmp::min(max_tasks_per_slot, T::MaxTasksPerSlot::get());
-
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let schedule_as: T::AccountId = account("scheduler", 0, SEED);
-
-		let time: u64 = 7200;
-		let currency_id: u32 = 1;
-		let para_id: u32 = 2110;
-		let call = vec![4,5,6];
-
-		let mut times: Vec<u64> = vec![];
-		for i in 1..=v {
-			let hour: u64 = (3600 * i).try_into().unwrap();
-			times.push(hour);
-		}
-		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
-
-		let location = MultiLocation::new(1, X1(Parachain(para_id)));
-		T::XcmpTransactor::setup_chain_asset_data(location)?;
-		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
-		provided_id = increment_provided_id(provided_id);
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-
-		Currencies::<T>::update_balance(&caller, currency_id.into(), 5000000000000000);
-	}: schedule_xcmp_task_through_proxy(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id.into(), call, 1_000, schedule_as)
+		let foreign_currency_amount = T::MultiCurrency::minimum_balance(currency_id.into())
+			.saturating_add(1u32.into())
+			.saturating_mul(ED_MULTIPLIER.into())
+			.saturating_mul(DEPOSIT_MULTIPLIER.into());
+		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, call, 1_000)
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);

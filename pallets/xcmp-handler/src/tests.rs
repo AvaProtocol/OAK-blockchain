@@ -14,12 +14,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData, XcmFlow};
+use crate::{mock::*, Error, DestinationAssetConfig, XcmAssetConfig, XcmFlow};
+use codec::Encode;
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
-use xcm::latest::prelude::*;
 
 // //*****************
 // //Extrinsics
