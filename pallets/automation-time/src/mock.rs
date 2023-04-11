@@ -32,11 +32,9 @@ use sp_runtime::{
 use sp_std::marker::PhantomData;
 use primitives::EnsureProxy;
 use xcm::{
-	latest::prelude::{X1, X2},
+	latest::prelude::{X1},
 	opaque::latest::{Junctions::Here, MultiLocation},
-	v1::Junction::{PalletInstance, Parachain},
-	VersionedMultiLocation,
-	VersionedMultiLocation::V1,
+	v1::Junction::Parachain,
 };
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;

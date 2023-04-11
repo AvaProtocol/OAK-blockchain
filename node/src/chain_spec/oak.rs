@@ -18,7 +18,7 @@ use oak_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use pallet_xcmp_handler::XcmFlow;
-use primitives::{AccountId, AuraId, Balance, TokenId};
+use primitives::{AccountId, AuraId, Balance};
 
 const TOKEN_SYMBOL: &str = "OAK";
 const SS_58_FORMAT: u32 = 51;

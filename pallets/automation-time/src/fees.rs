@@ -138,13 +138,11 @@ where
 		let execution_fee: u128 =
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
-		let location = T::CurrencyIdConvert::convert(currency_id.into()).ok_or(Error::<T>::IncoveribleCurrencyId)?;
-
-		let xcmp_fee = match *action {
-			Action::XCMP { para_id, encoded_call_weight, .. } =>
+		let xcmp_fee = match action.clone() {
+			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } =>
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
-					location,
+					MultiLocation::try_from(xcm_asset_location).map_err(|()|Error::<T>::BadVersion)?,
 					encoded_call_weight.clone(),
 				)?
 				.saturating_mul(executions.into())

@@ -16,8 +16,7 @@ use turing_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use xcm::{
-	latest::prelude::{X1, X2},
-	opaque::latest::{Junctions::Here, MultiLocation},
+	latest::{ prelude::{X1, X2}, Junctions::Here, MultiLocation },
 	v1::Junction::{PalletInstance, Parachain},
 	VersionedMultiLocation::V1,
 };
@@ -89,6 +88,30 @@ pub fn turing_development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
 				],
 				vec![
+					(
+						<VersionedMultiLocation>::encode(
+							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
+						),
+						419_000_000_000,
+						1_000_000_000,
+						XcmFlow::Normal,
+					),
+					(
+						<VersionedMultiLocation>::encode(
+							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
+						),
+						419_000_000_000,
+						1_000_000_000,
+						XcmFlow::Normal,
+					),
+					(
+						<VersionedMultiLocation>::encode(
+							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+						),
+						10_000_000_000_000_000_000,
+						1_000_000_000,
+						XcmFlow::Alternate,
+					),
 					(
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),

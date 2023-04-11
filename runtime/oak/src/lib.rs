@@ -868,10 +868,10 @@ impl Contains<Call> for ScheduleAllowList {
 	}
 }
 
-pub struct GeneralEnsureProxy;
-impl EnsureProxy<AccountId> for GeneralEnsureProxy {
+pub struct AutomationEnsureProxy;
+impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 	fn ensure_ok(delegator: AccountId, delegatee: AccountId) -> Result<(), &'static str> {
-		// The EVM implicitely contains an Any proxy, so we only allow for "Any" proxies
+		// We only allow for "Any" proxies
 		let def: pallet_proxy::ProxyDefinition<AccountId, ProxyType, BlockNumber> =
 			pallet_proxy::Pallet::<Runtime>::find_proxy(
 				&delegator,
@@ -909,7 +909,7 @@ impl pallet_automation_time::Config for Runtime {
 	type FeeConversionRateProvider = FeePerSecondProvider;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
-	type EnsureProxy = GeneralEnsureProxy;
+	type EnsureProxy = AutomationEnsureProxy;
 }
 
 pub struct ClosedCallFilter;
@@ -1145,9 +1145,9 @@ impl_runtime_apis! {
 
 			let (action, executions) = match uxt.function {
 				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					para_id, currency_id, encoded_call, encoded_call_weight, schedule, ..
+					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, ..
 				}) => {
-					let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight };
 					Ok((action, schedule.number_of_executions()))
 				},
 				Call::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{

@@ -10,6 +10,8 @@ use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox6
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
+use xcm::latest::{Junctions::X1, Junction::Parachain, MultiLocation};
+
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub struct OldTask<T: Config> {
@@ -78,8 +80,10 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 			OldAction::Notify { message } => Self::Notify { message },
 			OldAction::NativeTransfer { sender, recipient, amount } =>
 				Self::NativeTransfer { sender, recipient, amount },
-			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } =>
-				Self::XCMP { para_id, currency_id, encoded_call, encoded_call_weight },
+			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } =>{
+				let xcm_asset_location = MultiLocation::new(1, X1(Parachain(para_id.into()))).into();
+				Self::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight }
+			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
 		}
 	}

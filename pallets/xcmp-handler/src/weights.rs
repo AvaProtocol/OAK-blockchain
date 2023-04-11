@@ -46,8 +46,8 @@
 // ./.maintain/frame-weight-template.hbs
 
 // Summary:
-//:add_chain_currency_data 15_934_000
-//:remove_chain_currency_data 19_489_000
+//:set_asset_config 15_934_000
+//:remove_asset_config 19_489_000
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]

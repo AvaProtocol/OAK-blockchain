@@ -9,6 +9,14 @@ use cumulus_primitives_core::ParaId;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
+use xcm::{
+	latest::prelude::X1,
+	opaque::latest::MultiLocation,
+	v1::Junction::Parachain,
+	VersionedMultiLocation,
+};
+
+
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
@@ -26,12 +34,14 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 	XCMP {
 		para_id: ParaId,
 		currency_id: CurrencyId,
+		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 	},
 	XCMPThroughProxy {
 		para_id: ParaId,
 		currency_id: CurrencyId,
+		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 		schedule_as: AccountId,
@@ -94,6 +104,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			AutomationAction::XCMP => Action::XCMP {
 				para_id: ParaId::from(2114 as u32),
 				currency_id: CurrencyId::default(),
+				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2110))).into(),
 				encoded_call: vec![0],
 				encoded_call_weight: 0,
 			},
@@ -262,10 +273,11 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		execution_times: Vec<UnixTime>,
 		para_id: ParaId,
 		currency_id: CurrencyId,
+		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 	) -> Result<Self, DispatchError> {
-		let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+		let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
