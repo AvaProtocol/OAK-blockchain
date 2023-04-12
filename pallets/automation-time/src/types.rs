@@ -16,7 +16,6 @@ use xcm::{
 	VersionedMultiLocation,
 };
 
-
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
@@ -61,8 +60,7 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
 			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
-			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
-			Action::XCMPThroughProxy { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
+			Action::XCMP { .. } | Action::XCMPThroughProxy { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			Action::DynamicDispatch { encoded_call } => {
@@ -81,7 +79,7 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 		CurrencyId: From<T::CurrencyId>,
 	{
 		match self {
-			Action::XCMP { currency_id, .. } => currency_id.clone(),
+			Action::XCMP { currency_id, .. } | Action::XCMPThroughProxy { currency_id, .. } => currency_id.clone(),
 			_ => CurrencyId::from(T::GetNativeCurrencyId::get()),
 		}
 	}
@@ -104,9 +102,17 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			AutomationAction::XCMP => Action::XCMP {
 				para_id: ParaId::from(2114 as u32),
 				currency_id: CurrencyId::default(),
-				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2110))).into(),
+				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				encoded_call: vec![0],
 				encoded_call_weight: 0,
+			},
+			AutomationAction::XCMPThroughProxy => Action::XCMPThroughProxy {
+				para_id: ParaId::from(2114 as u32),
+				currency_id: CurrencyId::default(),
+				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
+				encoded_call: vec![0],
+				encoded_call_weight: 0,
+				schedule_as: default_account,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
 				delegator: default_account.clone(),

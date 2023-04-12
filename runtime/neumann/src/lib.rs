@@ -1138,6 +1138,12 @@ impl_runtime_apis! {
 					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight };
 					Ok((action, schedule.number_of_executions()))
 				},
+				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
+					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, schedule_as, ..
+				}) => {
+					let action = Action::XCMPThroughProxy { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as};
+					Ok((action, schedule.number_of_executions()))
+				},
 				Call::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
 					call, schedule, ..
 				}) => {

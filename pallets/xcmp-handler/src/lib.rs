@@ -135,10 +135,6 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// We only support certain currency/chain combinations.
-		CurrencyChainComboNotSupported,
-		/// There is no entry for that currency/chain combination.
-		CurrencyChainComboNotFound,
 		/// Either the weight or fee per second is too large.
 		FeeOverflow,
 		/// Either the instruction weight or the transact weight is too large.
@@ -153,11 +149,10 @@ pub mod pallet {
 		XcmExecutionFailed,
 		/// Failed to get weight of call.
 		ErrorGettingCallWeight,
-		/// Currency not supported
-		CurrencyNotSupported,
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
+		// Asset not found
 		AssetNotFound,
 	}
 
@@ -211,7 +206,8 @@ pub mod pallet {
 		let asset_location =
 			MultiLocation::try_from(*location).map_err(|()| Error::<T>::BadVersion)?;
 
-		DestinationAssetConfig::<T>::remove(&asset_location);
+		DestinationAssetConfig::<T>::take(&asset_location)
+			.ok_or(Error::<T>::AssetNotFound)?;
 		
 		Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
 

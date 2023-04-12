@@ -21,6 +21,7 @@ use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
 use xcm::{latest::prelude::*, VersionedMultiLocation};
+
 //*****************
 //Extrinsics
 //*****************
@@ -35,27 +36,27 @@ const XCM_DATA: XcmAssetConfig = XcmAssetConfig {
 // set_asset_config
 #[test]
 fn set_asset_config_new_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
-		// let currency_id = NATIVE;
-
-		if DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location.clone()).is_some() {
 			panic!("There should be no data set")
 		};
 
 		assert_ok!(XcmpHandler::set_asset_config(
 			RawOrigin::Root.into(),
-			Box::new(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			Box::new(asset_location.clone().into()),
 			XCM_DATA
 		));
-		assert_eq!(DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).unwrap(), XCM_DATA);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location).unwrap(), XCM_DATA);
 	});
 }
 
 #[test]
 fn set_asset_config_update_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -63,7 +64,7 @@ fn set_asset_config_update_data() {
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_eq!(DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).unwrap(), XCM_DATA);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location.clone()).unwrap(), XCM_DATA);
 
 		let xcm_data_new = XcmAssetConfig {
 			fee_per_second: 200,
@@ -73,29 +74,20 @@ fn set_asset_config_update_data() {
 
 		assert_ok!(XcmpHandler::set_asset_config(
 			RawOrigin::Root.into(),
-			Box::new(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			Box::new(asset_location.clone().into()),
 			xcm_data_new.clone()
 		));
-		assert_eq!(DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).unwrap(), xcm_data_new);
-	});
-}
-
-#[test]
-fn set_asset_config_can_only_use_native_currency() {
-	new_test_ext(None).execute_with(|| {
-		assert_noop!(
-			XcmpHandler::set_asset_config(RawOrigin::Root.into(), Box::new(MultiLocation::new(1, X1(Parachain(2000))).into()), XCM_DATA),
-			Error::<Test>::CurrencyChainComboNotSupported
-		);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location).unwrap(), xcm_data_new);
 	});
 }
 
 // remove_asset_config
 #[test]
 fn remove_asset_config_remove_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -105,9 +97,9 @@ fn remove_asset_config_remove_data() {
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		assert_ok!(XcmpHandler::remove_asset_config(
 			RawOrigin::Root.into(),
-			Box::new(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			Box::new(asset_location.clone().into()),
 		));
-		if DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location).is_some() {
 			panic!("There should be no data set")
 		};
 	});
@@ -115,13 +107,14 @@ fn remove_asset_config_remove_data() {
 
 #[test]
 fn remove_asset_config_not_found() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
-		if DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location.clone()).is_some() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_asset_config(RawOrigin::Root.into(), Box::new(MultiLocation::new(1, X1(Parachain(2000))).into())),
-			Error::<Test>::CurrencyChainComboNotFound
+			XcmpHandler::remove_asset_config(RawOrigin::Root.into(), Box::new(asset_location.into())),
+			Error::<Test>::AssetNotFound
 		);
 	});
 }
@@ -133,9 +126,10 @@ fn remove_asset_config_not_found() {
 // calculate_xcm_fee_and_weight
 #[test]
 fn calculate_xcm_fee_and_weight_works() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -151,7 +145,7 @@ fn calculate_xcm_fee_and_weight_works() {
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				transact_encoded_call_weight
 			),
 			(expected_fee, expected_weight, XCM_DATA),
@@ -161,9 +155,10 @@ fn calculate_xcm_fee_and_weight_works() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let gensis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		u128::MAX,
 		1_000,
@@ -176,7 +171,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::FeeOverflow
@@ -186,9 +181,10 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let gensis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		1_000,
 		u64::MAX,
@@ -201,7 +197,7 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::WeightOverflow
@@ -211,19 +207,20 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_no_xcm_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		if let Some(_) = DestinationAssetConfig::<Test>::get(MultiLocation::new(1, X1(Parachain(2000)))) {
+		if let Some(_) = DestinationAssetConfig::<Test>::get(asset_location.clone()) {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				transact_encoded_call_weight
 			),
-			Error::<Test>::CurrencyChainComboNotFound
+			Error::<Test>::AssetNotFound
 		);
 	});
 }
@@ -231,9 +228,10 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 #[test]
 fn calculate_xcm_fee_handles_alternate_flow() {
 	let para_id: u32 = 9999;
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -247,7 +245,7 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				para_id,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				transact_encoded_call_weight,
 			),
 			(35000000, expected_weight, XcmAssetConfig { flow: XcmFlow::Alternate, ..XCM_DATA }),
@@ -257,29 +255,11 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 
 // get_instruction_set
 #[test]
-fn get_instruction_set_only_support_local_currency() {
-	new_test_ext(None).execute_with(|| {
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = 100_000_000;
-
-		assert_noop!(
-			XcmpHandler::get_instruction_set(
-				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
-				ALICE,
-				transact_encoded_call,
-				transact_encoded_call_weight
-			),
-			Error::<Test>::CurrencyChainComboNotSupported
-		);
-	});
-}
-
-#[test]
 fn get_instruction_set_local_currency_instructions() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
 		<VersionedMultiLocation>::encode(
-			&(MultiLocation::new(1, X1(Parachain(2000))).into()),
+			&(asset_location.clone().into()),
 		),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
@@ -291,17 +271,12 @@ fn get_instruction_set_local_currency_instructions() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let (xcm_fee, xcm_weight, _) = XcmpHandler::calculate_xcm_fee_and_weight(
 			PARA_ID,
-			MultiLocation::new(1, X1(Parachain(2000))),
+			asset_location.clone(),
 			transact_encoded_call_weight,
 		)
 		.unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-
-		// let target_asset = MultiAsset {
-		// 	id: Concrete(MultiLocation::new(0, Here)),
-		// 	fun: Fungibility::Fungible(xcm_fee),
-		// };
 
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
@@ -316,7 +291,7 @@ fn get_instruction_set_local_currency_instructions() {
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
 				PARA_ID,
-				MultiLocation::new(1, X1(Parachain(2000))),
+				asset_location,
 				ALICE,
 				transact_encoded_call,
 				transact_encoded_call_weight
