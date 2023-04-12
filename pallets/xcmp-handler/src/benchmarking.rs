@@ -24,8 +24,7 @@ use frame_system::RawOrigin;
 
 
 use xcm::{
-	latest::{MultiLocation, prelude::X1 },
-	v1::Junction::Parachain,
+	latest::prelude::*,
 	VersionedMultiLocation,
 };
 

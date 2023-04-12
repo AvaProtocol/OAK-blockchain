@@ -16,7 +16,7 @@ use turing_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use xcm::{
-	latest::{ prelude::{X1, X2}, Junctions::Here, MultiLocation },
+	latest::prelude::*,
 	v1::Junction::{PalletInstance, Parachain},
 	VersionedMultiLocation::V1,
 };

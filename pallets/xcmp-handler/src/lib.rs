@@ -156,7 +156,7 @@ pub mod pallet {
 		AssetNotFound,
 	}
 
-	/// Stores all data needed to send an XCM message for chain/currency pair.
+	/// Stores all configuration needed to send an XCM message for a given asset location.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
 	pub struct XcmAssetConfig {
 		pub fee_per_second: u128,
@@ -166,8 +166,7 @@ pub mod pallet {
 		pub flow: XcmFlow,
 	}
 
-	/// Stores the fee per second for an asset in its reserve chain. This allows us to convert
-	/// from weight to fee
+	/// Stores the config for an asset in its reserve chain.
 	#[pallet::storage]
 	#[pallet::getter(fn dest_asset_config)]
 	pub type DestinationAssetConfig<T: Config> =
@@ -175,8 +174,7 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Add or update XCM data for a chain/currency pair.
-		/// For now we only support our native currency.
+		/// Set asset config for a given asset location
 		#[pallet::weight(T::WeightInfo::set_asset_config())]
 		pub fn set_asset_config(
 			origin: OriginFor<T>,
@@ -195,28 +193,28 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Remove XCM data for a chain/currency pair.
-	#[pallet::weight(T::WeightInfo::remove_asset_config())]
-	pub fn remove_asset_config(
-		origin: OriginFor<T>,
-		location: Box<VersionedMultiLocation>,
-	) -> DispatchResultWithPostInfo {
-		ensure_root(origin)?;
+		/// Remove asset config for a given asset location
+		#[pallet::weight(T::WeightInfo::remove_asset_config())]
+		pub fn remove_asset_config(
+			origin: OriginFor<T>,
+			asset_location: Box<VersionedMultiLocation>,
+		) -> DispatchResultWithPostInfo {
+			ensure_root(origin)?;
 
-		let asset_location =
-			MultiLocation::try_from(*location).map_err(|()| Error::<T>::BadVersion)?;
+			let asset_location =
+				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
 
-		DestinationAssetConfig::<T>::take(&asset_location)
-			.ok_or(Error::<T>::AssetNotFound)?;
-		
-		Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
+			DestinationAssetConfig::<T>::take(&asset_location)
+				.ok_or(Error::<T>::AssetNotFound)?;
+			
+			Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
 
-		Ok(().into())
+			Ok(().into())
+		}
 	}
-}
 
 	impl<T: Config> Pallet<T> {
-		/// Get the xcm fee and weight for a transact xcm for a given chain/currency pair.
+		/// Get the xcm fee and weight for a transact xcm for a given asset location.
 		pub fn calculate_xcm_fee_and_weight(
 			para_id: ParachainId,
 			location: MultiLocation,

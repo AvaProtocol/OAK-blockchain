@@ -285,7 +285,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(20_000)
 	}
-	fn migration_add_schedule_to_task(_: u32) -> Weight {
+	fn migration_upgrade_xcmp_task_struct(_: u32) -> Weight {
 		Weight::zero()
 	}
 }

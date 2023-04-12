@@ -71,7 +71,7 @@
 //:append_to_missed_tasks 4_247_000
 //:update_scheduled_task_queue 42_676_000
 //:shift_missed_tasks 28_294_000
-//:migration_add_schedule_to_task 13_337_000
+//:migration_upgrade_xcmp_task_struct 13_337_000
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -107,7 +107,7 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
-	fn migration_add_schedule_to_task(v: u32, ) -> Weight;
+	fn migration_upgrade_xcmp_task_struct(v: u32, ) -> Weight;
 }
 
 /// Weights for pallet_automation_time using the Substrate node and recommended hardware.
@@ -364,7 +364,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
+	fn migration_upgrade_xcmp_task_struct(v: u32, ) -> Weight {
 		Weight::from_ref_time(13_337_000 as u64)
 			// Standard Error: 7_000
 			.saturating_add(Weight::from_ref_time(8_031_000 as u64).saturating_mul(v as u64))
@@ -627,7 +627,7 @@ impl WeightInfo for () {
 	}
 	// Storage: AutomationTime AccountTasks (r:2 w:1)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_add_schedule_to_task(v: u32, ) -> Weight {
+	fn migration_upgrade_xcmp_task_struct(v: u32, ) -> Weight {
 		Weight::from_ref_time(13_337_000 as u64)
 			// Standard Error: 7_000
 			.saturating_add(Weight::from_ref_time(8_031_000 as u64).saturating_mul(v as u64))

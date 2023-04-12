@@ -38,7 +38,6 @@ pub enum AutomationAction {
 	Notify,
 	NativeTransfer,
 	XCMP,
-	XCMPThroughProxy,
 	AutoCompoundDelegatedStake,
 }
 

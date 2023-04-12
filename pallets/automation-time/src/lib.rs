@@ -459,7 +459,7 @@ pub mod pallet {
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
 		/// * The times are valid
-		/// * The chain/currency pair is supported
+		/// * The given asset location is supported
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
@@ -487,7 +487,7 @@ pub mod pallet {
 			encoded_call_weight: u64,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight };
+			let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -511,7 +511,7 @@ pub mod pallet {
 			// Make sure the owner is the proxy account of the user account.
 			T::EnsureProxy::ensure_ok( schedule_as.clone(), who.clone())?;
 
-			let action = Action::XCMPThroughProxy { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as };
+			let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: Some(schedule_as) };
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -922,28 +922,14 @@ pub mod pallet {
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
 								para_id,
+								schedule_as,
 								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
 								..
 							} => Self::run_xcmp_task(
 								para_id,
-								task.owner_id.clone(),
-								xcm_asset_location,
-								encoded_call,
-								encoded_call_weight,
-								*task_id,
-							),
-							Action::XCMPThroughProxy {
-								para_id,
-								xcm_asset_location,
-								encoded_call,
-								encoded_call_weight,
-								schedule_as,
-								..
-							} => Self::run_xcmp_task(
-								para_id,
-								schedule_as,
+								schedule_as.unwrap_or(task.owner_id.clone()),
 								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
@@ -1366,7 +1352,7 @@ pub mod pallet {
 				})?;
 
 			let scheduler = match action {
-				Action::XCMPThroughProxy { schedule_as, .. } => schedule_as,
+				Action::XCMP { schedule_as, .. } => schedule_as.unwrap_or(owner_id),
 				_ => owner_id,
 			};
 

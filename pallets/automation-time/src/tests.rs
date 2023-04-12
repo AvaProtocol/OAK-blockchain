@@ -1353,6 +1353,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 				xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into()))).into(),
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: 100_000,
+				schedule_as: None,
 			},
 		);
 

@@ -360,7 +360,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data  },
+		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data },
 		asset_registry: Default::default(),
 	}
 }

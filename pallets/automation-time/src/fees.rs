@@ -135,7 +135,7 @@ where
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
 		let xcmp_fee = match action.clone() {
-			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } | Action::XCMPThroughProxy { para_id, xcm_asset_location, encoded_call_weight, .. } =>
+			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } =>
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
 					MultiLocation::try_from(xcm_asset_location).map_err(|()|Error::<T>::BadVersion)?,

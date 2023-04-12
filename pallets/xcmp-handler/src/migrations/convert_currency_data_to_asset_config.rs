@@ -49,10 +49,10 @@ pub type XcmChainCurrencyData<T: Config> = StorageDoubleMap<
 	OldXcmCurrencyData,
 >;
 
-pub struct ConvertCurrencyDataToAssetData<T>(PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for ConvertCurrencyDataToAssetData<T> {
+pub struct ConvertCurrencyDataToAssetConfig<T>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for ConvertCurrencyDataToAssetConfig<T> {
 	fn on_runtime_upgrade() -> Weight {
-		log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetData migration");
+		log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetConfig migration");
 
 		let migrated_count = XcmChainCurrencyData::<T>::iter()
 			.map(|(parachain_id, _currency_id, xcm_data)| {
@@ -61,12 +61,12 @@ impl<T: Config> OnRuntimeUpgrade for ConvertCurrencyDataToAssetData<T> {
 					MultiLocation::new(1, X1(Parachain(1000))),
 					migrated_data.clone(),
 				);
-				log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetData migrated para_id: {}", parachain_id);
+				log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetConfig migrated para_id: {}", parachain_id);
 				migrated_data
 			})
 			.count();
 
-		log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetData successful! Migrated {} object.", migrated_count);
+		log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetConfig successful! Migrated {} object.", migrated_count);
 
 		T::DbWeight::get().reads_writes(migrated_count as u64, migrated_count as u64)
 	}
@@ -92,7 +92,7 @@ impl<T: Config> OnRuntimeUpgrade for ConvertCurrencyDataToAssetData<T> {
 
 		log::info!(
 			target: "xcmp-handler",
-			"ConvertCurrencyDataToAssetData try-runtime checks complete"
+			"ConvertCurrencyDataToAssetConfig try-runtime checks complete"
 		);
 
 		Ok(())
