@@ -28,7 +28,7 @@ benchmarks! {
 		let currency_id = T::GetNativeCurrencyId::get();
 		let para_id: u32 = 1000;
 		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal, location: None };
+			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
 
 	}: add_chain_currency_data(RawOrigin::Root, para_id, currency_id, xcm_data.clone())
 	verify {
@@ -39,7 +39,7 @@ benchmarks! {
 		let currency_id = T::GetNativeCurrencyId::get();
 		let para_id: u32 = 1000;
 		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal, location: None };
+			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
 		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
 
 	}: remove_chain_currency_data(RawOrigin::Root, para_id, currency_id)
