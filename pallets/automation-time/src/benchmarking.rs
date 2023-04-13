@@ -558,34 +558,6 @@ benchmarks! {
 		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 
-	migration_add_schedule_to_task {
-		let v in 1..100;
-
-		use migrations::add_schedule_to_task::{AccountTasks as OldAccountTasks, AddScheduleToTask, OldAction, OldTask};
-		use frame_support::traits::OnRuntimeUpgrade;
-
-		for i in 0..v {
-			let account_id: T::AccountId = account("Account", 0, i);
-			let task_id = Pallet::<T>::generate_task_id(account_id.clone(), vec![0]);
-			let task = OldTask::<T> {
-				owner_id: account_id.clone(),
-				provided_id: vec![1],
-				execution_times: vec![10].try_into().unwrap(),
-				executions_left: 1,
-				action: OldAction::<T>::AutoCompoundDelegatedStake {
-					delegator: account_id.clone(),
-					collator: account_id.clone(),
-					account_minimum: 100u32.into(),
-					frequency: 11,
-				},
-			};
-			OldAccountTasks::<T>::insert(account_id.clone(), task_id, task);
-		}
-	}: { AddScheduleToTask::<T>::on_runtime_upgrade() }
-	verify {
-		assert_eq!(v, crate::AccountTasks::<T>::iter().count() as u32);
-	}
-
 	impl_benchmark_test_suite!(
 		AutomationTime,
 		crate::mock::new_test_ext(crate::tests::START_BLOCK_TIME),
