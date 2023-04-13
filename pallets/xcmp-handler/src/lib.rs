@@ -58,7 +58,7 @@ pub mod pallet {
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
-	use xcm::{latest::prelude::*, VersionedMultiLocation};
+	use xcm::latest::prelude::*;
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
@@ -157,13 +157,11 @@ pub mod pallet {
 		ErrorGettingCallWeight,
 		/// Currency not supported
 		CurrencyNotSupported,
-		/// The version of the `VersionedMultiLocation` value used is not able
-		/// to be interpreted.
-		BadVersion,
 	}
 
 	/// Stores all data needed to send an XCM message for chain/currency pair.
-	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	#[derive(Clone, Copy, Debug, Encode, Decode, PartialEq, TypeInfo)]
+	#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 	pub struct XcmCurrencyData {
 		/// Is the token native to the chain?
 		pub native: bool,
@@ -172,7 +170,6 @@ pub mod pallet {
 		pub instruction_weight: u64,
 		/// The desired instruction flow for the target chain
 		pub flow: XcmFlow,
-		pub location: Option<VersionedMultiLocation>,
 	}
 
 	/// Stores XCM data for a chain/currency pair.
@@ -237,10 +234,8 @@ pub mod pallet {
 			let xcm_data = XcmChainCurrencyData::<T>::get(para_id, currency_id)
 				.ok_or(Error::<T>::CurrencyChainComboNotFound)?;
 
-			let (_, target_instructions) =
-				Self::xcm_instruction_skeleton(para_id, xcm_data.clone())?;
+			let (_, target_instructions) = Self::xcm_instruction_skeleton(para_id, xcm_data)?;
 			let weight = xcm_data
-				.clone()
 				.instruction_weight
 				.checked_mul(target_instructions.len() as u64)
 				.ok_or(Error::<T>::WeightOverflow)?
@@ -286,29 +281,21 @@ pub mod pallet {
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let location = match xcm_data.location {
-				Some(loc) => loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)?,
-				_ => MultiLocation::new(0, Here),
-			};
-
-			let target_asset =
-				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(fee) };
-
 			let instructions = match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
-					target_asset,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
 					weight,
+					fee,
 				)?,
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					target_asset,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
 					weight,
+					fee,
 				)?,
 			};
 
@@ -330,15 +317,21 @@ pub mod pallet {
 		/// 	- DepositAsset
 		pub fn get_local_currency_instructions(
 			para_id: ParachainId,
-			local_asset: MultiAsset,
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
+			fee: u128,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
+			// XCM for local chain
+			let local_asset = MultiAsset {
+				id: Concrete(MultiLocation::new(0, Here)),
+				fun: Fungibility::Fungible(fee),
+			};
+
 			let local_xcm = Xcm(vec![
 				WithdrawAsset::<<T as pallet::Config>::Call>(local_asset.clone().into()),
 				DepositAsset::<<T as pallet::Config>::Call> {
@@ -391,15 +384,21 @@ pub mod pallet {
 		/// 	- RefundSurplus
 		/// 	- DepositAsset
 		fn get_alternate_flow_instructions(
-			target_asset: MultiAsset,
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: u64,
 			xcm_weight: u64,
+			fee: u128,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::Call>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
+			// Default to native currency of target chain
+			let target_asset = MultiAsset {
+				id: Concrete(MultiLocation::new(0, Here)),
+				fun: Fungibility::Fungible(fee),
+			};
+
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
 				WithdrawAsset::<()>(target_asset.clone().into()),
@@ -540,29 +539,21 @@ pub mod pallet {
 			.try_into()
 			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let location = match xcm_data.location {
-				Some(loc) => loc.clone().try_into().map_err(|()| Error::<T>::BadVersion)?,
-				_ => MultiLocation::new(0, Here),
-			};
-
-			let target_asset =
-				MultiAsset { id: Concrete(location), fun: Fungibility::Fungible(0u128) };
-
 			match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
-					target_asset,
 					nobody,
 					Default::default(),
 					0u64,
 					0u64,
+					0u128,
 				),
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					target_asset,
 					nobody,
 					Default::default(),
 					0u64,
 					0u64,
+					0u128,
 				),
 			}
 		}
@@ -570,7 +561,7 @@ pub mod pallet {
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig<T: Config> {
-		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64, XcmFlow, Vec<u8>)>,
+		pub chain_data: Vec<(u32, T::CurrencyId, bool, u128, u64, XcmFlow)>,
 	}
 
 	#[cfg(feature = "std")]
@@ -583,18 +574,9 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
 		fn build(&self) {
-			for (
-				para_id,
-				currency_id,
-				native,
-				fee_per_second,
-				instruction_weight,
-				flow,
-				location_encoded,
-			) in self.chain_data.iter()
+			for (para_id, currency_id, native, fee_per_second, instruction_weight, flow) in
+				self.chain_data.iter()
 			{
-				let location = Option::<VersionedMultiLocation>::decode(&mut &location_encoded[..])
-					.expect("Error decoding VersionedMultiLocation");
 				XcmChainCurrencyData::<T>::insert(
 					para_id,
 					currency_id,
@@ -603,7 +585,6 @@ pub mod pallet {
 						fee_per_second: *fee_per_second,
 						instruction_weight: *instruction_weight,
 						flow: *flow,
-						location,
 					},
 				);
 			}
@@ -688,7 +669,6 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			fee_per_second: 416_000_000_000,
 			instruction_weight: 600_000_000,
 			flow: XcmFlow::Normal,
-			location: None,
 		};
 
 		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);

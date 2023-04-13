@@ -15,12 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData, XcmFlow};
-use codec::Encode;
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::latest::prelude::*;
 
 //*****************
 //Extrinsics
@@ -32,7 +31,6 @@ const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
 	fee_per_second: 50_000_000_000,
 	instruction_weight: 100_000_000,
 	flow: XcmFlow::Normal,
-	location: None,
 };
 
 // add_chain_currency_data
@@ -64,7 +62,6 @@ fn add_chain_currency_data_update_data() {
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
-		Option::<VersionedMultiLocation>::encode(&XCM_DATA.location),
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -75,7 +72,6 @@ fn add_chain_currency_data_update_data() {
 			fee_per_second: 200,
 			instruction_weight: 3_000,
 			flow: XcmFlow::Normal,
-			location: None,
 		};
 
 		assert_ok!(XcmpHandler::add_chain_currency_data(
@@ -108,7 +104,6 @@ fn remove_chain_currency_data_remove_data() {
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
-		Option::<VersionedMultiLocation>::encode(&XCM_DATA.location),
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -150,7 +145,6 @@ fn calculate_xcm_fee_and_weight_works() {
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
-		Option::<VersionedMultiLocation>::encode(&XCM_DATA.location),
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -172,15 +166,7 @@ fn calculate_xcm_fee_and_weight_works() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
-	let gensis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		false,
-		u128::MAX,
-		1_000,
-		XcmFlow::Normal,
-		Option::<VersionedMultiLocation>::encode(&None),
-	)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, u128::MAX, 1_000, XcmFlow::Normal)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
@@ -198,15 +184,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
-	let gensis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		false,
-		1_000,
-		u64::MAX,
-		XcmFlow::Normal,
-		Option::<VersionedMultiLocation>::encode(&None),
-	)];
+	let gensis_config = vec![(PARA_ID, NATIVE, false, 1_000, u64::MAX, XcmFlow::Normal)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = u64::MAX;
@@ -251,7 +229,6 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XcmFlow::Alternate,
-		Option::<VersionedMultiLocation>::encode(&XCM_DATA.location),
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -298,7 +275,6 @@ fn get_instruction_set_local_currency_instructions() {
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
-		Option::<VersionedMultiLocation>::encode(&XCM_DATA.location),
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
@@ -312,19 +288,13 @@ fn get_instruction_set_local_currency_instructions() {
 		.unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
-
-		let target_asset = MultiAsset {
-			id: Concrete(MultiLocation::new(0, Here)),
-			fun: Fungibility::Fungible(xcm_fee),
-		};
-
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
-			target_asset,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
 			xcm_weight,
+			xcm_fee,
 		)
 		.unwrap();
 
@@ -354,18 +324,13 @@ fn get_local_currency_instructions_works() {
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
-		let target_asset = MultiAsset {
-			id: Concrete(MultiLocation::new(0, Here)),
-			fun: Fungibility::Fungible(xcm_fee),
-		};
-
 		let (local, target) = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
-			target_asset,
 			descend_location,
 			transact_encoded_call,
 			transact_encoded_call_weight,
 			xcm_weight,
+			xcm_fee,
 		)
 		.unwrap();
 		assert_eq!(local.0.len(), 2);
@@ -387,18 +352,13 @@ fn transact_in_local_chain_works() {
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
-		let target_asset = MultiAsset {
-			id: Concrete(MultiLocation::new(0, Here)),
-			fun: Fungibility::Fungible(xcm_fee),
-		};
-
 		let (local_instructions, _) = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
-			target_asset,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
 			xcm_weight,
+			xcm_fee,
 		)
 		.unwrap();
 
@@ -436,18 +396,13 @@ fn transact_in_target_chain_works() {
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
-		let target_asset = MultiAsset {
-			id: Concrete(MultiLocation::new(0, Here)),
-			fun: Fungibility::Fungible(xcm_fee),
-		};
-
 		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
-			target_asset,
 			descend_location,
 			transact_encoded_call.clone(),
 			transact_encoded_call_weight,
 			xcm_weight,
+			xcm_fee,
 		)
 		.unwrap();
 
