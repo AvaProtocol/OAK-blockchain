@@ -2,3 +2,4 @@
 // Excluded from the module tree to avoid warnings and errors on dead code
 
 mod assets;
+mod register_shiden_asset;
