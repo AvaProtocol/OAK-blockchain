@@ -68,6 +68,7 @@ use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
+use primitives::EnsureProxy;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
@@ -75,8 +76,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::{ VersionedMultiLocation, latest::MultiLocation };
-use primitives::EnsureProxy;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -487,14 +487,22 @@ pub mod pallet {
 			encoded_call_weight: u64,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
+			let action = Action::XCMP {
+				para_id,
+				currency_id,
+				xcm_asset_location,
+				encoded_call,
+				encoded_call_weight,
+				schedule_as: None,
+			};
+
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
 			Ok(().into())
 		}
 
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]		
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
@@ -509,9 +517,16 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			// Make sure the owner is the proxy account of the user account.
-			T::EnsureProxy::ensure_ok( schedule_as.clone(), who.clone())?;
+			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
-			let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: Some(schedule_as) };
+			let action = Action::XCMP {
+				para_id,
+				currency_id,
+				xcm_asset_location,
+				encoded_call,
+				encoded_call_weight,
+				schedule_as: Some(schedule_as),
+			};
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -1059,7 +1074,10 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			let location = MultiLocation::try_from(xcm_asset_location);
 			if location.is_err() {
-        return (<T as Config>::WeightInfo::run_xcmp_task(), Some(Error::<T>::BadVersion.into()));
+				return (
+					<T as Config>::WeightInfo::run_xcmp_task(),
+					Some(Error::<T>::BadVersion.into()),
+				)
 			}
 
 			match T::XcmpTransactor::transact_xcm(

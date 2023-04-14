@@ -18,6 +18,7 @@ use turing_runtime::{
 use xcm::{
 	latest::prelude::*,
 	v1::Junction::{PalletInstance, Parachain},
+	VersionedMultiLocation,
 	VersionedMultiLocation::V1,
 };
 

@@ -9,8 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
-
-use xcm::latest::{Junctions::X1, Junction::Parachain, MultiLocation};
+use xcm::latest::prelude::*;
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
@@ -156,7 +155,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{UpgradeXcmpTaskStruct, OldAction, OldTask};
+	use super::{OldAction, OldTask, UpgradeXcmpTaskStruct};
 	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;

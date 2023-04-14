@@ -9,12 +9,7 @@ use cumulus_primitives_core::ParaId;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
-use xcm::{
-	latest::prelude::X1,
-	opaque::latest::MultiLocation,
-	v1::Junction::Parachain,
-	VersionedMultiLocation,
-};
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 pub type Seconds = u64;
 pub type UnixTime = u64;
@@ -269,7 +264,14 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		encoded_call: Vec<u8>,
 		encoded_call_weight: u64,
 	) -> Result<Self, DispatchError> {
-		let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
+		let action = Action::XCMP {
+			para_id,
+			currency_id,
+			xcm_asset_location,
+			encoded_call,
+			encoded_call_weight,
+			schedule_as: None,
+		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}

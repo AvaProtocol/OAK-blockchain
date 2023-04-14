@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::{self as system, RawOrigin};
 use orml_traits::parameter_type_with_key;
+use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -30,12 +31,7 @@ use sp_runtime::{
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
-use primitives::EnsureProxy;
-use xcm::{
-	latest::prelude::{X1},
-	opaque::latest::{Junctions::Here, MultiLocation},
-	v1::Junction::Parachain,
-};
+use xcm::latest::prelude::*;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;

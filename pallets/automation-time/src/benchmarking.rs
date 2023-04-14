@@ -24,13 +24,9 @@ use pallet_timestamp::Pallet as Timestamp;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
+use xcm::latest::prelude::*;
 
 use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
-
-use xcm::{
-	latest::{MultiLocation, prelude::X1},
-	v1::Junction::Parachain,
-};
 
 const SEED: u32 = 0;
 // existential deposit multiplier

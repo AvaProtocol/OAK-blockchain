@@ -30,7 +30,7 @@ use sp_runtime::{
 };
 
 use xcm::{
-	latest::{ prelude::X1, MultiLocation },
+	latest::{prelude::X1, MultiLocation},
 	v1::Junction::Parachain,
 };
 

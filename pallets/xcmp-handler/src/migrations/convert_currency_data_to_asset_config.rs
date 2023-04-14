@@ -7,14 +7,9 @@ use frame_support::{
 	Twox64Concat,
 };
 use scale_info::TypeInfo;
+use xcm::latest::prelude::*;
 
 use crate::{Config, XcmAssetConfig, XcmFlow};
-
-use xcm::{
-	latest::prelude::X1,
-	v1::Junction::Parachain,
-	opaque::latest::MultiLocation,
-};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};

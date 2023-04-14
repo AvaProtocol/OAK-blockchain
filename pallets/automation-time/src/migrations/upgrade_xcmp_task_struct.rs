@@ -9,8 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
-
-use xcm::latest::{Junctions::X1, Junction::Parachain, MultiLocation};
+use xcm::latest::prelude::*;
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
@@ -80,9 +79,17 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 			OldAction::Notify { message } => Self::Notify { message },
 			OldAction::NativeTransfer { sender, recipient, amount } =>
 				Self::NativeTransfer { sender, recipient, amount },
-			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } =>{
-				let xcm_asset_location = MultiLocation::new(1, X1(Parachain(para_id.into()))).into();
-				Self::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None }
+			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } => {
+				let xcm_asset_location =
+					MultiLocation::new(1, X1(Parachain(para_id.into()))).into();
+				Self::XCMP {
+					para_id,
+					currency_id,
+					xcm_asset_location,
+					encoded_call,
+					encoded_call_weight,
+					schedule_as: None,
+				}
 			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
 		}
@@ -156,7 +163,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{UpgradeXcmpTaskStruct, OldAction, OldTask};
+	use super::{OldAction, OldTask, UpgradeXcmpTaskStruct};
 	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;

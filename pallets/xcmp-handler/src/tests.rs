@@ -14,7 +14,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, DestinationAssetConfig, XcmAssetConfig, XcmFlow};
+use crate::{mock::*, DestinationAssetConfig, Error, XcmAssetConfig, XcmFlow};
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
@@ -55,9 +55,7 @@ fn set_asset_config_new_data() {
 fn set_asset_config_update_data() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -86,9 +84,7 @@ fn set_asset_config_update_data() {
 fn remove_asset_config_remove_data() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -113,7 +109,10 @@ fn remove_asset_config_not_found() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_asset_config(RawOrigin::Root.into(), Box::new(asset_location.into())),
+			XcmpHandler::remove_asset_config(
+				RawOrigin::Root.into(),
+				Box::new(asset_location.into())
+			),
 			Error::<Test>::AssetNotFound
 		);
 	});
@@ -128,9 +127,7 @@ fn remove_asset_config_not_found() {
 fn calculate_xcm_fee_and_weight_works() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -157,9 +154,7 @@ fn calculate_xcm_fee_and_weight_works() {
 fn calculate_xcm_fee_and_weight_fee_overflow() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let gensis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		u128::MAX,
 		1_000,
 		XcmFlow::Normal,
@@ -183,9 +178,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 fn calculate_xcm_fee_and_weight_weight_overflow() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let gensis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		1_000,
 		u64::MAX,
 		XcmFlow::Normal,
@@ -230,9 +223,7 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 	let para_id: u32 = 9999;
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XcmFlow::Alternate,
@@ -258,9 +249,7 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 fn get_instruction_set_local_currency_instructions() {
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(
-			&(asset_location.clone().into()),
-		),
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -320,7 +309,7 @@ fn get_local_currency_instructions_works() {
 			transact_encoded_call,
 			transact_encoded_call_weight,
 			xcm_weight,
-			xcm_fee
+			xcm_fee,
 		)
 		.unwrap();
 		assert_eq!(local.0.len(), 2);

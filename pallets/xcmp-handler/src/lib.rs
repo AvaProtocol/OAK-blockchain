@@ -46,6 +46,7 @@ pub use weights::WeightInfo;
 
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -58,7 +59,6 @@ pub mod pallet {
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
-	use xcm::latest::prelude::*;
 	use xcm_executor::traits::{InvertLocation, WeightBounds};
 
 	type ParachainId = u32;
@@ -122,15 +122,28 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(crate) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// XCM sent to target chain.
-		XcmSent { para_id: ParachainId },
+		XcmSent {
+			para_id: ParachainId,
+		},
 		/// XCM transacted in local chain.
 		XcmTransactedLocally,
 		/// XCM fees successfully paid.
-		XcmFeesPaid { source: T::AccountId, dest: T::AccountId },
+		XcmFeesPaid {
+			source: T::AccountId,
+			dest: T::AccountId,
+		},
 		/// XCM fees failed to transfer.
-		XcmFeesFailed { source: T::AccountId, dest: T::AccountId, error: DispatchError },
-		DestAssetConfigChanged { asset_location: MultiLocation },
-		DestAssetConfigRemoved { asset_location: MultiLocation },
+		XcmFeesFailed {
+			source: T::AccountId,
+			dest: T::AccountId,
+			error: DispatchError,
+		},
+		DestAssetConfigChanged {
+			asset_location: MultiLocation,
+		},
+		DestAssetConfigRemoved {
+			asset_location: MultiLocation,
+		},
 	}
 
 	#[pallet::error]
@@ -204,9 +217,8 @@ pub mod pallet {
 			let asset_location =
 				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
 
-			DestinationAssetConfig::<T>::take(&asset_location)
-				.ok_or(Error::<T>::AssetNotFound)?;
-			
+			DestinationAssetConfig::<T>::take(&asset_location).ok_or(Error::<T>::AssetNotFound)?;
+
 			Self::deposit_event(Event::DestAssetConfigRemoved { asset_location });
 
 			Ok(().into())
@@ -220,7 +232,8 @@ pub mod pallet {
 			location: MultiLocation,
 			transact_encoded_call_weight: u64,
 		) -> Result<(u128, u64, XcmAssetConfig), DispatchError> {
-			let xcm_data = DestinationAssetConfig::<T>::get(location.clone()).ok_or(Error::<T>::AssetNotFound)?;
+			let xcm_data = DestinationAssetConfig::<T>::get(location.clone())
+				.ok_or(Error::<T>::AssetNotFound)?;
 
 			let (_, target_instructions) =
 				Self::xcm_instruction_skeleton(para_id, location, xcm_data.clone())?;
@@ -383,12 +396,13 @@ pub mod pallet {
 			DispatchError,
 		> {
 			// XCM for target chain
-			let target_asset = MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) }
-				.reanchored(
-					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-					&T::LocationInverter::ancestry(),
-				)
-				.map_err(|_| Error::<T>::CannotReanchor)?;
+			let target_asset =
+				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) }
+					.reanchored(
+						&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+						&T::LocationInverter::ancestry(),
+					)
+					.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
@@ -420,7 +434,6 @@ pub mod pallet {
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
 				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
 
-			log::error!("local_sovereign_account: {:?}, internal_instructions: {:?}", local_sovereign_account, internal_instructions);
 			// Execute instruction on local chain
 			T::XcmExecutor::execute_xcm_in_credit(
 				local_sovereign_account,
@@ -569,18 +582,15 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig {
 		fn build(&self) {
-			for (
-				location_encoded,
-				fee_per_second,
-				instruction_weight,
-				flow,
-			) in self.asset_data.iter()
+			for (location_encoded, fee_per_second, instruction_weight, flow) in
+				self.asset_data.iter()
 			{
 				let location = <VersionedMultiLocation>::decode(&mut &location_encoded[..])
 					.expect("Error decoding VersionedMultiLocation");
-				
+
 				DestinationAssetConfig::<T>::insert(
-					MultiLocation::try_from(location).expect("Error converting VersionedMultiLocation"),
+					MultiLocation::try_from(location)
+						.expect("Error converting VersionedMultiLocation"),
 					XcmAssetConfig {
 						fee_per_second: *fee_per_second,
 						instruction_weight: *instruction_weight,
@@ -595,7 +605,7 @@ pub mod pallet {
 pub trait XcmpTransactor<AccountId, CurrencyId> {
 	fn transact_xcm(
 		para_id: u32,
-		location: xcm::latest::MultiLocation,
+		location: MultiLocation,
 		caller: AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: u64,
@@ -603,7 +613,7 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	fn get_xcm_fee(
 		para_id: u32,
-		location: xcm::latest::MultiLocation,
+		location: MultiLocation,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError>;
 
@@ -611,14 +621,14 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		asset_location: xcm::latest::MultiLocation,
+		asset_location: MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError>;
 }
 
 impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	fn transact_xcm(
 		para_id: u32,
-		location: xcm::latest::MultiLocation,
+		location: MultiLocation,
 		caller: T::AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: u64,
@@ -636,7 +646,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 	fn get_xcm_fee(
 		para_id: u32,
-		location: xcm::latest::MultiLocation,
+		location: MultiLocation,
 		transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		let (fee, _weight, xcm_data) =
@@ -660,7 +670,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		asset_location: xcm::latest::MultiLocation,
+		asset_location: MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		let asset_data = XcmAssetConfig {
 			fee_per_second: 416_000_000_000,

@@ -22,11 +22,7 @@ use crate::Pallet as XcmpHandler;
 use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, Box};
 use frame_system::RawOrigin;
 
-
-use xcm::{
-	latest::prelude::*,
-	VersionedMultiLocation,
-};
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 benchmarks! {
 	set_asset_config {

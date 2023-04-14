@@ -117,9 +117,7 @@ where
 
 				Ok(())
 			},
-			Err(_) => {
-				Err(DispatchError::Token(BelowMinimum))
-			},
+			Err(_) => Err(DispatchError::Token(BelowMinimum)),
 		}
 	}
 
@@ -138,7 +136,8 @@ where
 			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } =>
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
-					MultiLocation::try_from(xcm_asset_location).map_err(|()|Error::<T>::BadVersion)?,
+					MultiLocation::try_from(xcm_asset_location)
+						.map_err(|()| Error::<T>::BadVersion)?,
 					encoded_call_weight.clone(),
 				)?
 				.saturating_mul(executions.into())
