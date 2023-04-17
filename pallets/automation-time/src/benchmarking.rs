@@ -26,7 +26,7 @@ use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
 use xcm::latest::prelude::*;
 
-use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
+use crate::{MissedTaskV2Of, Pallet as AutomationTime, Schedule, TaskOf};
 
 const SEED: u32 = 0;
 // existential deposit multiplier
@@ -579,8 +579,10 @@ benchmarks! {
 			let task = OldTask::<T> {
 				owner_id: account_id.clone(),
 				provided_id: vec![1],
-				execution_times: vec![10].try_into().unwrap(),
-				executions_left: 1,
+				schedule: Schedule::Fixed {
+					execution_times: vec![10].try_into().unwrap(),
+					executions_left: 1,
+				},
 				action: OldAction::<T>::AutoCompoundDelegatedStake {
 					delegator: account_id.clone(),
 					collator: account_id.clone(),

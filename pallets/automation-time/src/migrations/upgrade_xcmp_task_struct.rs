@@ -2,11 +2,10 @@ use core::marker::PhantomData;
 
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, Seconds, TaskId, TaskOf,
-	UnixTime,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
+use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 use xcm::latest::prelude::*;
@@ -16,28 +15,17 @@ use xcm::latest::prelude::*;
 pub struct OldTask<T: Config> {
 	pub owner_id: T::AccountId,
 	pub provided_id: Vec<u8>,
-	pub execution_times: BoundedVec<UnixTime, T::MaxExecutionTimes>,
-	pub executions_left: u32,
+	pub schedule: Schedule,
 	pub action: OldAction<T>,
 }
 
 impl<T: Config> From<OldTask<T>> for TaskOf<T> {
 	fn from(task: OldTask<T>) -> Self {
-		let schedule = match task.action {
-			OldAction::AutoCompoundDelegatedStake { frequency, .. } => Schedule::Recurring {
-				next_execution_time: *task.execution_times.last().expect("Atleast one execution"),
-				frequency,
-			},
-			_ => Schedule::Fixed {
-				execution_times: task.execution_times.to_vec(),
-				executions_left: task.executions_left,
-			},
-		};
 		TaskOf::<T> {
 			owner_id: task.owner_id,
 			provided_id: task.provided_id,
+			schedule: task.schedule,
 			action: task.action.into(),
-			schedule,
 		}
 	}
 }
@@ -164,64 +152,56 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 #[cfg(test)]
 mod test {
 	use super::{OldAction, OldTask, UpgradeXcmpTaskStruct};
-	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
+	use crate::{mock::*, ActionOf, Pallet, ParaId, Schedule, TaskOf};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
+	use xcm::latest::prelude::*;
 
 	#[test]
 	fn on_runtime_upgrade() {
 		new_test_ext(0).execute_with(|| {
+			let para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
-			let task_id_1 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
-			let task_id_2 = Pallet::<Test>::generate_task_id(account_id.clone(), vec![2]);
-			let task_1 = OldTask::<Test> {
+			let task_id = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
+
+			let task = OldTask::<Test> {
 				owner_id: account_id.clone(),
 				provided_id: vec![1],
-				execution_times: vec![0, 1].try_into().unwrap(),
-				executions_left: 2,
-				action: OldAction::<Test>::Notify { message: vec![0] },
-			};
-			let task_2 = OldTask::<Test> {
-				owner_id: account_id.clone(),
-				provided_id: vec![2],
-				execution_times: vec![10].try_into().unwrap(),
-				executions_left: 1,
-				action: OldAction::<Test>::AutoCompoundDelegatedStake {
-					delegator: account_id.clone(),
-					collator: account_id.clone(),
-					account_minimum: 10,
-					frequency: 11,
+				schedule: Schedule::Fixed {
+					execution_times: vec![0, 1].try_into().unwrap(),
+					executions_left: 2,
+				},
+				action: OldAction::<Test>::XCMP {
+					para_id,
+					currency_id: 0u32.into(),
+					encoded_call: vec![0u8],
+					encoded_call_weight: 10,
 				},
 			};
-			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_1, task_1);
-			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_2, task_2);
+
+			super::AccountTasks::<Test>::insert(account_id.clone(), task_id, task);
 
 			UpgradeXcmpTaskStruct::<Test>::on_runtime_upgrade();
 
-			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 2);
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
 			assert_eq!(
-				crate::AccountTasks::<Test>::get(account_id.clone(), task_id_1).unwrap(),
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id).unwrap(),
 				TaskOf::<Test> {
 					owner_id: account_id.clone(),
 					provided_id: vec![1],
-					action: ActionOf::<Test>::Notify { message: vec![0] },
 					schedule: Schedule::Fixed {
 						execution_times: vec![0, 1].try_into().unwrap(),
 						executions_left: 2
-					}
-				}
-			);
-			assert_eq!(
-				crate::AccountTasks::<Test>::get(account_id.clone(), task_id_2).unwrap(),
-				TaskOf::<Test> {
-					owner_id: account_id.clone(),
-					provided_id: vec![2],
-					action: ActionOf::<Test>::AutoCompoundDelegatedStake {
-						delegator: account_id.clone(),
-						collator: account_id.clone(),
-						account_minimum: 10
 					},
-					schedule: Schedule::Recurring { next_execution_time: 10, frequency: 11 }
+					action: ActionOf::<Test>::XCMP {
+						para_id,
+						currency_id: 0u32.into(),
+						xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into())))
+							.into(),
+						encoded_call: vec![0u8],
+						encoded_call_weight: 10,
+						schedule_as: None,
+					},
 				}
 			);
 		})

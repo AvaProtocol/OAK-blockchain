@@ -9,7 +9,6 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, BoundedVec, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_std::vec::Vec;
-use xcm::latest::prelude::*;
 
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
@@ -79,10 +78,8 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 			OldAction::Notify { message } => Self::Notify { message },
 			OldAction::NativeTransfer { sender, recipient, amount } =>
 				Self::NativeTransfer { sender, recipient, amount },
-			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } =>{
-				let xcm_asset_location = MultiLocation::new(1, X1(Parachain(para_id.into()))).into();
-				Self::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None }
-			},
+			OldAction::XCMP { para_id, currency_id, encoded_call, encoded_call_weight } =>
+				Self::XCMP { para_id, currency_id, encoded_call, encoded_call_weight },
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
 		}
 	}
@@ -98,10 +95,10 @@ pub type AccountTasks<T: Config> = StorageDoubleMap<
 	OldTask<T>,
 >;
 
-pub struct UpgradeXcmpTaskStruct<T>(PhantomData<T>);
-impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
+pub struct AddScheduleToTask<T>(PhantomData<T>);
+impl<T: Config> OnRuntimeUpgrade for AddScheduleToTask<T> {
 	fn on_runtime_upgrade() -> Weight {
-		log::info!(target: "automation-time", "UpgradeXcmpTaskStruct migration");
+		log::info!(target: "automation-time", "AddScheduleToTask migration");
 
 		let mut migrated_tasks = 0u32;
 		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
@@ -113,11 +110,11 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 		log::info!(
 			target: "automation-time",
-			"migration: UpgradeXcmpTaskStruct succesful! Migrated {} tasks.",
+			"migration: AddScheduleToTask succesful! Migrated {} tasks.",
 			migrated_tasks
 		);
 
-		<T as Config>::WeightInfo::migration_upgrade_xcmp_task_struct(migrated_tasks)
+		<T as Config>::WeightInfo::migration_add_schedule_to_task(migrated_tasks)
 	}
 
 	#[cfg(feature = "try-runtime")]
@@ -129,7 +126,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 		log::info!(
 			target: "automation-time",
-			"migration: UpgradeXcmpTaskStruct PRE migration checks succesful!"
+			"migration: AddScheduleToTask PRE migration checks succesful!"
 		);
 
 		Ok(())
@@ -145,7 +142,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 		log::info!(
 			target: "automation-time",
-			"migration: UpgradeXcmpTaskStruct POST migration checks succesful! Migrated {} tasks.",
+			"migration: AddScheduleToTask POST migration checks succesful! Migrated {} tasks.",
 			post_task_count
 		);
 
@@ -155,7 +152,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeXcmpTaskStruct<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{OldAction, OldTask, UpgradeXcmpTaskStruct};
+	use super::{AddScheduleToTask, OldAction, OldTask};
 	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
@@ -188,7 +185,7 @@ mod test {
 			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_1, task_1);
 			super::AccountTasks::<Test>::insert(account_id.clone(), task_id_2, task_2);
 
-			UpgradeXcmpTaskStruct::<Test>::on_runtime_upgrade();
+			AddScheduleToTask::<Test>::on_runtime_upgrade();
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 2);
 			assert_eq!(

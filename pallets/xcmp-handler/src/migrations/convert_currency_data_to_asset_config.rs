@@ -53,7 +53,7 @@ impl<T: Config> OnRuntimeUpgrade for ConvertCurrencyDataToAssetConfig<T> {
 			.map(|(parachain_id, _currency_id, xcm_data)| {
 				let migrated_data = XcmAssetConfig::from(xcm_data);
 				crate::DestinationAssetConfig::<T>::insert(
-					MultiLocation::new(1, X1(Parachain(1000))),
+					MultiLocation::new(1, X1(Parachain(parachain_id))),
 					migrated_data.clone(),
 				);
 				log::info!(target: "xcmp-handler", "ConvertCurrencyDataToAssetConfig migrated para_id: {}", parachain_id);
