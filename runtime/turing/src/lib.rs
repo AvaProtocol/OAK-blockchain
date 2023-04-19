@@ -32,7 +32,9 @@ use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
-	traits::{AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto},
+	traits::{
+		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Zero,
+	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
 };
@@ -49,7 +51,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 
 use frame_support::{
-	construct_runtime, parameter_types,
+	construct_runtime, ensure, parameter_types,
 	traits::{
 		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
 		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
@@ -102,6 +104,8 @@ use primitives::{
 pub use pallet_automation_price;
 pub use pallet_automation_time;
 
+use primitives::EnsureProxy;
+
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 
@@ -137,7 +141,15 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations,
 >;
+
+// All migrations executed on runtime upgrade as a nested tuple of types implementing
+// `OnRuntimeUpgrade`.
+type Migrations = (
+	pallet_xcmp_handler::migrations::convert_currency_data_to_asset_config::ConvertCurrencyDataToAssetConfig<Runtime>,
+	pallet_automation_time::migrations::upgrade_xcmp_task_struct::UpgradeXcmpTaskStruct<Runtime>,
+);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -862,6 +874,23 @@ impl Contains<Call> for ScheduleAllowList {
 	}
 }
 
+pub struct AutomationEnsureProxy;
+impl EnsureProxy<AccountId> for AutomationEnsureProxy {
+	fn ensure_ok(delegator: AccountId, delegatee: AccountId) -> Result<(), &'static str> {
+		// We only allow for "Any" proxies
+		let def: pallet_proxy::ProxyDefinition<AccountId, ProxyType, BlockNumber> =
+			pallet_proxy::Pallet::<Runtime>::find_proxy(
+				&delegator,
+				&delegatee,
+				Some(ProxyType::Any),
+			)
+			.map_err(|_| "proxy error: expected `ProxyType::Any`")?;
+		// We only allow to use it for delay zero proxies, as the call will immediatly be executed
+		ensure!(def.delay.is_zero(), "proxy delay is Non-zero`");
+		Ok(())
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = ConstU32<256>;
@@ -886,6 +915,7 @@ impl pallet_automation_time::Config for Runtime {
 	type FeeConversionRateProvider = FeePerSecondProvider;
 	type Call = Call;
 	type ScheduleAllowList = ScheduleAllowList;
+	type EnsureProxy = AutomationEnsureProxy;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -998,7 +1028,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
-		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Config<T>, Event<T>} = 62,
+		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Config, Event<T>} = 62,
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
@@ -1134,9 +1164,15 @@ impl_runtime_apis! {
 
 			let (action, executions) = match uxt.function {
 				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					para_id, currency_id, encoded_call, encoded_call_weight, schedule, ..
+					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, ..
 				}) => {
-					let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
+					Ok((action, schedule.number_of_executions()))
+				},
+				Call::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
+					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, schedule_as, ..
+				}) => {
+					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: Some(schedule_as) };
 					Ok((action, schedule.number_of_executions()))
 				},
 				Call::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{

@@ -29,6 +29,11 @@ use sp_runtime::{
 	AccountId32,
 };
 
+use xcm::{
+	latest::{prelude::X1, MultiLocation},
+	v1::Junction::Parachain,
+};
+
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
@@ -258,6 +263,7 @@ fn schedule_xcmp_works() {
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			PARA_ID.try_into().unwrap(),
 			NATIVE,
+			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
 			call.clone(),
 			100_000,
 		));
@@ -279,6 +285,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				PARA_ID.try_into().unwrap(),
 				NATIVE,
+				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
 				call.clone(),
 				100_000,
 			),
@@ -1343,8 +1350,10 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			Action::XCMP {
 				para_id,
 				currency_id: NATIVE,
+				xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into()))).into(),
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: 100_000,
+				schedule_as: None,
 			},
 		);
 

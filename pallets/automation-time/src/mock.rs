@@ -23,6 +23,7 @@ use frame_support::{
 };
 use frame_system::{self as system, RawOrigin};
 use orml_traits::parameter_type_with_key;
+use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -30,7 +31,7 @@ use sp_runtime::{
 	AccountId32, Perbill,
 };
 use sp_std::marker::PhantomData;
-use xcm::v2::Junctions::Here;
+use xcm::latest::prelude::*;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -280,7 +281,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(20_000)
 	}
-	fn migration_add_schedule_to_task(_: u32) -> Weight {
+	fn migration_upgrade_xcmp_task_struct(_: u32) -> Weight {
 		Weight::zero()
 	}
 }
@@ -294,7 +295,7 @@ where
 {
 	fn transact_xcm(
 		_para_id: u32,
-		_currency_id: CurrencyId,
+		_location: xcm::v1::MultiLocation,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
 		_transact_encoded_call_weight: u64,
@@ -304,7 +305,7 @@ where
 
 	fn get_xcm_fee(
 		_para_id: u32,
-		_currency_id: CurrencyId,
+		_location: xcm::v1::MultiLocation,
 		_transact_encoded_call_weight: u64,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		Ok(XmpFee::get())
@@ -315,9 +316,8 @@ where
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_currency_data(
-		_para_id: u32,
-		_currency_id: CurrencyId,
+	fn setup_chain_asset_data(
+		_asset_location: xcm::v1::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
@@ -336,7 +336,7 @@ impl Contains<Call> for ScheduleAllowList {
 pub struct MockConversionRateProvider;
 impl FixedConversionRateProvider for MockConversionRateProvider {
 	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
-		None
+		Some(1)
 	}
 }
 
@@ -345,9 +345,18 @@ impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
 		if id == NATIVE {
 			Some(MultiLocation::new(1, Here))
+		} else if id == 1 {
+			Some(MultiLocation::new(1, X1(Parachain(2110))))
 		} else {
 			None
 		}
+	}
+}
+
+pub struct MockEnsureProxy;
+impl EnsureProxy<AccountId> for MockEnsureProxy {
+	fn ensure_ok(_delegator: AccountId, _delegatee: AccountId) -> Result<(), &'static str> {
+		Ok(())
 	}
 }
 
@@ -373,6 +382,7 @@ impl pallet_automation_time::Config for Test {
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
+	type EnsureProxy = MockEnsureProxy;
 }
 
 // Build genesis storage according to the mock runtime.

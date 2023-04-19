@@ -14,119 +14,106 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, XcmChainCurrencyData, XcmCurrencyData, XcmFlow};
+use crate::{mock::*, DestinationAssetConfig, Error, XcmAssetConfig, XcmFlow};
+use codec::Encode;
 use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
-use xcm::latest::prelude::*;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 //*****************
 //Extrinsics
 //*****************
 
 const PARA_ID: u32 = 1000;
-const XCM_DATA: XcmCurrencyData = XcmCurrencyData {
-	native: false,
+const XCM_DATA: XcmAssetConfig = XcmAssetConfig {
 	fee_per_second: 50_000_000_000,
 	instruction_weight: 100_000_000,
 	flow: XcmFlow::Normal,
 };
 
-// add_chain_currency_data
+// set_asset_config
 #[test]
-fn add_chain_currency_data_new_data() {
+fn set_asset_config_new_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
-		let currency_id = NATIVE;
-
-		if XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location.clone()).is_some() {
 			panic!("There should be no data set")
 		};
 
-		assert_ok!(XcmpHandler::add_chain_currency_data(
+		assert_ok!(XcmpHandler::set_asset_config(
 			RawOrigin::Root.into(),
-			PARA_ID,
-			currency_id,
+			Box::new(asset_location.clone().into()),
 			XCM_DATA
 		));
-		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, currency_id).unwrap(), XCM_DATA);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location).unwrap(), XCM_DATA);
 	});
 }
 
 #[test]
-fn add_chain_currency_data_update_data() {
+fn set_asset_config_update_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		XCM_DATA.native,
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), XCM_DATA);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location.clone()).unwrap(), XCM_DATA);
 
-		let xcm_data_new = XcmCurrencyData {
-			native: false,
+		let xcm_data_new = XcmAssetConfig {
 			fee_per_second: 200,
 			instruction_weight: 3_000,
 			flow: XcmFlow::Normal,
 		};
 
-		assert_ok!(XcmpHandler::add_chain_currency_data(
+		assert_ok!(XcmpHandler::set_asset_config(
 			RawOrigin::Root.into(),
-			PARA_ID,
-			NATIVE,
+			Box::new(asset_location.clone().into()),
 			xcm_data_new.clone()
 		));
-		assert_eq!(XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).unwrap(), xcm_data_new);
+		assert_eq!(DestinationAssetConfig::<Test>::get(asset_location).unwrap(), xcm_data_new);
 	});
 }
 
+// remove_asset_config
 #[test]
-fn add_chain_currency_data_can_only_use_native_currency() {
-	new_test_ext(None).execute_with(|| {
-		assert_noop!(
-			XcmpHandler::add_chain_currency_data(RawOrigin::Root.into(), PARA_ID, RELAY, XCM_DATA),
-			Error::<Test>::CurrencyChainComboNotSupported
-		);
-	});
-}
-
-// remove_chain_currency_data
-#[test]
-fn remove_chain_currency_data_remove_data() {
+fn remove_asset_config_remove_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		XCM_DATA.native,
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
 	)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_ok!(XcmpHandler::remove_chain_currency_data(
+		assert_ok!(XcmpHandler::remove_asset_config(
 			RawOrigin::Root.into(),
-			PARA_ID,
-			NATIVE
+			Box::new(asset_location.clone().into()),
 		));
-		if XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location).is_some() {
 			panic!("There should be no data set")
 		};
 	});
 }
 
 #[test]
-fn remove_chain_currency_data_not_found() {
+fn remove_asset_config_not_found() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
-		if XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE).is_some() {
+		if DestinationAssetConfig::<Test>::get(asset_location.clone()).is_some() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_chain_currency_data(RawOrigin::Root.into(), PARA_ID, NATIVE,),
-			Error::<Test>::CurrencyChainComboNotFound
+			XcmpHandler::remove_asset_config(
+				RawOrigin::Root.into(),
+				Box::new(asset_location.into())
+			),
+			Error::<Test>::AssetNotFound
 		);
 	});
 }
@@ -138,10 +125,9 @@ fn remove_chain_currency_data_not_found() {
 // calculate_xcm_fee_and_weight
 #[test]
 fn calculate_xcm_fee_and_weight_works() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		XCM_DATA.native,
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -156,7 +142,7 @@ fn calculate_xcm_fee_and_weight_works() {
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				NATIVE,
+				asset_location,
 				transact_encoded_call_weight
 			),
 			(expected_fee, expected_weight, XCM_DATA),
@@ -166,7 +152,13 @@ fn calculate_xcm_fee_and_weight_works() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_fee_overflow() {
-	let gensis_config = vec![(PARA_ID, NATIVE, false, u128::MAX, 1_000, XcmFlow::Normal)];
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+	let gensis_config = vec![(
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
+		u128::MAX,
+		1_000,
+		XcmFlow::Normal,
+	)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
@@ -174,7 +166,7 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				NATIVE,
+				asset_location,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::FeeOverflow
@@ -184,7 +176,13 @@ fn calculate_xcm_fee_and_weight_fee_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_weight_overflow() {
-	let gensis_config = vec![(PARA_ID, NATIVE, false, 1_000, u64::MAX, XcmFlow::Normal)];
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+	let gensis_config = vec![(
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
+		1_000,
+		u64::MAX,
+		XcmFlow::Normal,
+	)];
 
 	new_test_ext(Some(gensis_config)).execute_with(|| {
 		let transact_encoded_call_weight: u64 = u64::MAX;
@@ -192,7 +190,7 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				NATIVE,
+				asset_location,
 				transact_encoded_call_weight
 			),
 			Error::<Test>::WeightOverflow
@@ -202,19 +200,20 @@ fn calculate_xcm_fee_and_weight_weight_overflow() {
 
 #[test]
 fn calculate_xcm_fee_and_weight_no_xcm_data() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	new_test_ext(None).execute_with(|| {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 
-		if let Some(_) = XcmChainCurrencyData::<Test>::get(PARA_ID, NATIVE) {
+		if let Some(_) = DestinationAssetConfig::<Test>::get(asset_location.clone()) {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
-				NATIVE,
+				asset_location,
 				transact_encoded_call_weight
 			),
-			Error::<Test>::CurrencyChainComboNotFound
+			Error::<Test>::AssetNotFound
 		);
 	});
 }
@@ -222,10 +221,9 @@ fn calculate_xcm_fee_and_weight_no_xcm_data() {
 #[test]
 fn calculate_xcm_fee_handles_alternate_flow() {
 	let para_id: u32 = 9999;
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		para_id,
-		NATIVE,
-		XCM_DATA.native,
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XcmFlow::Alternate,
@@ -238,40 +236,20 @@ fn calculate_xcm_fee_handles_alternate_flow() {
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				para_id,
-				NATIVE,
-				transact_encoded_call_weight
+				asset_location,
+				transact_encoded_call_weight,
 			),
-			(35000000, expected_weight, XcmCurrencyData { flow: XcmFlow::Alternate, ..XCM_DATA }),
+			(35000000, expected_weight, XcmAssetConfig { flow: XcmFlow::Alternate, ..XCM_DATA }),
 		);
 	});
 }
 
 // get_instruction_set
 #[test]
-fn get_instruction_set_only_support_local_currency() {
-	new_test_ext(None).execute_with(|| {
-		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight: u64 = 100_000_000;
-
-		assert_noop!(
-			XcmpHandler::get_instruction_set(
-				PARA_ID,
-				RELAY,
-				ALICE,
-				transact_encoded_call,
-				transact_encoded_call_weight
-			),
-			Error::<Test>::CurrencyChainComboNotSupported
-		);
-	});
-}
-
-#[test]
 fn get_instruction_set_local_currency_instructions() {
+	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let genesis_config = vec![(
-		PARA_ID,
-		NATIVE,
-		XCM_DATA.native,
+		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
 		XCM_DATA.fee_per_second,
 		XCM_DATA.instruction_weight,
 		XCM_DATA.flow,
@@ -282,12 +260,13 @@ fn get_instruction_set_local_currency_instructions() {
 		let transact_encoded_call_weight: u64 = 100_000_000;
 		let (xcm_fee, xcm_weight, _) = XcmpHandler::calculate_xcm_fee_and_weight(
 			PARA_ID,
-			NATIVE,
+			asset_location.clone(),
 			transact_encoded_call_weight,
 		)
 		.unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
 			PARA_ID,
 			descend_location,
@@ -301,7 +280,7 @@ fn get_instruction_set_local_currency_instructions() {
 		assert_eq!(
 			XcmpHandler::get_instruction_set(
 				PARA_ID,
-				NATIVE,
+				asset_location,
 				ALICE,
 				transact_encoded_call,
 				transact_encoded_call_weight

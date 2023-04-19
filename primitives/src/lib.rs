@@ -63,3 +63,7 @@ pub use sp_runtime::OpaqueExtrinsic as UncheckedExtrinsic;
 
 /// Block type.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+
+pub trait EnsureProxy<AccountId> {
+	fn ensure_ok(delegator: AccountId, delegatee: AccountId) -> Result<(), &'static str>;
+}

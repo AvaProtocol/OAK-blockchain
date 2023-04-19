@@ -50,11 +50,13 @@ pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam",
 
 ## ORML
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, rev = "2c48b626addafbea0227c068c9ab0fc16666b1b5" }
 
 ## Local
 pallet-automation-time-rpc-runtime-api = { path = "./rpc/runtime-api", default-features = false }
 pallet-valve = { path = "../valve", default-features = false }
 pallet-xcmp-handler = { path = "../xcmp-handler", default-features = false }
+primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 serde = { version = "1.0.144" }

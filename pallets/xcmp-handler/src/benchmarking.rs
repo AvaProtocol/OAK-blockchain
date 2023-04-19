@@ -19,32 +19,31 @@ use super::*;
 
 #[allow(unused)]
 use crate::Pallet as XcmpHandler;
-use frame_benchmarking::{benchmarks, impl_benchmark_test_suite};
-use frame_support::pallet_prelude::*;
+use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, Box};
 use frame_system::RawOrigin;
 
-benchmarks! {
-	add_chain_currency_data {
-		let currency_id = T::GetNativeCurrencyId::get();
-		let para_id: u32 = 1000;
-		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
-	}: add_chain_currency_data(RawOrigin::Root, para_id, currency_id, xcm_data.clone())
+benchmarks! {
+	set_asset_config {
+		let location = MultiLocation::new(1, X1(Parachain(1000)));
+		let versioned_location: VersionedMultiLocation = location.clone().into();
+		let xcm_data = XcmAssetConfig { fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
+	}: set_asset_config(RawOrigin::Root, Box::new(versioned_location), xcm_data.clone())
 	verify {
-		assert_eq!(XcmChainCurrencyData::<T>::get(para_id, currency_id).unwrap(), xcm_data);
+		assert_eq!(DestinationAssetConfig::<T>::get(location).unwrap(), xcm_data);
 	}
 
-	remove_chain_currency_data {
-		let currency_id = T::GetNativeCurrencyId::get();
-		let para_id: u32 = 1000;
+	remove_asset_config {
+		let location = MultiLocation::new(1, X1(Parachain(1000)));
+		let versioned_location: VersionedMultiLocation = location.clone().into();
 		let xcm_data =
-			XcmCurrencyData { native: false, fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
-		XcmChainCurrencyData::<T>::insert(para_id, currency_id, xcm_data);
+			XcmAssetConfig { fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
+		DestinationAssetConfig::<T>::insert(location.clone(), xcm_data);
 
-	}: remove_chain_currency_data(RawOrigin::Root, para_id, currency_id)
+	}: remove_asset_config(RawOrigin::Root, Box::new(versioned_location))
 	verify {
-		if let Some(_) = XcmChainCurrencyData::<T>::get(para_id, currency_id) {
+		if let Some(_) = DestinationAssetConfig::<T>::get(location) {
 			panic!("There should be no data set")
 		};
 	}

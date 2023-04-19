@@ -68,6 +68,7 @@ use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 use pallet_xcmp_handler::XcmpTransactor;
+use primitives::EnsureProxy;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
@@ -75,7 +76,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::opaque::latest::MultiLocation;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -150,7 +151,8 @@ pub mod pallet {
 			+ TypeInfo
 			+ MaxEncodedLen
 			+ From<MultiCurrencyId<Self>>
-			+ Into<MultiCurrencyId<Self>>;
+			+ Into<MultiCurrencyId<Self>>
+			+ From<u32>;
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
@@ -179,6 +181,9 @@ pub mod pallet {
 			+ IsType<<Self as frame_system::Config>::Call>;
 
 		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
+
+		/// Ensure proxy
+		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -248,6 +253,11 @@ pub mod pallet {
 		TooManyExecutionsTimes,
 		/// The call can no longer be decoded.
 		CallCannotBeDecoded,
+		/// Incoverible currency ID.
+		IncoveribleCurrencyId,
+		/// The version of the `VersionedMultiLocation` value used is not able
+		/// to be interpreted.
+		BadVersion,
 	}
 
 	#[pallet::event]
@@ -449,7 +459,7 @@ pub mod pallet {
 		/// * The transaction is signed
 		/// * The provided_id's length > 0
 		/// * The times are valid
-		/// * The chain/currency pair is supported
+		/// * The given asset location is supported
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
@@ -472,11 +482,51 @@ pub mod pallet {
 			schedule: ScheduleParam,
 			para_id: ParaId,
 			currency_id: T::CurrencyId,
+			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: u64,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let action = Action::XCMP { para_id, currency_id, encoded_call, encoded_call_weight };
+			let action = Action::XCMP {
+				para_id,
+				currency_id,
+				xcm_asset_location,
+				encoded_call,
+				encoded_call_weight,
+				schedule_as: None,
+			};
+
+			let schedule = schedule.validated_into::<T>()?;
+
+			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			Ok(().into())
+		}
+
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
+		pub fn schedule_xcmp_task_through_proxy(
+			origin: OriginFor<T>,
+			provided_id: Vec<u8>,
+			schedule: ScheduleParam,
+			para_id: ParaId,
+			currency_id: T::CurrencyId,
+			xcm_asset_location: VersionedMultiLocation,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: u64,
+			schedule_as: T::AccountId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// Make sure the owner is the proxy account of the user account.
+			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
+
+			let action = Action::XCMP {
+				para_id,
+				currency_id,
+				xcm_asset_location,
+				encoded_call,
+				encoded_call_weight,
+				schedule_as: Some(schedule_as),
+			};
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
@@ -887,13 +937,15 @@ pub mod pallet {
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
 								para_id,
-								currency_id,
+								schedule_as,
+								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
+								..
 							} => Self::run_xcmp_task(
 								para_id,
-								task.owner_id.clone(),
-								currency_id,
+								schedule_as.unwrap_or(task.owner_id.clone()),
+								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
 								*task_id,
@@ -1015,14 +1067,22 @@ pub mod pallet {
 		pub fn run_xcmp_task(
 			para_id: ParaId,
 			caller: T::AccountId,
-			currency_id: T::CurrencyId,
+			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: u64,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
+			let location = MultiLocation::try_from(xcm_asset_location);
+			if location.is_err() {
+				return (
+					<T as Config>::WeightInfo::run_xcmp_task(),
+					Some(Error::<T>::BadVersion.into()),
+				)
+			}
+
 			match T::XcmpTransactor::transact_xcm(
 				para_id.into(),
-				currency_id,
+				location.unwrap(),
 				caller,
 				encoded_call,
 				encoded_call_weight,
@@ -1301,6 +1361,7 @@ pub mod pallet {
 
 			let task =
 				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());
+
 			let task_id =
 				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
 					let task_id = Self::schedule_task(&task, provided_id)?;
@@ -1308,7 +1369,12 @@ pub mod pallet {
 					Ok(task_id)
 				})?;
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
+			let scheduler = match action {
+				Action::XCMP { schedule_as, .. } => schedule_as.unwrap_or(owner_id),
+				_ => owner_id,
+			};
+
+			Self::deposit_event(Event::<T>::TaskScheduled { who: scheduler, task_id });
 			Ok(())
 		}
 
@@ -1408,7 +1474,7 @@ pub mod pallet {
 					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
 			} else {
 				let loc =
-					T::CurrencyIdConvert::convert(currency_id).ok_or("CouldNotConvertMultiLoc")?;
+					T::CurrencyIdConvert::convert(currency_id).ok_or("IncoveribleCurrencyId")?;
 				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
 					.ok_or("CouldNotDetermineFeePerSecond")?
 					.checked_mul(total_weight as u128)

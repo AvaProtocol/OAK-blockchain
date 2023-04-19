@@ -59,7 +59,6 @@ where
 		prereq: F,
 	) -> Result<R, DispatchError> {
 		let fee_handler = Self::new(owner, action, executions)?;
-		// Note: will need to account for fees in non-native tokens once we start accepting them
 		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
@@ -88,7 +87,6 @@ where
 			.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
 			.ok_or(DispatchError::Token(BelowMinimum))?;
 		T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
-
 		Ok(())
 	}
 
@@ -130,14 +128,16 @@ where
 		executions: u32,
 	) -> Result<Self, DispatchError> {
 		let currency_id = action.currency_id::<T>().into();
+
 		let execution_fee: u128 =
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
-		let xcmp_fee = match *action {
-			Action::XCMP { para_id, currency_id, encoded_call_weight, .. } =>
+		let xcmp_fee = match action.clone() {
+			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } =>
 				T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
-					currency_id,
+					MultiLocation::try_from(xcm_asset_location)
+						.map_err(|()| Error::<T>::BadVersion)?,
 					encoded_call_weight.clone(),
 				)?
 				.saturating_mul(executions.into())

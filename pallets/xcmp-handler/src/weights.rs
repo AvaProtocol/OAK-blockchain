@@ -46,8 +46,8 @@
 // ./.maintain/frame-weight-template.hbs
 
 // Summary:
-//:add_chain_currency_data 15_934_000
-//:remove_chain_currency_data 19_489_000
+//:set_asset_config 15_934_000
+//:remove_asset_config 19_489_000
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -58,20 +58,20 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_xcmp_handler.
 pub trait WeightInfo {
-	fn add_chain_currency_data() -> Weight;
-	fn remove_chain_currency_data() -> Weight;
+	fn set_asset_config() -> Weight;
+	fn remove_asset_config() -> Weight;
 }
 
 /// Weights for pallet_xcmp_handler using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
-	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
-	fn add_chain_currency_data() -> Weight {
+	// Storage: XcmpHandler DestinationAssetConfig (r:0 w:1)
+	fn set_asset_config() -> Weight {
 		Weight::from_ref_time(15_934_000 as u64)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
-	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
-	fn remove_chain_currency_data() -> Weight {
+	// Storage: XcmpHandler DestinationAssetConfig (r:1 w:1)
+	fn remove_asset_config() -> Weight {
 		Weight::from_ref_time(19_489_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -80,13 +80,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
-	// Storage: XcmpHandler XcmChainCurrencyData (r:0 w:1)
-	fn add_chain_currency_data() -> Weight {
+	// Storage: XcmpHandler DestinationAssetConfig (r:0 w:1)
+	fn set_asset_config() -> Weight {
 		Weight::from_ref_time(15_934_000 as u64)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
-	// Storage: XcmpHandler XcmChainCurrencyData (r:1 w:1)
-	fn remove_chain_currency_data() -> Weight {
+	// Storage: XcmpHandler DestinationAssetConfig (r:1 w:1)
+	fn remove_asset_config() -> Weight {
 		Weight::from_ref_time(19_489_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
