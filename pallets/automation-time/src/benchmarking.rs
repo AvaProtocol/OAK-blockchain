@@ -587,7 +587,6 @@ benchmarks! {
 					delegator: account_id.clone(),
 					collator: account_id.clone(),
 					account_minimum: 100u32.into(),
-					frequency: 11,
 				},
 			};
 			OldAccountTasks::<T>::insert(account_id.clone(), task_id, task);
