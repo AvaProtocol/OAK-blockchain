@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, Seconds, TaskId, TaskOf,
+	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, TaskId, TaskOf,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -51,7 +51,6 @@ pub enum OldAction<T: Config> {
 		delegator: T::AccountId,
 		collator: T::AccountId,
 		account_minimum: BalanceOf<T>,
-		frequency: Seconds,
 	},
 	DynamicDispatch {
 		encoded_call: Vec<u8>,
@@ -61,9 +60,8 @@ pub enum OldAction<T: Config> {
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 	fn from(action: OldAction<T>) -> Self {
 		match action {
-			OldAction::AutoCompoundDelegatedStake {
-				delegator, collator, account_minimum, ..
-			} => Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
+			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
+				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
 			OldAction::Notify { message } => Self::Notify { message },
 			OldAction::NativeTransfer { sender, recipient, amount } =>
 				Self::NativeTransfer { sender, recipient, amount },
