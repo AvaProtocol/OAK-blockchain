@@ -16,7 +16,7 @@
 // limitations under the License.
 use crate::{mock::*, DestinationAssetConfig, Error, XcmAssetConfig, XcmFlow};
 use codec::Encode;
-use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_PER_SECOND};
+use frame_support::{assert_noop, assert_ok, weights::constants::WEIGHT_REF_TIME_PER_SECOND};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
@@ -138,7 +138,7 @@ fn calculate_xcm_fee_and_weight_works() {
 
 		let expected_weight = transact_encoded_call_weight + XCM_DATA.instruction_weight * 6;
 		let expected_fee = XCM_DATA.fee_per_second * (expected_weight as u128) /
-			(WEIGHT_PER_SECOND.ref_time() as u128);
+			(WEIGHT_REF_TIME_PER_SECOND.ref_time() as u128);
 		assert_ok!(
 			XcmpHandler::calculate_xcm_fee_and_weight(
 				PARA_ID,
@@ -404,14 +404,13 @@ fn transact_in_target_chain_works() {
 					},
 					DescendOrigin(X1(AccountId32 { network: Any, id: ALICE.into() }),),
 					Transact {
-						origin_type: OriginKind::SovereignAccount,
+						origin_kind: OriginKind::SovereignAccount,
 						require_weight_at_most: transact_encoded_call_weight,
 						call: transact_encoded_call.clone().into(),
 					},
 					RefundSurplus,
 					DepositAsset {
 						assets: Wild(All),
-						max_assets: 1,
 						beneficiary: MultiLocation {
 							parents: 1,
 							interior: X1(Parachain(LOCAL_PARA_ID)),

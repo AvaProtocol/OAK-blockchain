@@ -61,7 +61,7 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::{constants::WEIGHT_PER_SECOND, GetDispatchInfo},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, GetDispatchInfo},
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
@@ -100,7 +100,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -174,13 +174,13 @@ pub mod pallet {
 
 		/// The overarching call type.
 		type Call: Parameter
-			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
-			+ IsType<<Self as frame_system::Config>::Call>;
+			+ IsType<<Self as frame_system::Config>::RuntimeCall>;
 
-		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
+		type ScheduleAllowList: Contains<<Self as frame_system::Config>::RuntimeCall>;
 
 		/// Ensure proxy
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
@@ -724,7 +724,7 @@ pub mod pallet {
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
-			if weight_left < run_task_weight {
+			if weight_left.ref_time() < run_task_weight.ref_time() {
 				return weight_left
 			}
 
@@ -741,7 +741,7 @@ pub mod pallet {
 			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
-			if weight_left >= run_missed_task_weight {
+			if weight_left.ref_time() >= run_missed_task_weight.ref_time() {
 				let missed_queue = Self::get_missed_queue();
 				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
 				if missed_queue.len() > 0 {
@@ -869,7 +869,7 @@ pub mod pallet {
 			let mut diff =
 				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
-				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
+				if allotted_weight.ref_time() < <T as Config>::WeightInfo::shift_missed_tasks().ref_time() {
 					diff = i;
 					break
 				}
@@ -977,7 +977,7 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left < <T as Config>::WeightInfo::run_tasks_many_found(1) {
+				if weight_left.ref_time() < <T as Config>::WeightInfo::run_tasks_many_found(1).ref_time() {
 					break
 				}
 			}
@@ -1023,7 +1023,7 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left < <T as Config>::WeightInfo::run_missed_tasks_many_found(1) {
+				if weight_left.ref_time() < <T as Config>::WeightInfo::run_missed_tasks_many_found(1).ref_time() {
 					break
 				}
 			}
@@ -1122,14 +1122,18 @@ pub mod pallet {
 					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
 				},
 				Err(e) => {
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-						task_id,
-						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
-						error: e,
-					});
+					// Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					// 	task_id,
+					// 	error_message: Into::<&str>::into(e).as_bytes().to_vec(),
+					// 	error: e,
+					// });
+					// (
+					// 	<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+					// 	Some(e.error),
+					// )
 					(
 						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-						Some(e.error),
+						None,
 					)
 				},
 			}
@@ -1143,9 +1147,9 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
-					let mut dispatch_origin: T::Origin =
+					let mut dispatch_origin: T::RuntimeOrigin =
 						frame_system::RawOrigin::Signed(caller.clone()).into();
-					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::Call| {
+					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::RuntimeCall| {
 						T::ScheduleAllowList::contains(call)
 					});
 
@@ -1479,7 +1483,7 @@ pub mod pallet {
 					.ok_or("CouldNotDetermineFeePerSecond")?
 					.checked_mul(total_weight as u128)
 					.ok_or("FeeOverflow")
-					.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
+					.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
 				<BalanceOf<T>>::saturated_from(raw_fee)
 			};
 

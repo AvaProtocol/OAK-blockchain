@@ -37,10 +37,10 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-use frame_support::pallet;
+// use frame_support::pallet;
 pub use pallet::*;
 
-#[pallet]
+#[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::{
@@ -53,13 +53,13 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
 
 		/// The pallets that we want to close on demand.
-		type ClosedCallFilter: Contains<Self::Call>;
+		type ClosedCallFilter: Contains<Self::RuntimeCall>;
 
 		/// The AutomationTime pallet.
 		type AutomationTime: Shutdown;
@@ -324,11 +324,11 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Contains<T::Call> for Pallet<T>
+	impl<T: Config> Contains<T::RuntimeCall> for Pallet<T>
 	where
-		<T as frame_system::Config>::Call: GetCallMetadata,
+		<T as frame_system::Config>::RuntimeCall: GetCallMetadata,
 	{
-		fn contains(call: &T::Call) -> bool {
+		fn contains(call: &T::RuntimeCall) -> bool {
 			if ValveClosed::<T>::get() {
 				T::ClosedCallFilter::contains(call)
 			} else {

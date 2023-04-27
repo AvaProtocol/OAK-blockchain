@@ -61,7 +61,7 @@ impl frame_system::Config for Test {
 	type Origin = Origin;
 	type Index = u64;
 	type BlockNumber = BlockNumber;
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
@@ -84,8 +84,8 @@ impl frame_system::Config for Test {
 
 /// During maintenance mode we will not allow any calls.
 pub struct ClosedCallFilter;
-impl Contains<Call> for ClosedCallFilter {
-	fn contains(_: &Call) -> bool {
+impl Contains<RuntimeCall> for ClosedCallFilter {
+	fn contains(_: &RuntimeCall) -> bool {
 		false
 	}
 }

@@ -71,6 +71,9 @@ pub mod fees {
 		/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 		/// See `multiplier_can_grow_from_zero`.
 		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+		/// Maximum multiplier. We pick a value that is expensive but not impossibly so; it should act
+		/// as a safety net.
+		pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 100_000_000_000u128);
 	}
 
 	/// Parameterized slow adjusting fee updated based on
@@ -85,11 +88,11 @@ pub mod fees {
 	///            target is TargetBlockFullness
 	///            min is MinimumMultiplier
 	pub type SlowAdjustingFeeUpdate<R> =
-		TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+		TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier, MaximumMultiplier>;
 }
 
 pub mod weight_ratios {
-	use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
+	use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
 	use sp_runtime::Perbill;
 
 	/// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
@@ -104,5 +107,5 @@ pub mod weight_ratios {
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
 	/// We allow for 0.5 of a second of compute with a 12 second average block time.
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_div(2);
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_ref_time(WEIGHT_REF_TIME_PER_SECOND).saturating_div(2);
 }

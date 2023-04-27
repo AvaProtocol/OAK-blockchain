@@ -71,7 +71,7 @@ impl system::Config for Test {
 	type BlockLength = ();
 	type DbWeight = ();
 	type Origin = Origin;
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -101,7 +101,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	type Balance = Balance;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
@@ -120,7 +120,7 @@ parameter_types! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i64;
 	type CurrencyId = CurrencyId;
@@ -324,10 +324,10 @@ where
 }
 
 pub struct ScheduleAllowList;
-impl Contains<Call> for ScheduleAllowList {
-	fn contains(c: &Call) -> bool {
+impl Contains<RuntimeCall> for ScheduleAllowList {
+	fn contains(c: &RuntimeCall) -> bool {
 		match c {
-			Call::System(_) => true,
+			RuntimeCall::System(_) => true,
 			_ => false,
 		}
 	}
@@ -361,7 +361,7 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 }
 
 impl pallet_automation_time::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
 	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
@@ -378,7 +378,7 @@ impl pallet_automation_time::Config for Test {
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type Call = Call;
+	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
