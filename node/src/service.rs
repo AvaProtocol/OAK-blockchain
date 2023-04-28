@@ -294,14 +294,14 @@ where
 	let validator = parachain_config.role.is_authority();
 	let prometheus_registry = parachain_config.prometheus_registry().cloned();
 	let transaction_pool = params.transaction_pool.clone();
-	let import_queue = cumulus_client_service::SharedImportQueue::new(params.import_queue);
+	let import_queue_service = params.import_queue.service();
 	let (network, system_rpc_tx, start_network) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &parachain_config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
-			import_queue: import_queue.clone(),
+			import_queue: params.import_queue,
 			block_announce_validator_builder: Some(Box::new(|_| {
 				Box::new(block_announce_validator)
 			})),
@@ -380,9 +380,8 @@ where
 			relay_chain_interface,
 			spawner,
 			parachain_consensus,
-			import_queue,
-			collator_key: collator_key
-				.ok_or(sc_service::error::Error::Other("Collator Key is None".to_string()))?,
+			import_queue: import_queue_service,
+			collator_key: collator_key.expect("Command line arguments do not allow this. qed"),
 			relay_chain_slot_duration,
 		};
 
@@ -394,7 +393,7 @@ where
 			task_manager: &mut task_manager,
 			para_id: id,
 			relay_chain_interface,
-			import_queue,
+			import_queue: import_queue_service,
 			relay_chain_slot_duration,
 			collator_options,
 		};
@@ -437,7 +436,7 @@ where
 {
 	let slot_duration = cumulus_client_consensus_aura::slot_duration(&*client)?;
 
-	cumulus_client_consensus_aura::import_queue::<AuraPair, _, _, _, _, _, _>(
+	cumulus_client_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
 		cumulus_client_consensus_aura::ImportQueueParams {
 			block_import: client.clone(),
 			client: client.clone(),
@@ -453,9 +452,9 @@ where
 				Ok((time, slot))
 			},
 			registry: config.prometheus_registry(),
-			can_author_with: sp_consensus::CanAuthorWithNativeVersion::new(
-				client.executor().clone(),
-			),
+			// can_author_with: sp_consensus::CanAuthorWithNativeVersion::new(
+			// 	client.executor().clone(),
+			// ),
 			spawner: &task_manager.spawn_essential_handle(),
 			telemetry,
 		},

@@ -94,6 +94,7 @@ use common_runtime::{
 		},
 	},
 	fees::{DealWithExecutionFees, DealWithInclusionFees},
+	CurrencyHooks,
 };
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
@@ -191,7 +192,8 @@ pub fn native_version() -> NativeVersion {
 }
 
 parameter_types! {
-	pub const RelayNetwork: NetworkId = NetworkId::Any;
+	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
+	// pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 }
 
 parameter_types! {
@@ -288,7 +290,7 @@ impl pallet_multisig::Config for Runtime {
 	type Currency = Balances;
 	type DepositBase = DepositBase;
 	type DepositFactor = DepositFactor;
-	type MaxSignatories = ConstU16<100>;
+	type MaxSignatories = ConstU32<100>;
 	type WeightInfo = pallet_multisig::weights::SubstrateWeight<Runtime>;
 }
 
@@ -453,6 +455,10 @@ impl Contains<AccountId> for DustRemovalWhitelist {
 	}
 }
 
+parameter_types! {
+	pub TuringTreasuryAccount: AccountId = TreasuryPalletId::get().into_account_truncating();
+}
+
 impl orml_tokens::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
@@ -460,6 +466,7 @@ impl orml_tokens::Config for Runtime {
 	type CurrencyId = TokenId;
 	type WeightInfo = ();
 	type ExistentialDeposits = orml_asset_registry::ExistentialDeposits<Runtime>;
+	type CurrencyHooks = CurrencyHooks<Runtime, TuringTreasuryAccount>;
 	type MaxLocks = MaxLocks;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
@@ -842,6 +849,9 @@ impl pallet_democracy::Config for Runtime {
 	type MaxVotes = ConstU32<100>;
 	type WeightInfo = pallet_democracy::weights::SubstrateWeight<Runtime>;
 	type MaxProposals = ConstU32<100>;
+	type Preimages = Preimage;
+	type MaxDeposits = ConstU32<100>;
+	type MaxBlacklisted = ConstU32<100>;
 }
 
 parameter_types! {
@@ -1121,6 +1131,12 @@ impl_runtime_apis! {
 		) -> pallet_transaction_payment::FeeDetails<Balance> {
 			TransactionPayment::query_fee_details(uxt, len)
 		}
+		fn query_weight_to_fee(weight: Weight) -> Balance {
+			TransactionPayment::weight_to_fee(weight)
+		}
+		fn query_length_to_fee(length: u32) -> Balance {
+			TransactionPayment::length_to_fee(length)
+		}
 	}
 
 
@@ -1132,7 +1148,7 @@ impl_runtime_apis! {
 				1,
 				X2(
 					Parachain(parachain_id),
-					Junction::AccountId32 { network: NetworkId::Any, id: account_id.into() },
+					Junction::AccountId32 { network: None, id: account_id.into() },
 				),
 			);
 

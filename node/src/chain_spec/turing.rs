@@ -17,9 +17,9 @@ use turing_runtime::{
 };
 use xcm::{
 	latest::prelude::*,
-	v1::Junction::{PalletInstance, Parachain},
+	v2::Junction::{PalletInstance, Parachain},
 	VersionedMultiLocation,
-	VersionedMultiLocation::V1,
+	VersionedMultiLocation::V2,
 };
 
 const TOKEN_SYMBOL: &str = "TUR";
@@ -254,7 +254,7 @@ fn testnet_genesis(
 					name: "Native".as_bytes().to_vec(),
 					symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
 					existential_deposit: 100_000_000,
-					location: Some(V1(MultiLocation { parents: 0, interior: Here })),
+					location: Some(V2(MultiLocation { parents: 0, interior: Here })),
 					additional: CustomMetadata {
 						fee_per_second: Some(416_000_000_000),
 						conversion_rate: None,

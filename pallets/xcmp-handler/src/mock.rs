@@ -231,25 +231,52 @@ impl xcm_executor::Config for XcmConfig {
 	type SubscriptionService = XcmPallet;
 }
 
+#[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
-	pub static AdvertisedXcmVersion: xcm::prelude::XcmVersion = 2;
+	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
-impl pallet_xcm::Config for Test {
+// impl pallet_xcm::Config for Test {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+// 	type XcmRouter = (TestSendXcm, TestSendXcm);
+// 	type UniversalLocation = UniversalLocation;
+// 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
+// 	type XcmExecuteFilter = Everything;
+// 	type XcmExecutor = XcmExecutor<XcmConfig>;
+// 	type XcmTeleportFilter = Everything;
+// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+// 	type XcmReserveTransferFilter = Everything;
+// 	type Origin = Origin;
+// 	type RuntimeCall = RuntimeCall;
+// 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
+// 	type AdvertisedXcmVersion = AdvertisedXcmVersion;
+// }
+
+impl pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmRouter = (TestSendXcm, TestSendXcm);
-	type UniversalLocation = UniversalLocation;
+	type XcmRouter = XcmRouter;
 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-	type XcmExecuteFilter = Everything;
+	type XcmExecuteFilter = Nothing;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
-	type XcmTeleportFilter = Everything;
-	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type XcmTeleportFilter = Nothing;
 	type XcmReserveTransferFilter = Everything;
-	type Origin = Origin;
+	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type UniversalLocation = UniversalLocation;
+	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-	type AdvertisedXcmVersion = AdvertisedXcmVersion;
+	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type Currency = Balances;
+	type CurrencyMatcher = ();
+	type TrustedLockers = ();
+	type SovereignAccountOf = LocationToAccountId;
+	type MaxLockers = ConstU32<8>;
+	// TODO pallet-xcm weights
+	type WeightInfo = pallet_xcm::TestWeightInfo;
+	#[cfg(feature = "runtime-benchmarks")]
+	type ReachableDest = ReachableDest;
 }
 
 impl cumulus_pallet_xcm::Config for Test {

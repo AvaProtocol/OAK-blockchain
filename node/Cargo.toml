@@ -47,7 +47,7 @@ serde_json = "1.0.68"
 hex-literal = "0.3.4"
 
 # RPC related Dependencies
-jsonrpsee = { version = "0.15.1", features = ["server"] }
+jsonrpsee = { version = "0.16.2", features = ["server"] }
 
 # Local Dependencies
 common-runtime = { path = "../runtime/common" }
