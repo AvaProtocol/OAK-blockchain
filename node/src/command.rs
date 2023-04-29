@@ -346,6 +346,7 @@ pub fn run() -> Result<()> {
 							)?;
 							cmd.run(partials.client)
 						}),
+						#[cfg(feature = "runtime-benchmarks")]
 						BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 							let partials = service::new_partial::<RuntimeApi, Executor, _>(
 								&config,

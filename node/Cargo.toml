@@ -40,7 +40,7 @@ try-runtime = [
 async-trait = "0.1.48"
 derive_more = "0.99.2"
 log = "0.4.17"
-clap = { version = "3.2.20", features = ["derive"] }
+clap = { version = "4.0.9", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.4.0" }
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = "1.0.68"
@@ -115,6 +115,7 @@ cumulus-primitives-parachain-inherent = { git = 'https://github.com/paritytech/c
 cumulus-relay-chain-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
 cumulus-relay-chain-inprocess-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
 cumulus-relay-chain-rpc-interface = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
+cumulus-relay-chain-minimal-node = { git = "https://github.com/paritytech/cumulus", branch = "polkadot-v0.9.38" }
 
 # Polkadot dependencies
 polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }

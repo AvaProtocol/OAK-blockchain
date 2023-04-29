@@ -16,11 +16,16 @@ use turing_runtime::{
 	VestingConfig, XcmpHandlerConfig,
 };
 use xcm::{
-	latest::prelude::*,
-	v2::Junction::{PalletInstance, Parachain},
+	prelude::*,
 	VersionedMultiLocation,
-	VersionedMultiLocation::V2,
+	VersionedMultiLocation::V3,
 };
+// use xcm::{
+// 	latest::prelude::*,
+// 	v2::Junction::{PalletInstance, Parachain},
+// 	VersionedMultiLocation,
+// 	VersionedMultiLocation::V2,
+// };
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -229,6 +234,7 @@ pub fn turing_live() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/turing.json")[..])
 }
 
+const NUM_SELECTED_CANDIDATES: u32 = 8;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<(AccountId, Balance)>,
@@ -254,7 +260,7 @@ fn testnet_genesis(
 					name: "Native".as_bytes().to_vec(),
 					symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
 					existential_deposit: 100_000_000,
-					location: Some(V2(MultiLocation { parents: 0, interior: Here })),
+					location: Some(V3(MultiLocation { parents: 0, interior: Here })),
 					additional: CustomMetadata {
 						fee_per_second: Some(416_000_000_000),
 						conversion_rate: None,
@@ -300,6 +306,7 @@ fn testnet_genesis(
 			blocks_per_round: 600,
 			collator_commission: Perbill::from_percent(20),
 			parachain_bond_reserve_percent: Percent::from_percent(30),
+			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
