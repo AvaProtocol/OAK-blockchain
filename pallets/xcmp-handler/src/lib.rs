@@ -95,9 +95,6 @@ pub mod pallet {
 
 		/// Convert a CurrencyId to a MultiLocation.
 		type CurrencyIdToMultiLocation: Convert<Self::CurrencyId, Option<MultiLocation>>;
-
-		// /// Means of inverting a location.
-		// type LocationInverter: InvertLocation;
 		
 		/// This chain's Universal Location.
 		type UniversalLocation: Get<InteriorMultiLocation>;
@@ -343,12 +340,9 @@ pub mod pallet {
 			]);
 
 			// XCM for target chain
-			let target_asset = local_asset;
-				// .reanchored(
-				// 	&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-				// 	&T::LocationInverter::ancestry(),
-				// )
-				// .map_err(|_| Error::<T>::CannotReanchor)?;
+			let target_asset = local_asset
+					.reanchored(&MultiLocation::new(1, X1(Parachain(para_id.into()))), T::UniversalLocation::get())
+					.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
 				ReserveAssetDeposited::<()>(target_asset.clone().into()),
@@ -397,12 +391,9 @@ pub mod pallet {
 		> {
 			// XCM for target chain
 			let target_asset =
-				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) };
-					// .reanchored(
-					// 	&MultiLocation::new(1, X1(Parachain(para_id.into()))),
-					// 	&T::LocationInverter::ancestry(),
-					// )
-					// .map_err(|_| Error::<T>::CannotReanchor)?;
+				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) }
+					.reanchored(&MultiLocation::new(1, X1(Parachain(para_id.into()))), T::UniversalLocation::get())
+					.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
 				DescendOrigin::<()>(descend_location.clone()),
@@ -432,19 +423,22 @@ pub mod pallet {
 				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
 				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
-			// let hash = internal_instructions.using_encoded(sp_io::hashing::blake2_256);
-			// // Execute instruction on local chain
-			// T::XcmExecutor::execute_xcm_in_credit(
-			// 	local_sovereign_account,
-			// 	internal_instructions.into(),
-			// 	weight,
-			// 	weight,
-			// )
-			// .ensure_complete()
-			// .map_err(|error| {
-			// 	log::error!("Failed execute in credit with {:?}", error);
-			// 	Error::<T>::XcmExecutionFailed
-			// })?;
+			let hash = internal_instructions.using_encoded(sp_io::hashing::blake2_256);
+
+			// Execute instruction on local chain
+			T::XcmExecutor::execute_xcm_in_credit(
+				local_sovereign_account,
+				internal_instructions.into(),
+				hash,
+				weight,
+				weight,
+			)
+			.ensure_complete()
+			.map_err(|error| {
+				log::error!("Failed execute in credit with {:?}", error);
+				Error::<T>::XcmExecutionFailed
+			})?;
+
 			Self::deposit_event(Event::XcmTransactedLocally);
 
 			Ok(().into())
@@ -462,13 +456,13 @@ pub mod pallet {
 			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
 			let destination_location: Junctions = Here;
 
-			// Send to target chain
-			// T::XcmSender::send_xcm((1, destination_location), target_instructions).map_err(
-			// 	|error| {
-			// 		log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
-			// 		Error::<T>::ErrorSendingXcmToTarget
-			// 	},
-			// )?;
+			send_xcm::<T::XcmSender>(MultiLocation::new(1, destination_location), target_instructions).map_err(
+				|error| {
+					log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+					Error::<T>::ErrorSendingXcmToTarget
+				},
+			)?;
+			
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())

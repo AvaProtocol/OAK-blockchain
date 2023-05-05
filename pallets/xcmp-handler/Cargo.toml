@@ -22,6 +22,7 @@ serde = { version = "1.0.144" }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 sp-std = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 
@@ -43,7 +44,6 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", default-feature
 # Substrate
 pallet-balances = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
-sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 
 # Cumulus dependencies
 cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', default-features = false, branch = 'polkadot-v0.9.38' }

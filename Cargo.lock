@@ -1076,6 +1076,7 @@ dependencies = [
  "pallet-balances",
  "pallet-transaction-payment",
  "pallet-treasury",
+ "polkadot-primitives",
  "primitives",
  "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
@@ -6478,7 +6479,7 @@ dependencies = [
 [[package]]
 name = "pallet-parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/imstar15/moonbeam?branch=oak-polkadot-v0.9.38#515169fa83c369f07ed078e27c22ab2fc1fb0cd7"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-polkadot-v0.9.38#6923cb72a5ef8cd8586d273173d672cf3ffdc4fb"
 dependencies = [
  "frame-benchmarking",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",

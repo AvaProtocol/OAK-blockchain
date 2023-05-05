@@ -70,10 +70,10 @@ pub mod fees {
 		/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 		/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 		/// See `multiplier_can_grow_from_zero`.
-		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 100_000_000_000u128);
 		/// Maximum multiplier. We pick a value that is expensive but not impossibly so; it should act
 		/// as a safety net.
-		pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 100_000_000_000u128);
+		pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
 	}
 
 	/// Parameterized slow adjusting fee updated based on
@@ -106,6 +106,9 @@ pub mod weight_ratios {
 	/// `Operational` extrinsics.
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
-	/// We allow for 0.5 of a second of compute with a 12 second average block time.
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_ref_time(WEIGHT_REF_TIME_PER_SECOND).saturating_div(2);
+	/// We allow for 0.5 seconds of compute with a 12 second average block time.
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+		polkadot_primitives::v2::MAX_POV_SIZE as u64,
+	);
 }
