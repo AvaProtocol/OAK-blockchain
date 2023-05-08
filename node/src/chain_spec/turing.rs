@@ -123,7 +123,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
 						),
 						10_000_000_000_000_000_000,
-						1_000_000_000,
+						250_000_000,
 						XcmFlow::Alternate,
 					),
 				],
