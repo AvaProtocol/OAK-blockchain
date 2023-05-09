@@ -353,6 +353,14 @@ pub mod pallet {
 					require_weight_at_most: Weight::from_ref_time(transact_encoded_call_weight),
 					call: transact_encoded_call.into(),
 				},
+				RefundSurplus::<()>,
+				DepositAsset::<()> {
+					assets: Wild(AllCounted(1)),
+					beneficiary: MultiLocation {
+						parents: 1,
+						interior: X1(Parachain(T::SelfParaId::get().into())),
+					},
+				},
 			]);
 
 			Ok((local_xcm, target_xcm))
@@ -395,6 +403,11 @@ pub mod pallet {
 					origin_kind: OriginKind::SovereignAccount,
 					require_weight_at_most: Weight::from_ref_time(transact_encoded_call_weight),
 					call: transact_encoded_call.into(),
+				},
+				RefundSurplus::<()>,
+				DepositAsset::<()> {
+					assets: Wild(AllCounted(1)),
+					beneficiary: MultiLocation { parents: 1, interior: descend_location },
 				},
 			]);
 
