@@ -5488,6 +5488,7 @@ dependencies = [
  "sp-consensus-aura",
  "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "sp-inherents 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "sp-io 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "sp-keystore 0.13.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
  "sp-offchain",
  "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
