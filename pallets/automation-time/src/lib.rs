@@ -37,7 +37,6 @@ mod mock;
 mod tests;
 
 mod benchmarking;
-pub mod migrations;
 pub mod weights;
 
 mod fees;
@@ -484,7 +483,7 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP {
@@ -511,7 +510,7 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 			schedule_as: T::AccountId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -1069,7 +1068,7 @@ pub mod pallet {
 			caller: T::AccountId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let location = MultiLocation::try_from(xcm_asset_location);

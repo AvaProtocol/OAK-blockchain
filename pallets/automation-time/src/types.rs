@@ -30,7 +30,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
-		encoded_call_weight: u64,
+		encoded_call_weight: Weight,
 		schedule_as: Option<AccountId>,
 	},
 	AutoCompoundDelegatedStake {
@@ -92,7 +92,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				currency_id: CurrencyId::default(),
 				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				encoded_call: vec![0],
-				encoded_call_weight: 0,
+				encoded_call_weight: Weight::from_parts(0u64, 0u64),
 				schedule_as: None,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
@@ -262,7 +262,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
-		encoded_call_weight: u64,
+		encoded_call_weight: Weight,
 	) -> Result<Self, DispatchError> {
 		let action = Action::XCMP {
 			para_id,

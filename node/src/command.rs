@@ -383,8 +383,11 @@ pub fn run() -> Result<()> {
 					)
 					.map_err(|e| format!("Error: {:?}", e))?;
 
+					// runner
+					// 	.async_run(|config| Ok((cmd.run::<Block, Executor>(config), task_manager)))
+
 					runner
-						.async_run(|config| Ok((cmd.run::<Block, Executor>(config), task_manager)))
+						.async_run(|config| Ok((cmd.run::<Block, Executor>(), task_manager)))
 				}
 			})
 		},

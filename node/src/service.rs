@@ -25,7 +25,7 @@ use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
 
 // Substrate Imports
 use sc_client_api::ExecutorProvider;
-use sc_consensus::{ImportQueue, LongestChain};
+use sc_consensus::ImportQueue;
 use sc_executor::NativeElseWasmExecutor;
 use sc_network::{NetworkBlock, NetworkService};
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};

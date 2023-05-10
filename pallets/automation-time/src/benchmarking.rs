@@ -34,7 +34,7 @@ const ED_MULTIPLIER: u32 = 1_000;
 // ensure enough funds to execute tasks
 const DEPOSIT_MULTIPLIER: u32 = 100_000_000;
 
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
@@ -109,7 +109,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			T::GetNativeCurrencyId::get(),
 			MultiLocation::new(1, X1(Parachain(para_id))).into(),
 			vec![4, 5, 6],
-			5_000,
+			Weight::from_ref_time(5_000),
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
@@ -220,7 +220,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, 1_000)
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, Weight::from_ref_time(1_000))
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -391,7 +391,7 @@ benchmarks! {
 
 		let provided_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, asset_location.into(), call, 100_000, task_id.clone()) }
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, asset_location.into(), call, Weight::from_ref_time(100_000), task_id.clone()) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);

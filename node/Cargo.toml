@@ -31,7 +31,7 @@ oak-node = ["oak-runtime"]
 turing-node = ["turing-runtime"]
 all-nodes = ["neumann-node", "turing-node", "oak-node"]
 try-runtime = [
-  "try-runtime-cli",
+  "try-runtime-cli/try-runtime",
   "turing-runtime/try-runtime",
   "oak-runtime/try-runtime",
 ]
@@ -62,6 +62,7 @@ primitives = { path = "../primitives" }
 # Substrate Dependencies
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+frame-support = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
 try-runtime-cli = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38", optional = true }
 
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
@@ -122,7 +123,6 @@ polkadot-cli = { git = "https://github.com/paritytech/polkadot", branch = "relea
 polkadot-parachain = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
-polkadot-test-service = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.38" }
 
 # Moonbeam Dependencies

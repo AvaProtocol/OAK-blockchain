@@ -2,6 +2,7 @@ use cumulus_primitives_core::ParaId;
 use sc_service::ChainType;
 use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
+use frame_support::pallet_prelude::*;
 
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
@@ -99,7 +100,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
 						),
 						419_000_000_000,
-						1_000_000_000,
+						Weight::from_parts(1_000_000_000, 0),
 						XcmFlow::Normal,
 					),
 					(
@@ -107,7 +108,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
 						),
 						419_000_000_000,
-						1_000_000_000,
+						Weight::from_parts(1_000_000_000, 0),
 						XcmFlow::Normal,
 					),
 					(
@@ -115,7 +116,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
 						),
 						10_000_000_000_000_000_000,
-						1_000_000_000,
+						Weight::from_parts(1_000_000_000, 1024),
 						XcmFlow::Alternate,
 					),
 					(
@@ -123,7 +124,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
 						),
 						10_000_000_000_000_000_000,
-						250_000_000,
+						Weight::from_parts(250_000_000, 0),
 						XcmFlow::Alternate,
 					),
 				],
@@ -243,7 +244,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, u64, XcmFlow)>,
+	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, Weight, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
