@@ -146,10 +146,7 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = (
-	pallet_xcmp_handler::migrations::convert_currency_data_to_asset_config::ConvertCurrencyDataToAssetConfig<Runtime>,
-	pallet_automation_time::migrations::upgrade_xcmp_task_struct::UpgradeXcmpTaskStruct<Runtime>,
-);
+type Migrations = ();
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats

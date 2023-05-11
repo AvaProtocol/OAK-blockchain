@@ -567,35 +567,6 @@ benchmarks! {
 		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 
-	migration_upgrade_xcmp_task_struct {
-		let v in 1..100;
-
-		use migrations::upgrade_xcmp_task_struct::{AccountTasks as OldAccountTasks, UpgradeXcmpTaskStruct, OldAction, OldTask};
-		use frame_support::traits::OnRuntimeUpgrade;
-
-		for i in 0..v {
-			let account_id: T::AccountId = account("Account", 0, i);
-			let task_id = Pallet::<T>::generate_task_id(account_id.clone(), vec![0]);
-			let task = OldTask::<T> {
-				owner_id: account_id.clone(),
-				provided_id: vec![1],
-				schedule: Schedule::Fixed {
-					execution_times: vec![10].try_into().unwrap(),
-					executions_left: 1,
-				},
-				action: OldAction::<T>::AutoCompoundDelegatedStake {
-					delegator: account_id.clone(),
-					collator: account_id.clone(),
-					account_minimum: 100u32.into(),
-				},
-			};
-			OldAccountTasks::<T>::insert(account_id.clone(), task_id, task);
-		}
-	}: { UpgradeXcmpTaskStruct::<T>::on_runtime_upgrade() }
-	verify {
-		assert_eq!(v, crate::AccountTasks::<T>::iter().count() as u32);
-	}
-
 	impl_benchmark_test_suite!(
 		AutomationTime,
 		crate::mock::new_test_ext(crate::tests::START_BLOCK_TIME),
