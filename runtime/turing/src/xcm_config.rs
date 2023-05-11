@@ -340,28 +340,6 @@ pub type XcmRouter = (
 	XcmpQueue,
 );
 
-// impl pallet_xcm::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-// 	type XcmRouter = XcmRouter;
-// 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-// 	type XcmExecuteFilter = Nothing;
-// 	// ^ Disable dispatchable execute on the XCM pallet.
-// 	// Needs to be `Everything` for local testing.
-// 	type XcmExecutor = XcmExecutor<XcmConfig>;
-// 	type XcmTeleportFilter = Everything;
-// 	type XcmReserveTransferFilter = Nothing;
-// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-// 	// type LocationInverter = LocationInverter<Ancestry>;
-// 	type UniversalLocation = UniversalLocation;
-// 	type RuntimeOrigin = RuntimeOrigin;
-// 	type RuntimeCall = RuntimeCall;
-
-// 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-// 	// ^ Override for AdvertisedXcmVersion default
-// 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-// }
-
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());

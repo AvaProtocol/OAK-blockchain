@@ -64,7 +64,6 @@ use frame_support::{
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
 	EnsureRoot,
-	RawOrigin,
 };
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
@@ -1278,11 +1277,11 @@ impl_runtime_apis! {
 			select: frame_try_runtime::TryStateSelect
 		) -> Weight {
 				log::info!(
-						"try-runtime: executing block #{} ({:?}) / root checks: {:?} / sanity-checks: {:?}",
-						block.header.number,
-						block.header.hash(),
-						state_root_check,
-						select,
+					"try-runtime: executing block #{} ({:?}) / root checks: {:?} / sanity-checks: {:?}",
+					block.header.number,
+					block.header.hash(),
+					state_root_check,
+					select,
 				);
 				Executive::try_execute_block(block, state_root_check, signature_check, select).expect("execute-block failed")
 		}

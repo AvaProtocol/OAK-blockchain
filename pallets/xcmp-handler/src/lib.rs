@@ -339,9 +339,6 @@ pub mod pallet {
 				},
 			]);
 
-			// TODO: Calculate proof size
-			let proof_size = 5000u64;
-
 			// XCM for target chain
 			let target_asset = local_asset
 					.reanchored(&MultiLocation::new(1, X1(Parachain(para_id.into()))), T::UniversalLocation::get())

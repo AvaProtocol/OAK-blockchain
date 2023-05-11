@@ -279,24 +279,6 @@ pub type Trader =
 	(AssetRegistryTrader<FixedRateAssetRegistryTrader<FeePerSecondProvider>, ToTreasury>,);
 
 pub struct XcmConfig;
-// impl Config for XcmConfig {
-// 	type RuntimeCall = RuntimeCall;
-// 	type XcmSender = XcmRouter;
-// 	// How to withdraw and deposit an asset.
-// 	type AssetTransactor = LocalAssetTransactor;
-// 	type OriginConverter = XcmOriginToTransactDispatchOrigin;
-// 	type IsReserve = MultiNativeAsset<AbsoluteReserveProvider>;
-// 	type IsTeleporter = (); // Teleporting is disabled.
-// 	type UniversalLocation = UniversalLocation;
-// 	type Barrier = Barrier;
-// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-// 	type Trader = Trader;
-// 	type ResponseHandler = PolkadotXcm;
-// 	type AssetTrap = PolkadotXcm;
-// 	type AssetClaims = PolkadotXcm;
-// 	type SubscriptionService = PolkadotXcm;
-// }
-
 impl Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = XcmRouter;
@@ -349,27 +331,6 @@ pub type XcmRouter = (
 	// ..and XCMP to communicate with the sibling chains.
 	XcmpQueue,
 );
-
-// impl pallet_xcm::Config for Runtime {
-// 	type RuntimeEvent = RuntimeEvent;
-// 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-// 	type XcmRouter = XcmRouter;
-// 	type ExecuteXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
-// 	type XcmExecuteFilter = Nothing;
-// 	// ^ Disable dispatchable execute on the XCM pallet.
-// 	// Needs to be `Everything` for local testing.
-// 	type XcmExecutor = XcmExecutor<XcmConfig>;
-// 	type XcmTeleportFilter = Everything;
-// 	type XcmReserveTransferFilter = Nothing;
-// 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-// 	type UniversalLocation = UniversalLocation;
-// 	type RuntimeOrigin = RuntimeOrigin;
-// 	type RuntimeCall = RuntimeCall;
-
-// 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-// 	// ^ Override for AdvertisedXcmVersion default
-// 	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
-// }
 
 #[cfg(feature = "runtime-benchmarks")]
 parameter_types! {
