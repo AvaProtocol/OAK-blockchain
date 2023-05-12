@@ -337,7 +337,7 @@ pub fn oak_live() -> ChainSpec {
 	)
 }
 
-const NUM_SELECTED_CANDIDATES: u32 = 8;
+const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,

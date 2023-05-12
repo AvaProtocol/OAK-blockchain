@@ -374,25 +374,18 @@ pub fn run() -> Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			let chain_spec = &runner.config().chain_spec;
 			with_runtime_or_err!(chain_spec, {
-				{
-					// grab the task manager.
-					let registry =
-						&runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-					let task_manager = sc_service::TaskManager::new(
-						runner.config().tokio_handle.clone(),
-						*registry,
-					)
-					.map_err(|e| format!("Error: {:?}", e))?;
-
-					runner.async_run(|config| Ok((
-							cmd.run::<Block, ExtendedHostFunctions<
-								sp_io::SubstrateHostFunctions,
-								<Executor as NativeExecutionDispatch>::ExtendHostFunctions,
-							>>(),
-							task_manager,
-						))
-					)
-				}
+				return runner.async_run(|config| {
+					let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
+					let task_manager = sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
+						.map_err(|e| sc_cli::Error::Service(sc_service::Error::Prometheus(e)))?;
+					Ok((
+						cmd.run::<Block, ExtendedHostFunctions<
+							sp_io::SubstrateHostFunctions,
+							<Executor as NativeExecutionDispatch>::ExtendHostFunctions,
+						>>(),
+						task_manager,
+					))
+				});
 			})
 		},
 		None => {

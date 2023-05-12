@@ -1,6 +1,6 @@
 use crate::{weights::WeightInfo, Config, Error, Pallet};
 
-use frame_support::{pallet_prelude::*, traits::Get, weights::GetDispatchInfo};
+use frame_support::{pallet_prelude::*, traits::Get, dispatch::GetDispatchInfo};
 
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
 use sp_std::prelude::*;

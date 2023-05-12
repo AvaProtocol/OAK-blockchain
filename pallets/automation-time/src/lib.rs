@@ -60,7 +60,8 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, GetDispatchInfo},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND},
+	dispatch::GetDispatchInfo,
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
@@ -382,6 +383,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
@@ -427,6 +429,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
@@ -474,6 +477,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
@@ -501,6 +505,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
@@ -548,6 +553,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `InsufficientBalance`: Not enough funds to pay execution fee.
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
@@ -584,6 +590,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_dynamic_dispatch_task_full(schedule.number_of_executions()))]
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
@@ -610,6 +617,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -629,6 +637,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
 		pub fn force_cancel_task(
 			origin: OriginFor<T>,
@@ -1121,18 +1130,14 @@ pub mod pallet {
 					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
 				},
 				Err(e) => {
-					// Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					// 	task_id,
-					// 	error_message: Into::<&str>::into(e).as_bytes().to_vec(),
-					// 	error: e,
-					// });
-					// (
-					// 	<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					// 	Some(e.error),
-					// )
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						task_id,
+						error_message: Into::<&str>::into(e).as_bytes().to_vec(),
+						error: e,
+					});
 					(
 						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-						None,
+						Some(e.error),
 					)
 				},
 			}

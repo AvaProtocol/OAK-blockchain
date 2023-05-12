@@ -299,7 +299,7 @@ pub fn neumann_latest() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/neumann.json")[..])
 }
 
-const NUM_SELECTED_CANDIDATES: u32 = 8;
+const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,

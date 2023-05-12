@@ -187,6 +187,7 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set asset config for a given asset location
+		#[pallet::call_index(0)]
 		#[pallet::weight(T::WeightInfo::set_asset_config())]
 		pub fn set_asset_config(
 			origin: OriginFor<T>,
@@ -206,6 +207,7 @@ pub mod pallet {
 		}
 
 		/// Remove asset config for a given asset location
+		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::remove_asset_config())]
 		pub fn remove_asset_config(
 			origin: OriginFor<T>,

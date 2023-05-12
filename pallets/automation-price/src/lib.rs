@@ -330,6 +330,7 @@ pub mod pallet {
 		/// * `amount`: amount to transfer
 		///
 		/// # Errors
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_extrinsic())]
 		#[transactional]
 		pub fn schedule_transfer_task(
@@ -372,6 +373,7 @@ pub mod pallet {
 		/// * `expiration_period`: how frequently the tasks for an asset should expire
 		///
 		/// # Errors
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::add_asset_extrinsic())]
 		#[transactional]
 		pub fn add_asset(
@@ -429,6 +431,7 @@ pub mod pallet {
 		/// * `value`: value of asset
 		///
 		/// # Errors
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic())]
 		#[transactional]
 		pub fn asset_price_update(
@@ -496,6 +499,7 @@ pub mod pallet {
 		/// * `directions`: number of directions of data input. (up, down, ?)
 		///
 		/// # Errors
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
 		pub fn delete_asset(origin: OriginFor<T>, asset: AssetName) -> DispatchResult {

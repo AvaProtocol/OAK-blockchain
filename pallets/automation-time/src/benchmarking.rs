@@ -26,7 +26,7 @@ use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
 use xcm::latest::prelude::*;
 
-use crate::{MissedTaskV2Of, Pallet as AutomationTime, Schedule, TaskOf};
+use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 
 const SEED: u32 = 0;
 // existential deposit multiplier

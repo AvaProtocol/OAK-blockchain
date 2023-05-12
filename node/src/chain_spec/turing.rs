@@ -21,12 +21,6 @@ use xcm::{
 	VersionedMultiLocation,
 	VersionedMultiLocation::V3,
 };
-// use xcm::{
-// 	latest::prelude::*,
-// 	v2::Junction::{PalletInstance, Parachain},
-// 	VersionedMultiLocation,
-// 	VersionedMultiLocation::V2,
-// };
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -235,7 +229,7 @@ pub fn turing_live() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/turing.json")[..])
 }
 
-const NUM_SELECTED_CANDIDATES: u32 = 8;
+const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<(AccountId, Balance)>,
