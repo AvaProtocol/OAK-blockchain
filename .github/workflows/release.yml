@@ -49,6 +49,7 @@ jobs:
         uses: chevdor/srtool-actions@v0.5.0
         with:
           chain: ${{ matrix.chain }}
+          tag: 1.66.1
       - name: Summary
         run: |
           echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.chain }}-srtool-digest.json
