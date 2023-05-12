@@ -870,7 +870,7 @@ impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 impl pallet_automation_time::Config for Runtime {
 	type Event = Event;
 	type MaxTasksPerSlot = ConstU32<576>;
-	type MaxExecutionTimes = ConstU32<24>;
+	type MaxExecutionTimes = ConstU32<36>;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
