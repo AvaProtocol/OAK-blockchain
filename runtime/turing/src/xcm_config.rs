@@ -1,13 +1,14 @@
 use super::{
-	AccountId, Balance, RuntimeCall, Currencies, RuntimeEvent, RuntimeOrigin, ParachainInfo, ParachainSystem,
-	PolkadotXcm, Runtime, TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens, Balances, AllPalletsWithSystem,
-	Vec, XcmpQueue, MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
+	AccountId, AllPalletsWithSystem, Balance, Balances, Currencies, ParachainInfo, ParachainSystem,
+	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
+	TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens, Vec, XcmpQueue,
+	MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
 use core::marker::PhantomData;
 use frame_support::{
 	ensure, match_types, parameter_types,
-	traits::{Contains, Everything, Nothing, ConstU32},
+	traits::{ConstU32, Contains, Everything, Nothing},
 };
 use frame_system::EnsureRoot;
 use sp_runtime::{traits::Convert, Percent};
@@ -21,9 +22,9 @@ use xcm::latest::{prelude::*, Weight};
 use xcm_builder::{
 	Account32Hash, AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
-	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
-	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
-	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit,
+	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
+	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
+	TakeWeightCredit,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
@@ -175,44 +176,36 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 /// Only allows for sequence `DescendOrigin` -> `WithdrawAsset` -> `BuyExecution`
 pub struct AllowPaidExecWithDescendOriginFrom<T>(PhantomData<T>);
 impl<T: Contains<MultiLocation>> ShouldExecute for AllowPaidExecWithDescendOriginFrom<T> {
-    fn should_execute<RuntimeCall>(
-        origin: &MultiLocation,
-        message: &mut [Instruction<RuntimeCall>],
-        max_weight: Weight,
-        _weight_credit: &mut Weight,
-    ) -> Result<(), ()> {
-        log::trace!(
-            target: "xcm::barriers",
-            "AllowPaidExecWithDescendOriginFrom origin: {:?}, message: {:?}, max_weight: {:?}, weight_credit: {:?}",
-            origin, message, max_weight, _weight_credit,
-        );
-        ensure!(T::contains(origin), ());
+	fn should_execute<RuntimeCall>(
+		origin: &MultiLocation,
+		message: &mut [Instruction<RuntimeCall>],
+		max_weight: Weight,
+		_weight_credit: &mut Weight,
+	) -> Result<(), ()> {
+		log::trace!(
+				target: "xcm::barriers",
+				"AllowPaidExecWithDescendOriginFrom origin: {:?}, message: {:?}, max_weight: {:?}, weight_credit: {:?}",
+				origin, message, max_weight, _weight_credit,
+		);
+		ensure!(T::contains(origin), ());
 
-        match message
-            .iter_mut()
-            .take(3)
-            .collect::<Vec<_>>()
-            .as_mut_slice()
-        {
-            [DescendOrigin(..), WithdrawAsset(..), BuyExecution {
-                weight_limit: Limited(ref mut limit),
-                ..
-            }] if limit.all_gte(max_weight) => {
-                *limit = max_weight;
-                Ok(())
-            }
+		match message.iter_mut().take(3).collect::<Vec<_>>().as_mut_slice() {
+			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: Limited(ref mut limit), .. }]
+				if limit.all_gte(max_weight) =>
+			{
+				*limit = max_weight;
+				Ok(())
+			},
 
-            [DescendOrigin(..), WithdrawAsset(..), BuyExecution {
-                weight_limit: ref mut limit @ Unlimited,
-                ..
-            }] => {
-                *limit = Limited(max_weight);
-                Ok(())
-            }
+			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: ref mut limit @ Unlimited, .. }] =>
+			{
+				*limit = Limited(max_weight);
+				Ok(())
+			},
 
-            _ => return Err(()),
-        }
-    }
+			_ => return Err(()),
+		}
+	}
 }
 
 pub type Barrier = DenyThenTry<

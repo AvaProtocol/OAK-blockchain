@@ -52,7 +52,7 @@ use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo},
+	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
@@ -60,8 +60,7 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND},
-	dispatch::GetDispatchInfo,
+	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
@@ -877,7 +876,9 @@ pub mod pallet {
 			let mut diff =
 				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
-				if allotted_weight.ref_time() < <T as Config>::WeightInfo::shift_missed_tasks().ref_time() {
+				if allotted_weight.ref_time() <
+					<T as Config>::WeightInfo::shift_missed_tasks().ref_time()
+				{
 					diff = i;
 					break
 				}
@@ -985,7 +986,9 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left.ref_time() < <T as Config>::WeightInfo::run_tasks_many_found(1).ref_time() {
+				if weight_left.ref_time() <
+					<T as Config>::WeightInfo::run_tasks_many_found(1).ref_time()
+				{
 					break
 				}
 			}
@@ -1031,7 +1034,9 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left.ref_time() < <T as Config>::WeightInfo::run_missed_tasks_many_found(1).ref_time() {
+				if weight_left.ref_time() <
+					<T as Config>::WeightInfo::run_missed_tasks_many_found(1).ref_time()
+				{
 					break
 				}
 			}
@@ -1153,9 +1158,11 @@ pub mod pallet {
 				Ok(scheduled_call) => {
 					let mut dispatch_origin: T::RuntimeOrigin =
 						frame_system::RawOrigin::Signed(caller.clone()).into();
-					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::RuntimeCall| {
-						T::ScheduleAllowList::contains(call)
-					});
+					dispatch_origin.add_filter(
+						|call: &<T as frame_system::Config>::RuntimeCall| {
+							T::ScheduleAllowList::contains(call)
+						},
+					);
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
 					let (maybe_actual_call_weight, result) =

@@ -1,8 +1,8 @@
 use cumulus_primitives_core::ParaId;
+use frame_support::pallet_prelude::*;
 use sc_service::ChainType;
 use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
-use frame_support::pallet_prelude::*;
 
 use crate::chain_spec::{
 	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
@@ -16,11 +16,7 @@ use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, XcmpHandlerConfig,
 };
-use xcm::{
-	prelude::*,
-	VersionedMultiLocation,
-	VersionedMultiLocation::V3,
-};
+use xcm::{prelude::*, VersionedMultiLocation, VersionedMultiLocation::V3};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;

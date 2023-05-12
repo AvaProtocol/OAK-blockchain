@@ -1,11 +1,11 @@
 use hex_literal::hex;
 
 use cumulus_primitives_core::ParaId;
+use frame_support::pallet_prelude::*;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use sp_core::{crypto::UncheckedInto, sr25519};
 use sp_runtime::{Perbill, Percent};
-use frame_support::pallet_prelude::*;
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{

@@ -87,8 +87,13 @@ pub mod fees {
 	///     where: v is AdjustmentVariable
 	///            target is TargetBlockFullness
 	///            min is MinimumMultiplier
-	pub type SlowAdjustingFeeUpdate<R> =
-		TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier, MaximumMultiplier>;
+	pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
+		R,
+		TargetBlockFullness,
+		AdjustmentVariable,
+		MinimumMultiplier,
+		MaximumMultiplier,
+	>;
 }
 
 pub mod weight_ratios {

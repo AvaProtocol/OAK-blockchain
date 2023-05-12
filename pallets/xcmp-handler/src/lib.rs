@@ -95,7 +95,7 @@ pub mod pallet {
 
 		/// Convert a CurrencyId to a MultiLocation.
 		type CurrencyIdToMultiLocation: Convert<Self::CurrencyId, Option<MultiLocation>>;
-		
+
 		/// This chain's Universal Location.
 		type UniversalLocation: Get<InteriorMultiLocation>;
 
@@ -343,8 +343,11 @@ pub mod pallet {
 
 			// XCM for target chain
 			let target_asset = local_asset
-					.reanchored(&MultiLocation::new(1, X1(Parachain(para_id.into()))), T::UniversalLocation::get())
-					.map_err(|_| Error::<T>::CannotReanchor)?;
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					T::UniversalLocation::get(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
 				ReserveAssetDeposited::<()>(target_asset.clone().into()),
@@ -391,11 +394,13 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-
 			// XCM for target chain
 			let target_asset =
 				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) }
-					.reanchored(&MultiLocation::new(1, X1(Parachain(para_id.into()))), T::UniversalLocation::get())
+					.reanchored(
+						&MultiLocation::new(1, X1(Parachain(para_id.into()))),
+						T::UniversalLocation::get(),
+					)
 					.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
@@ -459,13 +464,15 @@ pub mod pallet {
 			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
 			let destination_location: Junctions = Here;
 
-			send_xcm::<T::XcmSender>(MultiLocation::new(1, destination_location), target_instructions).map_err(
-				|error| {
-					log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
-					Error::<T>::ErrorSendingXcmToTarget
-				},
-			)?;
-			
+			send_xcm::<T::XcmSender>(
+				MultiLocation::new(1, destination_location),
+				target_instructions,
+			)
+			.map_err(|error| {
+				log::error!("Failed to send xcm to {:?} with {:?}", para_id, error);
+				Error::<T>::ErrorSendingXcmToTarget
+			})?;
+
 			Self::deposit_event(Event::XcmSent { para_id });
 
 			Ok(().into())
