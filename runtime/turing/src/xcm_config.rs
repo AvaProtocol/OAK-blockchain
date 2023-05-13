@@ -1,14 +1,14 @@
 use super::{
 	AccountId, AllPalletsWithSystem, Balance, Balances, Currencies, ParachainInfo, ParachainSystem,
 	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens, Vec, XcmpQueue,
+	TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens, XcmpQueue,
 	MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
 use core::marker::PhantomData;
 use frame_support::{
-	ensure, match_types, parameter_types,
-	traits::{ConstU32, Contains, Everything, Nothing},
+	match_types, parameter_types,
+	traits::{ConstU32, Everything, Nothing},
 };
 use frame_system::EnsureRoot;
 use sp_runtime::{traits::Convert, Percent};
@@ -24,7 +24,7 @@ use xcm_builder::{
 	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
-	TakeWeightCredit,
+	TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
 
@@ -170,51 +170,17 @@ impl ShouldExecute for DenyReserveTransferToRelayChain {
 	}
 }
 
-/// Allows execution from `origin` if it is contained in `T` (i.e. `T::Contains(origin)`) taking
-/// payments into account.
-///
-/// Only allows for sequence `DescendOrigin` -> `WithdrawAsset` -> `BuyExecution`
-pub struct AllowPaidExecWithDescendOriginFrom<T>(PhantomData<T>);
-impl<T: Contains<MultiLocation>> ShouldExecute for AllowPaidExecWithDescendOriginFrom<T> {
-	fn should_execute<RuntimeCall>(
-		origin: &MultiLocation,
-		message: &mut [Instruction<RuntimeCall>],
-		max_weight: Weight,
-		_weight_credit: &mut Weight,
-	) -> Result<(), ()> {
-		log::trace!(
-				target: "xcm::barriers",
-				"AllowPaidExecWithDescendOriginFrom origin: {:?}, message: {:?}, max_weight: {:?}, weight_credit: {:?}",
-				origin, message, max_weight, _weight_credit,
-		);
-		ensure!(T::contains(origin), ());
-
-		match message.iter_mut().take(3).collect::<Vec<_>>().as_mut_slice() {
-			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: Limited(ref mut limit), .. }]
-				if limit.all_gte(max_weight) =>
-			{
-				*limit = max_weight;
-				Ok(())
-			},
-
-			[DescendOrigin(..), WithdrawAsset(..), BuyExecution { weight_limit: ref mut limit @ Unlimited, .. }] =>
-			{
-				*limit = Limited(max_weight);
-				Ok(())
-			},
-
-			_ => return Err(()),
-		}
-	}
-}
-
 pub type Barrier = DenyThenTry<
 	DenyReserveTransferToRelayChain,
 	(
 		TakeWeightCredit,
 		AllowTopLevelPaidExecutionFrom<Everything>,
-		// Allow xcm flow where execution fee is paid directly from DescendOrigin account
-		AllowPaidExecWithDescendOriginFrom<Everything>,
+		// This will first calculate the derived origin, before checking it against the barrier implementation
+		WithComputedOrigin<
+			AllowTopLevelPaidExecutionFrom<Everything>,
+			UniversalLocation,
+			ConstU32<8>,
+		>,
 		// Expected responses are OK.
 		AllowKnownQueryResponses<PolkadotXcm>,
 		// Subscriptions for version tracking are OK.
