@@ -273,15 +273,6 @@ parameter_types! {
 /// No local origins on this chain are allowed to dispatch XCM sends/executions.
 pub type LocalOriginToLocation = SignedToAccountId32<RuntimeOrigin, AccountId, RelayNetwork>;
 
-// /// The means for routing XCM messages which are not for local execution into the right message
-// /// queues.
-// pub type XcmRouter = (
-// 	// Two routers - use UMP to communicate with the relay chain:
-// 	cumulus_primitives_utility::ParentAsUmp<ParachainSystem, ()>,
-// 	// ..and XCMP to communicate with the sibling chains.
-// 	XcmpQueue,
-// );
-
 /// The means for routing XCM messages which are not for local execution into the right message
 /// queues.
 pub type XcmRouter = (

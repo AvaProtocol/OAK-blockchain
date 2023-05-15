@@ -286,8 +286,6 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Aura>;
-	// type UncleGenerations = ConstU32<0>;
-	// type FilterUncle = ();
 	type EventHandler = ParachainStaking;
 }
 
@@ -781,7 +779,6 @@ parameter_types! {
 }
 
 impl pallet_democracy::Config for Runtime {
-	// type Proposal = RuntimeCall;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
 	type EnactmentPeriod = EnactmentPeriod;
@@ -823,8 +820,6 @@ impl pallet_democracy::Config for Runtime {
 	// only do it once and it lasts only for the cooloff period.
 	type VetoOrigin = pallet_collective::EnsureMember<AccountId, TechnicalCollective>;
 	type CooloffPeriod = CooloffPeriod;
-	// type PreimageByteDeposit = PreimageByteDeposit;
-	// type OperationalPreimageOrigin = pallet_collective::EnsureMember<AccountId, CouncilCollective>;
 	type Slash = Treasury;
 	type Scheduler = Scheduler;
 	type PalletsOrigin = OriginCaller;
