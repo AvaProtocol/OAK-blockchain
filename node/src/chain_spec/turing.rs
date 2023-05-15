@@ -90,7 +90,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
 						),
 						419_000_000_000,
-						Weight::from_parts(1_000_000_000, 0),
+						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
@@ -98,7 +98,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
 						),
 						419_000_000_000,
-						Weight::from_parts(1_000_000_000, 0),
+						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
@@ -114,7 +114,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
 						),
 						10_000_000_000_000_000_000,
-						Weight::from_parts(250_000_000, 0),
+						Weight::from_ref_time(250_000_000),
 						XcmFlow::Alternate,
 					),
 				],

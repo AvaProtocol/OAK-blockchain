@@ -19,6 +19,7 @@ cargo run \
     --release \
     --features=turing-node,try-runtime \
     try-runtime \
+    --runtime ./target/release/wbuild/turing-runtime/turing_runtime.compact.compressed.wasm \
     --chain turing-dev \
     on-runtime-upgrade \
     live \

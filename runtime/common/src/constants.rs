@@ -58,7 +58,7 @@ pub mod currency {
 pub mod fees {
 	use frame_support::parameter_types;
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-	use sp_runtime::{FixedPointNumber, Perquintill};
+	use sp_runtime::{traits::Bounded, FixedPointNumber, Perquintill};
 
 	parameter_types! {
 		/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
@@ -70,10 +70,8 @@ pub mod fees {
 		/// Minimum amount of the multiplier. This value cannot be too low. A test case should ensure
 		/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 		/// See `multiplier_can_grow_from_zero`.
-		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 100_000_000_000u128);
-		/// Maximum multiplier. We pick a value that is expensive but not impossibly so; it should act
-		/// as a safety net.
-		pub MaximumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+		pub MaximumMultiplier: Multiplier = Bounded::max_value();
 	}
 
 	/// Parameterized slow adjusting fee updated based on

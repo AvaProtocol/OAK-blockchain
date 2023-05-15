@@ -37,6 +37,7 @@ mod mock;
 mod tests;
 
 mod benchmarking;
+pub mod migrations;
 pub mod weights;
 
 mod fees;

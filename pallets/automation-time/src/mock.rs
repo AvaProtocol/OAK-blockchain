@@ -70,7 +70,7 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
@@ -79,7 +79,7 @@ impl system::Config for Test {
 	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -126,16 +126,11 @@ impl orml_tokens::Config for Test {
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = orml_tokens::TransferDust<Test, DustAccount>;
-	type OnSlash = ();
-	type OnDeposit = ();
-	type OnTransfer = ();
+	type CurrencyHooks = ();
 	type MaxLocks = ConstU32<100_000>;
 	type MaxReserves = ConstU32<100_000>;
 	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = frame_support::traits::Nothing;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 }
 
 impl orml_currencies::Config for Test {
@@ -295,18 +290,18 @@ where
 {
 	fn transact_xcm(
 		_para_id: u32,
-		_location: xcm::v1::MultiLocation,
+		_location: xcm::latest::MultiLocation,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
-		_transact_encoded_call_weight: u64,
+		_transact_encoded_call_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 
 	fn get_xcm_fee(
 		_para_id: u32,
-		_location: xcm::v1::MultiLocation,
-		_transact_encoded_call_weight: u64,
+		_location: xcm::latest::MultiLocation,
+		_transact_encoded_call_weight: Weight,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		Ok(XmpFee::get())
 	}
@@ -317,7 +312,7 @@ where
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		_asset_location: xcm::v1::MultiLocation,
+		_asset_location: xcm::latest::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
@@ -403,7 +398,7 @@ pub fn schedule_task(
 	get_funds(AccountId32::new(owner));
 	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
-		Origin::signed(AccountId32::new(owner)),
+		RuntimeOrigin::signed(AccountId32::new(owner)),
 		provided_id,
 		scheduled_times,
 		message,
@@ -474,7 +469,7 @@ pub fn create_task(
 	task_id
 }
 
-pub fn events() -> Vec<Event> {
+pub fn events() -> Vec<RuntimeEvent> {
 	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
 
 	System::reset_events();
@@ -482,7 +477,7 @@ pub fn events() -> Vec<Event> {
 	evt
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	events().pop().unwrap()
 }
 

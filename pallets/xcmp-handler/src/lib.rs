@@ -40,6 +40,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+pub mod migrations;
 pub mod weights;
 pub use weights::WeightInfo;
 
@@ -464,6 +465,7 @@ pub mod pallet {
 			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
 			let destination_location: Junctions = Here;
 
+			// Send to target chain
 			send_xcm::<T::XcmSender>(
 				MultiLocation::new(1, destination_location),
 				target_instructions,
@@ -553,8 +555,8 @@ pub mod pallet {
 					para_id,
 					nobody,
 					Default::default(),
-					Weight::from_parts(0u64, 0u64),
-					Weight::from_parts(0u64, 0u64),
+					Weight::zero(),
+					Weight::zero(),
 					0u128,
 				),
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
@@ -562,8 +564,8 @@ pub mod pallet {
 					asset_location,
 					nobody,
 					Default::default(),
-					Weight::from_parts(0u64, 0u64),
-					Weight::from_parts(0u64, 0u64),
+					Weight::zero(),
+					Weight::zero(),
 					0u128,
 				),
 			}
@@ -677,7 +679,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	) -> Result<(), sp_runtime::DispatchError> {
 		let asset_data = XcmAssetConfig {
 			fee_per_second: 416_000_000_000,
-			instruction_weight: Weight::from_parts(600_000_000, 0),
+			instruction_weight: Weight::from_ref_time(600_000_000),
 			flow: XcmFlow::Normal,
 		};
 

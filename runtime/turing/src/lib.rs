@@ -145,7 +145,10 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = ();
+type Migrations = (
+	pallet_xcmp_handler::migrations::upgrade_weight_struct::UpgradeWeightStruct<Runtime>,
+	pallet_automation_time::migrations::upgrade_weight_struct::UpgradeWeightStruct<Runtime>,
+);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -190,9 +193,14 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
+#[cfg(not(feature = "turing-staging"))]
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
-	// pub const RelayNetwork: NetworkId = NetworkId::Rococo;
+}
+
+#[cfg(feature = "turing-staging")]
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 }
 
 parameter_types! {
