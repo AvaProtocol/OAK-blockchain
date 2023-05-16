@@ -193,14 +193,8 @@ pub fn native_version() -> NativeVersion {
 	NativeVersion { runtime_version: VERSION, can_author_with: Default::default() }
 }
 
-#[cfg(not(feature = "turing-staging"))]
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
-}
-
-#[cfg(feature = "turing-staging")]
-parameter_types! {
-	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 }
 
 parameter_types! {
