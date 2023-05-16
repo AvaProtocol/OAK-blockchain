@@ -140,7 +140,7 @@ impl<T: Config> OnRuntimeUpgrade for UpgradeWeightStruct<T> {
 mod test {
 	use super::{OldAction, OldTask, UpgradeWeightStruct};
 	use crate::{mock::*, ActionOf, Pallet, ParaId, Schedule, TaskOf};
-	use frame_support::traits::OnRuntimeUpgrade;
+	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
 	use xcm::latest::prelude::*;
 
@@ -149,7 +149,7 @@ mod test {
 		new_test_ext(0).execute_with(|| {
 			let para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
-			let schedule_as = AccountId32::new(BOB);
+			let schedule_as = Some(AccountId32::new(BOB));
 			let task_id = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
 
 			let task = OldTask::<Test> {
@@ -162,9 +162,10 @@ mod test {
 				action: OldAction::<Test>::XCMP {
 					para_id,
 					currency_id: 0u32.into(),
+					xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into()))).into(),
 					encoded_call: vec![0u8],
 					encoded_call_weight: 10,
-					schedule_as,
+					schedule_as: schedule_as.clone(),
 				},
 			};
 
