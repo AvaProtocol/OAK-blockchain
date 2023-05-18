@@ -28,7 +28,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
-	AccountId32, Perbill,
+	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
 use xcm::latest::prelude::*;
@@ -163,10 +163,10 @@ impl<
 		delegator: &T::AccountId,
 		_: &T::AccountId,
 		amount: BalanceOf<T>,
-	) -> DispatchResultWithPostInfo {
+	) -> Result<bool, DispatchError> {
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
-		Ok(().into())
+		Ok(true)
 	}
 	fn delegator_bond_till_minimum(
 		delegator: &T::AccountId,
