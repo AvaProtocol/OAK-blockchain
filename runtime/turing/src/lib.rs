@@ -146,6 +146,7 @@ pub type Executive = frame_executive::Executive<
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
 type Migrations = (
+	pallet_parachain_staking::migrations::MigrateAtStakeAutoCompound<Runtime>,
 	pallet_xcmp_handler::migrations::upgrade_weight_struct::UpgradeWeightStruct<Runtime>,
 	pallet_automation_time::migrations::upgrade_weight_struct::UpgradeWeightStruct<Runtime>,
 );
