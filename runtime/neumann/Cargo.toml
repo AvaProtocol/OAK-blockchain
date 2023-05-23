@@ -143,7 +143,6 @@ std = [
 	"pallet-democracy/std",
 	"pallet-identity/std",
 	"pallet-membership/std",
-	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
 	"pallet-scheduler/std",
