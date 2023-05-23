@@ -58,7 +58,7 @@ pub mod currency {
 pub mod fees {
 	use frame_support::parameter_types;
 	use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-	use sp_runtime::{FixedPointNumber, Perquintill};
+	use sp_runtime::{traits::Bounded, FixedPointNumber, Perquintill};
 
 	parameter_types! {
 		/// The portion of the `NORMAL_DISPATCH_RATIO` that we adjust the fees with. Blocks filled less
@@ -71,6 +71,7 @@ pub mod fees {
 		/// that combined with `AdjustmentVariable`, we can recover from the minimum.
 		/// See `multiplier_can_grow_from_zero`.
 		pub MinimumMultiplier: Multiplier = Multiplier::saturating_from_rational(1, 1_000_000u128);
+		pub MaximumMultiplier: Multiplier = Bounded::max_value();
 	}
 
 	/// Parameterized slow adjusting fee updated based on
@@ -84,12 +85,17 @@ pub mod fees {
 	///     where: v is AdjustmentVariable
 	///            target is TargetBlockFullness
 	///            min is MinimumMultiplier
-	pub type SlowAdjustingFeeUpdate<R> =
-		TargetedFeeAdjustment<R, TargetBlockFullness, AdjustmentVariable, MinimumMultiplier>;
+	pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
+		R,
+		TargetBlockFullness,
+		AdjustmentVariable,
+		MinimumMultiplier,
+		MaximumMultiplier,
+	>;
 }
 
 pub mod weight_ratios {
-	use frame_support::weights::{constants::WEIGHT_PER_SECOND, Weight};
+	use frame_support::weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight};
 	use sp_runtime::Perbill;
 
 	/// We use at most 5% of the block weight running scheduled tasks during `on_initialize`.
@@ -103,6 +109,9 @@ pub mod weight_ratios {
 	/// `Operational` extrinsics.
 	pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
-	/// We allow for 0.5 of a second of compute with a 12 second average block time.
-	pub const MAXIMUM_BLOCK_WEIGHT: Weight = WEIGHT_PER_SECOND.saturating_div(2);
+	/// We allow for 0.5 seconds of compute with a 12 second average block time.
+	pub const MAXIMUM_BLOCK_WEIGHT: Weight = Weight::from_parts(
+		WEIGHT_REF_TIME_PER_SECOND.saturating_div(2),
+		polkadot_primitives::v2::MAX_POV_SIZE as u64,
+	);
 }

@@ -53,7 +53,7 @@ use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, PostDispatchInfo},
+	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
@@ -61,7 +61,7 @@ use frame_support::{
 		TransactionOutcome::{Commit, Rollback},
 	},
 	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
-	weights::{constants::WEIGHT_PER_SECOND, GetDispatchInfo},
+	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
@@ -100,7 +100,7 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
@@ -174,13 +174,13 @@ pub mod pallet {
 
 		/// The overarching call type.
 		type Call: Parameter
-			+ Dispatchable<Origin = Self::Origin, PostInfo = PostDispatchInfo>
+			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
-			+ IsType<<Self as frame_system::Config>::Call>;
+			+ IsType<<Self as frame_system::Config>::RuntimeCall>;
 
-		type ScheduleAllowList: Contains<<Self as frame_system::Config>::Call>;
+		type ScheduleAllowList: Contains<<Self as frame_system::Config>::RuntimeCall>;
 
 		/// Ensure proxy
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
@@ -383,6 +383,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_notify_task(
 			origin: OriginFor<T>,
@@ -428,6 +429,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
 		/// * `TransferToSelf`: Sender cannot transfer money to self.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
 		pub fn schedule_native_transfer_task(
 			origin: OriginFor<T>,
@@ -475,6 +477,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
@@ -484,7 +487,7 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP {
@@ -502,6 +505,7 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
@@ -511,7 +515,7 @@ pub mod pallet {
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 			schedule_as: T::AccountId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -549,6 +553,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `InsufficientBalance`: Not enough funds to pay execution fee.
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
@@ -585,6 +590,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_dynamic_dispatch_task_full(schedule.number_of_executions()))]
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
@@ -611,6 +617,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -630,6 +637,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
 		pub fn force_cancel_task(
 			origin: OriginFor<T>,
@@ -724,7 +732,7 @@ pub mod pallet {
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
-			if weight_left < run_task_weight {
+			if weight_left.ref_time() < run_task_weight.ref_time() {
 				return weight_left
 			}
 
@@ -741,7 +749,7 @@ pub mod pallet {
 			let run_missed_task_weight = <T as Config>::WeightInfo::run_missed_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
-			if weight_left >= run_missed_task_weight {
+			if weight_left.ref_time() >= run_missed_task_weight.ref_time() {
 				let missed_queue = Self::get_missed_queue();
 				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
 				if missed_queue.len() > 0 {
@@ -869,7 +877,9 @@ pub mod pallet {
 			let mut diff =
 				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
 			for i in 0..diff {
-				if allotted_weight < <T as Config>::WeightInfo::shift_missed_tasks() {
+				if allotted_weight.ref_time() <
+					<T as Config>::WeightInfo::shift_missed_tasks().ref_time()
+				{
 					diff = i;
 					break
 				}
@@ -977,7 +987,9 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left < <T as Config>::WeightInfo::run_tasks_many_found(1) {
+				if weight_left.ref_time() <
+					<T as Config>::WeightInfo::run_tasks_many_found(1).ref_time()
+				{
 					break
 				}
 			}
@@ -1023,7 +1035,9 @@ pub mod pallet {
 
 				weight_left = weight_left.saturating_sub(action_weight);
 
-				if weight_left < <T as Config>::WeightInfo::run_missed_tasks_many_found(1) {
+				if weight_left.ref_time() <
+					<T as Config>::WeightInfo::run_missed_tasks_many_found(1).ref_time()
+				{
 					break
 				}
 			}
@@ -1069,7 +1083,7 @@ pub mod pallet {
 			caller: T::AccountId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
-			encoded_call_weight: u64,
+			encoded_call_weight: Weight,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let location = MultiLocation::try_from(xcm_asset_location);
@@ -1143,11 +1157,13 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
-					let mut dispatch_origin: T::Origin =
+					let mut dispatch_origin: T::RuntimeOrigin =
 						frame_system::RawOrigin::Signed(caller.clone()).into();
-					dispatch_origin.add_filter(|call: &<T as frame_system::Config>::Call| {
-						T::ScheduleAllowList::contains(call)
-					});
+					dispatch_origin.add_filter(
+						|call: &<T as frame_system::Config>::RuntimeCall| {
+							T::ScheduleAllowList::contains(call)
+						},
+					);
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
 					let (maybe_actual_call_weight, result) =
@@ -1479,7 +1495,7 @@ pub mod pallet {
 					.ok_or("CouldNotDetermineFeePerSecond")?
 					.checked_mul(total_weight as u128)
 					.ok_or("FeeOverflow")
-					.map(|raw_fee| raw_fee / (WEIGHT_PER_SECOND.ref_time() as u128))?;
+					.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
 				<BalanceOf<T>>::saturated_from(raw_fee)
 			};
 

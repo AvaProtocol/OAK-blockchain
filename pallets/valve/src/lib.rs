@@ -37,10 +37,9 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-use frame_support::pallet;
 pub use pallet::*;
 
-#[pallet]
+#[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use frame_support::{
@@ -53,13 +52,13 @@ pub mod pallet {
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
-		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
 		type WeightInfo: WeightInfo;
 
 		/// The pallets that we want to close on demand.
-		type ClosedCallFilter: Contains<Self::Call>;
+		type ClosedCallFilter: Contains<Self::RuntimeCall>;
 
 		/// The AutomationTime pallet.
 		type AutomationTime: Shutdown;
@@ -133,6 +132,7 @@ pub mod pallet {
 		/// Close the valve.
 		///
 		/// This will stop all the pallets defined in `ClosedCallFilter` from receiving transactions.
+		#[pallet::call_index(0)]
 		#[pallet::weight(<T as Config>::WeightInfo::close_valve())]
 		pub fn close_valve(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -152,6 +152,7 @@ pub mod pallet {
 		/// Stop the pallet from receiving transactions.
 		/// If valve is closed you cannot close a pallet.
 		/// You cannot close this pallet, as then you could never open it.
+		#[pallet::call_index(1)]
 		#[pallet::weight(<T as Config>::WeightInfo::close_pallet_gate_new())]
 		pub fn close_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -185,6 +186,7 @@ pub mod pallet {
 		/// Return the chain to normal operating mode.
 		///
 		/// This will open the valve but not any closed pallet gates.
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_valve())]
 		pub fn open_valve(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -202,6 +204,7 @@ pub mod pallet {
 		/// Open the pallet.
 		///
 		/// This allows the pallet to receiving transactions.
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gate())]
 		pub fn open_pallet_gate(origin: OriginFor<T>, pallet_name: Vec<u8>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -222,6 +225,7 @@ pub mod pallet {
 		///
 		/// In order to ensure this call is safe it will only open five gates at once.
 		/// It will send the PalletGatesClosed with a count of how many gates are still closed.
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::open_pallet_gates())]
 		pub fn open_pallet_gates(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -236,6 +240,7 @@ pub mod pallet {
 		}
 
 		/// Stop all scheduled tasks from running.
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
 		pub fn stop_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -249,6 +254,7 @@ pub mod pallet {
 		}
 
 		/// Allow scheduled tasks to run again.
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_scheduled_tasks(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -262,6 +268,7 @@ pub mod pallet {
 		}
 
 		/// Stop all scheduled tasks from running.
+		#[pallet::call_index(7)]
 		#[pallet::weight(<T as Config>::WeightInfo::stop_scheduled_tasks())]
 		pub fn stop_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -275,6 +282,7 @@ pub mod pallet {
 		}
 
 		/// Allow scheduled tasks to run again.
+		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::start_scheduled_tasks())]
 		pub fn start_price_automation_tasks(origin: OriginFor<T>) -> DispatchResult {
 			Self::ensure_allowed(origin)?;
@@ -324,11 +332,11 @@ pub mod pallet {
 		}
 	}
 
-	impl<T: Config> Contains<T::Call> for Pallet<T>
+	impl<T: Config> Contains<T::RuntimeCall> for Pallet<T>
 	where
-		<T as frame_system::Config>::Call: GetCallMetadata,
+		<T as frame_system::Config>::RuntimeCall: GetCallMetadata,
 	{
-		fn contains(call: &T::Call) -> bool {
+		fn contains(call: &T::RuntimeCall) -> bool {
 			if ValveClosed::<T>::get() {
 				T::ClosedCallFilter::contains(call)
 			} else {

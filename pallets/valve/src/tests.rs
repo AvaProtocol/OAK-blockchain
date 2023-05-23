@@ -17,8 +17,8 @@
 
 use crate::{
 	mock::{
-		events, Call as OuterCall, ExtBuilder, Origin, Test, Valve, COLLECTIVE_MEMBER,
-		NON_COLLECTIVE_MEMBER,
+		events, ExtBuilder, RuntimeCall as OuterCall, RuntimeOrigin, Test, Valve,
+		COLLECTIVE_MEMBER, NON_COLLECTIVE_MEMBER,
 	},
 	Call, Error, Event,
 };
@@ -29,7 +29,7 @@ use sp_runtime::AccountId32;
 fn can_remark_while_valve_open() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
+		assert_ok!(call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 
@@ -38,7 +38,7 @@ fn cannot_remark_while_valve_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_noop!(
-			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))),
 			frame_system::Error::<Test>::CallFiltered
 		);
 	})
@@ -48,7 +48,7 @@ fn cannot_remark_while_valve_closed() {
 fn can_close_valve() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_valve {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(events(), vec![Event::ValveClosed]);
 	})
 }
@@ -57,7 +57,7 @@ fn can_close_valve() {
 fn cannot_close_valve_when_already_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::close_valve {}.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+		assert_noop!(call.dispatch(RuntimeOrigin::root()), Error::<Test>::ValveAlreadyClosed);
 	})
 }
 
@@ -66,7 +66,7 @@ fn can_close_pallet_gate() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
 
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(
 			events(),
 			vec![Event::PalletGateClosed { pallet_name_bytes: b"System".to_vec() }]
@@ -74,7 +74,7 @@ fn can_close_pallet_gate() {
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_noop!(
-			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))),
 			frame_system::Error::<Test>::CallFiltered
 		);
 		assert_eq!(1, Valve::count_of_closed_gates());
@@ -85,7 +85,7 @@ fn can_close_pallet_gate() {
 fn cannot_close_valve_pallet_gate() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Valve".to_vec() }.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::CannotCloseGate);
+		assert_noop!(call.dispatch(RuntimeOrigin::root()), Error::<Test>::CannotCloseGate);
 	})
 }
 
@@ -93,7 +93,7 @@ fn cannot_close_valve_pallet_gate() {
 fn cannot_close_pallet_gate_when_valve_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+		assert_noop!(call.dispatch(RuntimeOrigin::root()), Error::<Test>::ValveAlreadyClosed);
 	})
 }
 
@@ -105,7 +105,7 @@ fn can_start_with_pallet_gate_closed() {
 		.execute_with(|| {
 			let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 			assert_noop!(
-				call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+				call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))),
 				frame_system::Error::<Test>::CallFiltered
 			);
 			assert_eq!(1, Valve::count_of_closed_gates());
@@ -116,7 +116,7 @@ fn can_start_with_pallet_gate_closed() {
 fn can_open_valve() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::open_valve {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 
 		assert_eq!(events(), vec![Event::ValveOpen,]);
 	})
@@ -126,7 +126,7 @@ fn can_open_valve() {
 fn cannot_open_valve_when_already_open() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::open_valve {}.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyOpen);
+		assert_noop!(call.dispatch(RuntimeOrigin::root()), Error::<Test>::ValveAlreadyOpen);
 	})
 }
 
@@ -135,7 +135,7 @@ fn can_open_pallet_gate() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
 
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(
 			events(),
 			vec![Event::PalletGateClosed { pallet_name_bytes: b"System".to_vec() }]
@@ -144,17 +144,17 @@ fn can_open_pallet_gate() {
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
 		assert_noop!(
-			call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))),
+			call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))),
 			frame_system::Error::<Test>::CallFiltered
 		);
 
 		let call: OuterCall = Call::open_pallet_gate { pallet_name: b"System".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(events(), vec![Event::PalletGateOpen { pallet_name_bytes: b"System".to_vec() }]);
 		assert_eq!(0, Valve::count_of_closed_gates());
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
+		assert_ok!(call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 
@@ -162,7 +162,7 @@ fn can_open_pallet_gate() {
 fn cannot_open_pallet_gate_when_valve_closed() {
 	ExtBuilder::default().with_valve_closed(true).build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ValveAlreadyClosed);
+		assert_noop!(call.dispatch(RuntimeOrigin::root()), Error::<Test>::ValveAlreadyClosed);
 	})
 }
 
@@ -170,30 +170,30 @@ fn cannot_open_pallet_gate_when_valve_closed() {
 fn opens_all_pallet_gates() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"System".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Balances".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Treasury".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Bounties".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		let call: OuterCall = Call::close_pallet_gate { pallet_name: b"Council".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		let call: OuterCall =
 			Call::close_pallet_gate { pallet_name: b"AutomationTime".to_vec() }.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		events();
 
 		let call: OuterCall = Call::open_pallet_gates {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(events(), vec![Event::PalletGatesClosed { count: 1 }]);
 
 		let call: OuterCall = Call::open_pallet_gates {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 		assert_eq!(events(), vec![Event::PalletGatesClosed { count: 0 }]);
 
 		let call: OuterCall = frame_system::Call::remark { remark: vec![] }.into();
-		assert_ok!(call.dispatch(Origin::signed(AccountId32::new([1u8; 32]))));
+		assert_ok!(call.dispatch(RuntimeOrigin::signed(AccountId32::new([1u8; 32]))));
 	})
 }
 
@@ -201,7 +201,7 @@ fn opens_all_pallet_gates() {
 fn stop_scheduled_tasks() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 
 		assert_eq!(events(), vec![Event::ScheduledTasksStopped]);
 	})
@@ -211,10 +211,13 @@ fn stop_scheduled_tasks() {
 fn stop_scheduled_tasks_already_stopped() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 
 		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ScheduledTasksAlreadyStopped);
+		assert_noop!(
+			call.dispatch(RuntimeOrigin::root()),
+			Error::<Test>::ScheduledTasksAlreadyStopped
+		);
 	})
 }
 
@@ -222,10 +225,10 @@ fn stop_scheduled_tasks_already_stopped() {
 fn start_scheduled_tasks() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::stop_scheduled_tasks {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 
 		let call: OuterCall = Call::start_scheduled_tasks {}.into();
-		assert_ok!(call.dispatch(Origin::root()));
+		assert_ok!(call.dispatch(RuntimeOrigin::root()));
 
 		assert_eq!(events(), vec![Event::ScheduledTasksStopped, Event::ScheduledTasksResumed]);
 	})
@@ -235,7 +238,10 @@ fn start_scheduled_tasks() {
 fn start_scheduled_tasks_not_stopped() {
 	ExtBuilder::default().build().execute_with(|| {
 		let call: OuterCall = Call::start_scheduled_tasks {}.into();
-		assert_noop!(call.dispatch(Origin::root()), Error::<Test>::ScheduledTasksAlreadyRunnung);
+		assert_noop!(
+			call.dispatch(RuntimeOrigin::root()),
+			Error::<Test>::ScheduledTasksAlreadyRunnung,
+		);
 	})
 }
 
@@ -245,7 +251,7 @@ mod ensure_allowed {
 	#[test]
 	fn allows_root() {
 		ExtBuilder::default().build().execute_with(|| {
-			let root = Origin::root();
+			let root = RuntimeOrigin::root();
 			assert_ok!(Valve::ensure_allowed(root));
 		})
 	}
@@ -253,7 +259,7 @@ mod ensure_allowed {
 	#[test]
 	fn allows_collective_member() {
 		ExtBuilder::default().build().execute_with(|| {
-			let origin = Origin::signed(AccountId32::new(COLLECTIVE_MEMBER));
+			let origin = RuntimeOrigin::signed(AccountId32::new(COLLECTIVE_MEMBER));
 			assert_ok!(Valve::ensure_allowed(origin));
 		})
 	}
@@ -261,7 +267,7 @@ mod ensure_allowed {
 	#[test]
 	fn disallows_non_collective_member() {
 		ExtBuilder::default().build().execute_with(|| {
-			let origin = Origin::signed(AccountId32::new(NON_COLLECTIVE_MEMBER));
+			let origin = RuntimeOrigin::signed(AccountId32::new(NON_COLLECTIVE_MEMBER));
 			assert_noop!(Valve::ensure_allowed(origin), Error::<Test>::NotAllowed);
 		})
 	}

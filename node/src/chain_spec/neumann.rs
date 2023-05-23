@@ -2,6 +2,7 @@ use hex_literal::hex;
 use std::time::SystemTime;
 
 use cumulus_primitives_core::ParaId;
+use frame_support::pallet_prelude::*;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use sp_core::{crypto::UncheckedInto, sr25519};
@@ -298,6 +299,7 @@ pub fn neumann_latest() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/neumann.json")[..])
 }
 
+const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	root_key: AccountId,
@@ -307,7 +309,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, u64, XcmFlow)>,
+	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, Weight, XcmFlow)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -341,6 +343,7 @@ fn testnet_genesis(
 			blocks_per_round: 25,
 			collator_commission: Perbill::from_percent(20),
 			parachain_bond_reserve_percent: Percent::from_percent(30),
+			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.

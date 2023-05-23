@@ -28,7 +28,7 @@ benchmarks! {
 	set_asset_config {
 		let location = MultiLocation::new(1, X1(Parachain(1000)));
 		let versioned_location: VersionedMultiLocation = location.clone().into();
-		let xcm_data = XcmAssetConfig { fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
+		let xcm_data = XcmAssetConfig { fee_per_second: 100, instruction_weight: Weight::from_ref_time(1_000), flow: XcmFlow::Normal };
 	}: set_asset_config(RawOrigin::Root, Box::new(versioned_location), xcm_data.clone())
 	verify {
 		assert_eq!(DestinationAssetConfig::<T>::get(location).unwrap(), xcm_data);
@@ -38,7 +38,7 @@ benchmarks! {
 		let location = MultiLocation::new(1, X1(Parachain(1000)));
 		let versioned_location: VersionedMultiLocation = location.clone().into();
 		let xcm_data =
-			XcmAssetConfig { fee_per_second: 100, instruction_weight: 1_000, flow: XcmFlow::Normal };
+			XcmAssetConfig { fee_per_second: 100, instruction_weight: Weight::from_ref_time(1_000), flow: XcmFlow::Normal };
 		DestinationAssetConfig::<T>::insert(location.clone(), xcm_data);
 
 	}: remove_asset_config(RawOrigin::Root, Box::new(versioned_location))

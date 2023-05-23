@@ -28,7 +28,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
-	AccountId32, Perbill,
+	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
 use xcm::latest::prelude::*;
@@ -70,8 +70,8 @@ impl system::Config for Test {
 	type BlockWeights = ();
 	type BlockLength = ();
 	type DbWeight = ();
-	type Origin = Origin;
-	type Call = Call;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Index = u64;
 	type BlockNumber = u64;
 	type Hash = H256;
@@ -79,7 +79,7 @@ impl system::Config for Test {
 	type AccountId = AccountId32;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -101,7 +101,7 @@ parameter_types! {
 impl pallet_balances::Config for Test {
 	type MaxLocks = MaxLocks;
 	type Balance = Balance;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type DustRemoval = ();
 	type ExistentialDeposit = ExistentialDeposit;
 	type AccountStore = System;
@@ -120,22 +120,17 @@ parameter_types! {
 }
 
 impl orml_tokens::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type Balance = Balance;
 	type Amount = i64;
 	type CurrencyId = CurrencyId;
 	type WeightInfo = ();
 	type ExistentialDeposits = ExistentialDeposits;
-	type OnDust = orml_tokens::TransferDust<Test, DustAccount>;
-	type OnSlash = ();
-	type OnDeposit = ();
-	type OnTransfer = ();
+	type CurrencyHooks = ();
 	type MaxLocks = ConstU32<100_000>;
 	type MaxReserves = ConstU32<100_000>;
 	type ReserveIdentifier = [u8; 8];
 	type DustRemovalWhitelist = frame_support::traits::Nothing;
-	type OnNewTokenAccount = ();
-	type OnKilledTokenAccount = ();
 }
 
 impl orml_currencies::Config for Test {
@@ -168,10 +163,10 @@ impl<
 		delegator: &T::AccountId,
 		_: &T::AccountId,
 		amount: BalanceOf<T>,
-	) -> DispatchResultWithPostInfo {
+	) -> Result<bool, DispatchError> {
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
-		Ok(().into())
+		Ok(true)
 	}
 	fn delegator_bond_till_minimum(
 		delegator: &T::AccountId,
@@ -281,7 +276,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(20_000)
 	}
-	fn migration_upgrade_xcmp_task_struct(_: u32) -> Weight {
+	fn migration_upgrade_weight_struct(_: u32) -> Weight {
 		Weight::zero()
 	}
 }
@@ -295,18 +290,18 @@ where
 {
 	fn transact_xcm(
 		_para_id: u32,
-		_location: xcm::v1::MultiLocation,
+		_location: xcm::latest::MultiLocation,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
-		_transact_encoded_call_weight: u64,
+		_transact_encoded_call_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 
 	fn get_xcm_fee(
 		_para_id: u32,
-		_location: xcm::v1::MultiLocation,
-		_transact_encoded_call_weight: u64,
+		_location: xcm::latest::MultiLocation,
+		_transact_encoded_call_weight: Weight,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		Ok(XmpFee::get())
 	}
@@ -317,17 +312,17 @@ where
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
-		_asset_location: xcm::v1::MultiLocation,
+		_asset_location: xcm::latest::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 }
 
 pub struct ScheduleAllowList;
-impl Contains<Call> for ScheduleAllowList {
-	fn contains(c: &Call) -> bool {
+impl Contains<RuntimeCall> for ScheduleAllowList {
+	fn contains(c: &RuntimeCall) -> bool {
 		match c {
-			Call::System(_) => true,
+			RuntimeCall::System(_) => true,
 			_ => false,
 		}
 	}
@@ -361,7 +356,7 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 }
 
 impl pallet_automation_time::Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
 	type MaxExecutionTimes = MaxExecutionTimes;
 	type MaxScheduleSeconds = MaxScheduleSeconds;
@@ -378,7 +373,7 @@ impl pallet_automation_time::Config for Test {
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type Call = Call;
+	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
@@ -403,7 +398,7 @@ pub fn schedule_task(
 	get_funds(AccountId32::new(owner));
 	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	assert_ok!(AutomationTime::schedule_notify_task(
-		Origin::signed(AccountId32::new(owner)),
+		RuntimeOrigin::signed(AccountId32::new(owner)),
 		provided_id,
 		scheduled_times,
 		message,
@@ -474,7 +469,7 @@ pub fn create_task(
 	task_id
 }
 
-pub fn events() -> Vec<Event> {
+pub fn events() -> Vec<RuntimeEvent> {
 	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
 
 	System::reset_events();
@@ -482,7 +477,7 @@ pub fn events() -> Vec<Event> {
 	evt
 }
 
-pub fn last_event() -> Event {
+pub fn last_event() -> RuntimeEvent {
 	events().pop().unwrap()
 }
 

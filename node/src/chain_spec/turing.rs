@@ -1,4 +1,5 @@
 use cumulus_primitives_core::ParaId;
+use frame_support::pallet_prelude::*;
 use sc_service::ChainType;
 use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
@@ -15,12 +16,7 @@ use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, XcmpHandlerConfig,
 };
-use xcm::{
-	latest::prelude::*,
-	v1::Junction::{PalletInstance, Parachain},
-	VersionedMultiLocation,
-	VersionedMultiLocation::V1,
-};
+use xcm::{prelude::*, VersionedMultiLocation, VersionedMultiLocation::V3};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -94,7 +90,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
 						),
 						419_000_000_000,
-						1_000_000_000,
+						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
@@ -102,7 +98,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
 						),
 						419_000_000_000,
-						1_000_000_000,
+						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
@@ -110,7 +106,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
 						),
 						10_000_000_000_000_000_000,
-						1_000_000_000,
+						Weight::from_parts(1_000_000_000, 1024),
 						XcmFlow::Alternate,
 					),
 					(
@@ -118,7 +114,7 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
 						),
 						10_000_000_000_000_000_000,
-						1_000_000_000,
+						Weight::from_ref_time(250_000_000),
 						XcmFlow::Alternate,
 					),
 				],
@@ -229,6 +225,7 @@ pub fn turing_live() -> Result<DummyChainSpec, String> {
 	DummyChainSpec::from_json_bytes(&include_bytes!("../../res/turing.json")[..])
 }
 
+const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
 	endowed_accounts: Vec<(AccountId, Balance)>,
@@ -237,7 +234,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, u64, XcmFlow)>,
+	xcmp_handler_asset_data: Vec<(Vec<u8>, u128, Weight, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
@@ -254,7 +251,7 @@ fn testnet_genesis(
 					name: "Native".as_bytes().to_vec(),
 					symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
 					existential_deposit: 100_000_000,
-					location: Some(V1(MultiLocation { parents: 0, interior: Here })),
+					location: Some(V3(MultiLocation { parents: 0, interior: Here })),
 					additional: CustomMetadata {
 						fee_per_second: Some(416_000_000_000),
 						conversion_rate: None,
@@ -300,6 +297,7 @@ fn testnet_genesis(
 			blocks_per_round: 600,
 			collator_commission: Perbill::from_percent(20),
 			parachain_bond_reserve_percent: Percent::from_percent(30),
+			num_selected_candidates: NUM_SELECTED_CANDIDATES,
 		},
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.

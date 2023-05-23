@@ -26,7 +26,7 @@ use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
 use xcm::latest::prelude::*;
 
-use crate::{MissedTaskV2Of, Pallet as AutomationTime, Schedule, TaskOf};
+use crate::{MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 
 const SEED: u32 = 0;
 // existential deposit multiplier
@@ -34,7 +34,7 @@ const ED_MULTIPLIER: u32 = 1_000;
 // ensure enough funds to execute tasks
 const DEPOSIT_MULTIPLIER: u32 = 100_000_000;
 
-fn assert_last_event<T: Config>(generic_event: <T as Config>::Event) {
+fn assert_last_event<T: Config>(generic_event: <T as Config>::RuntimeEvent) {
 	frame_system::Pallet::<T>::assert_last_event(generic_event.into());
 }
 
@@ -109,7 +109,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			T::GetNativeCurrencyId::get(),
 			MultiLocation::new(1, X1(Parachain(para_id))).into(),
 			vec![4, 5, 6],
-			5_000,
+			Weight::from_ref_time(5_000),
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
@@ -220,7 +220,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, 1_000)
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, Weight::from_ref_time(1_000))
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -391,7 +391,7 @@ benchmarks! {
 
 		let provided_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, asset_location.into(), call, 100_000, task_id.clone()) }
+	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, asset_location.into(), call, Weight::from_ref_time(100_000), task_id.clone()) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);
@@ -566,6 +566,35 @@ benchmarks! {
 
 		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
+
+	migration_upgrade_weight_struct {
+		let v in 1..100;
+
+		use migrations::upgrade_weight_struct::{AccountTasks as OldAccountTasks, UpgradeWeightStruct, OldAction, OldTask};
+		use frame_support::traits::OnRuntimeUpgrade;
+
+		for i in 0..v {
+			let account_id: T::AccountId = account("Account", 0, i);
+			let task_id = Pallet::<T>::generate_task_id(account_id.clone(), vec![0]);
+			let task = OldTask::<T> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				schedule: Schedule::Fixed {
+					execution_times: vec![10].try_into().unwrap(),
+					executions_left: 1,
+				},
+				action: OldAction::<T>::AutoCompoundDelegatedStake {
+					delegator: account_id.clone(),
+					collator: account_id.clone(),
+					account_minimum: 100u32.into(),
+				},
+			};
+			OldAccountTasks::<T>::insert(account_id.clone(), task_id, task);
+		}
+	}: { UpgradeWeightStruct::<T>::on_runtime_upgrade() }
+	verify {
+		assert_eq!(v, crate::AccountTasks::<T>::iter().count() as u32);
+	}
 
 	impl_benchmark_test_suite!(
 		AutomationTime,

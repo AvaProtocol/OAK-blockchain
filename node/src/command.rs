@@ -346,6 +346,7 @@ pub fn run() -> Result<()> {
 							)?;
 							cmd.run(partials.client)
 						}),
+						#[cfg(feature = "runtime-benchmarks")]
 						BenchmarkCmd::Storage(cmd) => runner.sync_run(|config| {
 							let partials = service::new_partial::<RuntimeApi, Executor, _>(
 								&config,
@@ -369,22 +370,26 @@ pub fn run() -> Result<()> {
 		},
 		#[cfg(feature = "try-runtime")]
 		Some(Subcommand::TryRuntime(cmd)) => {
+			use sc_executor::{sp_wasm_interface::ExtendedHostFunctions, NativeExecutionDispatch};
 			let runner = cli.create_runner(cmd)?;
 			let chain_spec = &runner.config().chain_spec;
 			with_runtime_or_err!(chain_spec, {
-				{
-					// grab the task manager.
-					let registry =
-						&runner.config().prometheus_config.as_ref().map(|cfg| &cfg.registry);
-					let task_manager = sc_service::TaskManager::new(
-						runner.config().tokio_handle.clone(),
-						*registry,
-					)
-					.map_err(|e| format!("Error: {:?}", e))?;
-
-					runner
-						.async_run(|config| Ok((cmd.run::<Block, Executor>(config), task_manager)))
-				}
+				#[rustfmt::skip]
+				return runner.async_run(|config| {
+					let registry = config.prometheus_config.as_ref().map(|cfg| &cfg.registry);
+					let task_manager =
+						sc_service::TaskManager::new(config.tokio_handle.clone(), registry)
+							.map_err(|e| {
+								sc_cli::Error::Service(sc_service::Error::Prometheus(e))
+							})?;
+					Ok((
+						cmd.run::<Block, ExtendedHostFunctions<
+							sp_io::SubstrateHostFunctions,
+							<Executor as NativeExecutionDispatch>::ExtendHostFunctions,
+						>>(),
+						task_manager,
+					))
+				});
 			})
 		},
 		None => {

@@ -58,16 +58,16 @@ parameter_types! {
 impl frame_system::Config for Test {
 	type BaseCallFilter = Valve;
 	type DbWeight = ();
-	type Origin = Origin;
+	type RuntimeOrigin = RuntimeOrigin;
 	type Index = u64;
 	type BlockNumber = BlockNumber;
-	type Call = Call;
+	type RuntimeCall = RuntimeCall;
 	type Hash = H256;
 	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -84,8 +84,8 @@ impl frame_system::Config for Test {
 
 /// During maintenance mode we will not allow any calls.
 pub struct ClosedCallFilter;
-impl Contains<Call> for ClosedCallFilter {
-	fn contains(_: &Call) -> bool {
+impl Contains<RuntimeCall> for ClosedCallFilter {
+	fn contains(_: &RuntimeCall) -> bool {
 		false
 	}
 }
@@ -147,7 +147,7 @@ impl Shutdown for MockAutomationPrice {
 }
 
 impl Config for Test {
-	type Event = Event;
+	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = ();
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = MockAutomationTime;
@@ -202,7 +202,7 @@ pub(crate) fn events() -> Vec<pallet_valve::Event<Test>> {
 	let evt = System::events()
 		.into_iter()
 		.map(|r| r.event)
-		.filter_map(|e| if let Event::Valve(inner) = e { Some(inner) } else { None })
+		.filter_map(|e| if let RuntimeEvent::Valve(inner) = e { Some(inner) } else { None })
 		.collect::<Vec<_>>();
 
 	System::reset_events();
