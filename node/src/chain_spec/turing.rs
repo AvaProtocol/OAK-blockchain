@@ -12,6 +12,8 @@ use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use pallet_xcmp_handler::XcmFlow;
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
+#[cfg(feature = "sudo")]
+use turing_runtime::SudoConfig;
 use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig, XcmpHandlerConfig,
@@ -75,6 +77,8 @@ pub fn turing_development_config() -> ChainSpec {
 						get_collator_keys_from_seed("Bob"),
 					),
 				],
+				#[cfg(feature = "sudo")]
+				get_account_id_from_seed::<sr25519::Public>("Alice"),
 				endowed_accounts,
 				REGISTERED_PARA_ID.into(),
 				vec![],
@@ -228,6 +232,7 @@ pub fn turing_live() -> Result<DummyChainSpec, String> {
 const NUM_SELECTED_CANDIDATES: u32 = 6;
 fn testnet_genesis(
 	invulnerables: Vec<(AccountId, AuraId)>,
+	#[cfg(feature = "sudo")] root_key: AccountId,
 	endowed_accounts: Vec<(AccountId, Balance)>,
 	para_id: ParaId,
 	pallet_gates_closed: Vec<Vec<u8>>,
@@ -313,6 +318,8 @@ fn testnet_genesis(
 		},
 		parachain_system: Default::default(),
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		#[cfg(feature = "sudo")]
+		sudo: SudoConfig { key: Some(root_key) },
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },

@@ -258,3 +258,5 @@ try-runtime = [
 ]
 
 dev-queue = ["pallet-automation-time/dev-queue"]
+
+sudo = []

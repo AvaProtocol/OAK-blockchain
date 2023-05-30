@@ -35,6 +35,7 @@ try-runtime = [
   "turing-runtime/try-runtime",
   "oak-runtime/try-runtime",
 ]
+sudo = ["turing-runtime/sudo"]
 
 [dependencies]
 async-trait = "0.1.48"
