@@ -26,7 +26,7 @@ rpc_port = 8855
 [[parachains]]
 id = 2110
 cumulus_based = true
-chain = "mangata-rococo-local-testnet"
+chain = "rococo-local"
 
 [parachains.collator]
 name = "mangata-col-1"
