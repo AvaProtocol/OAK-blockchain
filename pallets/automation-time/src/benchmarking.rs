@@ -286,7 +286,7 @@ benchmarks! {
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id.clone());
 	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
 	verify {
-		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id, schedule_as: None }.into())
 	}
 
 	schedule_dynamic_dispatch_task_full {
@@ -312,7 +312,7 @@ benchmarks! {
 		schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
 	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), provided_id, schedule, Box::new(call))
 	verify {
-		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id }.into())
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, task_id: task_id, schedule_as: None }.into())
 	}
 
 	cancel_scheduled_task_full {

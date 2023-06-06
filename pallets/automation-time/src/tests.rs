@@ -792,7 +792,8 @@ mod extrinsics {
 					last_event(),
 					RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 						who: account_id,
-						task_id
+						task_id,
+						schedule_as: None,
 					})
 				);
 			})
