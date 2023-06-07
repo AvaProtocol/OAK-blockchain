@@ -284,6 +284,7 @@ pub mod pallet {
 			let instructions = match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
+					asset_location,
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
@@ -319,6 +320,7 @@ pub mod pallet {
 		/// 	- DepositAsset
 		pub fn get_local_currency_instructions(
 			para_id: ParachainId,
+			asset_location: MultiLocation,
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
@@ -330,7 +332,7 @@ pub mod pallet {
 		> {
 			// XCM for local chain
 			let local_asset = MultiAsset {
-				id: Concrete(MultiLocation::new(0, Here)),
+				id: Concrete(asset_location),
 				fun: Fungibility::Fungible(fee),
 			};
 
@@ -553,6 +555,7 @@ pub mod pallet {
 			match xcm_data.flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					para_id,
+					asset_location,
 					nobody,
 					Default::default(),
 					Weight::zero(),
