@@ -42,6 +42,7 @@ pub trait HandleFees<T: Config> {
 pub struct FeeHandler<T: Config, TR> {
 	owner: T::AccountId,
 	pub currency_id: MultiCurrencyId<T>,
+	pub xcmp_fee_currency_id: MultiCurrencyId<T>,
 	pub execution_fee: MultiBalanceOf<T>,
 	pub xcmp_fee: MultiBalanceOf<T>,
 	_phantom_data: PhantomData<TR>,
@@ -73,20 +74,27 @@ where
 {
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(&self) -> Result<(), DispatchError> {
-		let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+		// let fee = self.execution_fee.saturating_add(self.xcmp_fee);
 
-		if fee.is_zero() {
-			return Ok(())
-		}
+		// if fee.is_zero() {
+		// 	return Ok(())
+		// }
 
-		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
-		let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
-		free_balance
-			.checked_sub(&fee)
-			.ok_or(DispatchError::Token(BelowMinimum))?
-			.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
-			.ok_or(DispatchError::Token(BelowMinimum))?;
-		T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
+		// // Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
+		// let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
+		// free_balance
+		// 	.checked_sub(&fee)
+		// 	.ok_or(DispatchError::Token(BelowMinimum))?
+		// 	.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
+		// 	.ok_or(DispatchError::Token(BelowMinimum))?;
+		// T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
+		// Ok(())
+
+		
+		
+
+
+		
 		Ok(())
 	}
 
@@ -145,9 +153,12 @@ where
 			_ => 0u32.saturated_into(),
 		};
 
+		let xcmp_fee_currency_id: MultiCurrencyId<T> = T::CurrencyIdConvert::convert(xcm_asset_location).ok_or("IncoveribleLocation")?;
+
 		Ok(Self {
 			owner: owner.clone(),
 			currency_id,
+			xcmp_fee_currency_id,
 			execution_fee: execution_fee.saturated_into(),
 			xcmp_fee,
 			_phantom_data: Default::default(),
