@@ -5,7 +5,6 @@ use super::{
 	MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
-use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{ConstU32, Everything, Nothing},
@@ -26,7 +25,7 @@ use xcm_builder::{
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
 	TakeWeightCredit, WithComputedOrigin,
 };
-use xcm_executor::{traits::ShouldExecute, Config, XcmExecutor};
+use xcm_executor::{Config, XcmExecutor};
 
 // ORML imports
 use orml_asset_registry::{AssetRegistryTrader, FixedRateAssetRegistryTrader};
