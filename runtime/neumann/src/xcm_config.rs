@@ -4,7 +4,6 @@ use super::{
 	UnknownTokens, XcmpQueue, MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
-// use core::marker::PhantomData;
 use frame_support::{
 	match_types, parameter_types,
 	traits::{ConstU32, Everything, Nothing},
