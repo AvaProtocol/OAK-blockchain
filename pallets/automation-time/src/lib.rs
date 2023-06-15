@@ -158,7 +158,7 @@ pub mod pallet {
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
 
 		/// Converts CurrencyId to Multiloc
-		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>> + Convert<MultiLocation, Option<TokenId>>;
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>> + Convert<MultiLocation, Option<Self::CurrencyId>>;
 
 		/// Converts between comparable currencies
 		type FeeConversionRateProvider: FixedConversionRateProvider;

@@ -74,59 +74,114 @@ where
 {
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(&self) -> Result<(), DispatchError> {
-		// let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+		if self.currency_id == self.xcmp_fee_currency_id {
+			let fee = self.execution_fee.saturating_add(self.xcmp_fee);
 
-		// if fee.is_zero() {
-		// 	return Ok(())
-		// }
+			if fee.is_zero() {
+				return Ok(())
+			}
 
-		// // Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
-		// let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
-		// free_balance
-		// 	.checked_sub(&fee)
-		// 	.ok_or(DispatchError::Token(BelowMinimum))?
-		// 	.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
-		// 	.ok_or(DispatchError::Token(BelowMinimum))?;
-		// T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
-		// Ok(())
+			// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
+			let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
+			free_balance
+				.checked_sub(&fee)
+				.ok_or(DispatchError::Token(BelowMinimum))?
+				.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
+				.ok_or(DispatchError::Token(BelowMinimum))?;
+			T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, fee)?;
+		} else {
+			if !self.execution_fee.is_zero() {
+				let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
+				free_balance
+					.checked_sub(&self.execution_fee)
+					.ok_or(DispatchError::Token(BelowMinimum))?
+					.checked_sub(&T::MultiCurrency::minimum_balance(self.currency_id))
+					.ok_or(DispatchError::Token(BelowMinimum))?;
+				T::MultiCurrency::ensure_can_withdraw(self.currency_id.into(), &self.owner, self.execution_fee)?;
+			}
 
-		
-		
-
-
+			if !self.xcmp_fee.is_zero() {
+				let free_balance = T::MultiCurrency::free_balance(self.xcmp_fee_currency_id, &self.owner);
+				free_balance
+					.checked_sub(&self.xcmp_fee)
+					.ok_or(DispatchError::Token(BelowMinimum))?
+					.checked_sub(&T::MultiCurrency::minimum_balance(self.xcmp_fee_currency_id))
+					.ok_or(DispatchError::Token(BelowMinimum))?;
+				T::MultiCurrency::ensure_can_withdraw(self.xcmp_fee_currency_id.into(), &self.owner, self.xcmp_fee)?;
+			}
+		}
 		
 		Ok(())
 	}
 
 	/// Withdraw the fee.
 	fn withdraw_fee(&self) -> Result<(), DispatchError> {
-		let fee = self.execution_fee.saturating_add(self.xcmp_fee);
+		if self.currency_id == self.xcmp_fee_currency_id {
+			let fee = self.execution_fee.saturating_add(self.xcmp_fee);
 
-		if fee.is_zero() {
-			return Ok(())
+			if fee.is_zero() {
+				return Ok(())
+			}
+
+			return match T::MultiCurrency::withdraw(self.currency_id, &self.owner, fee) {
+				Ok(_) => {
+					let currency_id: T::CurrencyId = self.currency_id.into();
+					TR::take_revenue(MultiAsset {
+						id: AssetId::Concrete(
+							T::CurrencyIdConvert::convert(currency_id)
+								.ok_or("IncoveribleCurrencyId")?,
+						),
+						fun: Fungibility::Fungible(self.execution_fee.saturated_into()),
+					});
+
+					if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
+						T::XcmpTransactor::pay_xcm_fee(
+							self.owner.clone(),
+							self.xcmp_fee.saturated_into(),
+						)?;
+					}
+
+					return Ok(());
+				},
+				Err(_) => Err(DispatchError::Token(BelowMinimum)),
+			};
+		} else {
+			if !self.execution_fee.is_zero() {
+				return match T::MultiCurrency::withdraw(self.currency_id, &self.owner, self.execution_fee) {
+					Ok(_) => {
+						let currency_id: T::CurrencyId = self.currency_id.into();
+						TR::take_revenue(MultiAsset {
+							id: AssetId::Concrete(
+								T::CurrencyIdConvert::convert(currency_id)
+									.ok_or("IncoveribleCurrencyId")?,
+							),
+							fun: Fungibility::Fungible(self.execution_fee.saturated_into()),
+						});
+
+						return Ok(());
+					},
+					Err(_) => Err(DispatchError::Token(BelowMinimum)),
+				};
+			}
+
+			if !self.xcmp_fee.is_zero() {
+				return match T::MultiCurrency::withdraw(self.xcmp_fee_currency_id, &self.owner, self.xcmp_fee) {
+					Ok(_) => {
+						if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
+							T::XcmpTransactor::pay_xcm_fee(
+								self.owner.clone(),
+								self.xcmp_fee.saturated_into(),
+							)?;
+						}
+
+						return Ok(());
+					},
+					Err(_) => Err(DispatchError::Token(BelowMinimum)),
+				};
+			}
 		}
 
-		match T::MultiCurrency::withdraw(self.currency_id, &self.owner, fee) {
-			Ok(_) => {
-				TR::take_revenue(MultiAsset {
-					id: AssetId::Concrete(
-						T::CurrencyIdConvert::convert(self.currency_id.into())
-							.ok_or("IncoveribleCurrencyId")?,
-					),
-					fun: Fungibility::Fungible(self.execution_fee.saturated_into()),
-				});
-
-				if self.xcmp_fee > MultiBalanceOf::<T>::zero() {
-					T::XcmpTransactor::pay_xcm_fee(
-						self.owner.clone(),
-						self.xcmp_fee.saturated_into(),
-					)?;
-				}
-
-				Ok(())
-			},
-			Err(_) => Err(DispatchError::Token(BelowMinimum)),
-		}
+		Ok(())
 	}
 
 	/// Builds an instance of the struct
@@ -140,27 +195,31 @@ where
 		let execution_fee: u128 =
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
-		let xcmp_fee = match action.clone() {
-			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } =>
-				T::XcmpTransactor::get_xcm_fee(
+		let xcmp_fee_info = match action.clone() {
+			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } => {
+				let xcm_asset_location = MultiLocation::try_from(xcm_asset_location).map_err(|()| Error::<T>::BadVersion)?;
+				let xcmp_fee_currency_id = T::CurrencyIdConvert::convert(xcm_asset_location).ok_or("IncoveribleLocation")?.into();
+				let xcmp_fee = T::XcmpTransactor::get_xcm_fee(
 					u32::from(para_id),
-					MultiLocation::try_from(xcm_asset_location)
-						.map_err(|()| Error::<T>::BadVersion)?,
+					xcm_asset_location,
 					encoded_call_weight.clone(),
 				)?
 				.saturating_mul(executions.into())
-				.saturated_into(),
-			_ => 0u32.saturated_into(),
-		};
+				.saturated_into();
 
-		let xcmp_fee_currency_id: MultiCurrencyId<T> = T::CurrencyIdConvert::convert(xcm_asset_location).ok_or("IncoveribleLocation")?;
+				(xcmp_fee_currency_id, xcmp_fee)
+			},
+			_ => {
+				(currency_id.clone(), 0u32.saturated_into())
+			},
+		};
 
 		Ok(Self {
 			owner: owner.clone(),
 			currency_id,
-			xcmp_fee_currency_id,
+			xcmp_fee_currency_id: xcmp_fee_info.0,
 			execution_fee: execution_fee.saturated_into(),
-			xcmp_fee,
+			xcmp_fee: xcmp_fee_info.1,
 			_phantom_data: Default::default(),
 		})
 	}
