@@ -389,19 +389,26 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 	ext
 }
 
+// A function to support test scheduleing.
+// We don't focus on making sure the execution run properly. We just focus on
+// making sure a task is scheduled into the queue
 pub fn schedule_task(
 	owner: [u8; 32],
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	message: Vec<u8>,
 ) -> sp_core::H256 {
-	get_funds(AccountId32::new(owner));
-	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
-	assert_ok!(AutomationTime::schedule_notify_task(
-		RuntimeOrigin::signed(AccountId32::new(owner)),
+	let account_id = AccountId32::new(owner);
+	let task_hash_input = TaskHashInput::new(account_id.clone(), provided_id.clone());
+	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
+
+	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.encode()));
+
+	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+		RuntimeOrigin::signed(account_id.clone()),
 		provided_id,
-		scheduled_times,
-		message,
+		ScheduleParam::Fixed { execution_times: scheduled_times },
+		Box::new(call),
 	));
 	BlakeTwo256::hash_of(&task_hash_input)
 }

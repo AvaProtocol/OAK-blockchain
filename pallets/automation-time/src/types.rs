@@ -11,6 +11,8 @@ use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+use frame_system;
+
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
@@ -220,6 +222,8 @@ impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> PartialEq
 
 impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> Eq for Task<AccountId, Balance, CurrencyId> {}
 
+use sp_runtime::print;
+
 impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId> {
 	pub fn new(
 		owner_id: AccountId,
@@ -236,7 +240,9 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
 	) -> Result<Self, DispatchError> {
-		let action = Action::Notify { message };
+		let call: <T as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: message }.into();
+		let action = Action::DynamicDispatch { encoded_call: call.encode() };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
@@ -442,8 +448,17 @@ mod tests {
 				scheduled_tasks
 					.try_push::<Test, BalanceOf<Test>>(task_id, &task)
 					.expect("slot is not full");
+
 				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
-				assert_eq!(scheduled_tasks.weight, 20_000);
+
+				// this is same call we mock in create_event_tasks
+				let call: <Test as frame_system::Config>::RuntimeCall =
+					frame_system::Call::remark_with_event { remark: vec![0] }.into();
+				// weight will be equal = weight of the dynamic dispatch + the call itself
+				assert_eq!(
+					scheduled_tasks.weight,
+					20_000 + call.get_dispatch_info().weight.ref_time() as u128
+				);
 			})
 		}
 	}
