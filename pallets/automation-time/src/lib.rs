@@ -51,7 +51,6 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
-use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
@@ -289,12 +288,12 @@ pub mod pallet {
 		/// Successfully sent XCMP
 		XcmpTaskSucceeded {
 			task_id: T::Hash,
-			para_id: ParaId,
+			destination: MultiLocation,
 		},
 		/// Failed to send XCMP
 		XcmpTaskFailed {
 			task_id: T::Hash,
-			para_id: ParaId,
+			destination: MultiLocation,
 			error: DispatchError,
 		},
 		/// Transfer Failed
@@ -483,7 +482,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			para_id: ParaId,
+			destination: MultiLocation,
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
@@ -491,7 +490,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP {
-				para_id,
+				destination,
 				currency_id,
 				xcm_asset_location,
 				encoded_call,
@@ -511,7 +510,8 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			para_id: ParaId,
+			destination: MultiLocation,
+			// para_id: ParaId,
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
@@ -524,7 +524,7 @@ pub mod pallet {
 			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
 			let action = Action::XCMP {
-				para_id,
+				destination,
 				currency_id,
 				xcm_asset_location,
 				encoded_call,
@@ -946,14 +946,14 @@ pub mod pallet {
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
-								para_id,
+								destination,
 								schedule_as,
 								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
 								..
 							} => Self::run_xcmp_task(
-								para_id,
+								destination,
 								schedule_as.unwrap_or(task.owner_id.clone()),
 								xcm_asset_location,
 								encoded_call,
@@ -1079,7 +1079,7 @@ pub mod pallet {
 		}
 
 		pub fn run_xcmp_task(
-			para_id: ParaId,
+			destination: MultiLocation,
 			caller: T::AccountId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
@@ -1095,18 +1095,18 @@ pub mod pallet {
 			}
 
 			match T::XcmpTransactor::transact_xcm(
-				para_id.into(),
+				destination,
 				location.unwrap(),
 				caller,
 				encoded_call,
 				encoded_call_weight,
 			) {
 				Ok(()) => {
-					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, para_id });
+					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, destination });
 					(<T as Config>::WeightInfo::run_xcmp_task(), None)
 				},
 				Err(e) => {
-					Self::deposit_event(Event::XcmpTaskFailed { task_id, para_id, error: e });
+					Self::deposit_event(Event::XcmpTaskFailed { task_id, destination, error: e });
 					(<T as Config>::WeightInfo::run_xcmp_task(), Some(e))
 				},
 			}

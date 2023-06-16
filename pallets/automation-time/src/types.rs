@@ -5,8 +5,6 @@ use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
 use sp_std::prelude::*;
 
-use cumulus_primitives_core::ParaId;
-
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
 use xcm::{latest::prelude::*, VersionedMultiLocation};
@@ -26,7 +24,8 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		amount: Balance,
 	},
 	XCMP {
-		para_id: ParaId,
+		// para_id: ParaId,
+		destination: MultiLocation,
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
@@ -88,7 +87,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				amount: 0u32.into(),
 			},
 			AutomationAction::XCMP => Action::XCMP {
-				para_id: ParaId::from(2114 as u32),
+				destination: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				currency_id: CurrencyId::default(),
 				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				encoded_call: vec![0],
@@ -258,14 +257,14 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
-		para_id: ParaId,
+		destination: MultiLocation,
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 	) -> Result<Self, DispatchError> {
 		let action = Action::XCMP {
-			para_id,
+			destination,
 			currency_id,
 			xcm_asset_location,
 			encoded_call,

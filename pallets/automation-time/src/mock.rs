@@ -299,8 +299,8 @@ where
 	}
 
 	fn get_xcm_fee(
-		_para_id: u32,
-		_location: xcm::latest::MultiLocation,
+		_destination: u32,
+		_xcm_asset_location: xcm::latest::MultiLocation,
 		_transact_encoded_call_weight: Weight,
 	) -> Result<u128, sp_runtime::DispatchError> {
 		Ok(XmpFee::get())

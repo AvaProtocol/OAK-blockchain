@@ -196,11 +196,11 @@ where
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
 		let xcmp_fee_info = match action.clone() {
-			Action::XCMP { para_id, xcm_asset_location, encoded_call_weight, .. } => {
+			Action::XCMP { destination, xcm_asset_location, encoded_call_weight, .. } => {
 				let xcm_asset_location = MultiLocation::try_from(xcm_asset_location).map_err(|()| Error::<T>::BadVersion)?;
 				let xcmp_fee_currency_id = T::CurrencyIdConvert::convert(xcm_asset_location).ok_or("IncoveribleLocation")?.into();
 				let xcmp_fee = T::XcmpTransactor::get_xcm_fee(
-					u32::from(para_id),
+					destination,
 					xcm_asset_location,
 					encoded_call_weight.clone(),
 				)?
