@@ -24,8 +24,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		amount: Balance,
 	},
 	XCMP {
-		// para_id: ParaId,
-		destination: MultiLocation,
+		destination: VersionedMultiLocation,
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,
@@ -257,7 +256,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
-		destination: MultiLocation,
+		destination: VersionedMultiLocation,
 		currency_id: CurrencyId,
 		xcm_asset_location: VersionedMultiLocation,
 		encoded_call: Vec<u8>,

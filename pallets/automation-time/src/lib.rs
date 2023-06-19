@@ -482,7 +482,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			destination: MultiLocation,
+			destination: VersionedMultiLocation,
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
@@ -510,8 +510,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			destination: MultiLocation,
-			// para_id: ParaId,
+			destination: VersionedMultiLocation,
 			currency_id: T::CurrencyId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
@@ -1079,24 +1078,34 @@ pub mod pallet {
 		}
 
 		pub fn run_xcmp_task(
-			destination: MultiLocation,
+			destination: VersionedMultiLocation,
 			caller: T::AccountId,
 			xcm_asset_location: VersionedMultiLocation,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
-			let location = MultiLocation::try_from(xcm_asset_location);
-			if location.is_err() {
+			let destination = MultiLocation::try_from(destination);
+			if destination.is_err() {
 				return (
 					<T as Config>::WeightInfo::run_xcmp_task(),
 					Some(Error::<T>::BadVersion.into()),
 				)
 			}
+			let destination = destination.unwrap();
+
+			let xcm_asset_location = MultiLocation::try_from(xcm_asset_location);
+			if xcm_asset_location.is_err() {
+				return (
+					<T as Config>::WeightInfo::run_xcmp_task(),
+					Some(Error::<T>::BadVersion.into()),
+				)
+			}
+			let xcm_asset_location = xcm_asset_location.unwrap();
 
 			match T::XcmpTransactor::transact_xcm(
 				destination,
-				location.unwrap(),
+				xcm_asset_location,
 				caller,
 				encoded_call,
 				encoded_call_weight,

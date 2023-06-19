@@ -197,6 +197,7 @@ where
 
 		let xcmp_fee_info = match action.clone() {
 			Action::XCMP { destination, xcm_asset_location, encoded_call_weight, .. } => {
+				let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
 				let xcm_asset_location = MultiLocation::try_from(xcm_asset_location).map_err(|()| Error::<T>::BadVersion)?;
 				let xcmp_fee_currency_id = T::CurrencyIdConvert::convert(xcm_asset_location).ok_or("IncoveribleLocation")?.into();
 				let xcmp_fee = T::XcmpTransactor::get_xcm_fee(
