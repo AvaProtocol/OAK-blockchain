@@ -129,7 +129,16 @@ pub fn turing_development_config() -> ChainSpec {
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
 						),
 						<VersionedMultiLocation>::encode(
+							&(MultiLocation::new(1, X2(Parachain(2110), GeneralKey { length: 4, data: [0;32] })).into()),
+						),
+						419_000_000_000,
+					),
+					(
+						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
+						),
+						<VersionedMultiLocation>::encode(
+							&(MultiLocation::new(0, Here).into()),
 						),
 						419_000_000_000,
 					),
@@ -153,7 +162,7 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
+							&(MultiLocation::new(1, X1(Parachain(1000))).into()),
 						),
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
@@ -170,7 +179,7 @@ pub fn turing_development_config() -> ChainSpec {
 								name: b"Mangata Rococo".to_vec(),
 								symbol: b"MGR".to_vec(),
 								existential_deposit: Default::default(),
-								location: Some(MultiLocation::new(1, X1(Parachain(2110))).into()),
+								location: Some(MultiLocation::new(1, X2(Parachain(2110), GeneralKey { length: 4, data: [0;32] })).into()),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
 									conversion_rate: None,

@@ -303,6 +303,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type Currency = pallet_balances::Pallet<Runtime>;
+	type MultiCurrency = Currencies;
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Runtime>;

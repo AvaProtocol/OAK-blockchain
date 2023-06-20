@@ -47,6 +47,7 @@ pub use weights::WeightInfo;
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
+use orml_traits::MultiCurrency;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -72,6 +73,9 @@ pub mod pallet {
 
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
+
+		/// The MultiCurrency type for interacting with balances
+		type MultiCurrency: MultiCurrency<Self::AccountId>;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
