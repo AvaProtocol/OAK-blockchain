@@ -157,7 +157,7 @@ pub mod pallet {
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
 
 		/// Converts CurrencyId to Multiloc
-		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>> + Convert<MultiLocation, Option<Self::CurrencyId>>;
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
 
 		/// Converts between comparable currencies
 		type FeeConversionRateProvider: FixedConversionRateProvider;
@@ -257,6 +257,7 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
+		UnsuppportedFeePayment,
 	}
 
 	#[pallet::event]
@@ -484,17 +485,19 @@ pub mod pallet {
 			schedule: ScheduleParam,
 			destination: VersionedMultiLocation,
 			currency_id: T::CurrencyId,
-			xcm_asset_location: VersionedMultiLocation,
+			fee: AssetPayment,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
-				xcm_asset_location,
+				fee,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
 				schedule_as: None,
 			};
 
@@ -512,9 +515,10 @@ pub mod pallet {
 			schedule: ScheduleParam,
 			destination: VersionedMultiLocation,
 			currency_id: T::CurrencyId,
-			xcm_asset_location: VersionedMultiLocation,
+			fee: AssetPayment,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 			schedule_as: T::AccountId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -525,9 +529,10 @@ pub mod pallet {
 			let action = Action::XCMP {
 				destination,
 				currency_id,
-				xcm_asset_location,
+				fee,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
 				schedule_as: Some(schedule_as),
 			};
 			let schedule = schedule.validated_into::<T>()?;
@@ -946,17 +951,19 @@ pub mod pallet {
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
 								destination,
+								fee,
 								schedule_as,
-								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
+								overall_weight,
 								..
 							} => Self::run_xcmp_task(
 								destination,
 								schedule_as.unwrap_or(task.owner_id.clone()),
-								xcm_asset_location,
+								fee,
 								encoded_call,
 								encoded_call_weight,
+								overall_weight,
 								*task_id,
 							),
 							Action::AutoCompoundDelegatedStake {
@@ -1080,9 +1087,10 @@ pub mod pallet {
 		pub fn run_xcmp_task(
 			destination: VersionedMultiLocation,
 			caller: T::AccountId,
-			xcm_asset_location: VersionedMultiLocation,
+			fee: AssetPayment,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let destination = MultiLocation::try_from(destination);
@@ -1094,7 +1102,7 @@ pub mod pallet {
 			}
 			let destination = destination.unwrap();
 
-			let xcm_asset_location = MultiLocation::try_from(xcm_asset_location);
+			let xcm_asset_location = MultiLocation::try_from(fee.asset_location);
 			if xcm_asset_location.is_err() {
 				return (
 					<T as Config>::WeightInfo::run_xcmp_task(),
@@ -1106,9 +1114,11 @@ pub mod pallet {
 			match T::XcmpTransactor::transact_xcm(
 				destination,
 				xcm_asset_location,
+				fee.amount,
 				caller,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
 			) {
 				Ok(()) => {
 					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, destination });
@@ -1381,6 +1391,16 @@ pub mod pallet {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
+
+			match action.clone() {
+				Action::XCMP { destination, .. } => {
+					let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
+					if T::XcmpTransactor::is_normal_flow(destination) {
+						Err(Error::<T>::UnsuppportedFeePayment)?
+					}
+				},
+				_ => (),
+			};
 
 			let executions = schedule.known_executions_left();
 

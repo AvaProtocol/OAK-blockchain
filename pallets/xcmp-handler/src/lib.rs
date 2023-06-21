@@ -345,14 +345,16 @@ pub mod pallet {
 		pub fn get_instruction_set(
 			destination: MultiLocation,
 			asset_location: MultiLocation,
+			fee: u128,
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
+			overall_weight: Weight,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			let (fee, weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
+			let (_fee, _weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
 				destination,
 				asset_location.clone(),
 				transact_encoded_call_weight,
@@ -369,7 +371,7 @@ pub mod pallet {
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
-					weight,
+					overall_weight,
 					fee,
 				)?,
 				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
@@ -378,7 +380,7 @@ pub mod pallet {
 					descend_location,
 					transact_encoded_call,
 					transact_encoded_call_weight,
-					weight,
+					overall_weight,
 					fee,
 				)?,
 			};
@@ -572,16 +574,20 @@ pub mod pallet {
 		pub fn transact_xcm(
 			destination: MultiLocation,
 			asset_location: MultiLocation,
+			fee: u128,
 			caller: T::AccountId,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
+			overall_weight: Weight,
 		) -> Result<(), DispatchError> {
 			let (local_instructions, target_instructions) = Self::get_instruction_set(
 				destination,
 				asset_location,
+				fee,
 				caller,
 				transact_encoded_call,
 				transact_encoded_call_weight,
+				overall_weight,
 			)?;
 
 			Self::transact_in_local_chain(local_instructions)?;
@@ -716,9 +722,11 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 	fn transact_xcm(
 		destination: MultiLocation,
 		asset_location: MultiLocation,
+		fee: u128,
 		caller: AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
+		overall_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError>;
 
 	fn get_xcm_fee(
@@ -728,6 +736,8 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 	) -> Result<u128, sp_runtime::DispatchError>;
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
+
+	fn is_normal_flow(destination: MultiLocation) -> bool;
 
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_chain_asset_data(
@@ -739,16 +749,20 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 	fn transact_xcm(
 		destination: MultiLocation,
 		asset_location: MultiLocation,
+		fee: u128,
 		caller: T::AccountId,
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
+		overall_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Self::transact_xcm(
 			destination,
 			asset_location,
+			fee,
 			caller,
 			transact_encoded_call,
 			transact_encoded_call_weight,
+			overall_weight,
 		)?;
 
 		Ok(()).into()
@@ -776,6 +790,14 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Self::pay_xcm_fee(source, fee)?;
 
 		Ok(()).into()
+	}
+
+	fn is_normal_flow(destination: MultiLocation) -> bool {
+		let transact_info = Self::transact_info_with_weight_limit(destination);
+		match transact_info {
+			Some(TransactInfo { flow: XcmFlow::Normal, .. }) => true,
+			_ => false,
+		}
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]

@@ -12,6 +12,13 @@ use xcm::{latest::prelude::*, VersionedMultiLocation};
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
+/// The struct that stores all information needed for a task.
+#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
+pub struct AssetPayment {
+	pub asset_location: VersionedMultiLocation,
+	pub amount: u128,
+}
+
 /// The enum that stores all action specific data.
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 pub enum Action<AccountId, Balance, CurrencyId> {
@@ -26,9 +33,10 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 	XCMP {
 		destination: VersionedMultiLocation,
 		currency_id: CurrencyId,
-		xcm_asset_location: VersionedMultiLocation,
+		fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
+		overall_weight: Weight,
 		schedule_as: Option<AccountId>,
 	},
 	AutoCompoundDelegatedStake {
@@ -88,9 +96,10 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			AutomationAction::XCMP => Action::XCMP {
 				destination: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				currency_id: CurrencyId::default(),
-				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
+				fee: AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(), amount: 0 },
 				encoded_call: vec![0],
 				encoded_call_weight: Weight::zero(),
+				overall_weight: Weight::zero(),
 				schedule_as: None,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
@@ -258,16 +267,18 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		execution_times: Vec<UnixTime>,
 		destination: VersionedMultiLocation,
 		currency_id: CurrencyId,
-		xcm_asset_location: VersionedMultiLocation,
+		fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
+		overall_weight: Weight,
 	) -> Result<Self, DispatchError> {
 		let action = Action::XCMP {
 			destination,
 			currency_id,
-			xcm_asset_location,
+			fee,
 			encoded_call,
 			encoded_call_weight,
+			overall_weight,
 			schedule_as: None,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;

@@ -1165,15 +1165,15 @@ impl_runtime_apis! {
 
 			let (action, executions) = match uxt.function {
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					destination, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, ..
+					destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
 				}) => {
-					let action = Action::XCMP { destination, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
+					let action = Action::XCMP { destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
-					destination, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, schedule_as, ..
+					destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
 				}) => {
-					let action = Action::XCMP { destination, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: Some(schedule_as) };
+					let action = Action::XCMP { destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as) };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
