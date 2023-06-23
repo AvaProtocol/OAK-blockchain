@@ -1043,7 +1043,6 @@ fn trigger_tasks_limits_missed_slots() {
 		} else {
 			panic!("trigger_tasks_limits_missed_slots test did not have LastTimeSlot updated")
 		}
-
 	})
 }
 
