@@ -1,8 +1,10 @@
 name: 'Close stale issues and PRs'
 on:
   schedule:
-    # 13 UTC -> 5AM PST or 6AM PDT
     - cron: '0 13 * * *'
+    - cron: '39 20 * * *'
+  workflow_dispatch:
+
 jobs:
   stale:
     runs-on: ubuntu-latest
