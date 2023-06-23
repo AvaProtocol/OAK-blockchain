@@ -257,7 +257,7 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
-		UnsuppportedFeePayment,
+		UnsupportedFeePayment,
 	}
 
 	#[pallet::event]
@@ -1393,10 +1393,10 @@ pub mod pallet {
 			}
 
 			match action.clone() {
-				Action::XCMP { destination, .. } => {
+				Action::XCMP { destination, fee, .. } => {
 					let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
-					if T::XcmpTransactor::is_normal_flow(destination) {
-						Err(Error::<T>::UnsuppportedFeePayment)?
+					if T::XcmpTransactor::is_normal_flow(destination) && fee.asset_location != MultiLocation::new(0, Here).into() {
+						Err(Error::<T>::UnsupportedFeePayment)?
 					}
 				},
 				_ => (),
