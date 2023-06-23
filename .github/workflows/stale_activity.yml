@@ -10,7 +10,7 @@ on:
         default: 30
         required: false
         type: number
-      days_before_pr_stale
+      days_before_pr_stale:
         description: 'how many day before consider a pr as stale'
         default: 60
         required: false
