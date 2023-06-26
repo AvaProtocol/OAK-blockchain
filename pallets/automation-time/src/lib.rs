@@ -491,6 +491,7 @@ pub mod pallet {
 			overall_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
@@ -526,6 +527,7 @@ pub mod pallet {
 			// Make sure the owner is the proxy account of the user account.
 			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
+			let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
@@ -1085,7 +1087,7 @@ pub mod pallet {
 		}
 
 		pub fn run_xcmp_task(
-			destination: VersionedMultiLocation,
+			destination: MultiLocation,
 			caller: T::AccountId,
 			fee: AssetPayment,
 			encoded_call: Vec<u8>,
@@ -1093,27 +1095,18 @@ pub mod pallet {
 			overall_weight: Weight,
 			task_id: TaskId<T>,
 		) -> (Weight, Option<DispatchError>) {
-			let destination = MultiLocation::try_from(destination);
-			if destination.is_err() {
+			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
+			if fee_asset_location.is_err() {
 				return (
 					<T as Config>::WeightInfo::run_xcmp_task(),
 					Some(Error::<T>::BadVersion.into()),
 				)
 			}
-			let destination = destination.unwrap();
-
-			let xcm_asset_location = MultiLocation::try_from(fee.asset_location);
-			if xcm_asset_location.is_err() {
-				return (
-					<T as Config>::WeightInfo::run_xcmp_task(),
-					Some(Error::<T>::BadVersion.into()),
-				)
-			}
-			let xcm_asset_location = xcm_asset_location.unwrap();
+			let fee_asset_location = fee_asset_location.unwrap();
 
 			match T::XcmpTransactor::transact_xcm(
 				destination,
-				xcm_asset_location,
+				fee_asset_location,
 				fee.amount,
 				caller,
 				encoded_call,
@@ -1394,7 +1387,6 @@ pub mod pallet {
 
 			match action.clone() {
 				Action::XCMP { destination, fee, .. } => {
-					let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
 					if T::XcmpTransactor::is_normal_flow(destination) && fee.asset_location != MultiLocation::new(0, Here).into() {
 						Err(Error::<T>::UnsupportedFeePayment)?
 					}

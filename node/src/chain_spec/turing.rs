@@ -1,5 +1,4 @@
 use cumulus_primitives_core::ParaId;
-use frame_support::pallet_prelude::*;
 use sc_service::ChainType;
 use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
@@ -89,85 +88,25 @@ pub fn turing_development_config() -> ChainSpec {
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
 						),
-						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
 						),
-						Weight::from_ref_time(1_000_000_000),
 						XcmFlow::Normal,
 					),
 					(
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
 						),
-						Weight::from_parts(1_000_000_000, 1024),
 						XcmFlow::Alternate,
 					),
 					(
 						<VersionedMultiLocation>::encode(
 							&(MultiLocation::new(1, X1(Parachain(1000))).into()),
 						),
-						Weight::from_ref_time(250_000_000),
 						XcmFlow::Alternate,
-					),
-				],
-				vec![
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
-						),
-						419_000_000_000,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X2(Parachain(2110), GeneralKey { length: 4, data: [0;32] })).into()),
-						),
-						419_000_000_000,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(0, Here).into()),
-						),
-						419_000_000_000,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(0, Here).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(0, Here).into()),
-						),
-						419_000_000_000,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
-						),
-						10_000_000_000_000_000_000,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(1000))).into()),
-						),
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
-						),
-						10_000_000_000_000_000_000,
 					),
 				],
 				vec![
@@ -286,8 +225,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, Weight, XcmFlow)>,
-	xcmp_handler_destination_asset_fee_per_second: Vec<(Vec<u8>, Vec<u8>, u128)>,
+	xcmp_handler_asset_data: Vec<(Vec<u8>, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
@@ -369,7 +307,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data, fees: xcmp_handler_destination_asset_fee_per_second },
+		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data },
 		asset_registry: AssetRegistryConfig { assets, last_asset_id },
 	}
 }

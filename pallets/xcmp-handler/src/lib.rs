@@ -52,10 +52,7 @@ use orml_traits::MultiCurrency;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{
-		dispatch::DispatchResultWithPostInfo, traits::Currency,
-		weights::constants::WEIGHT_REF_TIME_PER_SECOND,
-	};
+	use frame_support::{ dispatch::DispatchResultWithPostInfo, traits::Currency };
 	use frame_system::pallet_prelude::*;
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
@@ -198,28 +195,26 @@ pub mod pallet {
 	/// Stores all configuration needed to send an XCM message for a given asset location.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
 	pub struct TransactInfo {
-		/// The UnitWeightCost of a single instruction on the target chain
-		pub instruction_weight: Weight,
 		/// The desired instruction flow for the target chain
 		pub flow: XcmFlow,
 	}
 
 
-	/// Stores the config for an asset in its reserve chain.
-	#[pallet::storage]
-	#[pallet::getter(fn dest_asset_config)]
-	pub type DestinationAssetConfig<T: Config> =
-		StorageMap<_, Twox64Concat, MultiLocation, XcmAssetConfig>;
+	// /// Stores the config for an asset in its reserve chain.
+	// #[pallet::storage]
+	// #[pallet::getter(fn dest_asset_config)]
+	// pub type DestinationAssetConfig<T: Config> =
+	// 	StorageMap<_, Twox64Concat, MultiLocation, XcmAssetConfig>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn transact_info_with_weight_limit)]
 	pub type TransactInfoWithWeightLimit<T: Config> =
 		StorageMap<_, Twox64Concat, MultiLocation, TransactInfo>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn dest_asset_fee_per_second)]
-	pub type DestinationAssetFeePerSecond<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, MultiLocation, Twox64Concat, MultiLocation, u128>;
+	// #[pallet::storage]
+	// #[pallet::getter(fn dest_asset_fee_per_second)]
+	// pub type DestinationAssetFeePerSecond<T: Config> =
+	// 	StorageDoubleMap<_, Twox64Concat, MultiLocation, Twox64Concat, MultiLocation, u128>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
@@ -261,80 +256,9 @@ pub mod pallet {
 
 			Ok(().into())
 		}
-
-		#[pallet::call_index(2)]
-		#[pallet::weight(0)]
-		pub fn set_destination_asset_fee_per_second(
-			origin: OriginFor<T>,
-			destination: Box<VersionedMultiLocation>,
-			asset_location: Box<VersionedMultiLocation>,
-			fee_per_second: u128,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-			let asset_location =
-				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
-
-			DestinationAssetFeePerSecond::<T>::insert(destination, asset_location, fee_per_second);
-
-			Self::deposit_event(Event::DestinationAssetFeePerSecondChanged { destination, asset_location });
-
-			Ok(().into())
-		}
-
-		#[pallet::call_index(3)]
-		#[pallet::weight(0)]
-		pub fn remove_destination_asset_fee_per_second(
-			origin: OriginFor<T>,
-			destination: Box<VersionedMultiLocation>,
-			asset_location: Box<VersionedMultiLocation>
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-			let asset_location =
-				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
-
-			DestinationAssetFeePerSecond::<T>::take(&destination, &asset_location).ok_or(Error::<T>::AssetNotFound)?;
-
-			Self::deposit_event(Event::DestinationAssetFeePerSecondRemoved { destination, asset_location });
-
-			Ok(().into())
-		}
 	}
 
 	impl<T: Config> Pallet<T> {
-		/// Get the xcm fee and weight for a transact xcm for a given asset location.
-		pub fn calculate_xcm_fee_and_weight(
-			destination: MultiLocation,
-			xcm_asset_location: MultiLocation,
-			transact_encoded_call_weight: Weight,
-		) -> Result<(u128, Weight, TransactInfo), DispatchError> {
-			let transact_info = TransactInfoWithWeightLimit::<T>::get(destination.clone())
-				.ok_or(Error::<T>::AssetNotFound)?;
-
-			let fee_per_second = DestinationAssetFeePerSecond::<T>::get(destination.clone(), xcm_asset_location.clone())
-				.ok_or(Error::<T>::AssetNotFound)?;
-
-			let (_, target_instructions) =
-				Self::xcm_instruction_skeleton(destination.clone(), xcm_asset_location, transact_info.clone())?;
-			let weight = transact_info
-				.instruction_weight
-				.checked_mul(target_instructions.len() as u64)
-				.ok_or(Error::<T>::WeightOverflow)?
-				.checked_add(&transact_encoded_call_weight)
-				.ok_or(Error::<T>::WeightOverflow)?;
-
-			let fee = fee_per_second
-				.checked_mul(weight.ref_time() as u128)
-				.ok_or(Error::<T>::FeeOverflow)
-				.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
-
-			Ok((fee, weight, transact_info))
-		}
 
 		/// Get the instructions for a transact xcm.
 		/// Currently we only support instructions if the currency is the local chain's.
@@ -354,11 +278,7 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			let (_fee, _weight, xcm_data) = Self::calculate_xcm_fee_and_weight(
-				destination,
-				asset_location.clone(),
-				transact_encoded_call_weight,
-			)?;
+			let xcm_data = Self::transact_info_with_weight_limit(destination).ok_or(Error::<T>::AssetNotFound)?;
 
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
@@ -622,63 +542,24 @@ pub mod pallet {
 
 			Ok(().into())
 		}
-
-		/// Generates a skeleton of the instruction set for fee calculation
-		fn xcm_instruction_skeleton(
-			destination: MultiLocation,
-			asset_location: MultiLocation,
-			transact_info: TransactInfo,
-		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
-			DispatchError,
-		> {
-			let nobody: Junctions = T::AccountIdToMultiLocation::convert(
-				T::AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
-					.expect("always works"),
-			)
-			.try_into()
-			.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
-
-			match transact_info.flow {
-				XcmFlow::Normal => Self::get_local_currency_instructions(
-					destination,
-					asset_location,
-					nobody,
-					Default::default(),
-					Weight::zero(),
-					Weight::zero(),
-					0u128,
-				),
-				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					destination,
-					asset_location,
-					nobody,
-					Default::default(),
-					Weight::zero(),
-					Weight::zero(),
-					0u128,
-				),
-			}
-		}
 	}
 
 	#[pallet::genesis_config]
 	pub struct GenesisConfig {
-		pub asset_data: Vec<(Vec<u8>, Weight, XcmFlow)>,
-		pub fees: Vec<(Vec<u8>, Vec<u8>, u128)>,
+		pub asset_data: Vec<(Vec<u8>, XcmFlow)>,
 	}
 
 	#[cfg(feature = "std")]
 	impl Default for GenesisConfig {
 		fn default() -> Self {
-			Self { asset_data: Default::default(), fees: Default::default() }
+			Self { asset_data: Default::default() }
 		}
 	}
 
 	#[pallet::genesis_build]
 	impl<T: Config> GenesisBuild<T> for GenesisConfig {
 		fn build(&self) {
-			for (location_encoded, instruction_weight, flow) in
+			for (location_encoded, flow) in
 				self.asset_data.iter()
 			{
 				let location = <VersionedMultiLocation>::decode(&mut &location_encoded[..])
@@ -688,30 +569,7 @@ pub mod pallet {
 
 				TransactInfoWithWeightLimit::<T>::insert(
 					location,
-					TransactInfo {
-						instruction_weight: *instruction_weight,
-						flow: *flow,
-					},
-				);
-			}
-
-			for (destination_encoded, asset_location_encoded, fee_per_second) in
-				self.fees.iter()
-			{
-				let destination = <VersionedMultiLocation>::decode(&mut &destination_encoded[..])
-					.expect("Error decoding VersionedMultiLocation");
-				let destination = MultiLocation::try_from(destination)
-					.expect("Error converting VersionedMultiLocation");
-
-				let asset_location = <VersionedMultiLocation>::decode(&mut &asset_location_encoded[..])
-					.expect("Error decoding VersionedMultiLocation");
-				let asset_location = MultiLocation::try_from(asset_location)
-					.expect("Error converting VersionedMultiLocation");
-
-				DestinationAssetFeePerSecond::<T>::insert(
-					destination,
-					asset_location,
-					fee_per_second,
+					TransactInfo { flow: *flow },
 				);
 			}
 		}
@@ -728,12 +586,6 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 		transact_encoded_call_weight: Weight,
 		overall_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError>;
-
-	fn get_xcm_fee(
-		destination: MultiLocation,
-		asset_location: MultiLocation,
-		transact_encoded_call_weight: Weight,
-	) -> Result<u128, sp_runtime::DispatchError>;
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
 
@@ -766,24 +618,6 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		)?;
 
 		Ok(()).into()
-	}
-
-	fn get_xcm_fee(
-		destination: MultiLocation,
-		asset_location: MultiLocation,
-		transact_encoded_call_weight: Weight,
-	) -> Result<u128, sp_runtime::DispatchError> {
-		let (fee, _weight, xcm_data) =
-			Self::calculate_xcm_fee_and_weight(destination, asset_location, transact_encoded_call_weight)?;
-
-		match xcm_data.flow {
-			XcmFlow::Alternate => {
-				// In the alternate flow the fee is paid directly from the
-				// DescendOrigin derived account on the target chain
-				Ok(0u128)
-			},
-			XcmFlow::Normal => Ok(fee),
-		}
 	}
 
 	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {

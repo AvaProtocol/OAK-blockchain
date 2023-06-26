@@ -31,7 +31,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		amount: Balance,
 	},
 	XCMP {
-		destination: VersionedMultiLocation,
+		destination: MultiLocation,
 		currency_id: CurrencyId,
 		fee: AssetPayment,
 		encoded_call: Vec<u8>,
@@ -272,6 +272,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 	) -> Result<Self, DispatchError> {
+		let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
 			currency_id,
