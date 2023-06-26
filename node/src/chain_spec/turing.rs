@@ -108,7 +108,7 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3))).into()),
+							&(MultiLocation::new(1, X1(Parachain(1000))).into()),
 						),
 						Weight::from_ref_time(250_000_000),
 						XcmFlow::Alternate,

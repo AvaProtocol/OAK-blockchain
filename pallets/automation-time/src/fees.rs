@@ -133,7 +133,10 @@ where
 			Pallet::<T>::calculate_execution_fee(action, executions)?.saturated_into();
 
 		let xcmp_fee = match action.clone() {
-			Action::XCMP { fee, .. } => fee.amount.saturating_mul(executions.into()).saturated_into(),
+			Action::XCMP { destination, fee, .. } => {
+				let destination = MultiLocation::try_from(destination.clone()).map_err(|()| Error::<T>::BadVersion)?;
+				if T::XcmpTransactor::is_normal_flow(destination) { fee.amount.saturating_mul(executions.into()).saturated_into() } else { 0u32.saturated_into() }
+			},
 			_ => 0u32.saturated_into(),
 		};
 
