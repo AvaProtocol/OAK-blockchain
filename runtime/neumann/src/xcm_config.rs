@@ -302,7 +302,6 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Currency = pallet_balances::Pallet<Runtime>;
-	type MultiCurrency = Currencies;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type CurrencyIdToMultiLocation = TokenIdConvert;

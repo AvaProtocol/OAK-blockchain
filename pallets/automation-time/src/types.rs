@@ -265,14 +265,14 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
-		destination: VersionedMultiLocation,
+		destination: MultiLocation,
 		currency_id: CurrencyId,
 		fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 	) -> Result<Self, DispatchError> {
-		let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
+		let destination = MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
 			currency_id,

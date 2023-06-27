@@ -22,28 +22,25 @@ use crate::Pallet as XcmpHandler;
 use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, Box};
 use frame_system::RawOrigin;
 
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::latest::prelude::*;
 
 benchmarks! {
-	set_asset_config {
+	set_transact_info {
 		let location = MultiLocation::new(1, X1(Parachain(1000)));
-		let versioned_location: VersionedMultiLocation = location.clone().into();
-		let xcm_data = XcmAssetConfig { fee_per_second: 100, instruction_weight: Weight::from_ref_time(1_000), flow: XcmFlow::Normal };
-	}: set_asset_config(RawOrigin::Root, Box::new(versioned_location), xcm_data.clone())
+		let transact_info = XcmTransactInfo { flow: XcmFlow::Normal };
+	}: set_transact_info(RawOrigin::Root, Box::new(location.into()), transact_info.clone())
 	verify {
-		assert_eq!(DestinationAssetConfig::<T>::get(location).unwrap(), xcm_data);
+		assert_eq!(TransactInfo::<T>::get(location).unwrap(), transact_info);
 	}
 
-	remove_asset_config {
+	remove_transact_info {
 		let location = MultiLocation::new(1, X1(Parachain(1000)));
-		let versioned_location: VersionedMultiLocation = location.clone().into();
-		let xcm_data =
-			XcmAssetConfig { fee_per_second: 100, instruction_weight: Weight::from_ref_time(1_000), flow: XcmFlow::Normal };
-		DestinationAssetConfig::<T>::insert(location.clone(), xcm_data);
+		let transact_info = XcmTransactInfo { flow: XcmFlow::Normal };
+		TransactInfo::<T>::insert(location, transact_info);
 
-	}: remove_asset_config(RawOrigin::Root, Box::new(versioned_location))
+	}: remove_transact_info(RawOrigin::Root, Box::new(location.into()))
 	verify {
-		if let Some(_) = DestinationAssetConfig::<T>::get(location) {
+		if let Some(_) = TransactInfo::<T>::get(location) {
 			panic!("There should be no data set")
 		};
 	}

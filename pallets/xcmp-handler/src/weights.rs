@@ -58,8 +58,8 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions needed for pallet_xcmp_handler.
 pub trait WeightInfo {
-	fn set_asset_config() -> Weight;
-	fn remove_asset_config() -> Weight;
+	fn set_transact_info() -> Weight;
+	fn remove_transact_info() -> Weight;
 }
 
 /// Weights for pallet_xcmp_handler using the Substrate node and recommended hardware.
@@ -67,13 +67,13 @@ pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: XcmpHandler DestinationAssetConfig (r:0 w:1)
 	// Proof Skipped: XcmpHandler DestinationAssetConfig (max_values: None, max_size: None, mode: Measured)
-	fn set_asset_config() -> Weight {
+	fn set_transact_info() -> Weight {
 		Weight::from_ref_time(10_886_000 as u64)
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
 	// Storage: XcmpHandler DestinationAssetConfig (r:1 w:1)
 	// Proof Skipped: XcmpHandler DestinationAssetConfig (max_values: None, max_size: None, mode: Measured)
-	fn remove_asset_config() -> Weight {
+	fn remove_transact_info() -> Weight {
 		Weight::from_ref_time(15_615_000 as u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
@@ -84,13 +84,13 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 impl WeightInfo for () {
 	// Storage: XcmpHandler DestinationAssetConfig (r:0 w:1)
 	// Proof Skipped: XcmpHandler DestinationAssetConfig (max_values: None, max_size: None, mode: Measured)
-	fn set_asset_config() -> Weight {
+	fn set_transact_info() -> Weight {
 		Weight::from_ref_time(10_886_000 as u64)
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}
 	// Storage: XcmpHandler DestinationAssetConfig (r:1 w:1)
 	// Proof Skipped: XcmpHandler DestinationAssetConfig (max_values: None, max_size: None, mode: Measured)
-	fn remove_asset_config() -> Weight {
+	fn remove_transact_info() -> Weight {
 		Weight::from_ref_time(15_615_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))

@@ -134,7 +134,8 @@ where
 
 		let xcmp_fee = match action.clone() {
 			Action::XCMP { destination, fee, .. } => {
-				if T::XcmpTransactor::is_normal_flow(destination) { fee.amount.saturating_mul(executions.into()).saturated_into() } else { 0u32.saturated_into() }
+				let destination = T::XcmpTransactor::is_normal_flow(destination)?;
+				if destination { fee.amount.saturating_mul(executions.into()).saturated_into() } else { 0u32.saturated_into() }
 			},
 			_ => 0u32.saturated_into(),
 		};

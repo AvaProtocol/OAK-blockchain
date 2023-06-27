@@ -1155,15 +1155,15 @@ impl_runtime_apis! {
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
 					destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
 				}) => {
-					let destination = MultiLocation::try_from(destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule_as:None };
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, currency_id, fee: *fee, encoded_call, encoded_call_weight, overall_weight, schedule_as:None };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
 					destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
 				}) => {
-					let destination = MultiLocation::try_from(destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, currency_id, fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as) };
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, currency_id, fee: *fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as) };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{

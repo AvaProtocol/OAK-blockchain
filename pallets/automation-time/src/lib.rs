@@ -483,19 +483,19 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			destination: VersionedMultiLocation,
+			destination: Box<VersionedMultiLocation>,
 			currency_id: T::CurrencyId,
-			fee: AssetPayment,
+			fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
+			let destination = MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
-				fee,
+				fee: *fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
@@ -514,9 +514,9 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			destination: VersionedMultiLocation,
+			destination: Box<VersionedMultiLocation>,
 			currency_id: T::CurrencyId,
-			fee: AssetPayment,
+			fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
@@ -527,11 +527,11 @@ pub mod pallet {
 			// Make sure the owner is the proxy account of the user account.
 			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
-			let destination = MultiLocation::try_from(destination).map_err(|()| Error::<T>::BadVersion)?;
+			let destination = MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
-				fee,
+				fee: *fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
@@ -1387,7 +1387,8 @@ pub mod pallet {
 
 			match action.clone() {
 				Action::XCMP { destination, fee, .. } => {
-					if T::XcmpTransactor::is_normal_flow(destination) && fee.asset_location != MultiLocation::new(0, Here).into() {
+					let destination = T::XcmpTransactor::is_normal_flow(destination)?;
+					if destination && fee.asset_location != MultiLocation::new(0, Here).into() {
 						Err(Error::<T>::UnsupportedFeePayment)?
 					}
 				},

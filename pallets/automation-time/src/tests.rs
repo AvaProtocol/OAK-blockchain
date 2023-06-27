@@ -17,10 +17,9 @@
 
 use crate::{
 	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, ScheduleParam,
-	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo, AssetPayment,
 };
 use codec::Encode;
-use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
 use frame_system::RawOrigin;
 use pallet_valve::Shutdown;
@@ -29,7 +28,7 @@ use sp_runtime::{
 	AccountId32,
 };
 
-use xcm::latest::{prelude::X1, Junction::Parachain, MultiLocation};
+use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
@@ -249,6 +248,7 @@ fn schedule_native_transfer_works() {
 #[test]
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
 		// Funds including XCM fees
@@ -258,11 +258,12 @@ fn schedule_xcmp_works() {
 			RuntimeOrigin::signed(alice.clone()),
 			vec![50],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			PARA_ID.try_into().unwrap(),
+			Box::new(destination.into()),
 			NATIVE,
-			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			Box::new(AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(), amount: 10 }),
 			call.clone(),
 			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000),
 		));
 	})
 }
@@ -270,8 +271,10 @@ fn schedule_xcmp_works() {
 #[test]
 fn schedule_xcmp_fails_if_not_enough_funds() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		// Funds not including XCM fees
 		get_minimum_funds(alice.clone(), 1);
 
@@ -280,11 +283,12 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				RuntimeOrigin::signed(alice.clone()),
 				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				PARA_ID.try_into().unwrap(),
+				Box::new(destination.into()),
 				NATIVE,
-				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				Box::new(AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 10000000000000 }),
 				call.clone(),
 				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000),
 			),
 			Error::<Test>::InsufficientBalance,
 		);
@@ -1366,17 +1370,19 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 #[test]
 fn trigger_tasks_completes_some_xcmp_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let para_id = PARA_ID.try_into().unwrap();
+		// let para_id = PARA_ID.try_into().unwrap();
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let task_id = add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
-				para_id,
+				destination: destination.clone(),
 				currency_id: NATIVE,
-				xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into()))).into(),
+				fee: AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(), amount: 10 },
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_ref_time(100_000),
+				overall_weight: Weight::from_ref_time(200_000),
 				schedule_as: None,
 			},
 		);
@@ -1389,7 +1395,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
-				para_id: PARA_ID.try_into().unwrap(),
+				destination: destination,
 				task_id,
 			})]
 		);

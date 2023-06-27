@@ -289,30 +289,28 @@ where
 	C: frame_support::traits::ReservableCurrency<T::AccountId>,
 {
 	fn transact_xcm(
-		_para_id: u32,
+		_destination: MultiLocation,
 		_location: xcm::latest::MultiLocation,
+		_fee: u128,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
 		_transact_encoded_call_weight: Weight,
+		_overall_weight: Weight,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
-	}
-
-	fn get_xcm_fee(
-		_destination: u32,
-		_xcm_asset_location: xcm::latest::MultiLocation,
-		_transact_encoded_call_weight: Weight,
-	) -> Result<u128, sp_runtime::DispatchError> {
-		Ok(XmpFee::get())
 	}
 
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 
+	fn is_normal_flow(destination: MultiLocation) -> Result<bool, sp_runtime::DispatchError> {
+		if destination == MultiLocation::new(1, X1(Parachain(PARA_ID))) { Ok(false) } else { Ok(true) }
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_asset_data(
-		_asset_location: xcm::latest::MultiLocation,
+	fn setup_transact_info(
+		_destination: xcm::latest::MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}

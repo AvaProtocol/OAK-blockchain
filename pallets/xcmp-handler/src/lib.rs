@@ -47,7 +47,6 @@ pub use weights::WeightInfo;
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
-use orml_traits::MultiCurrency;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -70,9 +69,6 @@ pub mod pallet {
 
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
-
-		/// The MultiCurrency type for interacting with balances
-		type MultiCurrency: MultiCurrency<Self::AccountId>;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
@@ -144,10 +140,10 @@ pub mod pallet {
 			asset_location: MultiLocation,
 		},
 		TransactInfoChanged {
-			asset_location: MultiLocation,
+			destination: MultiLocation,
 		},
 		TransactInfoRemoved {
-			asset_location: MultiLocation,
+			destination: MultiLocation,
 		},
 		DestinationAssetFeePerSecondChanged {
 			destination: MultiLocation,
@@ -179,80 +175,57 @@ pub mod pallet {
 		/// to be interpreted.
 		BadVersion,
 		// Asset not found
-		AssetNotFound,
+		TransactInfoNotFound,
 	}
 
 	/// Stores all configuration needed to send an XCM message for a given asset location.
 	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
-	pub struct XcmAssetConfig {
-		pub fee_per_second: u128,
-		/// The UnitWeightCost of a single instruction on the target chain
-		pub instruction_weight: Weight,
+	pub struct XcmTransactInfo {
 		/// The desired instruction flow for the target chain
 		pub flow: XcmFlow,
 	}
-
-	/// Stores all configuration needed to send an XCM message for a given asset location.
-	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
-	pub struct TransactInfo {
-		/// The desired instruction flow for the target chain
-		pub flow: XcmFlow,
-	}
-
-
-	// /// Stores the config for an asset in its reserve chain.
-	// #[pallet::storage]
-	// #[pallet::getter(fn dest_asset_config)]
-	// pub type DestinationAssetConfig<T: Config> =
-	// 	StorageMap<_, Twox64Concat, MultiLocation, XcmAssetConfig>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn transact_info_with_weight_limit)]
-	pub type TransactInfoWithWeightLimit<T: Config> =
-		StorageMap<_, Twox64Concat, MultiLocation, TransactInfo>;
-
-	// #[pallet::storage]
-	// #[pallet::getter(fn dest_asset_fee_per_second)]
-	// pub type DestinationAssetFeePerSecond<T: Config> =
-	// 	StorageDoubleMap<_, Twox64Concat, MultiLocation, Twox64Concat, MultiLocation, u128>;
+	#[pallet::getter(fn transact_info)]
+	pub type TransactInfo<T: Config> =
+		StorageMap<_, Twox64Concat, MultiLocation, XcmTransactInfo>;
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		/// Set transact info for a given asset location
 		#[pallet::call_index(0)]
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::set_transact_info())]
 		pub fn set_transact_info(
 			origin: OriginFor<T>,
-			asset_location: Box<VersionedMultiLocation>,
-			transact_info: TransactInfo,
+			destination: Box<VersionedMultiLocation>,
+			transact_info: XcmTransactInfo,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			let asset_location =
-				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 
-			TransactInfoWithWeightLimit::<T>::insert(&asset_location, &transact_info);
+			TransactInfo::<T>::insert(&destination, &transact_info);
 
-			Self::deposit_event(Event::TransactInfoChanged { asset_location });
+			Self::deposit_event(Event::TransactInfoChanged { destination });
 
 			Ok(().into())
 		}
 
 		/// Remove transact info for a given asset location
 		#[pallet::call_index(1)]
-		#[pallet::weight(0)]
+		#[pallet::weight(T::WeightInfo::remove_transact_info())]
 		pub fn remove_transact_info(
 			origin: OriginFor<T>,
-			asset_location: Box<VersionedMultiLocation>,
+			destination: Box<VersionedMultiLocation>,
 		) -> DispatchResultWithPostInfo {
 			ensure_root(origin)?;
 
-			let asset_location =
-				MultiLocation::try_from(*asset_location).map_err(|()| Error::<T>::BadVersion)?;
+			let destination = MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 
-			TransactInfoWithWeightLimit::<T>::take(&asset_location).ok_or(Error::<T>::AssetNotFound)?;
+			TransactInfo::<T>::take(&destination).ok_or(Error::<T>::TransactInfoNotFound)?;
 
-			Self::deposit_event(Event::TransactInfoRemoved { asset_location });
+			Self::deposit_event(Event::TransactInfoRemoved { destination });
 
 			Ok(().into())
 		}
@@ -278,7 +251,7 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			let xcm_data = Self::transact_info_with_weight_limit(destination).ok_or(Error::<T>::AssetNotFound)?;
+			let xcm_data = Self::transact_info(destination).ok_or(Error::<T>::TransactInfoNotFound)?;
 
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
@@ -327,7 +300,7 @@ pub mod pallet {
 			descend_location: Junctions,
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
-			xcm_weight: Weight,
+			overall_weight: Weight,
 			fee: u128,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
@@ -357,7 +330,7 @@ pub mod pallet {
 
 			let target_xcm = Xcm(vec![
 				ReserveAssetDeposited::<()>(target_asset.clone().into()),
-				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(xcm_weight) },
+				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(overall_weight) },
 				DescendOrigin::<()>(descend_location),
 				Transact::<()> {
 					origin_kind: OriginKind::SovereignAccount,
@@ -542,6 +515,14 @@ pub mod pallet {
 
 			Ok(().into())
 		}
+
+		/// Pay for XCMP fees.
+		/// Transfers fee from payer account to the local chain sovereign account.
+		///
+		pub fn is_normal_flow(destination: MultiLocation) -> Result<bool, DispatchError> {
+			let transact_info = Self::transact_info(destination).ok_or(Error::<T>::TransactInfoNotFound)?;
+			Ok(transact_info.flow == XcmFlow::Normal)
+		}
 	}
 
 	#[pallet::genesis_config]
@@ -567,9 +548,9 @@ pub mod pallet {
 				let location = MultiLocation::try_from(location)
 					.expect("Error converting VersionedMultiLocation");
 
-				TransactInfoWithWeightLimit::<T>::insert(
+					TransactInfo::<T>::insert(
 					location,
-					TransactInfo { flow: *flow },
+					XcmTransactInfo { flow: *flow },
 				);
 			}
 		}
@@ -589,11 +570,11 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
 
-	fn is_normal_flow(destination: MultiLocation) -> bool;
+	fn is_normal_flow(destination: MultiLocation) -> Result<bool, sp_runtime::DispatchError>;
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_asset_data(
-		asset_location: MultiLocation,
+	fn setup_transact_info(
+		destination: MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError>;
 }
 
@@ -626,26 +607,18 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Ok(()).into()
 	}
 
-	fn is_normal_flow(destination: MultiLocation) -> bool {
-		let transact_info = Self::transact_info_with_weight_limit(destination);
-		match transact_info {
-			Some(TransactInfo { flow: XcmFlow::Normal, .. }) => true,
-			_ => false,
-		}
+	fn is_normal_flow(destination: MultiLocation) -> Result<bool, sp_runtime::DispatchError> {
+		Self::is_normal_flow(destination)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_asset_data(
-		asset_location: MultiLocation,
+	fn setup_transact_info(
+		destination: MultiLocation,
 	) -> Result<(), sp_runtime::DispatchError> {
-		let asset_data = XcmAssetConfig {
-			fee_per_second: 416_000_000_000,
-			instruction_weight: Weight::from_ref_time(600_000_000),
-			flow: XcmFlow::Normal,
-		};
+		let asset_data = XcmTransactInfo { flow: XcmFlow::Normal };
 
-		DestinationAssetConfig::<T>::insert(asset_location.clone(), asset_data);
-		Self::deposit_event(Event::DestAssetConfigChanged { asset_location });
+		TransactInfo::<T>::insert(destination.clone(), asset_data);
+		Self::deposit_event(Event::TransactInfoChanged { destination });
 
 		Ok(().into())
 	}
