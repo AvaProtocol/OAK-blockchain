@@ -78,8 +78,6 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
-use sp_runtime::{print, traits::Printable};
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;

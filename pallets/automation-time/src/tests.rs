@@ -35,6 +35,10 @@ pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
+// The schedule time is beginning of the hour epoch We will arrange our tasks
+// into slot of hour and don't support schedule job to granularity of a unit
+// that is smaller than hour.
+// Verify that we're throwing InvalidTime error when caller doing so
 #[test]
 fn schedule_invalid_time() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -45,7 +49,7 @@ fn schedule_invalid_time() {
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-				//vec![SCHEDULED_TIME + 1],
+                // Simulate epoch of 1 extra second at the beginning of this hour
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1] },
 				Box::new(call)
 			),
@@ -54,6 +58,8 @@ fn schedule_invalid_time() {
 	})
 }
 
+// By nature of a schedule, we cannot schedule a thing in the past. Verify that
+// the pallet throw PastTime error
 #[test]
 fn schedule_past_time() {
 	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
@@ -79,6 +85,9 @@ fn schedule_past_time() {
 	})
 }
 
+// When using Fixed time schedule, verify that all execution time cannot too far
+// from the current epoch
+// TODO: add Recurrign Test
 #[test]
 fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -998,6 +1007,7 @@ fn trigger_tasks_handles_missed_slots() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
 		System::reset_events();
 
+        // Give this enough weight limit to run and process miss queue and generate miss event
 		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000 * 2 + 40_000));
 
 		// the first 2 tasks are missed
@@ -1024,6 +1034,19 @@ fn trigger_tasks_handles_missed_slots() {
 	})
 }
 
+
+// Verify logic of handling missing tasks as below:
+//   - task in current slot always got process first, 
+//   - past time schedule is retain and will eventually be moved into MissedQueueV2
+//     from there, we generate a TaskMissed event, then the task is completely
+//     removed from the queue
+//   - existing tasks in the queue (from previous run) will also be moved to 
+//     MissedQueueV2, and yield a task miss event
+//   - we don't backfill or run old tasks.
+//
+// The execution of task missed event generation is lower priority, tasks in the
+// time slot got run first, if there is enough weight left, only then we run
+// the task miss event and doing house cleanup
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
