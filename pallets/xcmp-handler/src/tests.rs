@@ -203,7 +203,7 @@ fn transact_in_local_chain_works() {
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset {
-			id: Concrete(MultiLocation { parents: 0, interior: Here }),
+			id: Concrete(destination.clone()),
 			fun: Fungible(xcm_fee),
 		};
 		let descend_location: Junctions =
@@ -244,7 +244,7 @@ fn transact_in_local_chain_works() {
 fn transact_in_target_chain_works() {
 	new_test_ext(None).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-		let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let asset_location = MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) };
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
 		let xcm_weight = transact_encoded_call_weight
@@ -252,7 +252,7 @@ fn transact_in_target_chain_works() {
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset {
-			id: Concrete(MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
+			id: Concrete(asset_location),
 			fun: Fungible(xcm_fee),
 		};
 		let descend_location: Junctions =
