@@ -78,6 +78,8 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+use sp_runtime::{print, traits::Printable};
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -349,7 +351,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(block: T::BlockNumber) -> Weight {
+		fn on_initialize(_block: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
 				return T::DbWeight::get().reads(1u64)
 			}
@@ -682,6 +684,7 @@ pub mod pallet {
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
 			let max_update_weight: Weight =
 				Weight::from_ref_time(T::UpdateQueueRatio::get().mul_floor(weight_left.ref_time()));
+
 			let update_weight = Self::update_task_queue(max_update_weight);
 
 			weight_left = weight_left.saturating_sub(update_weight);
@@ -690,6 +693,7 @@ pub mod pallet {
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
+
 			if weight_left.ref_time() < run_task_weight.ref_time() {
 				return weight_left
 			}
@@ -751,6 +755,7 @@ pub mod pallet {
 						last_missed_slot,
 						missed_queue_allotted_weight,
 					);
+
 				LastTimeSlot::<T>::put((updated_last_time_slot, updated_last_missed_slot));
 				total_weight = total_weight
 					.saturating_add(missed_queue_update_weight)
