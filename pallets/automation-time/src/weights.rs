@@ -71,7 +71,7 @@
 //:append_to_missed_tasks 3_079_147
 //:update_scheduled_task_queue 33_968_000
 //:shift_missed_tasks 16_915_000
-//:migration_upgrade_weight_struct 12_312_843
+//:migration_upgrade_xcmp_task 12_312_843
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
@@ -107,7 +107,7 @@ pub trait WeightInfo {
 	fn append_to_missed_tasks(v: u32, ) -> Weight;
 	fn update_scheduled_task_queue() -> Weight;
 	fn shift_missed_tasks() -> Weight;
-	fn migration_upgrade_weight_struct(v: u32, ) -> Weight;
+	fn migration_upgrade_xcmp_task(v: u32, ) -> Weight;
 }
 
 /// Weights for pallet_automation_time using the Substrate node and recommended hardware.
@@ -467,7 +467,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	// Storage: AutomationTime AccountTasks (r:101 w:100)
 	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_upgrade_weight_struct(v: u32, ) -> Weight {
+	fn migration_upgrade_xcmp_task(v: u32, ) -> Weight {
 		Weight::from_ref_time(12_312_843 as u64)
 			// Standard Error: 14_011
 			.saturating_add(Weight::from_ref_time(8_424_617 as u64).saturating_mul(v as u64))
@@ -833,7 +833,7 @@ impl WeightInfo for () {
 	// Storage: AutomationTime AccountTasks (r:101 w:100)
 	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
 	/// The range of component `v` is `[1, 100]`.
-	fn migration_upgrade_weight_struct(v: u32, ) -> Weight {
+	fn migration_upgrade_xcmp_task(v: u32, ) -> Weight {
 		Weight::from_ref_time(12_312_843 as u64)
 			// Standard Error: 14_011
 			.saturating_add(Weight::from_ref_time(8_424_617 as u64).saturating_mul(v as u64))

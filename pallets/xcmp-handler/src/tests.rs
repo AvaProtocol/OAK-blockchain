@@ -195,7 +195,7 @@ fn get_local_currency_instructions_works() {
 fn transact_in_local_chain_works() {
 	new_test_ext(None).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-		let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let asset_location = destination.clone();
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
 		let xcm_weight = transact_encoded_call_weight
@@ -203,7 +203,7 @@ fn transact_in_local_chain_works() {
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset {
-			id: Concrete(destination.clone()),
+			id: Concrete(asset_location.clone()),
 			fun: Fungible(xcm_fee),
 		};
 		let descend_location: Junctions =
@@ -304,10 +304,7 @@ fn transact_in_target_chain_works() {
 				.to_vec()),
 			)]
 		);
-		assert_eq!(
-			events(),
-			[RuntimeEvent::XcmpHandler(crate::Event::XcmSent { destination })]
-		);
+		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmSent { destination })]);
 	});
 }
 
