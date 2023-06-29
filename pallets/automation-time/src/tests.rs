@@ -396,22 +396,35 @@ fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 	})
 }
 
+// when schedule auto compound task, if the schedule time falls too far in the
+// future, return TimeTooFarOut error
 #[test]
 fn schedule_auto_compound_with_high_frequency() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				<Test as Config>::MaxScheduleSeconds::get() + 3_600,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::TimeTooFarOut
-		);
+		for (execution_time, frequency) in vec![
+			(SCHEDULED_TIME, <Test as Config>::MaxScheduleSeconds::get() + 3_600),
+			(SCHEDULED_TIME + 7 * 24 * 3600, 3_600),
+		]
+		.iter()
+		{
+			assert_noop!(
+				AutomationTime::schedule_auto_compound_delegated_stake_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					*execution_time,
+					*frequency,
+					AccountId32::new(BOB),
+					100_000,
+				),
+				Error::<Test>::TimeTooFarOut
+			);
+		}
 	})
 }
 
+// task id is a hash of account and provider_id. task id needs to be unique.
+// the same provider_id cannot be submitted twice per account.
+// verify that we're returning DuplicateTask when the same account submit duplicate
+// provider id.
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
