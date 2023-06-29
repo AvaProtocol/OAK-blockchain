@@ -35,12 +35,11 @@ pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
-// The schedule time is beginning of the hour epoch We will arrange our tasks
-// into slot of hour and don't support schedule job to granularity of a unit
-// that is smaller than hour.
-// Verify that we're throwing InvalidTime error when caller doing so
+// when schedule with a Fixed Time schedule and passing an epoch that isn't the
+// beginning of hour, raise an error
+// the smallest granularity unit we allow is hour
 #[test]
-fn schedule_invalid_time() {
+fn schedule_invalid_time_fixed_schedule() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		// prepare data
 		let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
@@ -49,7 +48,7 @@ fn schedule_invalid_time() {
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-                // Simulate epoch of 1 extra second at the beginning of this hour
+				// Simulate epoch of 1 extra second at the beginning of this hour
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1] },
 				Box::new(call)
 			),
@@ -58,8 +57,40 @@ fn schedule_invalid_time() {
 	})
 }
 
-// By nature of a schedule, we cannot schedule a thing in the past. Verify that
-// the pallet throw PastTime error
+// The schedule time is beginning of the hour epoch We will arrange our tasks
+// into slot of hour and don't support schedule job to granularity of a unit
+// that is smaller than hour.
+// Verify that we're throwing InvalidTime error when caller doing so
+#[test]
+fn schedule_invalid_time_recurring_schedule() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		for (next_run, frequency) in vec![
+			(SCHEDULED_TIME + 10, 10 as u64),
+			(SCHEDULED_TIME + 3600, 100 as u64),
+			(SCHEDULED_TIME + 10, 3600 as u64),
+		]
+		.iter()
+		{
+			// prepare data
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					ScheduleParam::Recurring {
+						next_execution_time: *next_run,
+						frequency: *frequency
+					},
+					Box::new(call)
+				),
+				Error::<Test>::InvalidTime,
+			);
+		}
+	})
+}
+
+// when schedule task using Fixed Time Scheduled, if any of the time is in the
+// past an error is return and the tasks won't be scheduled
 #[test]
 fn schedule_past_time() {
 	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
@@ -85,22 +116,69 @@ fn schedule_past_time() {
 	})
 }
 
-// When using Fixed time schedule, verify that all execution time cannot too far
-// from the current epoch
-// TODO: add Recurrign Test
+// when schedule task using Recurring Scheduled, if starting time is in the past,
+// an error is return and the tasks won't be scheduled
+#[test]
+fn schedule_past_time_recurring() {
+	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
+		for (next_run, frequency) in
+			vec![(SCHEDULED_TIME - 3600, 7200 as u64), (SCHEDULED_TIME, 7200 as u64)].iter()
+		{
+			// prepare data
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					ScheduleParam::Recurring {
+						next_execution_time: *next_run,
+						frequency: *frequency
+					},
+					Box::new(call)
+				),
+				Error::<Test>::PastTime,
+			);
+		}
+	})
+}
+
+// When schedule tasks using Fixed schedule, none of execution time can be too
+// far in the future. all element of execution_times need to fall into
+//
+// When schedule tasks using recurring schedule, either:
+//   - next_execution_time cannot too far in the future
+//   - next_execution_time is closed, but the frequency is too high
+//
 #[test]
 fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
-		assert_noop!(
-			AutomationTime::schedule_dynamic_dispatch_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
-				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1 * 24 * 60 * 60] },
-				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
-			),
-			Error::<Test>::TimeTooFarOut,
-		);
+		for task_far_schedule in vec![
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1 * 24 * 60 * 60] },
+			ScheduleParam::Fixed {
+				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + 1 * 24 * 60 * 60],
+			},
+			ScheduleParam::Recurring {
+				next_execution_time: SCHEDULED_TIME + 1 * 24 * 60 * 60,
+				frequency: 3600,
+			},
+			ScheduleParam::Recurring {
+				next_execution_time: SCHEDULED_TIME,
+				frequency: 7 * 24 * 3600,
+			},
+		]
+		.iter()
+		{
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					task_far_schedule.clone(),
+					Box::new(frame_system::Call::remark { remark: vec![12] }.into())
+				),
+				Error::<Test>::TimeTooFarOut,
+			);
+		}
 	})
 }
 
@@ -428,6 +506,8 @@ fn schedule_execution_times_removes_dupes() {
 	})
 }
 
+// Our task is scheduled into slot which is identified by eoch of beginning of the hour
+// A lot has a max
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -1007,7 +1087,7 @@ fn trigger_tasks_handles_missed_slots() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
 		System::reset_events();
 
-        // Give this enough weight limit to run and process miss queue and generate miss event
+		// Give this enough weight limit to run and process miss queue and generate miss event
 		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000 * 2 + 40_000));
 
 		// the first 2 tasks are missed
@@ -1034,13 +1114,12 @@ fn trigger_tasks_handles_missed_slots() {
 	})
 }
 
-
 // Verify logic of handling missing tasks as below:
-//   - task in current slot always got process first, 
+//   - task in current slot always got process first,
 //   - past time schedule is retain and will eventually be moved into MissedQueueV2
 //     from there, we generate a TaskMissed event, then the task is completely
 //     removed from the queue
-//   - existing tasks in the queue (from previous run) will also be moved to 
+//   - existing tasks in the queue (from previous run) will also be moved to
 //     MissedQueueV2, and yield a task miss event
 //   - we don't backfill or run old tasks.
 //
@@ -1132,7 +1211,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, weight }) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, _weight }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id2);
 			},
