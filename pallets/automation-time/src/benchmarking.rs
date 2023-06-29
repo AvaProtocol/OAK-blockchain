@@ -64,30 +64,6 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	provided_id
 }
 
-fn schedule_transfer_tasks<T: Config>(owner: T::AccountId, time: u64, count: u32) -> Vec<u8> {
-	let time_moment: u32 = time.saturated_into();
-	Timestamp::<T>::set_timestamp(time_moment.into());
-	let recipient: T::AccountId = account("recipient", 0, SEED);
-	let amount: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-	let mut provided_id = vec![0u8];
-
-	for _ in 0..count {
-		provided_id = increment_provided_id(provided_id);
-		let task = TaskOf::<T>::create_native_transfer_task::<T>(
-			owner.clone(),
-			provided_id.clone(),
-			vec![time],
-			recipient.clone(),
-			amount.clone(),
-		)
-		.unwrap();
-		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
-		<AccountTasks<T>>::insert(owner.clone(), task_id, task);
-	}
-
-	provided_id
-}
-
 fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> Vec<u8> {
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	T::Currency::deposit_creating(
@@ -195,34 +171,6 @@ benchmarks! {
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
 	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, Weight::from_ref_time(1_000))
 
-	schedule_native_transfer_task_empty{
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let recipient: T::AccountId = account("to", 0, SEED);
-		let time: u64 = 7200;
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		let time_moment: u32 = time.try_into().unwrap();
-		Timestamp::<T>::set_timestamp(time_moment.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-	}: schedule_native_transfer_task(RawOrigin::Signed(caller), vec![10], vec![time], recipient, transfer_amount)
-
-	schedule_native_transfer_task_full{
-		let v in 1 .. T::MaxExecutionTimes::get();
-
-		let caller: T::AccountId = account("caller", 0, SEED);
-		let recipient: T::AccountId = account("to", 0, SEED);
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		T::Currency::deposit_creating(&caller, transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-
-		let mut times: Vec<u64> = vec![];
-		for i in 0..v {
-			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
-			times.push(hour);
-		}
-
-		let mut provided_id = schedule_notify_tasks::<T>(caller.clone(), times.clone(), T::MaxTasksPerSlot::get() - 1);
-		provided_id = increment_provided_id(provided_id);
-	}: schedule_native_transfer_task(RawOrigin::Signed(caller), provided_id, times, recipient, transfer_amount)
-
 	schedule_auto_compound_delegated_stake_task_full {
 		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task().ref_time();
 		let max_tasks_per_slot_by_weight: u32 = (T::MaxWeightPerSlot::get() / task_weight as u128).try_into().unwrap();
@@ -327,22 +275,6 @@ benchmarks! {
 	}: { AutomationTime::<T>::run_notify_task(message.clone()) }
 	verify {
 		assert_last_event::<T>(Event::Notify{ message }.into())
-	}
-
-	run_native_transfer_task {
-		let starting_multiplier: u32 = 20;
-		let amount_starting: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(starting_multiplier.into());
-		let caller: T::AccountId = account("caller", 0, SEED);
-		T::Currency::deposit_creating(&caller, amount_starting.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
-		let time: u64 = 10800;
-		let recipient: T::AccountId = account("recipient", 0, SEED);
-		let amount_transferred: BalanceOf<T> = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-
-		let provided_id = schedule_transfer_tasks::<T>(caller.clone(), time, 1);
-		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
-	}: { AutomationTime::<T>::run_native_transfer_task(caller, recipient, amount_transferred, task_id) }
-	verify {
-		assert_last_event::<T>(Event::SuccessfullyTransferredFunds{ task_id }.into())
 	}
 
 	run_xcmp_task {
@@ -451,16 +383,11 @@ benchmarks! {
 		let weight_left = Weight::from_ref_time(500_000_000_000);
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let time = 10800;
-		let recipient: T::AccountId = account("to", 0, SEED);
-		let starting_multiplier: u32 = 20;
-		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
-		let starting_amount = T::Currency::minimum_balance().saturating_mul(starting_multiplier.into());
-		T::Currency::deposit_creating(&caller, starting_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()));
+		let execution_time = 10800;
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task = TaskOf::<T>::create_native_transfer_task::<T>(caller.clone(), provided_id.clone(), vec![time], recipient.clone(), transfer_amount.clone()).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![execution_time], vec![65, 65.saturating_add(i as u8)]).unwrap();
 			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			task_ids.push((caller.clone(), task_id))

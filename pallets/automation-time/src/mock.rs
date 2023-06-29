@@ -194,9 +194,35 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const MaxWeightPerSlot: u128 = 70_000_000;
+	pub const MaxWeightPerSlot: u128 = 700_000_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
+}
+
+pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
+	fn transfer() -> Weight {
+		Weight::from_ref_time(100_000)
+	}
+
+	fn transfer_keep_alive() -> Weight {
+		Weight::zero()
+	}
+	fn set_balance_creating() -> Weight {
+		Weight::zero()
+	}
+	fn set_balance_killing() -> Weight {
+		Weight::zero()
+	}
+	fn force_transfer() -> Weight {
+		Weight::zero()
+	}
+	fn transfer_all() -> Weight {
+		Weight::zero()
+	}
+	fn force_unreserve() -> Weight {
+		Weight::zero()
+	}
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -323,6 +349,7 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
 			RuntimeCall::System(_) => true,
+			RuntimeCall::Balances(_) => true,
 			_ => false,
 		}
 	}
