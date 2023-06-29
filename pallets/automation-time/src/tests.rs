@@ -1161,6 +1161,9 @@ fn trigger_tasks_nothing_to_do() {
 	})
 }
 
+// when calling trigger_tasks verifyign that the tasks in schedule of
+// current slot are properly moved into the task queue. MissedTask will be moved
+// into missed queue
 #[test]
 fn trigger_tasks_updates_queues() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -1884,6 +1887,8 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 	})
 }
 
+// verify that execution left of a Fixed scheduled task will be decreased by
+// one upon a succesful run.
 #[test]
 fn trigger_tasks_updates_executions_left() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
