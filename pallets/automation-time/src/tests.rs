@@ -577,11 +577,17 @@ fn schedule_time_slot_full() {
 	})
 }
 
-// similar to above test. However, we test more time slot. If a task is
-// scheduled with many execution_times, and only one of them is full,
+// test case when a lot in full, we will roll back its state atomically
+// and won't leave the tasks queue in a partial state.
+//
+// It's similar to above test. However, we test the tasks that has scheduled
+// with many execution_times where as only a field execution_time slot is full
+// but the rest of execution_time slots aren't full.
+//
 // even though other time slot has not full, we still reject, return TimeSlotFull
 // error and verify  that none of the tasks has been scheduled into any
 // time slot, even the one that isn't full.
+//
 // in other word, task scheduled is atomic, all task execution needs to be able
 // to put into the schedule tasks slot, otherwise none of data should be stored
 // partially
