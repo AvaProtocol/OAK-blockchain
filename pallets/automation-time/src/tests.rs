@@ -463,6 +463,8 @@ fn schedule_duplicates_errors() {
 	})
 }
 
+// there is an upper limit of how many time slot in Fixed Scheduled, when
+// passing a large enough array we return TooManyExecutionsTimes error
 #[test]
 fn schedule_max_execution_times_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -492,6 +494,9 @@ fn schedule_max_execution_times_errors() {
 	})
 }
 
+// when user made mistake and pass duplicate time slot on Fixed Schedule, we
+// attempt to correct it and store the corrected schedule on-chain
+// Verified that the stored schedule is corrected without any duplication
 #[test]
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -528,8 +533,14 @@ fn schedule_execution_times_removes_dupes() {
 	})
 }
 
-// Our task is scheduled into slot which is identified by eoch of beginning of the hour
-// A lot has a max
+// For a given tasks slot, we don't want to have too many small, light weight
+// tasks or have just a handful tasks but the total weight is over the limit
+// We guard with a max tasks per slot and max weight per slot.
+//
+// Verify that when the slot has enough tasks, new task cannot be scheduled, and
+// an error TimeSlotFull is returned.
+//
+// we mock the MaxTasksPerSlot=2 in mocks.rs
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -566,6 +577,14 @@ fn schedule_time_slot_full() {
 	})
 }
 
+// similar to above test. However, we test more time slot. If a task is
+// scheduled with many execution_times, and only one of them is full,
+// even though other time slot has not full, we still reject, return TimeSlotFull
+// error and verify  that none of the tasks has been scheduled into any
+// time slot, even the one that isn't full.
+// in other word, task scheduled is atomic, all task execution needs to be able
+// to put into the schedule tasks slot, otherwise none of data should be stored
+// partially
 #[test]
 fn schedule_time_slot_full_rolls_back() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -615,8 +634,11 @@ fn schedule_time_slot_full_rolls_back() {
 	})
 }
 
+// verify that the owner of a task can cancel a Fixed schedule task by its id.
+// In this test we focus on confirmation of canceling the task that has a single
+// execution times
 #[test]
-fn cancel_works_for_scheduled() {
+fn cancel_works_for_fixed_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
@@ -651,6 +673,9 @@ fn cancel_works_for_scheduled() {
 	})
 }
 
+// verify that the owner of a task can cancel a Fixed schedule task by its id.
+// In this test we focus on confirmation of canceling the task that has many
+// execution times
 #[test]
 fn cancel_works_for_multiple_executions_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -686,6 +711,48 @@ fn cancel_works_for_multiple_executions_scheduled() {
 	})
 }
 
+// verify that the owner of a task can cancel a Recurring schedule task by its id
+#[test]
+fn cancel_works_for_recurring_scheduled() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 =
+			schedule_recurring_task(ALICE, vec![40], SCHEDULED_TIME, 3600, vec![2, 4, 5]);
+		let task_id2 = schedule_recurring_task(ALICE, vec![50], SCHEDULED_TIME, 3600, vec![2, 4]);
+
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+		System::reset_events();
+
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(AccountId32::new(ALICE)),
+			task_id1,
+		));
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(AccountId32::new(ALICE)),
+			task_id2,
+		));
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
+		}
+		assert_eq!(
+			events(),
+			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
+					who: AccountId32::new(ALICE),
+					task_id: task_id1
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
+					who: AccountId32::new(ALICE),
+					task_id: task_id2
+				}),
+			]
+		);
+	})
+}
+
+// given a Fixed scheduled task that has many executions time, and already ran
+// at least one, we can still cancel it to prevent the rest of exectutions in
+// subseuent task triggering.
 #[test]
 fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -781,6 +848,8 @@ fn cancel_works_for_an_executed_task() {
 	})
 }
 
+// verify that if a tasks is already moved from the schedule slot into the task
+// queue, it can still get canceling using its id.
 #[test]
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -811,6 +880,7 @@ fn cancel_works_for_tasks_in_queue() {
 	})
 }
 
+// verify that when cancelling a non-existed tasks, an error will be return
 #[test]
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -830,6 +900,11 @@ fn cancel_task_must_exist() {
 	})
 }
 
+// verify if an account has a task id in its AccountTasks storage, but the
+// actual task doesn't exist in any schedule slot or task queue then the cancel
+// succeed to remove the task id from AccountTasks storage, but throwing an
+// extra TaskNotFound event beside the normal TaskCancelled evented
+//
 #[test]
 fn cancel_task_not_found() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -855,10 +930,42 @@ fn cancel_task_not_found() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
 			]
 		);
+
+		// now ensure the task id is also removed from AccountTasks
+		assert_noop!(
+			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(ALICE)), task_id),
+			Error::<Test>::TaskDoesNotExist,
+		);
 	})
 }
 
+// verify only the owner of the task can cancel it
 #[test]
+fn cancel_task_fail_non_owner() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+		System::reset_events();
+
+		// BOB cannot cancel because he isn't the task owner
+		assert_noop!(
+			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(BOB)), task_id1),
+			Error::<Test>::TaskDoesNotExist,
+		);
+
+		// But Alice can cancel as expected
+		assert_ok!(AutomationTime::cancel_task(RuntimeOrigin::signed(owner.clone()), task_id1,));
+	})
+}
+
+// verifying that root/sudo can force_cancel anybody's tasks
+// #[test]
 fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
@@ -1024,6 +1131,8 @@ mod run_dynamic_dispatch_action {
 // 20_000v: for each old time slot to missed tasks (append_to_missed_tasks)
 // 20_000: to move a single time slot to missed tasks (shift_missed_tasks)
 
+// ensure the first task trigger for first block run properly without error
+// and will not emit any event
 #[test]
 fn trigger_tasks_handles_first_run() {
 	new_test_ext(0).execute_with(|| {
@@ -1033,6 +1142,8 @@ fn trigger_tasks_handles_first_run() {
 	})
 }
 
+// verify when having no tasks, the trigger run to the end without error
+// and there is no emitted event
 #[test]
 fn trigger_tasks_nothing_to_do() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {

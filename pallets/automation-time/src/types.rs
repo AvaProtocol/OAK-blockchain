@@ -431,6 +431,14 @@ mod tests {
 			})
 		}
 
+		// verify calling try_push to push the  task into the schedule work when
+		// slot is not full, not reaching the max weight and max tasks per slot
+		// task will be pushed to the `tasks` field and the `weight` field is
+		// increased properly for the weight of the task.
+		//
+		// the total weight of schedule will be weight of the schedule_* itself
+		// plus any to be call extrinsics in case of dynamic dispatch
+		//
 		#[test]
 		fn try_push_works_when_slot_is_not_full() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
