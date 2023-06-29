@@ -11,8 +11,6 @@ use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
-use frame_system;
-
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
