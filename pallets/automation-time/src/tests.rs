@@ -153,14 +153,19 @@ fn schedule_past_time_recurring() {
 fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for task_far_schedule in vec![
+			// only one time slot that is far
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1 * 24 * 60 * 60] },
+			// the first time slot is close, but the rest are too far
 			ScheduleParam::Fixed {
 				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + 1 * 24 * 60 * 60],
 			},
+			// the next_execution_time is too far
 			ScheduleParam::Recurring {
 				next_execution_time: SCHEDULED_TIME + 1 * 24 * 60 * 60,
 				frequency: 3600,
 			},
+			// the next_execution_time is closed, but frequency is too big, make it further to
+			// future
 			ScheduleParam::Recurring {
 				next_execution_time: SCHEDULED_TIME,
 				frequency: 7 * 24 * 3600,
@@ -361,29 +366,33 @@ fn schedule_auto_compound_delegated_stake() {
 	})
 }
 
+// Auto compounding use Recurring schedule to perform tasks.
+// Thus the next_execution_time and frequency needs to follow the rule such as
+// next_execution_time needs to fall into beginning of a hour block, and
+// frequency must be a multiplier of 3600
 #[test]
-fn schedule_auto_compound_with_bad_frequency() {
+fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				4_000,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::InvalidTime,
-		);
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				0,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::InvalidTime,
-		);
+		for (bad_execution_time, bad_frequency) in vec![
+			// execute_with is valid, frequency invalid
+			(SCHEDULED_TIME, 4_000),
+			(SCHEDULED_TIME, 0),
+			// execute_with is invalid, frequency is  valid
+			(SCHEDULED_TIME + 3130, 3600),
+		]
+		.iter()
+		{
+			assert_noop!(
+				AutomationTime::schedule_auto_compound_delegated_stake_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					*bad_execution_time,
+					*bad_frequency,
+					AccountId32::new(BOB),
+					100_000,
+				),
+				Error::<Test>::InvalidTime
+			);
+		}
 	})
 }
 
@@ -398,7 +407,7 @@ fn schedule_auto_compound_with_high_frequency() {
 				AccountId32::new(BOB),
 				100_000,
 			),
-			Error::<Test>::TimeTooFarOut,
+			Error::<Test>::TimeTooFarOut
 		);
 	})
 }
@@ -1211,7 +1220,7 @@ fn trigger_tasks_limits_missed_slots() {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, _weight }) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, weight: _ }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id2);
 			},
