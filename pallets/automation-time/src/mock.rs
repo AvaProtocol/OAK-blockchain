@@ -304,8 +304,10 @@ where
 		Ok(().into())
 	}
 
-	fn is_normal_flow(destination: MultiLocation) -> Result<bool, sp_runtime::DispatchError> {
-		if destination == MultiLocation::new(1, X1(Parachain(PARA_ID))) { Ok(false) } else { Ok(true) }
+	fn is_local_fee_deduction(
+		destination: MultiLocation,
+	) -> Result<bool, sp_runtime::DispatchError> {
+		!destination == MultiLocation::new(1, X1(Parachain(PARA_ID)))
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]

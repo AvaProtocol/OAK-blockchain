@@ -9,7 +9,7 @@ use frame_support::{
 use scale_info::TypeInfo;
 use xcm::latest::prelude::*;
 
-use crate::{Config, XcmTransactInfo, XcmFlow};
+use crate::{Config, XcmFlow, XcmTransactInfo};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};

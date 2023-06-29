@@ -14,7 +14,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, TransactInfo, Error, XcmTransactInfo, XcmFlow};
+use crate::{mock::*, Error, TransactInfo, XcmFlow, XcmTransactInfo};
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
@@ -30,9 +30,7 @@ use xcm::{
 //*****************
 
 const PARA_ID: u32 = 1000;
-const TRANSACT_INFO: XcmTransactInfo = XcmTransactInfo {
-	flow: XcmFlow::Normal,
-};
+const TRANSACT_INFO: XcmTransactInfo = XcmTransactInfo { flow: XcmFlow::Normal };
 
 // set_transact_info
 #[test]
@@ -55,10 +53,8 @@ fn set_transact_info_new_data() {
 #[test]
 fn set_transact_info_update_data() {
 	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(&(destination.clone().into())),
-		TRANSACT_INFO.flow,
-	)];
+	let genesis_config =
+		vec![(<VersionedMultiLocation>::encode(&(destination.clone().into())), TRANSACT_INFO.flow)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		assert_eq!(TransactInfo::<Test>::get(destination.clone()).unwrap(), TRANSACT_INFO);
@@ -102,10 +98,7 @@ fn remove_transact_info_not_found() {
 			panic!("There should be no data set")
 		};
 		assert_noop!(
-			XcmpHandler::remove_transact_info(
-				RawOrigin::Root.into(),
-				Box::new(destination.into())
-			),
+			XcmpHandler::remove_transact_info(RawOrigin::Root.into(), Box::new(destination.into())),
 			Error::<Test>::TransactInfoNotFound
 		);
 	});
@@ -120,10 +113,8 @@ fn remove_transact_info_not_found() {
 fn get_instruction_set_local_currency_instructions() {
 	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(&(destination.clone().into())),
-		TRANSACT_INFO.flow,
-	)];
+	let genesis_config =
+		vec![(<VersionedMultiLocation>::encode(&(destination.clone().into())), TRANSACT_INFO.flow)];
 
 	new_test_ext(Some(genesis_config)).execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
@@ -202,10 +193,7 @@ fn transact_in_local_chain_works() {
 			.checked_add(&Weight::from_ref_time(100_000_000))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
-		let asset = MultiAsset {
-			id: Concrete(asset_location.clone()),
-			fun: Fungible(xcm_fee),
-		};
+		let asset = MultiAsset { id: Concrete(asset_location.clone()), fun: Fungible(xcm_fee) };
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
@@ -251,10 +239,7 @@ fn transact_in_target_chain_works() {
 			.checked_add(&Weight::from_ref_time(100_000_000))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
-		let asset = MultiAsset {
-			id: Concrete(asset_location),
-			fun: Fungible(xcm_fee),
-		};
+		let asset = MultiAsset { id: Concrete(asset_location), fun: Fungible(xcm_fee) };
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 

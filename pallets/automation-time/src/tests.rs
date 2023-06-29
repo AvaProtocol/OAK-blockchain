@@ -16,8 +16,8 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, ScheduleParam,
-	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo, AssetPayment,
+	mock::*, AccountTasks, Action, AssetPayment, Config, Error, LastTimeSlot, MissedTaskV2Of,
+	ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
@@ -260,7 +260,10 @@ fn schedule_xcmp_works() {
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
 			NATIVE,
-			Box::new(AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(), amount: 10 }),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(),
+				amount: 10
+			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
 			Weight::from_ref_time(200_000),
@@ -285,7 +288,10 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.into()),
 				NATIVE,
-				Box::new(AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 10000000000000 }),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 10000000000000
+				}),
 				call.clone(),
 				Weight::from_ref_time(100_000),
 				Weight::from_ref_time(200_000),
@@ -1379,7 +1385,10 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			Action::XCMP {
 				destination: destination.clone(),
 				currency_id: NATIVE,
-				fee: AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(), amount: 10 },
+				fee: AssetPayment {
+					asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(),
+					amount: 10,
+				},
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_ref_time(100_000),
 				overall_weight: Weight::from_ref_time(200_000),
@@ -1395,7 +1404,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
-				destination: destination,
+				destination,
 				task_id,
 			})]
 		);

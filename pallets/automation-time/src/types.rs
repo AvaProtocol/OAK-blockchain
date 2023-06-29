@@ -96,7 +96,10 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			AutomationAction::XCMP => Action::XCMP {
 				destination: MultiLocation::new(1, X1(Parachain(2114))).into(),
 				currency_id: CurrencyId::default(),
-				fee: AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(), amount: 0 },
+				fee: AssetPayment {
+					asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
+					amount: 0,
+				},
 				encoded_call: vec![0],
 				encoded_call_weight: Weight::zero(),
 				overall_weight: Weight::zero(),
@@ -272,7 +275,8 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 	) -> Result<Self, DispatchError> {
-		let destination = MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
+		let destination =
+			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
 			currency_id,

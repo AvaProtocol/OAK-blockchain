@@ -107,7 +107,10 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			times.clone(),
 			MultiLocation::new(1, X1(Parachain(para_id))),
 			T::GetNativeCurrencyId::get(),
-			AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 0 },
+			AssetPayment {
+				asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+				amount: 0,
+			},
 			vec![4, 5, 6],
 			Weight::from_ref_time(5_000),
 			Weight::from_ref_time(10_000),

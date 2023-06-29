@@ -118,7 +118,16 @@ pub fn turing_development_config() -> ChainSpec {
 								name: b"Mangata Rococo".to_vec(),
 								symbol: b"MGR".to_vec(),
 								existential_deposit: Default::default(),
-								location: Some(MultiLocation::new(1, X2(Parachain(2110), GeneralKey { length: 4, data: [0;32] })).into()),
+								location: Some(
+									MultiLocation::new(
+										1,
+										X2(
+											Parachain(2110),
+											GeneralKey { length: 4, data: [0; 32] },
+										),
+									)
+									.into(),
+								),
 								additional: CustomMetadata {
 									fee_per_second: Some(416_000_000_000),
 									conversion_rate: None,
@@ -225,7 +234,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, XcmFlow)>,
+	xcmp_handler_transact_info: Vec<(Vec<u8>, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
@@ -307,7 +316,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data },
+		xcmp_handler: XcmpHandlerConfig { transact_info: xcmp_handler_transact_info },
 		asset_registry: AssetRegistryConfig { assets, last_asset_id },
 	}
 }

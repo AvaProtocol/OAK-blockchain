@@ -320,9 +320,7 @@ impl pallet_xcmp_handler::Config for Test {
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext(
-	genesis_config: Option<Vec<(Vec<u8>, XcmFlow)>>,
-) -> sp_io::TestExternalities {
+pub fn new_test_ext(genesis_config: Option<Vec<(Vec<u8>, XcmFlow)>>) -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.expect("Frame system builds valid default genesis config");

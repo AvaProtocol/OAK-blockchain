@@ -188,6 +188,9 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
+	// The universal location within the global consensus system
+	pub UniversalLocation: InteriorMultiLocation =
+		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
 parameter_types! {
@@ -912,6 +915,7 @@ impl pallet_automation_time::Config for Runtime {
 	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
+	type UniversalLocation = UniversalLocation;
 }
 
 pub struct ClosedCallFilter;

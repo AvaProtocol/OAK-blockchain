@@ -1,7 +1,8 @@
 use core::marker::PhantomData;
 
 use crate::{
-	weights::WeightInfo, AccountOf, ActionOf, BalanceOf, Config, Schedule, TaskId, TaskOf, AssetPayment,
+	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, BalanceOf, Config, Schedule, TaskId,
+	TaskOf,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -77,10 +78,14 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 			} => Self::XCMP {
 				destination: MultiLocation::new(1, X1(Parachain(para_id.into()))),
 				currency_id,
-				fee: AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount:  3000000000 },
+				fee: AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 3000000000,
+				},
 				encoded_call,
 				encoded_call_weight: encoded_call_weight.clone(),
-				overall_weight: encoded_call_weight.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
+				overall_weight: encoded_call_weight
+					.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
 				schedule_as,
 			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
@@ -139,8 +144,8 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{OldAction, OldTask, UpdateXcmpTask, ParaId};
-	use crate::{mock::*, ActionOf, Pallet, Schedule, TaskOf, AssetPayment};
+	use super::{OldAction, OldTask, ParaId, UpdateXcmpTask};
+	use crate::{mock::*, ActionOf, AssetPayment, Pallet, Schedule, TaskOf};
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
 	use xcm::latest::prelude::*;
@@ -188,10 +193,14 @@ mod test {
 					action: ActionOf::<Test>::XCMP {
 						destination: MultiLocation::new(1, X1(Parachain(para_id.into()))),
 						currency_id: 0u32.into(),
-						fee: AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 3000000000 },
+						fee: AssetPayment {
+							asset_location: MultiLocation::new(0, Here).into(),
+							amount: 3000000000
+						},
 						encoded_call: vec![0u8],
 						encoded_call_weight: encoded_call_weight.clone(),
-						overall_weight: encoded_call_weight.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
+						overall_weight: encoded_call_weight
+							.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
 						schedule_as,
 					},
 				}

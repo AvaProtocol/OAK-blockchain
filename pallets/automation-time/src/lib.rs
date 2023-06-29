@@ -183,6 +183,9 @@ pub mod pallet {
 
 		/// Ensure proxy
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
+
+		/// This chain's Universal Location.
+		type UniversalLocation: Get<InteriorMultiLocation>;
 	}
 
 	#[pallet::pallet]
@@ -258,6 +261,7 @@ pub mod pallet {
 		/// to be interpreted.
 		BadVersion,
 		UnsupportedFeePayment,
+		CannotReanchor,
 	}
 
 	#[pallet::event]
@@ -491,7 +495,8 @@ pub mod pallet {
 			overall_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			let destination = MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
@@ -527,7 +532,8 @@ pub mod pallet {
 			// Make sure the owner is the proxy account of the user account.
 			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
-			let destination = MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				currency_id,
@@ -1387,8 +1393,20 @@ pub mod pallet {
 
 			match action.clone() {
 				Action::XCMP { destination, fee, .. } => {
-					let destination = T::XcmpTransactor::is_normal_flow(destination)?;
-					if destination && fee.asset_location != MultiLocation::new(0, Here).into() {
+					let is_local_fee_deduction =
+						T::XcmpTransactor::is_local_fee_deduction(destination)?;
+					let asset_location = MultiLocation::try_from(fee.asset_location)
+						.map_err(|()| Error::<T>::BadVersion)?;
+					let asset_location = asset_location
+						.reanchored(
+							&MultiLocation::new(1, X1(Parachain(2114))).into(),
+							T::UniversalLocation::get(),
+						)
+						.map_err(|_| Error::<T>::CannotReanchor)?;
+					// Only native token are supported as the XCMP fee for local deductions
+					if is_local_fee_deduction &&
+						asset_location != MultiLocation::new(0, Here).into()
+					{
 						Err(Error::<T>::UnsupportedFeePayment)?
 					}
 				},
