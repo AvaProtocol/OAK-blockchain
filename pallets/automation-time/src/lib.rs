@@ -51,6 +51,7 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
@@ -186,6 +187,9 @@ pub mod pallet {
 
 		/// This chain's Universal Location.
 		type UniversalLocation: Get<InteriorMultiLocation>;
+
+		//The paraId of this chain.
+		type SelfParaId: Get<ParaId>;
 	}
 
 	#[pallet::pallet]
@@ -1399,7 +1403,8 @@ pub mod pallet {
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let asset_location = asset_location
 						.reanchored(
-							&MultiLocation::new(1, X1(Parachain(2114))).into(),
+							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))
+								.into(),
 							T::UniversalLocation::get(),
 						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;

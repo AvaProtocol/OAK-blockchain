@@ -5949,6 +5949,7 @@ dependencies = [
  "pallet-valve",
  "pallet-xcm",
  "pallet-xcmp-handler",
+ "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
  "primitives",

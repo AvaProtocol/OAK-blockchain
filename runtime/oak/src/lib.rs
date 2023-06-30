@@ -916,6 +916,7 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
+	type SelfParaId = parachain_info::Pallet<Runtime>;
 }
 
 pub struct ClosedCallFilter;

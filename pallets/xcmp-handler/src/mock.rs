@@ -331,9 +331,9 @@ pub fn new_test_ext(genesis_config: Option<Vec<(Vec<u8>, XcmFlow)>>) -> sp_io::T
 	)
 	.expect("Pallet Parachain info can be assimilated");
 
-	if let Some(asset_data) = genesis_config {
+	if let Some(transact_info) = genesis_config {
 		GenesisBuild::<Test>::assimilate_storage(
-			&pallet_xcmp_handler::GenesisConfig { asset_data },
+			&pallet_xcmp_handler::GenesisConfig { transact_info },
 			&mut t,
 		)
 		.expect("Pallet Parachain info can be assimilated");

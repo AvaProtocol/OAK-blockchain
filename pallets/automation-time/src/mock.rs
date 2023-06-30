@@ -54,6 +54,7 @@ construct_runtime!(
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
@@ -109,6 +110,8 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
+
+impl parachain_info::Config for Test {}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
@@ -307,7 +310,7 @@ where
 	fn is_local_fee_deduction(
 		destination: MultiLocation,
 	) -> Result<bool, sp_runtime::DispatchError> {
-		!destination == MultiLocation::new(1, X1(Parachain(PARA_ID)))
+		Ok(destination != MultiLocation::new(1, X1(Parachain(PARA_ID))))
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -355,6 +358,13 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 	}
 }
 
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
+	// The universal location within the global consensus system
+	pub UniversalLocation: InteriorMultiLocation =
+		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+}
+
 impl pallet_automation_time::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
@@ -378,6 +388,8 @@ impl pallet_automation_time::Config for Test {
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
 	type EnsureProxy = MockEnsureProxy;
+	type UniversalLocation = UniversalLocation;
+	type SelfParaId = parachain_info::Pallet<Test>;
 }
 
 // Build genesis storage according to the mock runtime.

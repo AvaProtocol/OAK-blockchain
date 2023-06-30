@@ -346,7 +346,7 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_asset_data: Vec<(Vec<u8>, XcmFlow)>,
+	xcmp_handler_transact_info: Vec<(Vec<u8>, XcmFlow)>,
 ) -> oak_runtime::GenesisConfig {
 	let candidate_stake =
 		std::cmp::max(oak_runtime::MinCollatorStk::get(), oak_runtime::MinCandidateStk::get());
@@ -402,7 +402,7 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { asset_data: xcmp_handler_asset_data },
+		xcmp_handler: XcmpHandlerConfig { transact_info: xcmp_handler_transact_info },
 		asset_registry: Default::default(),
 	}
 }
