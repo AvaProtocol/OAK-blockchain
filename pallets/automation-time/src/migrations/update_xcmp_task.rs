@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, BalanceOf, Config, Schedule, TaskId,
-	TaskOf, XcmFlow,
+	TaskOf, XcmTaskSupported,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
@@ -87,7 +87,7 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 				overall_weight: encoded_call_weight
 					.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
 				schedule_as,
-				flow: XcmFlow::Normal,
+				flow: XcmTaskSupported::ScheduleWithPrepaidFees,
 			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
 		}
@@ -146,7 +146,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 #[cfg(test)]
 mod test {
 	use super::{OldAction, OldTask, ParaId, UpdateXcmpTask};
-	use crate::{mock::*, ActionOf, AssetPayment, Pallet, Schedule, TaskOf, XcmFlow};
+	use crate::{mock::*, ActionOf, AssetPayment, Pallet, Schedule, TaskOf, XcmTaskSupported};
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
 	use xcm::latest::prelude::*;
@@ -203,7 +203,7 @@ mod test {
 						overall_weight: encoded_call_weight
 							.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
 						schedule_as,
-						flow: XcmFlow::Normal,
+						flow: XcmTaskSupported::ScheduleWithPrepaidFees,
 					},
 				}
 			);

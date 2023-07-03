@@ -1,4 +1,4 @@
-use crate::{weights::WeightInfo, Config, Error, Pallet, XcmFlow};
+use crate::{weights::WeightInfo, Config, Error, Pallet, XcmTaskSupported};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
@@ -38,7 +38,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		schedule_as: Option<AccountId>,
-		flow: XcmFlow,
+		flow: XcmTaskSupported,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
@@ -105,7 +105,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				encoded_call_weight: Weight::zero(),
 				overall_weight: Weight::zero(),
 				schedule_as: None,
-				flow: XcmFlow::Normal,
+				flow: XcmTaskSupported::ScheduleWithPrepaidFees,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
 				delegator: default_account.clone(),
@@ -276,7 +276,7 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
-		flow: XcmFlow,
+		flow: XcmTaskSupported,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;

@@ -19,7 +19,7 @@
 use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, MultiCurrencyId, Pallet};
 
 use orml_traits::MultiCurrency;
-use pallet_xcmp_handler::{XcmFlow, XcmpTransactor};
+use pallet_xcmp_handler::{XcmTaskSupported, XcmpTransactor};
 use sp_runtime::{
 	traits::{CheckedSub, Convert, Saturating, Zero},
 	DispatchError, DispatchResult, SaturatedConversion,
@@ -139,7 +139,7 @@ where
 
 		let execution_fee_amount = match action.clone() {
 			Action::XCMP { execution_fee, flow, .. } =>
-				if flow == XcmFlow::Normal {
+				if flow == XcmTaskSupported::ScheduleWithPrepaidFees {
 					execution_fee.amount.saturating_mul(executions.into()).saturated_into()
 				} else {
 					0u32.saturated_into()

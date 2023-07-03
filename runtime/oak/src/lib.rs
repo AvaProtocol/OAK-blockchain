@@ -104,7 +104,7 @@ use primitives::{
 
 // Custom pallet imports
 pub use pallet_automation_time;
-use pallet_xcmp_handler::XcmFlow;
+use pallet_xcmp_handler::XcmTaskSupported;
 
 use primitives::EnsureProxy;
 
@@ -1162,14 +1162,14 @@ impl_runtime_apis! {
 					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
 				}) => {
 					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as:None, flow: XcmFlow::Normal };
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as:None, flow: XcmTaskSupported::ScheduleWithPrepaidFees };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
 					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
 				}) => {
 					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), flow: XcmFlow::Alternate };
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), flow: XcmTaskSupported::ScheduleWithoutPrepaidFees };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{

@@ -173,7 +173,7 @@ pub mod pallet {
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
 			overall_weight: Weight,
-			flow: XcmFlow,
+			flow: XcmTaskSupported,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
@@ -183,7 +183,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
 			let instructions = match flow {
-				XcmFlow::Normal => Self::get_local_currency_instructions(
+				XcmTaskSupported::ScheduleWithPrepaidFees => Self::get_local_currency_instructions(
 					destination,
 					asset_location,
 					descend_location,
@@ -192,15 +192,16 @@ pub mod pallet {
 					overall_weight,
 					fee,
 				)?,
-				XcmFlow::Alternate => Self::get_alternate_flow_instructions(
-					destination,
-					asset_location,
-					descend_location,
-					transact_encoded_call,
-					transact_encoded_call_weight,
-					overall_weight,
-					fee,
-				)?,
+				XcmTaskSupported::ScheduleWithoutPrepaidFees =>
+					Self::get_alternate_flow_instructions(
+						destination,
+						asset_location,
+						descend_location,
+						transact_encoded_call,
+						transact_encoded_call_weight,
+						overall_weight,
+						fee,
+					)?,
 			};
 
 			Ok(instructions)
@@ -387,7 +388,7 @@ pub mod pallet {
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
 			overall_weight: Weight,
-			flow: XcmFlow,
+			flow: XcmTaskSupported,
 		) -> Result<(), DispatchError> {
 			let (local_instructions, target_instructions) = Self::get_instruction_set(
 				destination,
@@ -444,7 +445,7 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
 		overall_weight: Weight,
-		flow: XcmFlow,
+		flow: XcmTaskSupported,
 	) -> Result<(), sp_runtime::DispatchError>;
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
@@ -459,7 +460,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
 		overall_weight: Weight,
-		flow: XcmFlow,
+		flow: XcmTaskSupported,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Self::transact_xcm(
 			destination,
@@ -484,7 +485,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 #[derive(Clone, Copy, Debug, Encode, Eq, Decode, PartialEq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum XcmFlow {
-	Normal,
-	Alternate,
+pub enum XcmTaskSupported {
+	ScheduleWithPrepaidFees,
+	ScheduleWithoutPrepaidFees,
 }
