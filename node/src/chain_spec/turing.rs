@@ -9,13 +9,12 @@ use crate::chain_spec::{
 };
 use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
-use pallet_xcmp_handler::XcmFlow;
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig,
+	VestingConfig,
 };
-use xcm::{prelude::*, VersionedMultiLocation, VersionedMultiLocation::V3};
+use xcm::{prelude::*, VersionedMultiLocation::V3};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -82,32 +81,6 @@ pub fn turing_development_config() -> ChainSpec {
 				vec![
 					get_account_id_from_seed::<sr25519::Public>("Alice"),
 					get_account_id_from_seed::<sr25519::Public>("Bob"),
-				],
-				vec![
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(1999))).into()),
-						),
-						XcmFlow::Normal,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2110))).into()),
-						),
-						XcmFlow::Normal,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(2000))).into()),
-						),
-						XcmFlow::Alternate,
-					),
-					(
-						<VersionedMultiLocation>::encode(
-							&(MultiLocation::new(1, X1(Parachain(1000))).into()),
-						),
-						XcmFlow::Alternate,
-					),
 				],
 				vec![
 					(
@@ -234,7 +207,6 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_transact_info: Vec<(Vec<u8>, XcmFlow)>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
 	let candidate_stake = std::cmp::max(
@@ -316,7 +288,6 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { transact_info: xcmp_handler_transact_info },
 		asset_registry: AssetRegistryConfig { assets, last_asset_id },
 	}
 }

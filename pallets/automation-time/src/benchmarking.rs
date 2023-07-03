@@ -114,6 +114,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			vec![4, 5, 6],
 			Weight::from_ref_time(5_000),
 			Weight::from_ref_time(10_000),
+			XcmFlow::Normal,
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
@@ -215,7 +216,6 @@ benchmarks! {
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
-		T::XcmpTransactor::setup_transact_info(destination.clone())?;
 
 		let fee = AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 100u128 };
 
@@ -393,13 +393,11 @@ benchmarks! {
 			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
-		T::XcmpTransactor::setup_transact_info(destination.clone())?;
-
 		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 
 		let provided_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
-	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), task_id.clone()) }
+	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), task_id.clone(), XcmFlow::Normal) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);

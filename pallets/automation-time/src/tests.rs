@@ -17,7 +17,7 @@
 
 use crate::{
 	mock::*, AccountTasks, Action, AssetPayment, Config, Error, LastTimeSlot, MissedTaskV2Of,
-	ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo, XcmFlow,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
@@ -261,7 +261,7 @@ fn schedule_xcmp_works() {
 			Box::new(destination.into()),
 			NATIVE,
 			Box::new(AssetPayment {
-				asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(),
+				asset_location: MultiLocation::new(0, Here).into(),
 				amount: 10
 			}),
 			call.clone(),
@@ -1376,7 +1376,6 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 #[test]
 fn trigger_tasks_completes_some_xcmp_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		// let para_id = PARA_ID.try_into().unwrap();
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let task_id = add_task_to_task_queue(
 			ALICE,
@@ -1384,15 +1383,16 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				destination: destination.clone(),
-				currency_id: NATIVE,
-				fee: AssetPayment {
-					asset_location: MultiLocation::new(1, X1(Parachain(PARA_ID))).into(),
+				schedule_fee: NATIVE,
+				execution_fee: AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10,
 				},
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_ref_time(100_000),
 				overall_weight: Weight::from_ref_time(200_000),
 				schedule_as: None,
+				flow: XcmFlow::Normal,
 			},
 		);
 

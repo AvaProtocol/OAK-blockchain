@@ -15,9 +15,8 @@ use crate::chain_spec::{
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use neumann_runtime::{
 	CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig, XcmpHandlerConfig,
+	VestingConfig,
 };
-use pallet_xcmp_handler::XcmFlow;
 use primitives::{AccountId, AuraId, Balance};
 
 static TOKEN_SYMBOL: &str = "NEU";
@@ -93,7 +92,6 @@ pub fn development_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 				],
-				vec![],
 			)
 		},
 		Vec::new(),
@@ -185,7 +183,6 @@ pub fn local_testnet_config() -> ChainSpec {
 					get_account_id_from_seed::<sr25519::Public>("Eve"),
 					get_account_id_from_seed::<sr25519::Public>("Ferdie"),
 				],
-				vec![],
 			)
 		},
 		// Bootnodes
@@ -274,7 +271,6 @@ pub fn neumann_staging_testnet_config() -> ChainSpec {
 					// 669ocRxey7vxUJs1TTRWe31zwrpGr8B13zRfAHB6yhhfcMud
 					hex!["001fbcefa8c96f3d2e236688da5485a0af67988b78d61ea952f461255d1f4267"].into(),
 				],
-				vec![],
 			)
 		},
 		// Bootnodes
@@ -308,7 +304,6 @@ fn testnet_genesis(
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
-	xcmp_handler_transact_info: Vec<(Vec<u8>, XcmFlow)>,
 ) -> neumann_runtime::GenesisConfig {
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
@@ -362,7 +357,6 @@ fn testnet_genesis(
 		treasury: Default::default(),
 		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		vesting: VestingConfig { vesting_schedule },
-		xcmp_handler: XcmpHandlerConfig { transact_info: xcmp_handler_transact_info },
 		asset_registry: Default::default(),
 	}
 }

@@ -37,22 +37,16 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
-
 pub mod migrations;
-pub mod weights;
-pub use weights::WeightInfo;
 
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::latest::prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::{dispatch::DispatchResultWithPostInfo, traits::Currency};
-	use frame_system::pallet_prelude::*;
+	use frame_support::traits::Currency;
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
@@ -94,9 +88,6 @@ pub mod pallet {
 
 		/// This chain's Universal Location.
 		type UniversalLocation: Get<InteriorMultiLocation>;
-
-		/// Weight information for extrinsics in this module.
-		type WeightInfo: WeightInfo;
 
 		/// Utility for sending XCM messages.
 		type XcmSender: SendXcm;
@@ -164,58 +155,8 @@ pub mod pallet {
 		TransactInfoNotFound,
 	}
 
-	/// Stores all configuration needed to send an XCM message for a given asset location.
-	#[derive(Clone, Debug, Encode, Decode, PartialEq, TypeInfo)]
-	pub struct XcmTransactInfo {
-		/// The desired instruction flow for the target chain
-		pub flow: XcmFlow,
-	}
-
-	#[pallet::storage]
-	#[pallet::getter(fn transact_info)]
-	pub type TransactInfo<T: Config> = StorageMap<_, Twox64Concat, MultiLocation, XcmTransactInfo>;
-
 	#[pallet::call]
-	impl<T: Config> Pallet<T> {
-		/// Set transact info for a given asset location
-		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::set_transact_info())]
-		pub fn set_transact_info(
-			origin: OriginFor<T>,
-			destination: Box<VersionedMultiLocation>,
-			transact_info: XcmTransactInfo,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-
-			TransactInfo::<T>::insert(&destination, &transact_info);
-
-			Self::deposit_event(Event::TransactInfoChanged { destination });
-
-			Ok(().into())
-		}
-
-		/// Remove transact info for a given asset location
-		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::remove_transact_info())]
-		pub fn remove_transact_info(
-			origin: OriginFor<T>,
-			destination: Box<VersionedMultiLocation>,
-		) -> DispatchResultWithPostInfo {
-			ensure_root(origin)?;
-
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-
-			TransactInfo::<T>::take(&destination).ok_or(Error::<T>::TransactInfoNotFound)?;
-
-			Self::deposit_event(Event::TransactInfoRemoved { destination });
-
-			Ok(().into())
-		}
-	}
+	impl<T: Config> Pallet<T> {}
 
 	impl<T: Config> Pallet<T> {
 		/// Get the instructions for a transact xcm.
@@ -232,18 +173,16 @@ pub mod pallet {
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
 			overall_weight: Weight,
+			flow: XcmFlow,
 		) -> Result<
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			let xcm_data =
-				Self::transact_info(destination).ok_or(Error::<T>::TransactInfoNotFound)?;
-
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
 				.try_into()
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
-			let instructions = match xcm_data.flow {
+			let instructions = match flow {
 				XcmFlow::Normal => Self::get_local_currency_instructions(
 					destination,
 					asset_location,
@@ -448,6 +387,7 @@ pub mod pallet {
 			transact_encoded_call: Vec<u8>,
 			transact_encoded_call_weight: Weight,
 			overall_weight: Weight,
+			flow: XcmFlow,
 		) -> Result<(), DispatchError> {
 			let (local_instructions, target_instructions) = Self::get_instruction_set(
 				destination,
@@ -457,6 +397,7 @@ pub mod pallet {
 				transact_encoded_call,
 				transact_encoded_call_weight,
 				overall_weight,
+				flow,
 			)?;
 
 			Self::transact_in_local_chain(local_instructions)?;
@@ -491,41 +432,6 @@ pub mod pallet {
 
 			Ok(().into())
 		}
-
-		/// Return true if local charges are deducted.
-		/// Whether local charges should be deducted is determined based on the XCM process.
-		///
-		pub fn is_local_fee_deduction(destination: MultiLocation) -> Result<bool, DispatchError> {
-			let transact_info =
-				Self::transact_info(destination).ok_or(Error::<T>::TransactInfoNotFound)?;
-			Ok(transact_info.flow == XcmFlow::Normal)
-		}
-	}
-
-	#[pallet::genesis_config]
-	pub struct GenesisConfig {
-		pub transact_info: Vec<(Vec<u8>, XcmFlow)>,
-	}
-
-	#[cfg(feature = "std")]
-	impl Default for GenesisConfig {
-		fn default() -> Self {
-			Self { transact_info: Default::default() }
-		}
-	}
-
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
-		fn build(&self) {
-			for (location_encoded, flow) in self.transact_info.iter() {
-				let location = <VersionedMultiLocation>::decode(&mut &location_encoded[..])
-					.expect("Error decoding VersionedMultiLocation");
-				let location = MultiLocation::try_from(location)
-					.expect("Error converting VersionedMultiLocation");
-
-				TransactInfo::<T>::insert(location, XcmTransactInfo { flow: *flow });
-			}
-		}
 	}
 }
 
@@ -538,16 +444,10 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
 		overall_weight: Weight,
+		flow: XcmFlow,
 	) -> Result<(), sp_runtime::DispatchError>;
 
 	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
-
-	fn is_local_fee_deduction(
-		destination: MultiLocation,
-	) -> Result<bool, sp_runtime::DispatchError>;
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_transact_info(destination: MultiLocation) -> Result<(), sp_runtime::DispatchError>;
 }
 
 impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
@@ -559,6 +459,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		transact_encoded_call: sp_std::vec::Vec<u8>,
 		transact_encoded_call_weight: Weight,
 		overall_weight: Weight,
+		flow: XcmFlow,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Self::transact_xcm(
 			destination,
@@ -568,6 +469,7 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			transact_encoded_call,
 			transact_encoded_call_weight,
 			overall_weight,
+			flow,
 		)?;
 
 		Ok(()).into()
@@ -578,25 +480,9 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 
 		Ok(()).into()
 	}
-
-	fn is_local_fee_deduction(
-		destination: MultiLocation,
-	) -> Result<bool, sp_runtime::DispatchError> {
-		Self::is_local_fee_deduction(destination)
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_transact_info(destination: MultiLocation) -> Result<(), sp_runtime::DispatchError> {
-		let asset_data = XcmTransactInfo { flow: XcmFlow::Normal };
-
-		TransactInfo::<T>::insert(destination.clone(), asset_data);
-		Self::deposit_event(Event::TransactInfoChanged { destination });
-
-		Ok(().into())
-	}
 }
 
-#[derive(Clone, Copy, Debug, Encode, Decode, PartialEq, TypeInfo)]
+#[derive(Clone, Copy, Debug, Encode, Eq, Decode, PartialEq, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum XcmFlow {
 	Normal,

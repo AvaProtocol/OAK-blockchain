@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{self as pallet_xcmp_handler, XcmFlow};
+use crate::{self as pallet_xcmp_handler};
 use core::cell::RefCell;
 use frame_support::{
 	parameter_types,
@@ -316,11 +316,10 @@ impl pallet_xcmp_handler::Config for Test {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmSender = TestSendXcm;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type WeightInfo = ();
 }
 
 // Build genesis storage according to the mock runtime.
-pub fn new_test_ext(genesis_config: Option<Vec<(Vec<u8>, XcmFlow)>>) -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
 	let mut t = frame_system::GenesisConfig::default()
 		.build_storage::<Test>()
 		.expect("Frame system builds valid default genesis config");
@@ -330,14 +329,6 @@ pub fn new_test_ext(genesis_config: Option<Vec<(Vec<u8>, XcmFlow)>>) -> sp_io::T
 		&mut t,
 	)
 	.expect("Pallet Parachain info can be assimilated");
-
-	if let Some(transact_info) = genesis_config {
-		GenesisBuild::<Test>::assimilate_storage(
-			&pallet_xcmp_handler::GenesisConfig { transact_info },
-			&mut t,
-		)
-		.expect("Pallet Parachain info can be assimilated");
-	}
 
 	let mut ext = sp_io::TestExternalities::new(t);
 	ext.execute_with(|| System::set_block_number(1));

@@ -299,24 +299,12 @@ where
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
 		_transact_encoded_call_weight: Weight,
 		_overall_weight: Weight,
+		_flow: XcmFlow,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
-	}
-
-	fn is_local_fee_deduction(
-		destination: MultiLocation,
-	) -> Result<bool, sp_runtime::DispatchError> {
-		Ok(destination != MultiLocation::new(1, X1(Parachain(PARA_ID))))
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_transact_info(
-		_destination: xcm::latest::MultiLocation,
-	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 }

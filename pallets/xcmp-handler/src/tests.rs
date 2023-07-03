@@ -14,95 +14,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, Error, TransactInfo, XcmFlow, XcmTransactInfo};
-use codec::Encode;
-use frame_support::{assert_noop, assert_ok};
+use crate::{mock::*, XcmFlow};
+use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
-use xcm::{
-	latest::{prelude::*, Weight},
-	VersionedMultiLocation,
-};
+use xcm::latest::{prelude::*, Weight};
 
 //*****************
 //Extrinsics
 //*****************
 
 const PARA_ID: u32 = 1000;
-const TRANSACT_INFO: XcmTransactInfo = XcmTransactInfo { flow: XcmFlow::Normal };
-
-// set_transact_info
-#[test]
-fn set_transact_info_new_data() {
-	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	new_test_ext(None).execute_with(|| {
-		if TransactInfo::<Test>::get(destination.clone()).is_some() {
-			panic!("There should be no data set")
-		};
-
-		assert_ok!(XcmpHandler::set_transact_info(
-			RawOrigin::Root.into(),
-			Box::new(destination.clone().into()),
-			TRANSACT_INFO,
-		));
-		assert_eq!(TransactInfo::<Test>::get(destination).unwrap(), TRANSACT_INFO);
-	});
-}
-
-#[test]
-fn set_transact_info_update_data() {
-	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	let genesis_config =
-		vec![(<VersionedMultiLocation>::encode(&(destination.clone().into())), TRANSACT_INFO.flow)];
-
-	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_eq!(TransactInfo::<Test>::get(destination.clone()).unwrap(), TRANSACT_INFO);
-
-		let transact_info = XcmTransactInfo { flow: XcmFlow::Normal };
-
-		assert_ok!(XcmpHandler::set_transact_info(
-			RawOrigin::Root.into(),
-			Box::new(destination.clone().into()),
-			transact_info.clone()
-		));
-		assert_eq!(TransactInfo::<Test>::get(destination).unwrap(), transact_info);
-	});
-}
-
-// remove_transact_info
-#[test]
-fn remove_transact_info_remove_data() {
-	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	let genesis_config = vec![(
-		<VersionedMultiLocation>::encode(&(asset_location.clone().into())),
-		TRANSACT_INFO.flow,
-	)];
-
-	new_test_ext(Some(genesis_config)).execute_with(|| {
-		assert_ok!(XcmpHandler::remove_transact_info(
-			RawOrigin::Root.into(),
-			Box::new(asset_location.clone().into()),
-		));
-		if TransactInfo::<Test>::get(asset_location).is_some() {
-			panic!("There should be no data set")
-		};
-	});
-}
-
-#[test]
-fn remove_transact_info_not_found() {
-	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	new_test_ext(None).execute_with(|| {
-		if TransactInfo::<Test>::get(destination.clone()).is_some() {
-			panic!("There should be no data set")
-		};
-		assert_noop!(
-			XcmpHandler::remove_transact_info(RawOrigin::Root.into(), Box::new(destination.into())),
-			Error::<Test>::TransactInfoNotFound
-		);
-	});
-}
 
 //*****************
 //Helper  functions
@@ -113,14 +36,11 @@ fn remove_transact_info_not_found() {
 fn get_instruction_set_local_currency_instructions() {
 	let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 	let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-	let genesis_config =
-		vec![(<VersionedMultiLocation>::encode(&(destination.clone().into())), TRANSACT_INFO.flow)];
 
-	new_test_ext(Some(genesis_config)).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
 		let overall_weight = Weight::from_ref_time(200_000_000);
-		let _ = XcmpHandler::transact_info(destination.clone()).unwrap();
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
@@ -144,6 +64,7 @@ fn get_instruction_set_local_currency_instructions() {
 				transact_encoded_call,
 				transact_encoded_call_weight,
 				overall_weight,
+				XcmFlow::Normal,
 			)
 			.unwrap(),
 			expected_instructions
@@ -155,7 +76,7 @@ fn get_instruction_set_local_currency_instructions() {
 // TODO: use xcm_simulator to test these instructions.
 #[test]
 fn get_local_currency_instructions_works() {
-	new_test_ext(None).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
@@ -184,7 +105,7 @@ fn get_local_currency_instructions_works() {
 
 #[test]
 fn transact_in_local_chain_works() {
-	new_test_ext(None).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = destination.clone();
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
@@ -230,7 +151,7 @@ fn transact_in_local_chain_works() {
 
 #[test]
 fn transact_in_target_chain_works() {
-	new_test_ext(None).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) };
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
@@ -295,7 +216,7 @@ fn transact_in_target_chain_works() {
 
 #[test]
 fn pay_xcm_fee_works() {
-	new_test_ext(None).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let local_sovereign_account: AccountId =
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
@@ -311,7 +232,7 @@ fn pay_xcm_fee_works() {
 
 #[test]
 fn pay_xcm_fee_keeps_wallet_alive() {
-	new_test_ext(None).execute_with(|| {
+	new_test_ext().execute_with(|| {
 		let local_sovereign_account: AccountId =
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;

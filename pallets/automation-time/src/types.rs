@@ -1,4 +1,4 @@
-use crate::{weights::WeightInfo, Config, Error, Pallet};
+use crate::{weights::WeightInfo, Config, Error, Pallet, XcmFlow};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
@@ -32,12 +32,13 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 	},
 	XCMP {
 		destination: MultiLocation,
-		currency_id: CurrencyId,
-		fee: AssetPayment,
+		schedule_fee: CurrencyId,
+		execution_fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		schedule_as: Option<AccountId>,
+		flow: XcmFlow,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
@@ -73,7 +74,7 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 		CurrencyId: From<T::CurrencyId>,
 	{
 		match self {
-			Action::XCMP { currency_id, .. } => currency_id.clone(),
+			Action::XCMP { schedule_fee, .. } => schedule_fee.clone(),
 			_ => CurrencyId::from(T::GetNativeCurrencyId::get()),
 		}
 	}
@@ -95,8 +96,8 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 			},
 			AutomationAction::XCMP => Action::XCMP {
 				destination: MultiLocation::new(1, X1(Parachain(2114))).into(),
-				currency_id: CurrencyId::default(),
-				fee: AssetPayment {
+				schedule_fee: CurrencyId::default(),
+				execution_fee: AssetPayment {
 					asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
 					amount: 0,
 				},
@@ -104,6 +105,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				encoded_call_weight: Weight::zero(),
 				overall_weight: Weight::zero(),
 				schedule_as: None,
+				flow: XcmFlow::Normal,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
 				delegator: default_account.clone(),
@@ -269,22 +271,24 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
 		destination: MultiLocation,
-		currency_id: CurrencyId,
-		fee: AssetPayment,
+		schedule_fee: CurrencyId,
+		execution_fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
+		flow: XcmFlow,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
-			currency_id,
-			fee,
+			schedule_fee,
+			execution_fee,
 			encoded_call,
 			encoded_call_weight,
 			overall_weight,
 			schedule_as: None,
+			flow,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))

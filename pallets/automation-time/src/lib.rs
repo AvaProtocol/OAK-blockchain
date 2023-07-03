@@ -67,6 +67,7 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
+pub use pallet_xcmp_handler::XcmFlow;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
 use scale_info::TypeInfo;
@@ -492,8 +493,8 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
 			destination: Box<VersionedMultiLocation>,
-			currency_id: T::CurrencyId,
-			fee: Box<AssetPayment>,
+			schedule_fee: T::CurrencyId,
+			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
@@ -503,12 +504,13 @@ pub mod pallet {
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
-				currency_id,
-				fee: *fee,
+				schedule_fee,
+				execution_fee: *execution_fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: None,
+				flow: XcmFlow::Normal,
 			};
 
 			let schedule = schedule.validated_into::<T>()?;
@@ -524,8 +526,8 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
 			destination: Box<VersionedMultiLocation>,
-			currency_id: T::CurrencyId,
-			fee: Box<AssetPayment>,
+			schedule_fee: T::CurrencyId,
+			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
@@ -540,12 +542,13 @@ pub mod pallet {
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
-				currency_id,
-				fee: *fee,
+				schedule_fee,
+				execution_fee: *execution_fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: Some(schedule_as),
+				flow: XcmFlow::Alternate,
 			};
 			let schedule = schedule.validated_into::<T>()?;
 
@@ -963,20 +966,22 @@ pub mod pallet {
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
 								destination,
-								fee,
+								execution_fee,
 								schedule_as,
 								encoded_call,
 								encoded_call_weight,
 								overall_weight,
+								flow,
 								..
 							} => Self::run_xcmp_task(
 								destination,
 								schedule_as.unwrap_or(task.owner_id.clone()),
-								fee,
+								execution_fee,
 								encoded_call,
 								encoded_call_weight,
 								overall_weight,
 								*task_id,
+								flow,
 							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
@@ -1104,6 +1109,7 @@ pub mod pallet {
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
 			task_id: TaskId<T>,
+			flow: XcmFlow,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
 			if fee_asset_location.is_err() {
@@ -1122,6 +1128,7 @@ pub mod pallet {
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
+				flow,
 			) {
 				Ok(()) => {
 					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, destination });
@@ -1144,7 +1151,7 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum
-				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
+				.saturating_add(Self::calculate_schedule_fee_amount(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
 			match T::DelegatorActions::delegator_bond_till_minimum(
 				&delegator,
 				&collator,
@@ -1396,10 +1403,8 @@ pub mod pallet {
 			}
 
 			match action.clone() {
-				Action::XCMP { destination, fee, .. } => {
-					let is_local_fee_deduction =
-						T::XcmpTransactor::is_local_fee_deduction(destination)?;
-					let asset_location = MultiLocation::try_from(fee.asset_location)
+				Action::XCMP { execution_fee, flow, .. } => {
+					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let asset_location = asset_location
 						.reanchored(
@@ -1409,7 +1414,7 @@ pub mod pallet {
 						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 					// Only native token are supported as the XCMP fee for local deductions
-					if is_local_fee_deduction &&
+					if flow == XcmFlow::Normal &&
 						asset_location != MultiLocation::new(0, Here).into()
 					{
 						Err(Error::<T>::UnsupportedFeePayment)?
@@ -1524,7 +1529,7 @@ pub mod pallet {
 		///
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(
+		pub fn calculate_schedule_fee_amount(
 			action: &ActionOf<T>,
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {

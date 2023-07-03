@@ -310,7 +310,6 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
 
 pub struct TokenIdConvert;
