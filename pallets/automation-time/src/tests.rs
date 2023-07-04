@@ -16,9 +16,9 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, AssetPayment, Config, Error, LastTimeSlot, MissedTaskV2Of,
-	ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
-	XcmTaskSupported,
+	mock::*, AccountTasks, Action, AssetPayment, Config, Error, InstructionSequence, LastTimeSlot,
+	MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2,
+	WeightInfo,
 };
 use codec::Encode;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
@@ -1393,7 +1393,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 				encoded_call_weight: Weight::from_ref_time(100_000),
 				overall_weight: Weight::from_ref_time(200_000),
 				schedule_as: None,
-				flow: XcmTaskSupported::ScheduleWithPrepaidFees,
+				flow: InstructionSequence::PayThroughSovereignAccount,
 			},
 		);
 

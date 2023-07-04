@@ -67,7 +67,7 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
-pub use pallet_xcmp_handler::XcmTaskSupported;
+pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
 use scale_info::TypeInfo;
@@ -510,7 +510,7 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: None,
-				flow: XcmTaskSupported::ScheduleWithPrepaidFees,
+				flow: InstructionSequence::PayThroughSovereignAccount,
 			};
 
 			let schedule = schedule.validated_into::<T>()?;
@@ -548,7 +548,7 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: Some(schedule_as),
-				flow: XcmTaskSupported::ScheduleWithoutPrepaidFees,
+				flow: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			};
 			let schedule = schedule.validated_into::<T>()?;
 
@@ -1109,7 +1109,7 @@ pub mod pallet {
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
 			task_id: TaskId<T>,
-			flow: XcmTaskSupported,
+			flow: InstructionSequence,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
 			if fee_asset_location.is_err() {
@@ -1414,7 +1414,7 @@ pub mod pallet {
 						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 					// Only native token are supported as the XCMP fee for local deductions
-					if flow == XcmTaskSupported::ScheduleWithPrepaidFees &&
+					if flow == InstructionSequence::PayThroughSovereignAccount &&
 						asset_location != MultiLocation::new(0, Here).into()
 					{
 						Err(Error::<T>::UnsupportedFeePayment)?

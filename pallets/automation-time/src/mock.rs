@@ -299,7 +299,7 @@ where
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
 		_transact_encoded_call_weight: Weight,
 		_overall_weight: Weight,
-		_flow: XcmTaskSupported,
+		_flow: InstructionSequence,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}

@@ -14,7 +14,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, XcmTaskSupported};
+use crate::{mock::*, InstructionSequence};
 use frame_support::assert_ok;
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
@@ -64,7 +64,7 @@ fn get_instruction_set_local_currency_instructions() {
 				transact_encoded_call,
 				transact_encoded_call_weight,
 				overall_weight,
-				XcmTaskSupported::ScheduleWithPrepaidFees,
+				InstructionSequence::PayThroughSovereignAccount,
 			)
 			.unwrap(),
 			expected_instructions
