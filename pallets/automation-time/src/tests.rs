@@ -268,6 +268,49 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
+fn schedule_xcmp_through_proxy_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let alice = AccountId32::new(ALICE);
+		let bob = AccountId32::new(BOB);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(bob.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(bob.clone()),
+			provided_id,
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			PARA_ID.try_into().unwrap(),
+			NATIVE,
+			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			alice.clone(),
+		));
+
+		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
+		assert_eq!(tasks.is_some(), true);
+
+		let tasks = tasks.unwrap();
+		assert_eq!(tasks.tasks[0].0, bob.clone());
+
+		events()
+			.into_iter()
+			.find(|e| match e {
+				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+					who,
+					schedule_as,
+					..
+				}) if *who == bob && *schedule_as == Some(alice.clone()) => true,
+				_ => false,
+			})
+			.expect("TaskScheduled event should have been emitted with correct parameters");
+	})
+}
+
+#[test]
 fn schedule_xcmp_fails_if_not_enough_funds() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let alice = AccountId32::new(ALICE);
