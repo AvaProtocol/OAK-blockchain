@@ -906,7 +906,6 @@ impl pallet_automation_time::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = TokenId;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, ToTreasury>;
 	type DelegatorActions = ParachainStaking;
@@ -1174,6 +1173,7 @@ impl_runtime_apis! {
 					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
 				}) => {
 					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
 					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, flow: InstructionSequence::PayThroughSovereignAccount };
 					Ok((action, schedule.number_of_executions()))
 				},
@@ -1181,6 +1181,7 @@ impl_runtime_apis! {
 					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
 				}) => {
 					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
 					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), flow: InstructionSequence::PayThroughRemoteDerivativeAccount };
 					Ok((action, schedule.number_of_executions()))
 				},

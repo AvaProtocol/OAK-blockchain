@@ -260,7 +260,7 @@ fn schedule_xcmp_works() {
 			vec![50],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
-			NATIVE,
+			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: 10
@@ -288,7 +288,7 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.into()),
-				NATIVE,
+				Box::new(NATIVE_LOCATION.into()),
 				Box::new(AssetPayment {
 					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10000000000000
@@ -1384,7 +1384,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
 				destination: destination.clone(),
-				schedule_fee: NATIVE,
+				schedule_fee: NATIVE_LOCATION,
 				execution_fee: AssetPayment {
 					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10,

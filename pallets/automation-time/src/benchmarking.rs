@@ -106,7 +106,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			provided_id.clone(),
 			times.clone(),
 			MultiLocation::new(1, X1(Parachain(para_id))),
-			T::GetNativeCurrencyId::get(),
+			MultiLocation::default(),
 			AssetPayment {
 				asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
 				amount: 0,
@@ -217,6 +217,8 @@ benchmarks! {
 
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
+		let schedule_fee = T::CurrencyIdConvert::convert(currency_id).expect("IncoveribleCurrencyId");
+
 		let fee = AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 100u128 };
 
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
@@ -226,7 +228,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, Box::new(destination.into()), currency_id, Box::new(fee), call, Weight::from_ref_time(1_000), Weight::from_ref_time(2_000))
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_ref_time(1_000), Weight::from_ref_time(2_000))
 
 	schedule_native_transfer_task_empty{
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -380,7 +382,6 @@ benchmarks! {
 
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
 		let time: u64 = 10800;
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];

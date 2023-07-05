@@ -8,6 +8,7 @@ use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use scale_info::TypeInfo;
+use sp_runtime::traits::Convert;
 use sp_std::vec::Vec;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
@@ -75,19 +76,23 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 				encoded_call_weight,
 				schedule_as,
 				..
-			} => Self::XCMP {
-				destination: MultiLocation::new(1, X1(Parachain(para_id.into()))),
-				schedule_fee: currency_id,
-				execution_fee: AssetPayment {
-					asset_location: MultiLocation::new(0, Here).into(),
-					amount: 3000000000,
-				},
-				encoded_call,
-				encoded_call_weight: encoded_call_weight.clone(),
-				overall_weight: encoded_call_weight
-					.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
-				schedule_as,
-				flow: InstructionSequence::PayThroughSovereignAccount,
+			} => {
+				let schedule_fee =
+					T::CurrencyIdConvert::convert(currency_id).expect("IncoveribleCurrencyId");
+				Self::XCMP {
+					destination: MultiLocation::new(1, X1(Parachain(para_id.into()))),
+					schedule_fee,
+					execution_fee: AssetPayment {
+						asset_location: MultiLocation::new(0, Here).into(),
+						amount: 3000000000,
+					},
+					encoded_call,
+					encoded_call_weight: encoded_call_weight.clone(),
+					overall_weight: encoded_call_weight
+						.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
+					schedule_as,
+					flow: InstructionSequence::PayThroughSovereignAccount,
+				}
 			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
 		}
@@ -193,7 +198,7 @@ mod test {
 					},
 					action: ActionOf::<Test>::XCMP {
 						destination: MultiLocation::new(1, X1(Parachain(para_id.into()))),
-						schedule_fee: 0u32.into(),
+						schedule_fee: MultiLocation::default(),
 						execution_fee: AssetPayment {
 							asset_location: MultiLocation::new(0, Here).into(),
 							amount: 3000000000

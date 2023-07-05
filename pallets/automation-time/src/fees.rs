@@ -16,7 +16,7 @@
 // limitations under the License.
 
 /// ! Traits and default implementation for paying execution fees.
-use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, MultiCurrencyId, Pallet};
+use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
 
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
@@ -41,7 +41,7 @@ pub trait HandleFees<T: Config> {
 
 pub struct FeeHandler<T: Config, TR> {
 	owner: T::AccountId,
-	pub schedule_fee_currency_id: MultiCurrencyId<T>,
+	pub schedule_fee_location: MultiLocation,
 	pub schedule_fee_amount: MultiBalanceOf<T>,
 	pub execution_fee_amount: MultiBalanceOf<T>,
 	_phantom_data: PhantomData<TR>,
@@ -80,18 +80,16 @@ where
 		}
 
 		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
-		let free_balance =
-			T::MultiCurrency::free_balance(self.schedule_fee_currency_id, &self.owner);
+		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
+			.ok_or("IncoveribleMultilocation")?;
+		let currency_id = currency_id.into();
+		let free_balance = T::MultiCurrency::free_balance(currency_id, &self.owner);
 		free_balance
 			.checked_sub(&fee)
 			.ok_or(DispatchError::Token(BelowMinimum))?
-			.checked_sub(&T::MultiCurrency::minimum_balance(self.schedule_fee_currency_id))
+			.checked_sub(&T::MultiCurrency::minimum_balance(currency_id))
 			.ok_or(DispatchError::Token(BelowMinimum))?;
-		T::MultiCurrency::ensure_can_withdraw(
-			self.schedule_fee_currency_id.into(),
-			&self.owner,
-			fee,
-		)?;
+		T::MultiCurrency::ensure_can_withdraw(currency_id, &self.owner, fee)?;
 		Ok(())
 	}
 
@@ -103,13 +101,14 @@ where
 			return Ok(())
 		}
 
-		match T::MultiCurrency::withdraw(self.schedule_fee_currency_id, &self.owner, fee) {
+		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
+			.ok_or("IncoveribleMultilocation")?;
+		let currency_id = currency_id.into();
+
+		match T::MultiCurrency::withdraw(currency_id, &self.owner, fee) {
 			Ok(_) => {
 				TR::take_revenue(MultiAsset {
-					id: AssetId::Concrete(
-						T::CurrencyIdConvert::convert(self.schedule_fee_currency_id.into())
-							.ok_or("IncoveribleCurrencyId")?,
-					),
+					id: AssetId::Concrete(self.schedule_fee_location),
 					fun: Fungibility::Fungible(self.schedule_fee_amount.saturated_into()),
 				});
 
@@ -132,24 +131,21 @@ where
 		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let schedule_fee_currency_id = action.currency_id::<T>().into();
+		let schedule_fee_location = action.schedule_fee_location::<T>().into();
 
 		let schedule_fee_amount: u128 =
 			Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
 
 		let execution_fee_amount = match action.clone() {
-			Action::XCMP { execution_fee, flow, .. } =>
-				if flow == InstructionSequence::PayThroughSovereignAccount {
-					execution_fee.amount.saturating_mul(executions.into()).saturated_into()
-				} else {
-					0u32.saturated_into()
-				},
+			Action::XCMP { execution_fee, flow, .. }
+				if flow == InstructionSequence::PayThroughSovereignAccount =>
+				execution_fee.amount.saturating_mul(executions.into()).saturated_into(),
 			_ => 0u32.saturated_into(),
 		};
 
 		Ok(Self {
 			owner: owner.clone(),
-			schedule_fee_currency_id,
+			schedule_fee_location,
 			schedule_fee_amount: schedule_fee_amount.saturated_into(),
 			execution_fee_amount,
 			_phantom_data: Default::default(),

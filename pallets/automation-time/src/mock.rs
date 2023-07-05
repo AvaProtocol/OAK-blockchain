@@ -44,6 +44,8 @@ pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
+pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
+pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
 construct_runtime!(
 	pub enum Test where
@@ -330,9 +332,21 @@ pub struct MockTokenIdConvert;
 impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
 		if id == NATIVE {
-			Some(MultiLocation::new(1, Here))
-		} else if id == 1 {
-			Some(MultiLocation::new(1, X1(Parachain(2110))))
+			Some(MultiLocation::new(0, Here))
+		} else if id == FOREIGN_CURRENCY_ID {
+			Some(MultiLocation::new(1, X1(Parachain(PARA_ID))))
+		} else {
+			None
+		}
+	}
+}
+
+impl Convert<MultiLocation, Option<CurrencyId>> for MockTokenIdConvert {
+	fn convert(location: MultiLocation) -> Option<CurrencyId> {
+		if location == MultiLocation::new(0, Here) {
+			Some(NATIVE)
+		} else if location == MultiLocation::new(1, X1(Parachain(PARA_ID))) {
+			Some(FOREIGN_CURRENCY_ID)
 		} else {
 			None
 		}
@@ -370,7 +384,6 @@ impl pallet_automation_time::Config for Test {
 	type FeeHandler = FeeHandler<Test, ()>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;

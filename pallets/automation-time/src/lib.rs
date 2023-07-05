@@ -91,8 +91,8 @@ pub mod pallet {
 	>>::Balance;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
-	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
-	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
+	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>>;
+	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
@@ -159,14 +159,11 @@ pub mod pallet {
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
 
 		/// Converts CurrencyId to Multiloc
-		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>
+			+ Convert<MultiLocation, Option<Self::CurrencyId>>;
 
 		/// Converts between comparable currencies
 		type FeeConversionRateProvider: FixedConversionRateProvider;
-
-		/// The currencyId for the native currency.
-		#[pallet::constant]
-		type GetNativeCurrencyId: Get<Self::CurrencyId>;
 
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
@@ -493,7 +490,7 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
 			destination: Box<VersionedMultiLocation>,
-			schedule_fee: T::CurrencyId,
+			schedule_fee: Box<VersionedMultiLocation>,
 			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
@@ -502,6 +499,8 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 			let destination =
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
 				destination,
 				schedule_fee,
@@ -526,7 +525,7 @@ pub mod pallet {
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
 			destination: Box<VersionedMultiLocation>,
-			schedule_fee: T::CurrencyId,
+			schedule_fee: Box<VersionedMultiLocation>,
 			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
@@ -540,6 +539,9 @@ pub mod pallet {
 
 			let destination =
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
 			let action = Action::XCMP {
 				destination,
 				schedule_fee,
@@ -1407,11 +1409,7 @@ pub mod pallet {
 					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let asset_location = asset_location
-						.reanchored(
-							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))
-								.into(),
-							T::UniversalLocation::get(),
-						)
+						.reanchored(&MultiLocation::default().into(), T::UniversalLocation::get())
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 					// Only native token are supported as the XCMP fee for local deductions
 					if flow == InstructionSequence::PayThroughSovereignAccount &&
@@ -1534,18 +1532,22 @@ pub mod pallet {
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
-			let currency_id = action.currency_id::<T>();
-			let fee = if currency_id == T::GetNativeCurrencyId::get() {
+
+			let schedule_fee_location = action.schedule_fee_location::<T>();
+			let schedule_fee_location = schedule_fee_location
+				.reanchored(&MultiLocation::default().into(), T::UniversalLocation::get())
+				.map_err(|_| Error::<T>::CannotReanchor)?;
+
+			let fee = if schedule_fee_location == MultiLocation::default() {
 				T::ExecutionWeightFee::get()
 					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
 			} else {
-				let loc =
-					T::CurrencyIdConvert::convert(currency_id).ok_or("IncoveribleCurrencyId")?;
-				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
-					.ok_or("CouldNotDetermineFeePerSecond")?
-					.checked_mul(total_weight as u128)
-					.ok_or("FeeOverflow")
-					.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
+				let raw_fee =
+					T::FeeConversionRateProvider::get_fee_per_second(&schedule_fee_location)
+						.ok_or("CouldNotDetermineFeePerSecond")?
+						.checked_mul(total_weight as u128)
+						.ok_or("FeeOverflow")
+						.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
 				<BalanceOf<T>>::saturated_from(raw_fee)
 			};
 

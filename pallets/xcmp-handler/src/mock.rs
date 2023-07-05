@@ -50,7 +50,6 @@ pub type CurrencyId = u32;
 pub const ALICE: AccountId32 = AccountId32::new([0u8; 32]);
 pub const LOCAL_PARA_ID: u32 = 2114;
 pub const NATIVE: CurrencyId = 0;
-// pub const RELAY: CurrencyId = 1;
 
 frame_support::construct_runtime!(
 	pub enum Test where
