@@ -87,7 +87,7 @@ Here we are using [a copy of Mangata’s code](https://github.com/OAK-Foundation
 First, clone and compile the code with `mangata-rococo` feature for a parachain.
 
 ```
-git clone --branch feature/compound https://github.com/OAK-Foundation/mangata-node/tree/automation-demo
+git clone --branch automation-demo https://github.com/OAK-Foundation/mangata-node
 
 cd mangata-node
 

@@ -349,7 +349,7 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_: T::BlockNumber) -> Weight {
+		fn on_initialize(_block: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() == true {
 				return T::DbWeight::get().reads(1u64)
 			}
@@ -357,55 +357,13 @@ pub mod pallet {
 			let max_weight: Weight = Weight::from_ref_time(
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
 			);
+
 			Self::trigger_tasks(max_weight)
 		}
 	}
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Schedule a task to fire an event with a custom message.
-		///
-		/// Before the task can be scheduled the task must past validation checks.
-		/// * The transaction is signed
-		/// * The provided_id's length > 0
-		/// * The message's length > 0
-		/// * The times are valid
-		///
-		/// # Parameters
-		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
-		/// * `message`: The message you want the event to have.
-		///
-		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole hour.
-		/// * `PastTime`: Time must be in the future.
-		/// * `EmptyMessage`: The message cannot be empty.
-		/// * `DuplicateTask`: There can be no duplicate tasks.
-		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
-		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_notify_task_full(execution_times.len().try_into().unwrap()))]
-		pub fn schedule_notify_task(
-			origin: OriginFor<T>,
-			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
-			message: Vec<u8>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			if message.len() == 0 {
-				Err(Error::<T>::EmptyMessage)?
-			}
-
-			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-			Self::validate_and_schedule_task(
-				Action::Notify { message },
-				who,
-				provided_id,
-				schedule,
-			)?;
-			Ok(().into())
-		}
-
 		/// Schedule a task to transfer native token balance from sender to recipient.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
@@ -724,6 +682,7 @@ pub mod pallet {
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
 			let max_update_weight: Weight =
 				Weight::from_ref_time(T::UpdateQueueRatio::get().mul_floor(weight_left.ref_time()));
+
 			let update_weight = Self::update_task_queue(max_update_weight);
 
 			weight_left = weight_left.saturating_sub(update_weight);
@@ -732,6 +691,7 @@ pub mod pallet {
 			let run_task_weight = <T as Config>::WeightInfo::run_tasks_many_found(1)
 				.saturating_add(T::DbWeight::get().reads(1u64))
 				.saturating_add(T::DbWeight::get().writes(1u64));
+
 			if weight_left.ref_time() < run_task_weight.ref_time() {
 				return weight_left
 			}
@@ -793,6 +753,7 @@ pub mod pallet {
 						last_missed_slot,
 						missed_queue_allotted_weight,
 					);
+
 				LastTimeSlot::<T>::put((updated_last_time_slot, updated_last_missed_slot));
 				total_weight = total_weight
 					.saturating_add(missed_queue_update_weight)
@@ -1052,6 +1013,7 @@ pub mod pallet {
 		/// Fire the notify event with the custom message.
 		pub fn run_notify_task(message: Vec<u8>) -> (Weight, Option<DispatchError>) {
 			Self::deposit_event(Event::Notify { message });
+
 			(<T as Config>::WeightInfo::run_notify_task(), None)
 		}
 
