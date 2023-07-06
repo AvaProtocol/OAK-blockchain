@@ -195,15 +195,19 @@ parameter_types! {
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
 
-	// one of our test is perform a schedule transfer using dynamic dispatch call into Balances
-	// pallet. This is an external extrinsics so I don't mock them and instead just use the real
-	// weight value of it, defined in pallet https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
-	// When I logged this value, the final value is 73_314_000
-	// When testing, we had a certain code path where we test quite a few of calls, such as
-	// a few transfers back and forth
-	// the dynamic dispatch because the weight is the dynamic dispatch function itself plus the
-	// extrinsics weight.
-	// So we set this to a high enough limit for those test to work.
+	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
+	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
+	// what you don't own
+	// One of test we do is Balances::transfer call, which has its weight define here:
+	// https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
+	// When logging the final calculated amount, its value is 73_314_000.
+	//
+	// in our unit test, we test a few transfers with dynamic dispatch. On top
+	// of that, there is also weight of our call such as fetching the tasks,
+	// move from schedule slot to tasks queue,.. so the weight of a schedule
+	// transfer with dynamic dispatch is even higher.
+	//
+	// and because we test run a few of them so I set it to ~10x value of 73_314_000
 	pub const MaxWeightPerSlot: u128 = 700_000_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
@@ -243,12 +247,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_notify_task_full(_v: u32) -> Weight {
 		Weight::zero()
 	}
-	fn schedule_native_transfer_task_empty() -> Weight {
-		Weight::zero()
-	}
-	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
-		Weight::zero()
-	}
+
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		Weight::zero()
 	}
