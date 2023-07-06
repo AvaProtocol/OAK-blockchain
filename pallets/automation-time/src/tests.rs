@@ -22,7 +22,7 @@ use crate::{
 use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
-use frame_system::RawOrigin;
+use frame_system::{self, RawOrigin};
 use pallet_valve::Shutdown;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
@@ -35,73 +35,155 @@ pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
+// when schedule with a Fixed Time schedule and passing an epoch that isn't the
+// beginning of hour, raise an error
+// the smallest granularity unit we allow is hour
 #[test]
-fn schedule_invalid_time() {
+fn schedule_invalid_time_fixed_schedule() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		// prepare data
+		let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-				vec![SCHEDULED_TIME + 1],
-				vec![12]
+				// Simulate epoch of 1 extra second at the beginning of this hour
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1] },
+				Box::new(call)
 			),
 			Error::<Test>::InvalidTime,
 		);
 	})
 }
 
+// The schedule time is beginning of the hour epoch We will arrange our tasks
+// into slot of hour and don't support schedule job to granularity of a unit
+// that is smaller than hour.
+// Verify that we're throwing InvalidTime error when caller doing so
+#[test]
+fn schedule_invalid_time_recurring_schedule() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		for (next_run, frequency) in vec![
+			(SCHEDULED_TIME + 10, 10 as u64),
+			(SCHEDULED_TIME + 3600, 100 as u64),
+			(SCHEDULED_TIME + 10, 3600 as u64),
+		]
+		.iter()
+		{
+			// prepare data
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					ScheduleParam::Recurring {
+						next_execution_time: *next_run,
+						frequency: *frequency
+					},
+					Box::new(call)
+				),
+				Error::<Test>::InvalidTime,
+			);
+		}
+	})
+}
+
+// when schedule task using Fixed Time Scheduled, if any of the time is in the
+// past an error is return and the tasks won't be scheduled
 #[test]
 fn schedule_past_time() {
 	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-				vec![SCHEDULED_TIME],
-				vec![12]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
 			Error::<Test>::PastTime,
 		);
 
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-				vec![SCHEDULED_TIME - 3600],
-				vec![12]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME - 3600] },
+				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
 			Error::<Test>::PastTime,
 		);
 	})
 }
 
+// when schedule task using Recurring Scheduled, if starting time is in the past,
+// an error is return and the tasks won't be scheduled
+#[test]
+fn schedule_past_time_recurring() {
+	new_test_ext(START_BLOCK_TIME + 1_000 * 10800).execute_with(|| {
+		for (next_run, frequency) in
+			vec![(SCHEDULED_TIME - 3600, 7200 as u64), (SCHEDULED_TIME, 7200 as u64)].iter()
+		{
+			// prepare data
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					ScheduleParam::Recurring {
+						next_execution_time: *next_run,
+						frequency: *frequency
+					},
+					Box::new(call)
+				),
+				Error::<Test>::PastTime,
+			);
+		}
+	})
+}
+
+// When schedule tasks using Fixed schedule, none of execution time can be too
+// far in the future. all element of execution_times need to fall into
+//
+// When schedule tasks using recurring schedule, either:
+//   - next_execution_time cannot too far in the future
+//   - next_execution_time is closed, but the frequency is too high
+//
 #[test]
 fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_notify_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
-				vec![SCHEDULED_TIME + 1 * 24 * 60 * 60],
-				vec![12]
-			),
-			Error::<Test>::TimeTooFarOut,
-		);
-	})
-}
-
-#[test]
-fn schedule_no_message() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_notify_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
-				vec![SCHEDULED_TIME],
-				vec![]
-			),
-			Error::<Test>::EmptyMessage,
-		);
+		for task_far_schedule in vec![
+			// only one time slot that is far
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1 * 24 * 60 * 60] },
+			// the first time slot is close, but the rest are too far
+			ScheduleParam::Fixed {
+				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + 1 * 24 * 60 * 60],
+			},
+			// the next_execution_time is too far
+			ScheduleParam::Recurring {
+				next_execution_time: SCHEDULED_TIME + 1 * 24 * 60 * 60,
+				frequency: 3600,
+			},
+			// the next_execution_time is closed, but frequency is too big, make it further to
+			// future
+			ScheduleParam::Recurring {
+				next_execution_time: SCHEDULED_TIME,
+				frequency: 7 * 24 * 3600,
+			},
+		]
+		.iter()
+		{
+			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
+			assert_noop!(
+				AutomationTime::schedule_dynamic_dispatch_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					vec![50],
+					task_far_schedule.clone(),
+					Box::new(frame_system::Call::remark { remark: vec![12] }.into())
+				),
+				Error::<Test>::TimeTooFarOut,
+			);
+		}
 	})
 }
 
@@ -109,11 +191,11 @@ fn schedule_no_message() {
 fn schedule_no_provided_id() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![],
-				vec![SCHEDULED_TIME],
-				vec![12]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
 			Error::<Test>::EmptyProvidedId,
 		);
@@ -124,53 +206,14 @@ fn schedule_no_provided_id() {
 fn schedule_not_enough_for_fees() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![60],
-				vec![SCHEDULED_TIME],
-				vec![12]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
 			Error::<Test>::InsufficientBalance,
 		);
-	})
-}
-
-#[test]
-fn schedule_notify_works() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
-		let message: Vec<u8> = vec![2, 4, 5];
-		assert_ok!(AutomationTime::schedule_notify_task(
-			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![50],
-			vec![SCHEDULED_TIME],
-			message.clone()
-		));
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
-			None => {
-				panic!("A task should be scheduled")
-			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
-				match AutomationTime::get_account_task(
-					account_task_ids[0].0.clone(),
-					account_task_ids[0].1,
-				) {
-					None => {
-						panic!("A task should exist if it was scheduled")
-					},
-					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_event_task::<Test>(
-							AccountId32::new(ALICE),
-							vec![50],
-							vec![SCHEDULED_TIME],
-							message,
-						)
-						.unwrap();
-
-						assert_eq!(task, expected_task);
-					},
-				},
-		}
 	})
 }
 
@@ -323,91 +366,137 @@ fn schedule_auto_compound_delegated_stake() {
 	})
 }
 
+// Auto compounding use Recurring schedule to perform tasks.
+// Thus the next_execution_time and frequency needs to follow the rule such as
+// next_execution_time needs to fall into beginning of a hour block, and
+// frequency must be a multiplier of 3600
 #[test]
-fn schedule_auto_compound_with_bad_frequency() {
+fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				4_000,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::InvalidTime,
-		);
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				0,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::InvalidTime,
-		);
+		for (bad_execution_time, bad_frequency) in vec![
+			// execute_with is valid, frequency invalid
+			(SCHEDULED_TIME, 4_000),
+			(SCHEDULED_TIME, 0),
+			// execute_with is invalid, frequency is  valid
+			(SCHEDULED_TIME + 3130, 3600),
+		]
+		.iter()
+		{
+			assert_noop!(
+				AutomationTime::schedule_auto_compound_delegated_stake_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					*bad_execution_time,
+					*bad_frequency,
+					AccountId32::new(BOB),
+					100_000,
+				),
+				Error::<Test>::InvalidTime
+			);
+		}
 	})
 }
 
+// when schedule auto compound task, if the schedule time falls too far in the
+// future, return TimeTooFarOut error
 #[test]
 fn schedule_auto_compound_with_high_frequency() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_auto_compound_delegated_stake_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				SCHEDULED_TIME,
-				<Test as Config>::MaxScheduleSeconds::get() + 3_600,
-				AccountId32::new(BOB),
-				100_000,
-			),
-			Error::<Test>::TimeTooFarOut,
-		);
+		for (execution_time, frequency) in vec![
+			(SCHEDULED_TIME, <Test as Config>::MaxScheduleSeconds::get() + 3_600),
+			(SCHEDULED_TIME + 7 * 24 * 3600, 3_600),
+		]
+		.iter()
+		{
+			assert_noop!(
+				AutomationTime::schedule_auto_compound_delegated_stake_task(
+					RuntimeOrigin::signed(AccountId32::new(ALICE)),
+					*execution_time,
+					*frequency,
+					AccountId32::new(BOB),
+					100_000,
+				),
+				Error::<Test>::TimeTooFarOut
+			);
+		}
 	})
 }
 
+// task id is a hash of account and provider_id. task id needs to be unique.
+// the same provider_id cannot be submitted twice per account.
+// verify that we're returning DuplicateTask when the same account submit duplicate
+// provider id.
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
-		assert_ok!(AutomationTime::schedule_notify_task(
+		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(
+			&AccountId32::new(ALICE),
+			// only schedule one time in the schedule param below
+			1,
+			call.encode()
+		));
+
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
 			vec![50],
-			vec![SCHEDULED_TIME],
-			vec![2, 4, 5]
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
 		),);
+
+		// refund the test account again with same amount
+		assert_ok!(fund_account_dynamic_dispatch(
+			&AccountId32::new(ALICE),
+			// only schedule one time in the schedule param below
+			1,
+			call.encode()
+		));
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
+				// repeat same id  as above
 				vec![50],
-				vec![SCHEDULED_TIME],
-				vec![2, 4]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
 			),
 			Error::<Test>::DuplicateTask,
 		);
 	})
 }
 
+// there is an upper limit of how many time slot in Fixed Scheduled, when
+// passing a large enough array we return TooManyExecutionsTimes error
 #[test]
 fn schedule_max_execution_times_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
+		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(
+			&AccountId32::new(ALICE),
+			// fake schedule 4 times in the schedule param below
+			4,
+			call.encode()
+		));
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![50],
-				vec![
-					SCHEDULED_TIME,
-					SCHEDULED_TIME + 3600,
-					SCHEDULED_TIME + 7200,
-					SCHEDULED_TIME + 10800
-				],
-				vec![2, 4]
+				ScheduleParam::Fixed {
+					execution_times: vec![
+						SCHEDULED_TIME,
+						SCHEDULED_TIME + 3600,
+						SCHEDULED_TIME + 7200,
+						SCHEDULED_TIME + 10800
+					]
+				},
+				Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
 			),
 			Error::<Test>::TooManyExecutionsTimes,
 		);
 	})
 }
 
+// when user made mistake and pass duplicate time slot on Fixed Schedule, we
+// attempt to correct it and store the corrected schedule on-chain
+// Verified that the stored schedule is corrected without any duplication
 #[test]
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -444,48 +533,90 @@ fn schedule_execution_times_removes_dupes() {
 	})
 }
 
+// For a given tasks slot, we don't want to have too many small, light weight
+// tasks or have just a handful tasks but the total weight is over the limit
+// We guard with a max tasks per slot and max weight per slot.
+//
+// Verify that when the slot has enough tasks, new task cannot be scheduled, and
+// an error TimeSlotFull is returned.
+//
+// we mock the MaxTasksPerSlot=2 in mocks.rs
 #[test]
 fn schedule_time_slot_full() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
-		assert_ok!(AutomationTime::schedule_notify_task(
+		let call1: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
+
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
 			vec![50],
-			vec![SCHEDULED_TIME],
-			vec![2, 4]
-		));
-		assert_ok!(AutomationTime::schedule_notify_task(
-			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![60],
-			vec![SCHEDULED_TIME],
-			vec![2, 4, 5]
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(call1)
 		));
 
+		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call2.encode()));
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+			RuntimeOrigin::signed(AccountId32::new(ALICE)),
+			vec![60],
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(call2)
+		));
+
+		let call3: RuntimeCall = frame_system::Call::remark { remark: vec![2] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call3.encode()));
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
 				vec![70],
-				vec![SCHEDULED_TIME],
-				vec![2]
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(call3)
 			),
 			Error::<Test>::TimeSlotFull,
 		);
 	})
 }
 
+// test case when a slot in full, we will roll back its state atomically
+// and won't leave the task queue in a partial state.
+//
+// It's similar to above test. However, we test a task that has scheduled
+// with many execution_times where as only a few execution_time slots are full
+// while the rest of execution_time slots aren't full.
+//
+// even though other time slots aren't full, we still reject as a whole, return
+// TimeSlotFull error and verify that none of the tasks has been scheduled into any
+// time slot, even the one that isn't full.
+//
+// in other word, task scheduled is atomic, all task executions need to be able
+// to put into the schedule task slots, otherwise none of data should be stored
+// partially
 #[test]
 fn schedule_time_slot_full_rolls_back() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
+		let call1: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
+
 		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
+
+		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
+		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2] }.into();
+		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call.encode()));
 		assert_noop!(
-			AutomationTime::schedule_notify_task(
+			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![70],
-				vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
-				vec![2]
+				vec![119],
+				ScheduleParam::Fixed {
+					execution_times: vec![
+						SCHEDULED_TIME,
+						SCHEDULED_TIME + 3600,
+						SCHEDULED_TIME + 7200
+					]
+				},
+				Box::new(call)
 			),
 			Error::<Test>::TimeSlotFull,
 		);
@@ -509,8 +640,11 @@ fn schedule_time_slot_full_rolls_back() {
 	})
 }
 
+// verify that the owner of a task can cancel a Fixed schedule task by its id.
+// In this test we focus on confirmation of canceling the task that has a single
+// execution times
 #[test]
-fn cancel_works_for_scheduled() {
+fn cancel_works_for_fixed_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
@@ -545,6 +679,9 @@ fn cancel_works_for_scheduled() {
 	})
 }
 
+// verify that the owner of a task can cancel a Fixed schedule task by its id.
+// In this test we focus on confirmation of canceling the task that has many
+// execution times
 #[test]
 fn cancel_works_for_multiple_executions_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -580,6 +717,48 @@ fn cancel_works_for_multiple_executions_scheduled() {
 	})
 }
 
+// verify that the owner of a task can cancel a Recurring schedule task by its id
+#[test]
+fn cancel_works_for_recurring_scheduled() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let task_id1 =
+			schedule_recurring_task(ALICE, vec![40], SCHEDULED_TIME, 3600, vec![2, 4, 5]);
+		let task_id2 = schedule_recurring_task(ALICE, vec![50], SCHEDULED_TIME, 3600, vec![2, 4]);
+
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+		System::reset_events();
+
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(AccountId32::new(ALICE)),
+			task_id1,
+		));
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(AccountId32::new(ALICE)),
+			task_id2,
+		));
+
+		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
+			panic!("Since there were only two tasks scheduled for the time it should have been deleted")
+		}
+		assert_eq!(
+			events(),
+			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
+					who: AccountId32::new(ALICE),
+					task_id: task_id1
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
+					who: AccountId32::new(ALICE),
+					task_id: task_id2
+				}),
+			]
+		);
+	})
+}
+
+// given a Fixed scheduled task that has many executions time, and already ran
+// at least one, we can still cancel it to prevent the rest of exectutions in
+// subseuent task triggering.
 #[test]
 fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -619,9 +798,22 @@ fn cancel_works_for_an_executed_task() {
 		}
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
+		let my_events = events();
+
 		assert_eq!(
-			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![50] }),]
+			my_events,
+			//[RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![50] }),]
+			[
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&vec![50]),
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: owner.clone(),
+					task_id: task_id1,
+					result: Ok(()),
+				}),
+			]
 		);
 		match AutomationTime::get_account_task(owner.clone(), task_id1) {
 			None => {
@@ -662,6 +854,8 @@ fn cancel_works_for_an_executed_task() {
 	})
 }
 
+// verify that if a tasks is already moved from the schedule slot into the task
+// queue, it can still get canceling using its id.
 #[test]
 fn cancel_works_for_tasks_in_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -692,6 +886,7 @@ fn cancel_works_for_tasks_in_queue() {
 	})
 }
 
+// verify that when cancelling a non-existed tasks, an error will be return
 #[test]
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -711,6 +906,11 @@ fn cancel_task_must_exist() {
 	})
 }
 
+// verify if an account has a task id in its AccountTasks storage, but the
+// actual task doesn't exist in any schedule slot or task queue then the cancel
+// succeed to remove the task id from AccountTasks storage, but throwing an
+// extra TaskNotFound event beside the normal TaskCancelled evented
+//
 #[test]
 fn cancel_task_not_found() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -736,10 +936,42 @@ fn cancel_task_not_found() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
 			]
 		);
+
+		// now ensure the task id is also removed from AccountTasks
+		assert_noop!(
+			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(ALICE)), task_id),
+			Error::<Test>::TaskDoesNotExist,
+		);
 	})
 }
 
+// verify only the owner of the task can cancel it
 #[test]
+fn cancel_task_fail_non_owner() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![40],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+		System::reset_events();
+
+		// BOB cannot cancel because he isn't the task owner
+		assert_noop!(
+			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(BOB)), task_id1),
+			Error::<Test>::TaskDoesNotExist,
+		);
+
+		// But Alice can cancel as expected
+		assert_ok!(AutomationTime::cancel_task(RuntimeOrigin::signed(owner.clone()), task_id1,));
+	})
+}
+
+// verifying that root/sudo can force_cancel anybody's tasks
+// #[test]
 fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
@@ -905,6 +1137,8 @@ mod run_dynamic_dispatch_action {
 // 20_000v: for each old time slot to missed tasks (append_to_missed_tasks)
 // 20_000: to move a single time slot to missed tasks (shift_missed_tasks)
 
+// ensure the first task trigger for first block run properly without error
+// and will not emit any event
 #[test]
 fn trigger_tasks_handles_first_run() {
 	new_test_ext(0).execute_with(|| {
@@ -914,6 +1148,8 @@ fn trigger_tasks_handles_first_run() {
 	})
 }
 
+// verify when having no tasks, the trigger run to the end without error
+// and there is no emitted event
 #[test]
 fn trigger_tasks_nothing_to_do() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -925,6 +1161,9 @@ fn trigger_tasks_nothing_to_do() {
 	})
 }
 
+// when calling trigger_tasks verifyign that the tasks in schedule of
+// current slot are properly moved into the task queue. MissedTask will be moved
+// into missed queue
 #[test]
 fn trigger_tasks_updates_queues() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -956,50 +1195,98 @@ fn trigger_tasks_updates_queues() {
 	})
 }
 
+// Verified tests that were scheduled in a past slot will be moved into MissQueue
+// Tasks in current time slot will be process as many as possible up to the max
+// weight
+// In this test, we purposely set the weight so it won't process the miss tasks,
+// just make sure the missed slot's tasks are moved into missed queue
 #[test]
 fn trigger_tasks_handles_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![40] }.into();
+
 		add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![40] },
+			Action::DynamicDispatch { encoded_call: call.encode() },
 		);
+
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
 		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
 		);
+
+		let task_will_be_run_id = schedule_task(ALICE, vec![59], vec![SCHEDULED_TIME], vec![50]);
 		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
+
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(90_000));
+		// Give this enough weight limit to run and process miss queue and generate miss event
+		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000 * 2 + 40_000));
 
+		// the first 2 tasks are missed
 		assert_eq!(AutomationTime::get_missed_queue().len(), 2);
 		assert_eq!(AutomationTime::get_missed_queue()[1], missed_task);
+
+		// the  final one is in current schedule will be move into the task queue
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue()[0].1, scheduled_task_id);
-		assert_eq!(events(), vec![],);
+		assert_eq!(
+			events(),
+			vec![
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: AccountId32::new(ALICE),
+					hash: BlakeTwo256::hash(&vec![50]),
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: AccountId32::new(ALICE),
+					task_id: task_will_be_run_id,
+					result: Ok(()),
+				}),
+			],
+		);
 	})
 }
 
+// Verify logic of handling missing tasks as below:
+//   - task in current slot always got process first,
+//   - past time schedule is retain and will eventually be moved into MissedQueueV2
+//     from there, we generate a TaskMissed event, then the task is completely
+//     removed from the queue
+//   - existing tasks in the queue (from previous run) will also be moved to
+//     MissedQueueV2, and yield a task miss event
+//   - we don't backfill or run old tasks.
+//
+// The execution of task missed event generation is lower priority, tasks in the
+// time slot got run first, if there is enough weight left, only then we run
+// the task miss event and doing house cleanup
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![50] }.into();
+
 		let missing_task_id0 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![40] },
+			Action::DynamicDispatch { encoded_call: call.encode() },
 		);
+
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
 		let missing_task_id1 =
 			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+
 		let missing_task_id2 =
 			schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME - 7200], vec![50]);
 		let missing_task_id3 =
@@ -1008,12 +1295,16 @@ fn trigger_tasks_limits_missed_slots() {
 			schedule_task(ALICE, vec![80], vec![SCHEDULED_TIME - 14400], vec![50]);
 		let missing_task_id5 =
 			schedule_task(ALICE, vec![90], vec![SCHEDULED_TIME - 18000], vec![50]);
-		schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![50]);
+
+		let task_id = schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![32]);
+
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
+		let left_weight = AutomationTime::trigger_tasks(Weight::from_ref_time(7_769_423 + 200_000));
+
+		let my_events = events();
 
 		if let Some((updated_last_time_slot, updated_last_missed_slot)) =
 			AutomationTime::get_last_slot()
@@ -1021,9 +1312,17 @@ fn trigger_tasks_limits_missed_slots() {
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
 			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - 10800);
 			assert_eq!(
-				events(),
+				my_events,
 				[
-					RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![50] }),
+					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+						sender: AccountId32::new(ALICE),
+						hash: BlakeTwo256::hash(&vec![32]),
+					}),
+					RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
+						who: AccountId32::new(ALICE),
+						task_id,
+						result: Ok(()),
+					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: AccountId32::new(ALICE),
 						task_id: missing_task_id0,
@@ -1049,15 +1348,17 @@ fn trigger_tasks_limits_missed_slots() {
 		} else {
 			panic!("trigger_tasks_limits_missed_slots test did not have LastTimeSlot updated")
 		}
+
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - 7200) {
 			None => {
 				panic!("A task should be scheduled")
 			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
+			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, weight: _ }) => {
 				assert_eq!(account_task_ids.len(), 1);
 				assert_eq!(account_task_ids[0].1, missing_task_id2);
 			},
 		}
+
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - 3600) {
 			None => {
 				panic!("A task should be scheduled")
@@ -1586,6 +1887,8 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 	})
 }
 
+// verify that execution left of a Fixed scheduled task will be decreased by
+// one upon a succesful run.
 #[test]
 fn trigger_tasks_updates_executions_left() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -1717,6 +2020,9 @@ fn on_init_runs_tasks() {
 	})
 }
 
+// When our blockchain boot and initialize, it will start trigger and run tasks up to
+// a MaxWeightPercentage of the MaxBlockWeight
+//
 #[test]
 fn on_init_check_task_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -1734,11 +2040,15 @@ fn on_init_check_task_queue() {
 		}
 		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
 		AutomationTime::on_initialize(1);
+
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),],
+			[
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
+			],
 		);
-		assert_eq!(AutomationTime::get_task_queue().len(), 4);
+		assert_eq!(AutomationTime::get_task_queue().len(), 3);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
 		Timestamp::set_timestamp(START_BLOCK_TIME + (40 * 1000));
@@ -1746,29 +2056,22 @@ fn on_init_check_task_queue() {
 		assert_eq!(
 			events(),
 			[
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 			],
 		);
-		assert_eq!(AutomationTime::get_task_queue().len(), 2);
+		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
 		Timestamp::set_timestamp(START_BLOCK_TIME + (3600 * 1000));
 		AutomationTime::on_initialize(3);
 		assert_eq!(
 			events(),
-			[
-				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
-					who: AccountId32::new(ALICE),
-					task_id: tasks[3],
-					execution_time: LAST_BLOCK_TIME
-				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
-					who: AccountId32::new(ALICE),
-					task_id: tasks[4],
-					execution_time: LAST_BLOCK_TIME
-				}),
-			],
+			[RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
+				who: AccountId32::new(ALICE),
+				task_id: tasks[4],
+				execution_time: LAST_BLOCK_TIME
+			}),],
 		);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);

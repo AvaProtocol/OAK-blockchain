@@ -81,6 +81,7 @@ where
 
 		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
 		let free_balance = T::MultiCurrency::free_balance(self.currency_id, &self.owner);
+
 		free_balance
 			.checked_sub(&fee)
 			.ok_or(DispatchError::Token(BelowMinimum))?

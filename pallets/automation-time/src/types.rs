@@ -220,6 +220,8 @@ impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> PartialEq
 
 impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> Eq for Task<AccountId, Balance, CurrencyId> {}
 
+use sp_runtime::print;
+
 impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId> {
 	pub fn new(
 		owner_id: AccountId,
@@ -236,7 +238,9 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
 	) -> Result<Self, DispatchError> {
-		let action = Action::Notify { message };
+		let call: <T as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: message }.into();
+		let action = Action::DynamicDispatch { encoded_call: call.encode() };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
@@ -427,6 +431,14 @@ mod tests {
 			})
 		}
 
+		// verify calling try_push to push the  task into the schedule work when
+		// slot is not full, not reaching the max weight and max tasks per slot
+		// task will be pushed to the `tasks` field and the `weight` field is
+		// increased properly for the weight of the task.
+		//
+		// the total weight of schedule will be weight of the schedule_* itself
+		// plus any to be call extrinsics in case of dynamic dispatch
+		//
 		#[test]
 		fn try_push_works_when_slot_is_not_full() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -442,8 +454,17 @@ mod tests {
 				scheduled_tasks
 					.try_push::<Test, BalanceOf<Test>>(task_id, &task)
 					.expect("slot is not full");
+
 				assert_eq!(scheduled_tasks.tasks, vec![(task.owner_id, task_id)]);
-				assert_eq!(scheduled_tasks.weight, 20_000);
+
+				// this is same call we mock in create_event_tasks
+				let call: <Test as frame_system::Config>::RuntimeCall =
+					frame_system::Call::remark_with_event { remark: vec![0] }.into();
+				// weight will be equal = weight of the dynamic dispatch + the call itself
+				assert_eq!(
+					scheduled_tasks.weight,
+					20_000 + call.get_dispatch_info().weight.ref_time() as u128
+				);
 			})
 		}
 	}
