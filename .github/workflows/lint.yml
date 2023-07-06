@@ -11,7 +11,7 @@ jobs:
       - name: Format the code with rust fmt
         id: cargo_fmt
         run: |
-          cargo +nightly fmt
+          cargo fmt
           if [ -z "$(git diff .)" ]; then
             echo code format ok
             echo "need_format=false" >> "$GITHUB_OUTPUT"
