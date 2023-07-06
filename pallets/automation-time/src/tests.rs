@@ -254,7 +254,9 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		assert_eq!(
 			my_events,
 			[
-				RuntimeEvent::System(frame_system::Event::NewAccount { account: recipient.clone() }),
+				RuntimeEvent::System(frame_system::Event::NewAccount {
+					account: recipient.clone()
+				}),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Endowed {
 					account: recipient.clone(),
 					free_balance: 127,

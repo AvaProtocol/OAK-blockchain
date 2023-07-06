@@ -194,6 +194,16 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
+
+	// one of our test is perform a schedule transfer using dynamic dispatch call into Balances
+	// pallet. This is an external extrinsics so I don't mock them and instead just use the real
+	// weight value of it, defined in pallet https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
+	// When I logged this value, the final value is 73_314_000
+	// When testing, we had a certain code path where we test quite a few of calls, such as
+	// a few transfers back and forth
+	// the dynamic dispatch because the weight is the dynamic dispatch function itself plus the
+	// extrinsics weight.
+	// So we set this to a high enough limit for those test to work.
 	pub const MaxWeightPerSlot: u128 = 700_000_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;

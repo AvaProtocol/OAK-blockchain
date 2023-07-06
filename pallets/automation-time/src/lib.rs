@@ -1079,6 +1079,7 @@ pub mod pallet {
 					);
 
 					let call_weight = scheduled_call.get_dispatch_info().weight;
+
 					let (maybe_actual_call_weight, result) =
 						match scheduled_call.dispatch(dispatch_origin) {
 							Ok(post_info) => (post_info.actual_weight, Ok(())),
