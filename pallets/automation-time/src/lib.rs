@@ -364,55 +364,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Schedule a task to transfer native token balance from sender to recipient.
-		///
-		/// Before the task can be scheduled the task must past validation checks.
-		/// * The transaction is signed
-		/// * The provided_id's length > 0
-		/// * The times are valid
-		/// * Larger transfer amount than the acceptable minimum
-		/// * Transfer to account other than to self
-		///
-		/// # Parameters
-		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
-		/// * `recipient_id`: Account ID of the recipient.
-		/// * `amount`: Amount of balance to transfer.
-		///
-		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole hour.
-		/// * `PastTime`: Time must be in the future.
-		/// * `DuplicateTask`: There can be no duplicate tasks.
-		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
-		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `InvalidAmount`: Amount has to be larger than 0.1 OAK.
-		/// * `TransferToSelf`: Sender cannot transfer money to self.
-		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_native_transfer_task_full(execution_times.len().try_into().unwrap()))]
-		pub fn schedule_native_transfer_task(
-			origin: OriginFor<T>,
-			provided_id: Vec<u8>,
-			execution_times: Vec<UnixTime>,
-			recipient_id: AccountOf<T>,
-			#[pallet::compact] amount: BalanceOf<T>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			// check for greater than existential deposit
-			if amount < T::Currency::minimum_balance() {
-				Err(<Error<T>>::InvalidAmount)?
-			}
-			// check not sent to self
-			if who == recipient_id {
-				Err(<Error<T>>::TransferToSelf)?
-			}
-			let action =
-				Action::NativeTransfer { sender: who.clone(), recipient: recipient_id, amount };
-			let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
-			Ok(().into())
-		}
-
 		/// Schedule a task through XCMP to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
