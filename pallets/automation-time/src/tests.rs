@@ -245,24 +245,23 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		let w = AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
 		let my_events = events();
 
-		let bob = AccountId32::new(BOB);
-		let bob_balance = Balances::free_balance(bob.clone());
-		assert_eq!(bob_balance, 127);
+		let recipient = AccountId32::new(BOB);
+		assert_eq!(Balances::free_balance(recipient.clone()), 127);
 
 		assert_eq!(
 			my_events,
 			[
-				RuntimeEvent::System(frame_system::Event::NewAccount { account: bob.clone() }),
+				RuntimeEvent::System(frame_system::Event::NewAccount { account: recipient.clone() }),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Endowed {
-					account: bob.clone(),
+					account: recipient.clone(),
 					free_balance: 127,
 				}),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
 					from: account_id.clone(),
-					to: bob.clone(),
+					to: recipient.clone(),
 					amount: 127,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
