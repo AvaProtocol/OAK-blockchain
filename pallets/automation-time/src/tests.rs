@@ -271,15 +271,15 @@ fn schedule_xcmp_works() {
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let provided_id = vec![50];
-		let alice = AccountId32::new(ALICE);
-		let bob = AccountId32::new(BOB);
+		let user_account = AccountId32::new(ALICE);
+		let proxy_account = AccountId32::new(BOB);
 		let call: Vec<u8> = vec![2, 4, 5];
 
 		// Funds including XCM fees
-		get_xcmp_funds(bob.clone());
+		get_xcmp_funds(proxy_account.clone());
 
 		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
-			RuntimeOrigin::signed(bob.clone()),
+			RuntimeOrigin::signed(proxy_account.clone()),
 			provided_id,
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			PARA_ID.try_into().unwrap(),
@@ -287,15 +287,16 @@ fn schedule_xcmp_through_proxy_works() {
 			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
 			call.clone(),
 			Weight::from_ref_time(100_000),
-			alice.clone(),
+			user_account.clone(),
 		));
 
 		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
 		assert_eq!(tasks.is_some(), true);
 
 		let tasks = tasks.unwrap();
-		assert_eq!(tasks.tasks[0].0, bob.clone());
+		assert_eq!(tasks.tasks[0].0, proxy_account.clone());
 
+		// Find the TaskScheduled event in the event list and verify if the who within it is correct.
 		events()
 			.into_iter()
 			.find(|e| match e {
@@ -303,10 +304,10 @@ fn schedule_xcmp_through_proxy_works() {
 					who,
 					schedule_as,
 					..
-				}) if *who == bob && *schedule_as == Some(alice.clone()) => true,
+				}) if *who == proxy_account && *schedule_as == Some(user_account.clone()) => true,
 				_ => false,
 			})
-			.expect("TaskScheduled event should have been emitted with correct parameters");
+			.expect("The TaskScheduled event should be emitted, with the data where who is the proxy_account, and schedule_as is the user_account.");
 	})
 }
 

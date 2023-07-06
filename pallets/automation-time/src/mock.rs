@@ -351,7 +351,11 @@ impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
 pub struct MockEnsureProxy;
 impl EnsureProxy<AccountId> for MockEnsureProxy {
 	fn ensure_ok(_delegator: AccountId, _delegatee: AccountId) -> Result<(), &'static str> {
-		Ok(())
+		if _delegator == ALICE.into() && _delegatee == BOB.into() {
+			Ok(())
+		} else {
+			Err("proxy error: expected `ProxyType::Any`")
+		}
 	}
 }
 
