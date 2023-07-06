@@ -12,6 +12,9 @@ use sp_runtime::traits::Convert;
 use sp_std::vec::Vec;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
+const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
+
 #[derive(Debug, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub struct OldTask<T: Config> {
@@ -84,12 +87,13 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 					schedule_fee,
 					execution_fee: AssetPayment {
 						asset_location: MultiLocation::new(0, Here).into(),
-						amount: 3000000000,
+						amount: EXECUTION_FEE_AMOUNT,
 					},
 					encoded_call,
 					encoded_call_weight: encoded_call_weight.clone(),
-					overall_weight: encoded_call_weight
-						.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
+					overall_weight: encoded_call_weight.saturating_add(
+						Weight::from_ref_time(INSTRUCTION_WEIGHT_REF_TIME).saturating_mul(6),
+					),
 					schedule_as,
 					flow: InstructionSequence::PayThroughSovereignAccount,
 				}
@@ -150,7 +154,10 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{OldAction, OldTask, ParaId, UpdateXcmpTask};
+	use super::{
+		OldAction, OldTask, ParaId, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
+		INSTRUCTION_WEIGHT_REF_TIME,
+	};
 	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Pallet, Schedule, TaskOf};
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
@@ -201,12 +208,13 @@ mod test {
 						schedule_fee: MultiLocation::default(),
 						execution_fee: AssetPayment {
 							asset_location: MultiLocation::new(0, Here).into(),
-							amount: 3000000000
+							amount: EXECUTION_FEE_AMOUNT,
 						},
 						encoded_call: vec![0u8],
 						encoded_call_weight: encoded_call_weight.clone(),
-						overall_weight: encoded_call_weight
-							.saturating_add(Weight::from_ref_time(1_000_000_000).saturating_mul(6)),
+						overall_weight: encoded_call_weight.saturating_add(
+							Weight::from_ref_time(INSTRUCTION_WEIGHT_REF_TIME).saturating_mul(6)
+						),
 						schedule_as,
 						flow: InstructionSequence::PayThroughSovereignAccount,
 					},
