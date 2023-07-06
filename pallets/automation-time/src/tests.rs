@@ -23,7 +23,6 @@ use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
 use frame_system::{self, RawOrigin};
-
 use pallet_balances;
 
 use pallet_valve::Shutdown;
@@ -230,6 +229,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		let task_hash_input = TaskHashInput::new(account_id.clone(), vec![1, 2]);
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
+
 
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			pallet_balances::Call::transfer { dest: AccountId32::new(BOB), value: 127 }.into();
