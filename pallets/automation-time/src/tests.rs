@@ -230,7 +230,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
-
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			pallet_balances::Call::transfer { dest: AccountId32::new(BOB), value: 127 }.into();
 

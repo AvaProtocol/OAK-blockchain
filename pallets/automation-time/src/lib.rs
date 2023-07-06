@@ -413,7 +413,6 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-
 		/// Schedule a task through XCMP to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
