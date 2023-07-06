@@ -312,6 +312,33 @@ fn schedule_xcmp_through_proxy_works() {
 }
 
 #[test]
+fn schedule_xcmp_through_proxy_same_as_user_account() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let user_account = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(user_account.clone());
+
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task_through_proxy(
+				RuntimeOrigin::signed(user_account.clone()),
+				provided_id,
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				PARA_ID.try_into().unwrap(),
+				NATIVE,
+				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				call.clone(),
+				Weight::from_ref_time(100_000),
+				user_account.clone(),
+			),
+			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
+		);
+	})
+}
+
+#[test]
 fn schedule_xcmp_fails_if_not_enough_funds() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let alice = AccountId32::new(ALICE);
