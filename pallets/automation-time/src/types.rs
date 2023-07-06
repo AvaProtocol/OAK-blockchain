@@ -12,7 +12,7 @@ use xcm::{latest::prelude::*, VersionedMultiLocation};
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
-/// The struct that stores all information needed for a task.
+/// The struct that stores execution payment for a task.
 #[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
 pub struct AssetPayment {
 	pub asset_location: VersionedMultiLocation,
