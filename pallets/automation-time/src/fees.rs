@@ -194,8 +194,7 @@ mod tests {
 	#[test]
 	fn errors_when_not_enough_funds_for_fee() {
 		new_test_ext(0).execute_with(|| {
-			let alice = AccountId32::new(ALICE);
-			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+			let alice = AccountId32::new(ALICE);let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
 				&Action::Notify { message: vec![0] },
 				1,
