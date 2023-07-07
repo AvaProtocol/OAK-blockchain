@@ -350,7 +350,7 @@ fn schedule_xcmp_through_proxy_works() {
 				}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
 				_ => false,
 			})
-			.expect("The TaskScheduled event should be emitted, with the data where who is the proxy_account, and schedule_as is the user_account.");
+			.expect("TaskScheduled event should emit with 'who' being proxy_account, and 'schedule_as' being delegator_account.");
 	})
 }
 
