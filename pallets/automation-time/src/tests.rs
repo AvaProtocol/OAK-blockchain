@@ -23,6 +23,8 @@ use codec::Encode;
 use core::convert::TryInto;
 use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
 use frame_system::{self, RawOrigin};
+use pallet_balances;
+
 use pallet_valve::Shutdown;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
@@ -217,75 +219,59 @@ fn schedule_not_enough_for_fees() {
 	})
 }
 
+// test schedule transfer with dynamic dispatch.
 #[test]
-fn schedule_native_transfer_invalid_amount() {
+fn schedule_transfer_with_dynamic_dispatch() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_native_transfer_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
-				vec![SCHEDULED_TIME],
-				AccountId32::new(BOB),
-				0,
-			),
-			Error::<Test>::InvalidAmount,
-		);
-	})
-}
+		let account_id = AccountId32::new(ALICE);
+		let provided_id = vec![1, 2];
+		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_hash_input = TaskHashInput::new(account_id.clone(), vec![1, 2]);
 
-#[test]
-fn schedule_native_transfer_cannot_transfer_to_self() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_native_transfer_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
-				vec![SCHEDULED_TIME],
-				AccountId32::new(ALICE),
-				1,
-			),
-			Error::<Test>::TransferToSelf,
-		);
-	})
-}
+		fund_account(&account_id, 900_000_000, 2, Some(0));
 
-#[test]
-fn schedule_native_transfer_works() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
-		assert_ok!(AutomationTime::schedule_native_transfer_task(
-			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![50],
-			vec![SCHEDULED_TIME],
-			AccountId32::new(BOB),
-			1,
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			pallet_balances::Call::transfer { dest: AccountId32::new(BOB), value: 127 }.into();
+
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+			RuntimeOrigin::signed(account_id.clone()),
+			vec![1, 2],
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(call),
 		));
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
-			None => {
-				panic!("A task should be scheduled")
-			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) =>
-				match AutomationTime::get_account_task(
-					account_task_ids[0].0.clone(),
-					account_task_ids[0].1,
-				) {
-					None => {
-						panic!("A task should exist if it was scheduled")
-					},
-					Some(task) => {
-						let expected_task = TaskOf::<Test>::create_native_transfer_task::<Test>(
-							AccountId32::new(ALICE),
-							vec![50],
-							vec![SCHEDULED_TIME],
-							AccountId32::new(BOB),
-							1,
-						)
-						.unwrap();
 
-						assert_eq!(task, expected_task);
-					},
-				},
-		}
+		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		let my_events = events();
+
+		let recipient = AccountId32::new(BOB);
+		assert_eq!(Balances::free_balance(recipient.clone()), 127);
+
+		assert_eq!(
+			my_events,
+			[
+				RuntimeEvent::System(frame_system::Event::NewAccount {
+					account: recipient.clone()
+				}),
+				RuntimeEvent::Balances(pallet_balances::pallet::Event::Endowed {
+					account: recipient.clone(),
+					free_balance: 127,
+				}),
+				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
+					from: account_id.clone(),
+					to: recipient.clone(),
+					amount: 127,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
+					who: account_id.clone(),
+					task_id,
+					result: Ok(()),
+				}),
+			]
+		);
 	})
 }
 
@@ -307,6 +293,77 @@ fn schedule_xcmp_works() {
 			call.clone(),
 			Weight::from_ref_time(100_000),
 		));
+	})
+}
+
+#[test]
+fn schedule_xcmp_through_proxy_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
+		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(proxy_account.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(proxy_account.clone()),
+			provided_id,
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			PARA_ID.try_into().unwrap(),
+			NATIVE,
+			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			delegator_account.clone(),
+		));
+
+		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
+		assert_eq!(tasks.is_some(), true);
+
+		let tasks = tasks.unwrap();
+		assert_eq!(tasks.tasks[0].0, proxy_account.clone());
+
+		// Find the TaskScheduled event in the event list and verify if the who within it is correct.
+		events()
+			.into_iter()
+			.find(|e| match e {
+				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+					who,
+					schedule_as,
+					..
+				}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
+				_ => false,
+			})
+			.expect("TaskScheduled event should emit with 'who' being proxy_account, and 'schedule_as' being delegator_account.");
+	})
+}
+
+#[test]
+fn schedule_xcmp_through_proxy_same_as_delegator_account() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let delegator_account = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(delegator_account.clone());
+
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task_through_proxy(
+				RuntimeOrigin::signed(delegator_account.clone()),
+				provided_id,
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				PARA_ID.try_into().unwrap(),
+				NATIVE,
+				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				call.clone(),
+				Weight::from_ref_time(100_000),
+				delegator_account.clone(),
+			),
+			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
+		);
 	})
 }
 
@@ -1024,7 +1081,8 @@ mod extrinsics {
 					last_event(),
 					RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 						who: account_id,
-						task_id
+						task_id,
+						schedule_as: None,
 					})
 				);
 			})
