@@ -42,6 +42,9 @@ pub type CurrencyId = u32;
 
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
+pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
+pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
+
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
 
@@ -351,7 +354,11 @@ impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
 pub struct MockEnsureProxy;
 impl EnsureProxy<AccountId> for MockEnsureProxy {
 	fn ensure_ok(_delegator: AccountId, _delegatee: AccountId) -> Result<(), &'static str> {
-		Ok(())
+		if _delegator == DELEGATOR_ACCOUNT.into() && _delegatee == PROXY_ACCOUNT.into() {
+			Ok(())
+		} else {
+			Err("proxy error: expected `ProxyType::Any`")
+		}
 	}
 }
 

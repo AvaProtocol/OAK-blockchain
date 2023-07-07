@@ -311,6 +311,77 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
+fn schedule_xcmp_through_proxy_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
+		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(proxy_account.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(proxy_account.clone()),
+			provided_id,
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			PARA_ID.try_into().unwrap(),
+			NATIVE,
+			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			delegator_account.clone(),
+		));
+
+		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
+		assert_eq!(tasks.is_some(), true);
+
+		let tasks = tasks.unwrap();
+		assert_eq!(tasks.tasks[0].0, proxy_account.clone());
+
+		// Find the TaskScheduled event in the event list and verify if the who within it is correct.
+		events()
+			.into_iter()
+			.find(|e| match e {
+				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+					who,
+					schedule_as,
+					..
+				}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
+				_ => false,
+			})
+			.expect("TaskScheduled event should emit with 'who' being proxy_account, and 'schedule_as' being delegator_account.");
+	})
+}
+
+#[test]
+fn schedule_xcmp_through_proxy_same_as_delegator_account() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let provided_id = vec![50];
+		let delegator_account = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+
+		// Funds including XCM fees
+		get_xcmp_funds(delegator_account.clone());
+
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task_through_proxy(
+				RuntimeOrigin::signed(delegator_account.clone()),
+				provided_id,
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				PARA_ID.try_into().unwrap(),
+				NATIVE,
+				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				call.clone(),
+				Weight::from_ref_time(100_000),
+				delegator_account.clone(),
+			),
+			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
+		);
+	})
+}
+
+#[test]
 fn schedule_xcmp_fails_if_not_enough_funds() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let alice = AccountId32::new(ALICE);
@@ -1024,7 +1095,8 @@ mod extrinsics {
 					last_event(),
 					RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 						who: account_id,
-						task_id
+						task_id,
+						schedule_as: None,
 					})
 				);
 			})
