@@ -206,7 +206,7 @@ impl Schedule {
 }
 
 /// The struct that stores all information needed for a task.
-#[derive(Debug, Encode, Decode, TypeInfo)]
+#[derive(Debug, Encode, Decode, TypeInfo, Clone)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
 pub struct Task<AccountId, Balance> {
 	pub owner_id: AccountId,

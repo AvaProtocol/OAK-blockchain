@@ -273,6 +273,7 @@ pub mod pallet {
 		TaskScheduled {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
+			schedule_as: Option<AccountOf<T>>,
 		},
 		/// Cancelled a task.
 		TaskCancelled {
@@ -338,6 +339,7 @@ pub mod pallet {
 		TaskRescheduled {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
+			schedule_as: Option<AccountOf<T>>,
 		},
 		/// A recurring task was not rescheduled
 		TaskNotRescheduled {
@@ -1395,12 +1397,12 @@ pub mod pallet {
 					Ok(task_id)
 				})?;
 
-			let scheduler = match action {
-				Action::XCMP { schedule_as, .. } => schedule_as.unwrap_or(owner_id),
-				_ => owner_id,
+			let schedule_as = match action {
+				Action::XCMP { schedule_as, .. } => schedule_as,
+				_ => None,
 			};
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who: scheduler, task_id });
+			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id, schedule_as });
 			Ok(())
 		}
 
@@ -1418,9 +1420,18 @@ pub mod pallet {
 				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 			} else {
 				let owner_id = task.owner_id.clone();
+				let action = task.action.clone();
 				match Self::reschedule_existing_task(task_id, &mut task) {
 					Ok(_) => {
-						Self::deposit_event(Event::<T>::TaskRescheduled { who: owner_id, task_id });
+						let schedule_as = match action {
+							Action::XCMP { schedule_as, .. } => schedule_as,
+							_ => None,
+						};
+						Self::deposit_event(Event::<T>::TaskRescheduled {
+							who: owner_id,
+							task_id,
+							schedule_as,
+						});
 					},
 					Err(err) => {
 						Self::deposit_event(Event::<T>::TaskFailedToReschedule {
@@ -1449,9 +1460,18 @@ pub mod pallet {
 					})?;
 
 					let owner_id = task.owner_id.clone();
-					AccountTasks::<T>::insert(owner_id.clone(), task_id, task);
+					AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
 
-					Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id });
+					let schedule_as = match task.action.clone() {
+						Action::XCMP { schedule_as, .. } => schedule_as.clone(),
+						_ => None,
+					};
+
+					Self::deposit_event(Event::<T>::TaskScheduled {
+						who: owner_id,
+						task_id,
+						schedule_as,
+					});
 				},
 				Schedule::Fixed { .. } => {},
 			}
