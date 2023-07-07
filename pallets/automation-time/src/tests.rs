@@ -16,12 +16,16 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, AssetPayment, Config, Error, InstructionSequence, LastTimeSlot,
-	MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2,
-	WeightInfo,
+	mock::*, AccountTasks, Action, ActionOf, AssetPayment, Config, Error, InstructionSequence,
+	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf,
+	TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
+use frame_support::{
+	assert_noop, assert_ok,
+	traits::OnInitialize,
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+};
 use frame_system::{self, RawOrigin};
 use pallet_valve::Shutdown;
 use sp_runtime::{
@@ -290,6 +294,33 @@ fn schedule_native_transfer_works() {
 }
 
 #[test]
+fn calculate_schedule_fee_amount_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
+		let execution_count = 2;
+
+		let action: ActionOf<Test> = Action::XCMP {
+			destination,
+			schedule_fee: destination.into(),
+			execution_fee: AssetPayment { asset_location: destination.into(), amount: 100 },
+			encoded_call: vec![3, 4, 5],
+			encoded_call_weight: Weight::from_ref_time(100_000),
+			overall_weight: Weight::from_ref_time(200_000),
+			schedule_as: Some(delegator_account),
+			flow: InstructionSequence::PayThroughRemoteDerivativeAccount,
+		};
+		let schedule_fee_amount =
+			AutomationTime::calculate_schedule_fee_amount(&action, execution_count)
+				.expect("Calculate schedule fee amount should work");
+		let expected_schedule_fee_amount =
+			FEE_PER_SECOND * XCMP_TASK_REF_TIME * (execution_count as u128) /
+				(WEIGHT_REF_TIME_PER_SECOND as u128);
+		assert_eq!(schedule_fee_amount, expected_schedule_fee_amount);
+	})
+}
+
+#[test]
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
@@ -382,10 +413,7 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.clone().into()),
 				Box::new(MultiLocation::default().into()),
-				Box::new(AssetPayment {
-					asset_location: destination.into(),
-					amount: 10,
-				}),
+				Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
 				call.clone(),
 				Weight::from_ref_time(100_000),
 				Weight::from_ref_time(200_000),

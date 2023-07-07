@@ -50,6 +50,9 @@ pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
+pub const FEE_PER_SECOND: u128 = 100_000_000_000;
+pub const XCMP_TASK_REF_TIME: u128 = 20_000;
+
 construct_runtime!(
 	pub enum Test where
 		Block = Block,
@@ -327,7 +330,7 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 pub struct MockConversionRateProvider;
 impl FixedConversionRateProvider for MockConversionRateProvider {
 	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
-		Some(1)
+		Some(FEE_PER_SECOND)
 	}
 }
 
