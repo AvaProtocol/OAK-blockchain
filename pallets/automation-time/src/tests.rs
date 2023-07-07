@@ -271,8 +271,8 @@ fn schedule_xcmp_works() {
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let provided_id = vec![50];
-		let user_account = AccountId32::new(ALICE);
-		let proxy_account = AccountId32::new(BOB);
+		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
+		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
 		let call: Vec<u8> = vec![2, 4, 5];
 
 		// Funds including XCM fees
@@ -287,7 +287,7 @@ fn schedule_xcmp_through_proxy_works() {
 			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
 			call.clone(),
 			Weight::from_ref_time(100_000),
-			user_account.clone(),
+			delegator_account.clone(),
 		));
 
 		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
@@ -304,7 +304,7 @@ fn schedule_xcmp_through_proxy_works() {
 					who,
 					schedule_as,
 					..
-				}) if *who == proxy_account && *schedule_as == Some(user_account.clone()) => true,
+				}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
 				_ => false,
 			})
 			.expect("The TaskScheduled event should be emitted, with the data where who is the proxy_account, and schedule_as is the user_account.");
@@ -312,18 +312,18 @@ fn schedule_xcmp_through_proxy_works() {
 }
 
 #[test]
-fn schedule_xcmp_through_proxy_same_as_user_account() {
+fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let provided_id = vec![50];
-		let user_account = AccountId32::new(ALICE);
+		let delegator_account = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
 
 		// Funds including XCM fees
-		get_xcmp_funds(user_account.clone());
+		get_xcmp_funds(delegator_account.clone());
 
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task_through_proxy(
-				RuntimeOrigin::signed(user_account.clone()),
+				RuntimeOrigin::signed(delegator_account.clone()),
 				provided_id,
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				PARA_ID.try_into().unwrap(),
@@ -331,7 +331,7 @@ fn schedule_xcmp_through_proxy_same_as_user_account() {
 				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
 				call.clone(),
 				Weight::from_ref_time(100_000),
-				user_account.clone(),
+				delegator_account.clone(),
 			),
 			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
 		);
