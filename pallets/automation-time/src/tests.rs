@@ -319,6 +319,7 @@ fn schedule_xcmp_works() {
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let provided_id = vec![50];
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
 		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
 		let call: Vec<u8> = vec![2, 4, 5];
@@ -330,11 +331,15 @@ fn schedule_xcmp_through_proxy_works() {
 			RuntimeOrigin::signed(proxy_account.clone()),
 			provided_id,
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			PARA_ID.try_into().unwrap(),
-			NATIVE,
-			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			Box::new(destination.clone().into()),
+			Box::new(MultiLocation::default().into()),
+			Box::new(AssetPayment {
+				asset_location: destination.into(),
+				amount: 10,
+			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000),
 			delegator_account.clone(),
 		));
 
@@ -365,6 +370,7 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 		let provided_id = vec![50];
 		let delegator_account = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
 
 		// Funds including XCM fees
 		get_xcmp_funds(delegator_account.clone());
@@ -374,11 +380,15 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 				RuntimeOrigin::signed(delegator_account.clone()),
 				provided_id,
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				PARA_ID.try_into().unwrap(),
-				NATIVE,
-				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				Box::new(destination.clone().into()),
+				Box::new(MultiLocation::default().into()),
+				Box::new(AssetPayment {
+					asset_location: destination.into(),
+					amount: 10,
+				}),
 				call.clone(),
 				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000),
 				delegator_account.clone(),
 			),
 			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
