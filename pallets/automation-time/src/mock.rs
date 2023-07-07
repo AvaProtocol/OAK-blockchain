@@ -197,9 +197,49 @@ parameter_types! {
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = 12;
-	pub const MaxWeightPerSlot: u128 = 70_000_000;
+
+	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
+	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
+	// what you don't own
+	// One of test we do is Balances::transfer call, which has its weight define here:
+	// https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
+	// When logging the final calculated amount, its value is 73_314_000.
+	//
+	// in our unit test, we test a few transfers with dynamic dispatch. On top
+	// of that, there is also weight of our call such as fetching the tasks,
+	// move from schedule slot to tasks queue,.. so the weight of a schedule
+	// transfer with dynamic dispatch is even higher.
+	//
+	// and because we test run a few of them so I set it to ~10x value of 73_314_000
+	pub const MaxWeightPerSlot: u128 = 700_000_000;
 	pub const XmpFee: u128 = 1_000_000;
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
+}
+
+pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
+impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
+	fn transfer() -> Weight {
+		Weight::from_ref_time(100_000)
+	}
+
+	fn transfer_keep_alive() -> Weight {
+		Weight::zero()
+	}
+	fn set_balance_creating() -> Weight {
+		Weight::zero()
+	}
+	fn set_balance_killing() -> Weight {
+		Weight::zero()
+	}
+	fn force_transfer() -> Weight {
+		Weight::zero()
+	}
+	fn transfer_all() -> Weight {
+		Weight::zero()
+	}
+	fn force_unreserve() -> Weight {
+		Weight::zero()
+	}
 }
 
 pub struct MockWeight<T>(PhantomData<T>);
@@ -210,12 +250,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn schedule_notify_task_full(_v: u32) -> Weight {
 		Weight::zero()
 	}
-	fn schedule_native_transfer_task_empty() -> Weight {
-		Weight::zero()
-	}
-	fn schedule_native_transfer_task_full(_v: u32) -> Weight {
-		Weight::zero()
-	}
+
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		Weight::zero()
 	}
@@ -326,6 +361,7 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 	fn contains(c: &RuntimeCall) -> bool {
 		match c {
 			RuntimeCall::System(_) => true,
+			RuntimeCall::Balances(_) => true,
 			_ => false,
 		}
 	}

@@ -245,19 +245,6 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		Ok(Self::new(owner_id, provided_id, schedule, action))
 	}
 
-	pub fn create_native_transfer_task<T: Config>(
-		owner_id: AccountId,
-		provided_id: Vec<u8>,
-		execution_times: Vec<UnixTime>,
-		recipient_id: AccountId,
-		amount: Balance,
-	) -> Result<Self, DispatchError> {
-		let action =
-			Action::NativeTransfer { sender: owner_id.clone(), recipient: recipient_id, amount };
-		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, provided_id, schedule, action))
-	}
-
 	pub fn create_xcmp_task<T: Config>(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,

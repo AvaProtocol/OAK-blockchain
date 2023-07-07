@@ -49,8 +49,6 @@
 //:schedule_notify_task_empty 65_659_000
 //:schedule_notify_task_full 78_853_745
 //:schedule_xcmp_task_full 152_969_036
-//:schedule_native_transfer_task_empty 66_259_000
-//:schedule_native_transfer_task_full 80_110_298
 //:schedule_auto_compound_delegated_stake_task_full 100_352_000
 //:schedule_dynamic_dispatch_task 64_072_149
 //:schedule_dynamic_dispatch_task_full 81_646_045
@@ -85,8 +83,6 @@ pub trait WeightInfo {
 	fn schedule_notify_task_empty() -> Weight;
 	fn schedule_notify_task_full(v: u32, ) -> Weight;
 	fn schedule_xcmp_task_full(v: u32, ) -> Weight;
-	fn schedule_native_transfer_task_empty() -> Weight;
-	fn schedule_native_transfer_task_full(v: u32, ) -> Weight;
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight;
 	fn schedule_dynamic_dispatch_task(v: u32, ) -> Weight;
 	fn schedule_dynamic_dispatch_task_full(v: u32, ) -> Weight;
@@ -180,45 +176,6 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(12 as u64))
 			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 			.saturating_add(T::DbWeight::get().writes(7 as u64))
-			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AutomationTime AccountTasks (r:1 w:1)
-	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
-	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
-	// Proof Skipped: AutomationTime ScheduledTasksV3 (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry Metadata (r:1 w:0)
-	// Proof Skipped: AssetRegistry Metadata (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
-	// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
-	fn schedule_native_transfer_task_empty() -> Weight {
-		Weight::from_ref_time(66_259_000 as u64)
-			.saturating_add(T::DbWeight::get().reads(7 as u64))
-			.saturating_add(T::DbWeight::get().writes(4 as u64))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AutomationTime AccountTasks (r:1 w:1)
-	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
-	// Storage: AutomationTime ScheduledTasksV3 (r:36 w:36)
-	// Proof Skipped: AutomationTime ScheduledTasksV3 (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry Metadata (r:1 w:0)
-	// Proof Skipped: AssetRegistry Metadata (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
-	// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `v` is `[1, 36]`.
-	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		Weight::from_ref_time(80_110_298 as u64)
-			// Standard Error: 11_611
-			.saturating_add(Weight::from_ref_time(30_089_770 as u64).saturating_mul(v as u64))
-			.saturating_add(T::DbWeight::get().reads(6 as u64))
-			.saturating_add(T::DbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
-			.saturating_add(T::DbWeight::get().writes(3 as u64))
 			.saturating_add(T::DbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
@@ -546,45 +503,6 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(12 as u64))
 			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
 			.saturating_add(RocksDbWeight::get().writes(7 as u64))
-			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AutomationTime AccountTasks (r:1 w:1)
-	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
-	// Storage: AutomationTime ScheduledTasksV3 (r:1 w:1)
-	// Proof Skipped: AutomationTime ScheduledTasksV3 (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry Metadata (r:1 w:0)
-	// Proof Skipped: AssetRegistry Metadata (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
-	// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
-	fn schedule_native_transfer_task_empty() -> Weight {
-		Weight::from_ref_time(66_259_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(7 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
-	}
-	// Storage: Timestamp Now (r:1 w:0)
-	// Proof: Timestamp Now (max_values: Some(1), max_size: Some(8), added: 503, mode: MaxEncodedLen)
-	// Storage: System Account (r:2 w:2)
-	// Proof: System Account (max_values: None, max_size: Some(128), added: 2603, mode: MaxEncodedLen)
-	// Storage: AutomationTime AccountTasks (r:1 w:1)
-	// Proof Skipped: AutomationTime AccountTasks (max_values: None, max_size: None, mode: Measured)
-	// Storage: AutomationTime ScheduledTasksV3 (r:36 w:36)
-	// Proof Skipped: AutomationTime ScheduledTasksV3 (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry Metadata (r:1 w:0)
-	// Proof Skipped: AssetRegistry Metadata (max_values: None, max_size: None, mode: Measured)
-	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
-	// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
-	/// The range of component `v` is `[1, 36]`.
-	fn schedule_native_transfer_task_full(v: u32, ) -> Weight {
-		Weight::from_ref_time(80_110_298 as u64)
-			// Standard Error: 11_611
-			.saturating_add(Weight::from_ref_time(30_089_770 as u64).saturating_mul(v as u64))
-			.saturating_add(RocksDbWeight::get().reads(6 as u64))
-			.saturating_add(RocksDbWeight::get().reads((1 as u64).saturating_mul(v as u64)))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes((1 as u64).saturating_mul(v as u64)))
 	}
 	// Storage: Timestamp Now (r:1 w:0)
