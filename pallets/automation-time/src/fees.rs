@@ -84,6 +84,7 @@ where
 			.ok_or("IncoveribleMultilocation")?;
 		let currency_id = currency_id.into();
 		let free_balance = T::MultiCurrency::free_balance(currency_id, &self.owner);
+
 		free_balance
 			.checked_sub(&fee)
 			.ok_or(DispatchError::Token(BelowMinimum))?
