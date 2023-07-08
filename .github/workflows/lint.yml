@@ -1,0 +1,30 @@
+name: Lint
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      # on self-hosted runner, we already pre-installed the rust toolchain
+      - name: Format the code with rust fmt
+        id: cargo_fmt
+        run: |
+          cargo fmt
+          if [ -z "$(git diff .)" ]; then
+            echo code format ok
+            echo "need_format=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "need_format=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Format the code
+        if: steps.cargo_fmt.outputs.need_format == 'true'
+        run: |
+          git config --global user.name 'oak-code-formatter'
+          git config --global user.email 'oak-code-formatter@users.noreply.github.com'
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
+          git checkout $GITHUB_HEAD_REF
+          git commit -am "fixup: auto format Rust code"
+          git push
