@@ -50,11 +50,10 @@ pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
-pub const MOONBASE_ASSET_LOCATION: MultiLocation = MultiLocation {
-	parents: 1,
-	interior: X2(Parachain(1000), PalletInstance(3)),
-};
-pub const UNKNOWN_SCHEDULE_FEE: MultiLocation = MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
+pub const MOONBASE_ASSET_LOCATION: MultiLocation =
+	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
+pub const UNKNOWN_SCHEDULE_FEE: MultiLocation =
+	MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
 
 pub const XCMP_TASK_WEIGHT: Weight = Weight::from_ref_time(20_000);
 
@@ -64,10 +63,7 @@ pub struct MockAssetFeePerSecond {
 }
 
 pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 4] = [
-	MockAssetFeePerSecond {
-		asset_location: NATIVE_LOCATION,
-		fee_per_second: 416_000_000_000,
-	},
+	MockAssetFeePerSecond { asset_location: NATIVE_LOCATION, fee_per_second: 416_000_000_000 },
 	MockAssetFeePerSecond {
 		asset_location: MultiLocation { parents: 1, interior: X1(Parachain(2000)) },
 		fee_per_second: 416_000_000_000,
