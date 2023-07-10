@@ -50,8 +50,40 @@ pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
-pub const FEE_PER_SECOND: u128 = 100_000_000_000;
-pub const XCMP_TASK_REF_TIME: u128 = 20_000;
+pub const MOONBASE_ASSET_LOCATION: MultiLocation = MultiLocation {
+	parents: 1,
+	interior: X2(Parachain(1000), PalletInstance(3)),
+};
+pub const UNKNOWN_SCHEDULE_FEE: MultiLocation = MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
+
+pub const XCMP_TASK_WEIGHT: Weight = Weight::from_ref_time(20_000);
+
+pub struct MockAssetFeePerSecond {
+	pub asset_location: MultiLocation,
+	pub fee_per_second: u128,
+}
+
+pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 4] = [
+	MockAssetFeePerSecond {
+		asset_location: NATIVE_LOCATION,
+		fee_per_second: 416_000_000_000,
+	},
+	MockAssetFeePerSecond {
+		asset_location: MultiLocation { parents: 1, interior: X1(Parachain(2000)) },
+		fee_per_second: 416_000_000_000,
+	},
+	MockAssetFeePerSecond {
+		asset_location: MultiLocation {
+			parents: 1,
+			interior: X2(Parachain(2110), GeneralKey { length: 4, data: [0; 32] }),
+		},
+		fee_per_second: 416_000_000_000,
+	},
+	MockAssetFeePerSecond {
+		asset_location: MOONBASE_ASSET_LOCATION,
+		fee_per_second: 10_000_000_000_000_000_000,
+	},
+];
 
 construct_runtime!(
 	pub enum Test where
@@ -287,7 +319,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		Weight::from_ref_time(20_000)
 	}
 	fn run_xcmp_task() -> Weight {
-		Weight::from_ref_time(20_000)
+		XCMP_TASK_WEIGHT
 	}
 	fn run_auto_compound_delegated_stake_task() -> Weight {
 		Weight::from_ref_time(20_000)
@@ -365,8 +397,8 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 
 pub struct MockConversionRateProvider;
 impl FixedConversionRateProvider for MockConversionRateProvider {
-	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
-		Some(FEE_PER_SECOND)
+	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+		get_fee_per_second(location)
 	}
 }
 
@@ -617,4 +649,16 @@ pub fn fund_account(
 			additional_amount.unwrap_or(0) +
 			u128::from(ExistentialDeposit::get());
 	_ = <Test as Config>::Currency::deposit_creating(account, amount);
+}
+
+pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| match item {
+		MockAssetFeePerSecond { asset_location, .. } => asset_location == location,
+	});
+
+	if found_asset.is_some() {
+		Some(found_asset.unwrap().fee_per_second)
+	} else {
+		None
+	}
 }
