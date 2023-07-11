@@ -95,7 +95,7 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 						Weight::from_ref_time(INSTRUCTION_WEIGHT_REF_TIME).saturating_mul(6),
 					),
 					schedule_as,
-					flow: InstructionSequence::PayThroughSovereignAccount,
+					instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 				}
 			},
 			OldAction::DynamicDispatch { encoded_call } => Self::DynamicDispatch { encoded_call },
@@ -216,7 +216,7 @@ mod test {
 							Weight::from_ref_time(INSTRUCTION_WEIGHT_REF_TIME).saturating_mul(6)
 						),
 						schedule_as,
-						flow: InstructionSequence::PayThroughSovereignAccount,
+						instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 					},
 				}
 			);

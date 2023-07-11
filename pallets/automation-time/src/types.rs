@@ -38,7 +38,7 @@ pub enum Action<AccountId, Balance> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		schedule_as: Option<AccountId>,
-		flow: InstructionSequence,
+		instruction_sequence: InstructionSequence,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
@@ -101,7 +101,7 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned> From<AutomationAc
 				encoded_call_weight: Weight::zero(),
 				overall_weight: Weight::zero(),
 				schedule_as: None,
-				flow: InstructionSequence::PayThroughSovereignAccount,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
 				delegator: default_account.clone(),
@@ -259,7 +259,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
-		flow: InstructionSequence,
+		instruction_sequence: InstructionSequence,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
@@ -271,7 +271,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			encoded_call_weight,
 			overall_weight,
 			schedule_as: None,
-			flow,
+			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))

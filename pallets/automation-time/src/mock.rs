@@ -48,6 +48,7 @@ pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
+pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
 pub const MOONBASE_ASSET_LOCATION: MultiLocation =
@@ -55,15 +56,12 @@ pub const MOONBASE_ASSET_LOCATION: MultiLocation =
 pub const UNKNOWN_SCHEDULE_FEE: MultiLocation =
 	MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
 
-pub const XCMP_TASK_WEIGHT: Weight = Weight::from_ref_time(20_000);
-
 pub struct MockAssetFeePerSecond {
 	pub asset_location: MultiLocation,
 	pub fee_per_second: u128,
 }
 
-pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 4] = [
-	MockAssetFeePerSecond { asset_location: NATIVE_LOCATION, fee_per_second: 416_000_000_000 },
+pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 3] = [
 	MockAssetFeePerSecond {
 		asset_location: MultiLocation { parents: 1, interior: X1(Parachain(2000)) },
 		fee_per_second: 416_000_000_000,
@@ -232,7 +230,7 @@ parameter_types! {
 	pub const MaxBlockWeight: u64 = 1_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const ExecutionWeightFee: Balance = 12;
+	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
 
 	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
 	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
@@ -315,7 +313,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		Weight::from_ref_time(20_000)
 	}
 	fn run_xcmp_task() -> Weight {
-		XCMP_TASK_WEIGHT
+		Weight::from_ref_time(20_000)
 	}
 	fn run_auto_compound_delegated_stake_task() -> Weight {
 		Weight::from_ref_time(20_000)
@@ -648,8 +646,16 @@ pub fn fund_account(
 }
 
 pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+	let location = location
+		.reanchored(
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
+				.into(),
+			<Test as Config>::UniversalLocation::get(),
+		)
+		.expect("Reanchor location failed");
+
 	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| match item {
-		MockAssetFeePerSecond { asset_location, .. } => asset_location == location,
+		MockAssetFeePerSecond { asset_location, .. } => *asset_location == location,
 	});
 
 	if found_asset.is_some() {

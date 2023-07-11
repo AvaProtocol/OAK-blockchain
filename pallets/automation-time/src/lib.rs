@@ -420,7 +420,7 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: None,
-				flow: InstructionSequence::PayThroughSovereignAccount,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			};
 
 			let schedule = schedule.validated_into::<T>()?;
@@ -461,7 +461,7 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				schedule_as: Some(schedule_as),
-				flow: InstructionSequence::PayThroughRemoteDerivativeAccount,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			};
 			let schedule = schedule.validated_into::<T>()?;
 
@@ -887,7 +887,7 @@ pub mod pallet {
 								encoded_call,
 								encoded_call_weight,
 								overall_weight,
-								flow,
+								instruction_sequence,
 								..
 							} => Self::run_xcmp_task(
 								destination,
@@ -897,7 +897,7 @@ pub mod pallet {
 								encoded_call_weight,
 								overall_weight,
 								*task_id,
-								flow,
+								instruction_sequence,
 							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
@@ -1321,14 +1321,18 @@ pub mod pallet {
 			}
 
 			match action.clone() {
-				Action::XCMP { execution_fee, flow, .. } => {
+				Action::XCMP { execution_fee, instruction_sequence, .. } => {
 					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let asset_location = asset_location
-						.reanchored(&MultiLocation::default().into(), T::UniversalLocation::get())
+						.reanchored(
+							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))
+								.into(),
+							T::UniversalLocation::get(),
+						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 					// Only native token are supported as the XCMP fee for local deductions
-					if flow == InstructionSequence::PayThroughSovereignAccount &&
+					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
 						asset_location != MultiLocation::new(0, Here).into()
 					{
 						Err(Error::<T>::UnsupportedFeePayment)?
@@ -1469,7 +1473,10 @@ pub mod pallet {
 
 			let schedule_fee_location = action.schedule_fee_location::<T>();
 			let schedule_fee_location = schedule_fee_location
-				.reanchored(&MultiLocation::default().into(), T::UniversalLocation::get())
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))).into(),
+					T::UniversalLocation::get(),
+				)
 				.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let fee = if schedule_fee_location == MultiLocation::default() {
