@@ -16,26 +16,110 @@
 // limitations under the License.
 
 use crate::{
-	mock::*, AccountTasks, Action, Config, Error, LastTimeSlot, MissedTaskV2Of, ScheduleParam,
-	ScheduledTasksOf, TaskHashInput, TaskOf, TaskQueueV2, WeightInfo,
+	mock::*, AccountTasks, Action, ActionOf, AssetPayment, Config, Error, InstructionSequence,
+	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf,
+	TaskQueueV2, WeightInfo,
 };
 use codec::Encode;
-use core::convert::TryInto;
-use frame_support::{assert_noop, assert_ok, traits::OnInitialize, weights::Weight};
+use frame_support::{
+	assert_noop, assert_ok,
+	dispatch::GetDispatchInfo,
+	traits::OnInitialize,
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
+};
 use frame_system::{self, RawOrigin};
-use pallet_balances;
-
-use pallet_valve::Shutdown;
+use rand::Rng;
+use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
+use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
-use xcm::latest::{prelude::X1, Junction::Parachain, MultiLocation};
+use pallet_balances;
+use pallet_valve::Shutdown;
 
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
+
+const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
+
+const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
+
+struct XcmpActionParams {
+	destination: MultiLocation,
+	schedule_fee: MultiLocation,
+	execution_fee: AssetPayment,
+	encoded_call: Vec<u8>,
+	encoded_call_weight: Weight,
+	overall_weight: Weight,
+	schedule_as: Option<AccountId32>,
+	instruction_sequence: InstructionSequence,
+}
+
+impl Default for XcmpActionParams {
+	fn default() -> Self {
+		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
+		XcmpActionParams {
+			destination: MultiLocation::new(1, X1(Parachain(PARA_ID))),
+			schedule_fee: DEFAULT_SCHEDULE_FEE_LOCATION.into(),
+			execution_fee: AssetPayment {
+				asset_location: MOONBASE_ASSET_LOCATION.into(),
+				amount: 100,
+			},
+			encoded_call: vec![3, 4, 5],
+			encoded_call_weight: Weight::from_ref_time(100_000),
+			overall_weight: Weight::from_ref_time(200_000),
+			schedule_as: Some(delegator_account),
+			instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+		}
+	}
+}
+
+fn create_xcmp_action(options: XcmpActionParams) -> ActionOf<Test> {
+	Action::XCMP {
+		destination: options.destination,
+		schedule_fee: options.schedule_fee,
+		execution_fee: options.execution_fee,
+		encoded_call: options.encoded_call,
+		encoded_call_weight: options.encoded_call_weight,
+		overall_weight: options.overall_weight,
+		schedule_as: options.schedule_as,
+		instruction_sequence: options.instruction_sequence,
+	}
+}
+
+fn generate_random_num(min: u32, max: u32) -> u32 {
+	rand::thread_rng().gen_range(min, max)
+}
+
+fn calculate_local_action_schedule_fee(weight: Weight, num_of_execution: u32) -> u128 {
+	NATIVE_EXECUTION_WEIGHT_FEE * (weight.ref_time() as u128) * (num_of_execution as u128)
+}
+
+fn calculate_expected_xcmp_action_schedule_fee(
+	schedule_fee_location: MultiLocation,
+	num_of_execution: u32,
+) -> u128 {
+	let schedule_fee_location = schedule_fee_location
+		.reanchored(
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
+				.into(),
+			<Test as Config>::UniversalLocation::get(),
+		)
+		.expect("Location reanchor failed");
+	let weight = <Test as Config>::WeightInfo::run_xcmp_task();
+	let expected_schedule_fee_amount = if schedule_fee_location == MultiLocation::default() {
+		calculate_local_action_schedule_fee(weight, num_of_execution)
+	} else {
+		let fee_per_second =
+			get_fee_per_second(&schedule_fee_location).expect("Get fee per second should work");
+		fee_per_second * (weight.ref_time() as u128) * (num_of_execution as u128) /
+			(WEIGHT_REF_TIME_PER_SECOND as u128)
+	};
+	expected_schedule_fee_amount
+}
 
 // when schedule with a Fixed Time schedule and passing an epoch that isn't the
 // beginning of hour, raise an error
@@ -276,8 +360,247 @@ fn schedule_transfer_with_dynamic_dispatch() {
 }
 
 #[test]
+fn calculate_auto_compound_action_schedule_fee_amount_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+		let delegator = AccountId32::new(ALICE);
+		let collator = AccountId32::new(BOB);
+		let action = Action::AutoCompoundDelegatedStake {
+			delegator,
+			collator,
+			account_minimum: 100u128.into(),
+		};
+
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let weight = <Test as Config>::WeightInfo::run_auto_compound_delegated_stake_task();
+		let expected_schedule_fee_amount =
+			calculate_local_action_schedule_fee(weight, num_of_execution);
+
+		assert_eq!(fee_amount, expected_schedule_fee_amount);
+	})
+}
+
+#[test]
+fn calculate_dynamic_dispatch_action_schedule_fee_amount_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![0] }.into();
+		let action = Action::DynamicDispatch { encoded_call: call.encode() };
+
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let weight = <Test as Config>::WeightInfo::run_dynamic_dispatch_action()
+			.saturating_add(call.get_dispatch_info().weight);
+		let expected_schedule_fee_amount =
+			calculate_local_action_schedule_fee(weight, num_of_execution);
+
+		assert_eq!(fee_amount, expected_schedule_fee_amount);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+		let action = create_xcmp_action(XcmpActionParams::default());
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+		let expected_schedule_fee_amount = calculate_expected_xcmp_action_schedule_fee(
+			action.schedule_fee_location::<Test>(),
+			num_of_execution,
+		);
+		assert_eq!(fee_amount, expected_schedule_fee_amount);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_fees_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		ASSET_FEE_PER_SECOND.into_iter().for_each(|fee| {
+			let num_of_execution = generate_random_num(1, 20);
+			let action = create_xcmp_action(XcmpActionParams {
+				schedule_fee: fee.asset_location.clone(),
+				..XcmpActionParams::default()
+			});
+
+			let fee_amount =
+				AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+					.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+			let expected_schedule_fee_amount =
+				calculate_expected_xcmp_action_schedule_fee(fee.asset_location, num_of_execution);
+
+			assert_eq!(fee_amount, expected_schedule_fee_amount);
+		});
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_absolute_or_relative_native_schedule_fee_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+
+		let action_absolute = create_xcmp_action(XcmpActionParams {
+			schedule_fee: MultiLocation::new(
+				1,
+				X1(Parachain(<Test as Config>::SelfParaId::get().into())),
+			),
+			..XcmpActionParams::default()
+		});
+		let fee_amount_abosolute =
+			AutomationTime::calculate_schedule_fee_amount(&action_absolute, num_of_execution)
+				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let action_relative = create_xcmp_action(XcmpActionParams {
+			schedule_fee: MultiLocation::new(0, Here),
+			..XcmpActionParams::default()
+		});
+		let fee_amount_relative =
+			AutomationTime::calculate_schedule_fee_amount(&action_relative, num_of_execution)
+				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let expected_schedule_fee_amount = calculate_expected_xcmp_action_schedule_fee(
+			MultiLocation::new(0, Here),
+			num_of_execution,
+		);
+
+		assert_eq!(fee_amount_abosolute, fee_amount_relative);
+		assert_eq!(fee_amount_abosolute, expected_schedule_fee_amount);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_different_destination_returns_same_result() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+
+		let action = create_xcmp_action(XcmpActionParams {
+			destination: MultiLocation::new(1, X1(Parachain(PARA_ID))),
+			..XcmpActionParams::default()
+		});
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let action_diffrent_dest = create_xcmp_action(XcmpActionParams {
+			destination: MultiLocation::new(1, X1(Parachain(3000))),
+			..XcmpActionParams::default()
+		});
+		let fee_amount_diffrent_dest =
+			AutomationTime::calculate_schedule_fee_amount(&action_diffrent_dest, num_of_execution)
+				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		assert_eq!(fee_amount, fee_amount_diffrent_dest);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_different_execution_fee_returns_same_result() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+
+		let action = create_xcmp_action(XcmpActionParams {
+			execution_fee: AssetPayment {
+				asset_location: MOONBASE_ASSET_LOCATION.into(),
+				amount: 100,
+			},
+			..XcmpActionParams::default()
+		});
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let action_diffrent_execution_fee = create_xcmp_action(XcmpActionParams {
+			execution_fee: AssetPayment {
+				asset_location: MultiLocation::new(1, X1(Parachain(3000))).into(),
+				amount: 300,
+			},
+			..XcmpActionParams::default()
+		});
+		let fee_amount_diffrent_execution_fee = AutomationTime::calculate_schedule_fee_amount(
+			&action_diffrent_execution_fee,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		assert_eq!(fee_amount, fee_amount_diffrent_execution_fee);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_different_instruction_sequence_returns_same_result(
+) {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+
+		let action = create_xcmp_action(XcmpActionParams {
+			instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			..XcmpActionParams::default()
+		});
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let action_diff_instruction_sequence = create_xcmp_action(XcmpActionParams {
+			instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			..XcmpActionParams::default()
+		});
+		let fee_amount_diff_instruction_sequence = AutomationTime::calculate_schedule_fee_amount(
+			&action_diff_instruction_sequence,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		assert_eq!(fee_amount, fee_amount_diff_instruction_sequence);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_as_returns_same_result() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+
+		let action = create_xcmp_action(XcmpActionParams {
+			schedule_as: Some(ALICE.into()),
+			..XcmpActionParams::default()
+		});
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let action_different_schedule_as = create_xcmp_action(XcmpActionParams {
+			schedule_as: Some(BOB.into()),
+			..XcmpActionParams::default()
+		});
+		let fee_amount_different_schedule_as = AutomationTime::calculate_schedule_fee_amount(
+			&action_different_schedule_as,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		assert_eq!(fee_amount, fee_amount_different_schedule_as);
+	})
+}
+
+#[test]
+fn calculate_xcmp_action_schedule_fee_amount_with_unknown_schedule_fees_fails() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let num_of_execution = generate_random_num(1, 20);
+		let action = create_xcmp_action(XcmpActionParams {
+			schedule_fee: UNKNOWN_SCHEDULE_FEE,
+			..XcmpActionParams::default()
+		});
+		assert_noop!(
+			AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution),
+			sp_runtime::DispatchError::Other("CouldNotDetermineFeePerSecond"),
+		);
+	})
+}
+
+#[test]
 fn schedule_xcmp_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
 		// Funds including XCM fees
@@ -287,11 +610,15 @@ fn schedule_xcmp_works() {
 			RuntimeOrigin::signed(alice.clone()),
 			vec![50],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			PARA_ID.try_into().unwrap(),
-			NATIVE,
-			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10
+			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000),
 		));
 	})
 }
@@ -300,6 +627,7 @@ fn schedule_xcmp_works() {
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let provided_id = vec![50];
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
 		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
 		let call: Vec<u8> = vec![2, 4, 5];
@@ -311,11 +639,15 @@ fn schedule_xcmp_through_proxy_works() {
 			RuntimeOrigin::signed(proxy_account.clone()),
 			provided_id,
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			PARA_ID.try_into().unwrap(),
-			NATIVE,
-			MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+			Box::new(destination.clone().into()),
+			Box::new(MultiLocation::default().into()),
+			Box::new(AssetPayment {
+				asset_location: destination.into(),
+				amount: 10,
+			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000),
 			delegator_account.clone(),
 		));
 
@@ -346,6 +678,7 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 		let provided_id = vec![50];
 		let delegator_account = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
 
 		// Funds including XCM fees
 		get_xcmp_funds(delegator_account.clone());
@@ -355,11 +688,12 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 				RuntimeOrigin::signed(delegator_account.clone()),
 				provided_id,
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				PARA_ID.try_into().unwrap(),
-				NATIVE,
-				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				Box::new(destination.clone().into()),
+				Box::new(MultiLocation::default().into()),
+				Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
 				call.clone(),
 				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000),
 				delegator_account.clone(),
 			),
 			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
@@ -370,8 +704,10 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 #[test]
 fn schedule_xcmp_fails_if_not_enough_funds() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
 		let alice = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		// Funds not including XCM fees
 		get_minimum_funds(alice.clone(), 1);
 
@@ -380,11 +716,15 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				RuntimeOrigin::signed(alice.clone()),
 				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				PARA_ID.try_into().unwrap(),
-				NATIVE,
-				MultiLocation::new(1, X1(Parachain(PARA_ID.into()))).into(),
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 10000000000000
+				}),
 				call.clone(),
 				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000),
 			),
 			Error::<Test>::InsufficientBalance,
 		);
@@ -1725,18 +2065,23 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 #[test]
 fn trigger_tasks_completes_some_xcmp_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let para_id = PARA_ID.try_into().unwrap();
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let task_id = add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::XCMP {
-				para_id,
-				currency_id: NATIVE,
-				xcm_asset_location: MultiLocation::new(1, X1(Parachain(para_id.into()))).into(),
+				destination: destination.clone(),
+				schedule_fee: NATIVE_LOCATION,
+				execution_fee: AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 10,
+				},
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_ref_time(100_000),
+				overall_weight: Weight::from_ref_time(200_000),
 				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			},
 		);
 
@@ -1748,7 +2093,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
-				para_id: PARA_ID.try_into().unwrap(),
+				destination,
 				task_id,
 			})]
 		);

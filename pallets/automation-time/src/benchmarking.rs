@@ -81,11 +81,16 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			owner.clone(),
 			provided_id.clone(),
 			times.clone(),
-			para_id.clone().try_into().unwrap(),
-			T::GetNativeCurrencyId::get(),
-			MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			MultiLocation::new(1, X1(Parachain(para_id))),
+			MultiLocation::default(),
+			AssetPayment {
+				asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+				amount: 0,
+			},
 			vec![4, 5, 6],
 			Weight::from_ref_time(5_000),
+			Weight::from_ref_time(10_000),
+			InstructionSequence::PayThroughSovereignAccount,
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
@@ -159,8 +164,11 @@ benchmarks! {
 		}
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
-		let asset_location = MultiLocation::new(1, X1(Parachain(para_id)));
-		T::XcmpTransactor::setup_chain_asset_data(asset_location.clone())?;
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		let schedule_fee = T::CurrencyIdConvert::convert(currency_id).expect("IncoveribleCurrencyId");
+
+		let fee = AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 100u128 };
 
 		let mut provided_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		provided_id = increment_provided_id(provided_id);
@@ -169,7 +177,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, para_id.into(), currency_id, asset_location.into(), call, Weight::from_ref_time(1_000))
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), provided_id, schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_ref_time(1_000), Weight::from_ref_time(2_000))
 
 	schedule_auto_compound_delegated_stake_task_full {
 		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task().ref_time();
@@ -279,24 +287,23 @@ benchmarks! {
 
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let currency_id: T::CurrencyId = T::GetNativeCurrencyId::get();
 		let time: u64 = 10800;
 		let para_id: u32 = 2001;
 		let call = vec![4,5,6];
 
 		let local_para_id: u32 = 2114;
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let local_sovereign_account: T::AccountId = Sibling::from(local_para_id).into_account_truncating();
 		T::Currency::deposit_creating(
 			&local_sovereign_account,
 			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
-		let asset_location = MultiLocation::new(1, X1(Parachain(para_id)));
-		T::XcmpTransactor::setup_chain_asset_data(asset_location.clone())?;
+		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 
 		let provided_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
 		let task_id = Pallet::<T>::generate_task_id(caller.clone(), provided_id);
-	}: { AutomationTime::<T>::run_xcmp_task(para_id.clone().into(), caller, asset_location.into(), call, Weight::from_ref_time(100_000), task_id.clone()) }
+	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), task_id.clone(), InstructionSequence::PayThroughSovereignAccount) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);

@@ -67,6 +67,7 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
+pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
 use scale_info::TypeInfo;
@@ -90,8 +91,8 @@ pub mod pallet {
 	>>::Balance;
 	pub type TaskId<T> = <T as frame_system::Config>::Hash;
 	pub type AccountTaskId<T> = (AccountOf<T>, TaskId<T>);
-	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
-	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>, <T as Config>::CurrencyId>;
+	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>>;
+	pub type TaskOf<T> = Task<AccountOf<T>, BalanceOf<T>>;
 	pub type MissedTaskV2Of<T> = MissedTaskV2<AccountOf<T>, TaskId<T>>;
 	pub type ScheduledTasksOf<T> = ScheduledTasks<AccountOf<T>, TaskId<T>>;
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
@@ -158,14 +159,11 @@ pub mod pallet {
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
 
 		/// Converts CurrencyId to Multiloc
-		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>;
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>
+			+ Convert<MultiLocation, Option<Self::CurrencyId>>;
 
 		/// Converts between comparable currencies
 		type FeeConversionRateProvider: FixedConversionRateProvider;
-
-		/// The currencyId for the native currency.
-		#[pallet::constant]
-		type GetNativeCurrencyId: Get<Self::CurrencyId>;
 
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
@@ -184,6 +182,12 @@ pub mod pallet {
 
 		/// Ensure proxy
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
+
+		/// This chain's Universal Location.
+		type UniversalLocation: Get<InteriorMultiLocation>;
+
+		//The paraId of this chain.
+		type SelfParaId: Get<ParaId>;
 	}
 
 	#[pallet::pallet]
@@ -258,6 +262,8 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
+		UnsupportedFeePayment,
+		CannotReanchor,
 	}
 
 	#[pallet::event]
@@ -290,12 +296,12 @@ pub mod pallet {
 		/// Successfully sent XCMP
 		XcmpTaskSucceeded {
 			task_id: T::Hash,
-			para_id: ParaId,
+			destination: MultiLocation,
 		},
 		/// Failed to send XCMP
 		XcmpTaskFailed {
 			task_id: T::Hash,
-			para_id: ParaId,
+			destination: MultiLocation,
 			error: DispatchError,
 		},
 		/// Transfer Failed
@@ -376,11 +382,13 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
-		/// * `para_id`: Parachain id the XCMP call will be sent to.
-		/// * `currency_id`: The currency in which fees will be paid.
+		/// * `schedule`: The triggering rules for recurring task or the list of unix standard times in seconds for when the task should run.
+		/// * `destination`: Destination the XCMP call will be sent to.
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
 		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
 		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
@@ -388,26 +396,34 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			para_id: ParaId,
-			currency_id: T::CurrencyId,
-			xcm_asset_location: VersionedMultiLocation,
+			destination: Box<VersionedMultiLocation>,
+			schedule_fee: Box<VersionedMultiLocation>,
+			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
 			let action = Action::XCMP {
-				para_id,
-				currency_id,
-				xcm_asset_location,
+				destination,
+				schedule_fee,
+				execution_fee: *execution_fee,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
 				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			};
 
 			let schedule = schedule.validated_into::<T>()?;
@@ -416,17 +432,44 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The provided_id's length > 0
+		/// * The times are valid
+		/// * The given asset location is supported
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `schedule`: The triggering rules for recurring task or the list of unix standard times in seconds for when the task should run.
+		/// * `destination`: Destination the XCMP call will be sent to.
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Time must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `Other("proxy error: expected `ProxyType::Any`")`: schedule_as must be a proxy account of type "any" for the caller.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
 			provided_id: Vec<u8>,
 			schedule: ScheduleParam,
-			para_id: ParaId,
-			currency_id: T::CurrencyId,
-			xcm_asset_location: VersionedMultiLocation,
+			destination: Box<VersionedMultiLocation>,
+			schedule_fee: Box<VersionedMultiLocation>,
+			execution_fee: Box<AssetPayment>,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 			schedule_as: T::AccountId,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -434,13 +477,20 @@ pub mod pallet {
 			// Make sure the owner is the proxy account of the user account.
 			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
 
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
 			let action = Action::XCMP {
-				para_id,
-				currency_id,
-				xcm_asset_location,
+				destination,
+				schedule_fee,
+				execution_fee: *execution_fee,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
 				schedule_as: Some(schedule_as),
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			};
 			let schedule = schedule.validated_into::<T>()?;
 
@@ -860,19 +910,23 @@ pub mod pallet {
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(sender, recipient, amount, *task_id),
 							Action::XCMP {
-								para_id,
+								destination,
+								execution_fee,
 								schedule_as,
-								xcm_asset_location,
 								encoded_call,
 								encoded_call_weight,
+								overall_weight,
+								instruction_sequence,
 								..
 							} => Self::run_xcmp_task(
-								para_id,
+								destination,
 								schedule_as.unwrap_or(task.owner_id.clone()),
-								xcm_asset_location,
+								execution_fee,
 								encoded_call,
 								encoded_call_weight,
+								overall_weight,
 								*task_id,
+								instruction_sequence,
 							),
 							Action::AutoCompoundDelegatedStake {
 								delegator,
@@ -994,34 +1048,40 @@ pub mod pallet {
 		}
 
 		pub fn run_xcmp_task(
-			para_id: ParaId,
+			destination: MultiLocation,
 			caller: T::AccountId,
-			xcm_asset_location: VersionedMultiLocation,
+			fee: AssetPayment,
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
+			overall_weight: Weight,
 			task_id: TaskId<T>,
+			flow: InstructionSequence,
 		) -> (Weight, Option<DispatchError>) {
-			let location = MultiLocation::try_from(xcm_asset_location);
-			if location.is_err() {
+			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
+			if fee_asset_location.is_err() {
 				return (
 					<T as Config>::WeightInfo::run_xcmp_task(),
 					Some(Error::<T>::BadVersion.into()),
 				)
 			}
+			let fee_asset_location = fee_asset_location.unwrap();
 
 			match T::XcmpTransactor::transact_xcm(
-				para_id.into(),
-				location.unwrap(),
+				destination,
+				fee_asset_location,
+				fee.amount,
 				caller,
 				encoded_call,
 				encoded_call_weight,
+				overall_weight,
+				flow,
 			) {
 				Ok(()) => {
-					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, para_id });
+					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, destination });
 					(<T as Config>::WeightInfo::run_xcmp_task(), None)
 				},
 				Err(e) => {
-					Self::deposit_event(Event::XcmpTaskFailed { task_id, para_id, error: e });
+					Self::deposit_event(Event::XcmpTaskFailed { task_id, destination, error: e });
 					(<T as Config>::WeightInfo::run_xcmp_task(), Some(e))
 				},
 			}
@@ -1037,7 +1097,7 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let reserved_funds = account_minimum
-				.saturating_add(Self::calculate_execution_fee(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
+				.saturating_add(Self::calculate_schedule_fee_amount(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
 			match T::DelegatorActions::delegator_bond_till_minimum(
 				&delegator,
 				&collator,
@@ -1289,6 +1349,27 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
+			match action.clone() {
+				Action::XCMP { execution_fee, instruction_sequence, .. } => {
+					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
+						.map_err(|()| Error::<T>::BadVersion)?;
+					let asset_location = asset_location
+						.reanchored(
+							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))
+								.into(),
+							T::UniversalLocation::get(),
+						)
+						.map_err(|_| Error::<T>::CannotReanchor)?;
+					// Only native token are supported as the XCMP fee for local deductions
+					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
+						asset_location != MultiLocation::new(0, Here).into()
+					{
+						Err(Error::<T>::UnsupportedFeePayment)?
+					}
+				},
+				_ => (),
+			};
+
 			let executions = schedule.known_executions_left();
 
 			let task =
@@ -1413,23 +1494,30 @@ pub mod pallet {
 		///
 		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
 		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
-		pub fn calculate_execution_fee(
+		pub fn calculate_schedule_fee_amount(
 			action: &ActionOf<T>,
 			executions: u32,
 		) -> Result<BalanceOf<T>, DispatchError> {
 			let total_weight = action.execution_weight::<T>()?.saturating_mul(executions.into());
-			let currency_id = action.currency_id::<T>();
-			let fee = if currency_id == T::GetNativeCurrencyId::get() {
+
+			let schedule_fee_location = action.schedule_fee_location::<T>();
+			let schedule_fee_location = schedule_fee_location
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))).into(),
+					T::UniversalLocation::get(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
+
+			let fee = if schedule_fee_location == MultiLocation::default() {
 				T::ExecutionWeightFee::get()
 					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
 			} else {
-				let loc =
-					T::CurrencyIdConvert::convert(currency_id).ok_or("IncoveribleCurrencyId")?;
-				let raw_fee = T::FeeConversionRateProvider::get_fee_per_second(&loc)
-					.ok_or("CouldNotDetermineFeePerSecond")?
-					.checked_mul(total_weight as u128)
-					.ok_or("FeeOverflow")
-					.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
+				let raw_fee =
+					T::FeeConversionRateProvider::get_fee_per_second(&schedule_fee_location)
+						.ok_or("CouldNotDetermineFeePerSecond")?
+						.checked_mul(total_weight as u128)
+						.ok_or("FeeOverflow")
+						.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
 				<BalanceOf<T>>::saturated_from(raw_fee)
 			};
 

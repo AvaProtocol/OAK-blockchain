@@ -1,8 +1,8 @@
 use super::{
 	AccountId, AllPalletsWithSystem, Balance, Balances, Currencies, ParachainInfo, ParachainSystem,
 	PolkadotXcm, Runtime, RuntimeCall, RuntimeEvent, RuntimeOrigin,
-	TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UnknownTokens, XcmpQueue,
-	MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
+	TemporaryForeignTreasuryAccount, TokenId, TreasuryAccount, UniversalLocation, UnknownTokens,
+	XcmpQueue, MAXIMUM_BLOCK_WEIGHT, NATIVE_TOKEN_ID,
 };
 
 use frame_support::{
@@ -41,9 +41,6 @@ parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
-	// The universal location within the global consensus system
-	pub UniversalLocation: InteriorMultiLocation =
-		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
@@ -312,7 +309,6 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type WeightInfo = pallet_xcmp_handler::weights::SubstrateWeight<Runtime>;
 }
 
 pub struct TokenIdConvert;

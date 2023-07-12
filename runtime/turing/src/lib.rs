@@ -103,6 +103,7 @@ use primitives::{
 // Custom pallet imports
 pub use pallet_automation_price;
 pub use pallet_automation_time;
+use pallet_xcmp_handler::InstructionSequence;
 
 use primitives::EnsureProxy;
 
@@ -145,7 +146,7 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = ();
+type Migrations = (pallet_automation_time::migrations::update_xcmp_task::UpdateXcmpTask<Runtime>,);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -192,6 +193,9 @@ pub fn native_version() -> NativeVersion {
 
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Kusama;
+	// The universal location within the global consensus system
+	pub UniversalLocation: InteriorMultiLocation =
+		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
 parameter_types! {
@@ -902,7 +906,6 @@ impl pallet_automation_time::Config for Runtime {
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = TokenId;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type XcmpTransactor = XcmpHandler;
 	type FeeHandler = pallet_automation_time::FeeHandler<Runtime, ToTreasury>;
 	type DelegatorActions = ParachainStaking;
@@ -911,6 +914,8 @@ impl pallet_automation_time::Config for Runtime {
 	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
+	type UniversalLocation = UniversalLocation;
+	type SelfParaId = parachain_info::Pallet<Runtime>;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -1023,7 +1028,7 @@ construct_runtime!(
 		//custom pallets
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
-		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Config, Event<T>} = 62,
+		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Event<T>} = 62,
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
@@ -1165,15 +1170,19 @@ impl_runtime_apis! {
 
 			let (action, executions) = match uxt.function {
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, ..
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
 				}) => {
-					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: None };
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
-					para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule, schedule_as, ..
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
 				}) => {
-					let action = Action::XCMP { para_id, currency_id, xcm_asset_location, encoded_call, encoded_call_weight, schedule_as: Some(schedule_as) };
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
@@ -1189,16 +1198,18 @@ impl_runtime_apis! {
 			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
+			log::error!("fee_handler.schedule_fee_amount: {:?}", fee_handler.schedule_fee_amount);
+			log::error!("fee_handler.execution_fee_amount: {:?}", fee_handler.execution_fee_amount);
 			Ok(AutomationFeeDetails {
-				execution_fee: fee_handler.execution_fee.into(),
-				xcmp_fee: fee_handler.xcmp_fee.into()
+				schedule_fee: fee_handler.schedule_fee_amount.into(),
+				execution_fee: fee_handler.execution_fee_amount.into()
 			})
 		}
 
 		/**
 		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
 		 * This function requires the action type and the number of executions in order to generate an estimate.
-		 * However, the AutomationTime::calculate_execution_fee requires an Action enum from the automation time pallet,
+		 * However, the AutomationTime::calculate_schedule_fee_amount requires an Action enum from the automation time pallet,
 		 * which requires more information than is necessary for this calculation.
 		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
 		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
@@ -1208,7 +1219,7 @@ impl_runtime_apis! {
 			action: AutomationAction,
 			executions: u32,
 		) -> Balance {
-			AutomationTime::calculate_execution_fee(&(action.into()), executions).expect("Can only fail for DynamicDispatch which is not an option here")
+			AutomationTime::calculate_schedule_fee_amount(&(action.into()), executions).expect("Can only fail for DynamicDispatch which is not an option here")
 		}
 
 		fn calculate_optimal_autostaking(
@@ -1220,7 +1231,7 @@ impl_runtime_apis! {
 
 			let collator_stake =
 				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-			let fee = AutomationTime::calculate_execution_fee(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
+			let fee = AutomationTime::calculate_schedule_fee_amount(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
 
 			let duration = 90;
 			let total_collators = ParachainStaking::total_selected();
@@ -1297,7 +1308,6 @@ impl_runtime_apis! {
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
-			use pallet_xcmp_handler::Pallet as XcmpHandler;
 
 			let mut list = Vec::<BenchmarkList>::new();
 
@@ -1305,7 +1315,6 @@ impl_runtime_apis! {
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
-			list_benchmark!(list, extra, pallet_xcmp_handler, XcmpHandler::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
 
@@ -1322,7 +1331,6 @@ impl_runtime_apis! {
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
-			use pallet_xcmp_handler::Pallet as XcmpHandler;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
 				// Block Number
@@ -1344,7 +1352,6 @@ impl_runtime_apis! {
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);
-			add_benchmark!(params, batches, pallet_xcmp_handler, XcmpHandler::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
 			Ok(batches)

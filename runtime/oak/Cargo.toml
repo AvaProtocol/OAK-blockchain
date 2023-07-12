@@ -206,7 +206,6 @@ runtime-benchmarks = [
   "pallet-valve/runtime-benchmarks",
   "pallet-vesting/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
-  "pallet-xcmp-handler/runtime-benchmarks",
   "pallet-parachain-staking/runtime-benchmarks",
 ]
 

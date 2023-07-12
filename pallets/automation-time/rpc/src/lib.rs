@@ -178,8 +178,8 @@ where
 		};
 
 		Ok(FeeDetails {
+			schedule_fee: try_into_rpc_balance(fee_details.schedule_fee)?,
 			execution_fee: try_into_rpc_balance(fee_details.execution_fee)?,
-			xcmp_fee: try_into_rpc_balance(fee_details.xcmp_fee)?,
 		})
 	}
 

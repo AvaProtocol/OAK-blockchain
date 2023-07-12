@@ -1,11 +1,9 @@
-use crate::{weights::WeightInfo, Config, Error, Pallet};
+use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
 use sp_std::prelude::*;
-
-use cumulus_primitives_core::ParaId;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
@@ -14,9 +12,16 @@ use xcm::{latest::prelude::*, VersionedMultiLocation};
 pub type Seconds = u64;
 pub type UnixTime = u64;
 
+/// The struct that stores execution payment for a task.
+#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
+pub struct AssetPayment {
+	pub asset_location: VersionedMultiLocation,
+	pub amount: u128,
+}
+
 /// The enum that stores all action specific data.
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-pub enum Action<AccountId, Balance, CurrencyId> {
+pub enum Action<AccountId, Balance> {
 	Notify {
 		message: Vec<u8>,
 	},
@@ -26,12 +31,14 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 		amount: Balance,
 	},
 	XCMP {
-		para_id: ParaId,
-		currency_id: CurrencyId,
-		xcm_asset_location: VersionedMultiLocation,
+		destination: MultiLocation,
+		schedule_fee: MultiLocation,
+		execution_fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
+		overall_weight: Weight,
 		schedule_as: Option<AccountId>,
+		instruction_sequence: InstructionSequence,
 	},
 	AutoCompoundDelegatedStake {
 		delegator: AccountId,
@@ -43,7 +50,7 @@ pub enum Action<AccountId, Balance, CurrencyId> {
 	},
 }
 
-impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyId> {
+impl<AccountId, Balance> Action<AccountId, Balance> {
 	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
 			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
@@ -61,20 +68,16 @@ impl<AccountId, Balance, CurrencyId: Clone> Action<AccountId, Balance, CurrencyI
 		Ok(weight.ref_time())
 	}
 
-	// Defaults to Native Currency Id
-	pub fn currency_id<T: Config>(&self) -> CurrencyId
-	where
-		CurrencyId: From<T::CurrencyId>,
-	{
+	pub fn schedule_fee_location<T: Config>(&self) -> MultiLocation {
 		match self {
-			Action::XCMP { currency_id, .. } => currency_id.clone(),
-			_ => CurrencyId::from(T::GetNativeCurrencyId::get()),
+			Action::XCMP { schedule_fee, .. } => (*schedule_fee).clone(),
+			_ => MultiLocation::default(),
 		}
 	}
 }
 
-impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Default>
-	From<AutomationAction> for Action<AccountId, Balance, CurrencyId>
+impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned> From<AutomationAction>
+	for Action<AccountId, Balance>
 {
 	fn from(a: AutomationAction) -> Self {
 		let default_account =
@@ -88,12 +91,17 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned, CurrencyId: Defau
 				amount: 0u32.into(),
 			},
 			AutomationAction::XCMP => Action::XCMP {
-				para_id: ParaId::from(2114 as u32),
-				currency_id: CurrencyId::default(),
-				xcm_asset_location: MultiLocation::new(1, X1(Parachain(2114))).into(),
+				destination: MultiLocation::default(),
+				schedule_fee: MultiLocation::default(),
+				execution_fee: AssetPayment {
+					asset_location: MultiLocation::default().into(),
+					amount: 0,
+				},
 				encoded_call: vec![0],
 				encoded_call_weight: Weight::zero(),
+				overall_weight: Weight::zero(),
 				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			},
 			AutomationAction::AutoCompoundDelegatedStake => Action::AutoCompoundDelegatedStake {
 				delegator: default_account.clone(),
@@ -200,16 +208,14 @@ impl Schedule {
 /// The struct that stores all information needed for a task.
 #[derive(Debug, Encode, Decode, TypeInfo, Clone)]
 #[scale_info(skip_type_params(MaxExecutionTimes))]
-pub struct Task<AccountId, Balance, CurrencyId> {
+pub struct Task<AccountId, Balance> {
 	pub owner_id: AccountId,
 	pub provided_id: Vec<u8>,
 	pub schedule: Schedule,
-	pub action: Action<AccountId, Balance, CurrencyId>,
+	pub action: Action<AccountId, Balance>,
 }
 
-impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> PartialEq
-	for Task<AccountId, Balance, CurrencyId>
-{
+impl<AccountId: Ord, Balance: Ord> PartialEq for Task<AccountId, Balance> {
 	fn eq(&self, other: &Self) -> bool {
 		self.owner_id == other.owner_id &&
 			self.provided_id == other.provided_id &&
@@ -218,16 +224,14 @@ impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> PartialEq
 	}
 }
 
-impl<AccountId: Ord, Balance: Ord, CurrencyId: Ord> Eq for Task<AccountId, Balance, CurrencyId> {}
+impl<AccountId: Ord, Balance: Ord> Eq for Task<AccountId, Balance> {}
 
-use sp_runtime::print;
-
-impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId> {
+impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 	pub fn new(
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
 		schedule: Schedule,
-		action: Action<AccountId, Balance, CurrencyId>,
+		action: Action<AccountId, Balance>,
 	) -> Self {
 		Self { owner_id, provided_id, schedule, action }
 	}
@@ -249,19 +253,25 @@ impl<AccountId: Clone, Balance, CurrencyId> Task<AccountId, Balance, CurrencyId>
 		owner_id: AccountId,
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
-		para_id: ParaId,
-		currency_id: CurrencyId,
-		xcm_asset_location: VersionedMultiLocation,
+		destination: MultiLocation,
+		schedule_fee: MultiLocation,
+		execution_fee: AssetPayment,
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
+		overall_weight: Weight,
+		instruction_sequence: InstructionSequence,
 	) -> Result<Self, DispatchError> {
+		let destination =
+			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
-			para_id,
-			currency_id,
-			xcm_asset_location,
+			destination,
+			schedule_fee,
+			execution_fee,
 			encoded_call,
 			encoded_call_weight,
+			overall_weight,
 			schedule_as: None,
+			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
 		Ok(Self::new(owner_id, provided_id, schedule, action))
@@ -334,7 +344,7 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 	pub fn try_push<T: Config, Balance>(
 		&mut self,
 		task_id: TaskId,
-		task: &Task<AccountId, Balance, T::CurrencyId>,
+		task: &Task<AccountId, Balance>,
 	) -> Result<&mut Self, DispatchError>
 	where
 		AccountId: Clone,

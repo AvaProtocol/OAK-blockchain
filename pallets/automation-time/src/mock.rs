@@ -47,6 +47,37 @@ pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
 
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
+pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
+pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
+pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
+
+pub const MOONBASE_ASSET_LOCATION: MultiLocation =
+	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
+pub const UNKNOWN_SCHEDULE_FEE: MultiLocation =
+	MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
+
+pub struct MockAssetFeePerSecond {
+	pub asset_location: MultiLocation,
+	pub fee_per_second: u128,
+}
+
+pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 3] = [
+	MockAssetFeePerSecond {
+		asset_location: MultiLocation { parents: 1, interior: X1(Parachain(2000)) },
+		fee_per_second: 416_000_000_000,
+	},
+	MockAssetFeePerSecond {
+		asset_location: MultiLocation {
+			parents: 1,
+			interior: X2(Parachain(2110), GeneralKey { length: 4, data: [0; 32] }),
+		},
+		fee_per_second: 416_000_000_000,
+	},
+	MockAssetFeePerSecond {
+		asset_location: MOONBASE_ASSET_LOCATION,
+		fee_per_second: 10_000_000_000_000_000_000,
+	},
+];
 
 construct_runtime!(
 	pub enum Test where
@@ -57,6 +88,7 @@ construct_runtime!(
 		System: system::{Pallet, Call, Config, Storage, Event<T>},
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
+		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
@@ -112,6 +144,8 @@ impl pallet_balances::Config for Test {
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
 }
+
+impl parachain_info::Config for Test {}
 
 parameter_type_with_key! {
 	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
@@ -196,7 +230,7 @@ parameter_types! {
 	pub const MaxBlockWeight: u64 = 1_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const ExecutionWeightFee: Balance = 12;
+	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
 
 	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
 	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
@@ -314,7 +348,7 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(900_000)
 	}
-	fn migration_upgrade_weight_struct(_: u32) -> Weight {
+	fn migration_upgrade_xcmp_task(_: u32) -> Weight {
 		Weight::zero()
 	}
 }
@@ -327,31 +361,19 @@ where
 	C: frame_support::traits::ReservableCurrency<T::AccountId>,
 {
 	fn transact_xcm(
-		_para_id: u32,
+		_destination: MultiLocation,
 		_location: xcm::latest::MultiLocation,
+		_fee: u128,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,
 		_transact_encoded_call_weight: Weight,
+		_overall_weight: Weight,
+		_flow: InstructionSequence,
 	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
-	}
-
-	fn get_xcm_fee(
-		_para_id: u32,
-		_location: xcm::latest::MultiLocation,
-		_transact_encoded_call_weight: Weight,
-	) -> Result<u128, sp_runtime::DispatchError> {
-		Ok(XmpFee::get())
 	}
 
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
-	}
-
-	#[cfg(feature = "runtime-benchmarks")]
-	fn setup_chain_asset_data(
-		_asset_location: xcm::latest::MultiLocation,
-	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(().into())
 	}
 }
@@ -369,8 +391,8 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 
 pub struct MockConversionRateProvider;
 impl FixedConversionRateProvider for MockConversionRateProvider {
-	fn get_fee_per_second(_location: &MultiLocation) -> Option<u128> {
-		Some(1)
+	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+		get_fee_per_second(location)
 	}
 }
 
@@ -378,9 +400,21 @@ pub struct MockTokenIdConvert;
 impl Convert<CurrencyId, Option<MultiLocation>> for MockTokenIdConvert {
 	fn convert(id: CurrencyId) -> Option<MultiLocation> {
 		if id == NATIVE {
-			Some(MultiLocation::new(1, Here))
-		} else if id == 1 {
-			Some(MultiLocation::new(1, X1(Parachain(2110))))
+			Some(MultiLocation::new(0, Here))
+		} else if id == FOREIGN_CURRENCY_ID {
+			Some(MultiLocation::new(1, X1(Parachain(PARA_ID))))
+		} else {
+			None
+		}
+	}
+}
+
+impl Convert<MultiLocation, Option<CurrencyId>> for MockTokenIdConvert {
+	fn convert(location: MultiLocation) -> Option<CurrencyId> {
+		if location == MultiLocation::new(0, Here) {
+			Some(NATIVE)
+		} else if location == MultiLocation::new(1, X1(Parachain(PARA_ID))) {
+			Some(FOREIGN_CURRENCY_ID)
 		} else {
 			None
 		}
@@ -396,6 +430,13 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 			Err("proxy error: expected `ProxyType::Any`")
 		}
 	}
+}
+
+parameter_types! {
+	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
+	// The universal location within the global consensus system
+	pub UniversalLocation: InteriorMultiLocation =
+		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
 }
 
 impl pallet_automation_time::Config for Test {
@@ -415,12 +456,13 @@ impl pallet_automation_time::Config for Test {
 	type FeeHandler = FeeHandler<Test, ()>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
-	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type Call = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;
 	type EnsureProxy = MockEnsureProxy;
+	type UniversalLocation = UniversalLocation;
+	type SelfParaId = parachain_info::Pallet<Test>;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -601,4 +643,24 @@ pub fn fund_account(
 			additional_amount.unwrap_or(0) +
 			u128::from(ExistentialDeposit::get());
 	_ = <Test as Config>::Currency::deposit_creating(account, amount);
+}
+
+pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
+	let location = location
+		.reanchored(
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
+				.into(),
+			<Test as Config>::UniversalLocation::get(),
+		)
+		.expect("Reanchor location failed");
+
+	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| match item {
+		MockAssetFeePerSecond { asset_location, .. } => *asset_location == location,
+	});
+
+	if found_asset.is_some() {
+		Some(found_asset.unwrap().fee_per_second)
+	} else {
+		None
+	}
 }

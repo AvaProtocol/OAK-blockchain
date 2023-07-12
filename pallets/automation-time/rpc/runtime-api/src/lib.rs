@@ -45,8 +45,8 @@ pub enum AutomationAction {
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct FeeDetails<Balance> {
+	pub schedule_fee: Balance,
 	pub execution_fee: Balance,
-	pub xcmp_fee: Balance,
 }
 
 sp_api::decl_runtime_apis! {
