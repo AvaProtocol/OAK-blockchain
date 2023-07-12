@@ -28,6 +28,7 @@ use frame_support::{
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{self, RawOrigin};
+use rand::Rng;
 use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
@@ -46,7 +47,7 @@ const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amoun
 
 const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
 
-struct XcmpTaskParams {
+struct XcmpActionParams {
 	destination: MultiLocation,
 	schedule_fee: MultiLocation,
 	execution_fee: AssetPayment,
@@ -57,10 +58,10 @@ struct XcmpTaskParams {
 	instruction_sequence: InstructionSequence,
 }
 
-impl Default for XcmpTaskParams {
+impl Default for XcmpActionParams {
 	fn default() -> Self {
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
-		XcmpTaskParams {
+		XcmpActionParams {
 			destination: MultiLocation::new(1, X1(Parachain(PARA_ID))),
 			schedule_fee: DEFAULT_SCHEDULE_FEE_LOCATION.into(),
 			execution_fee: AssetPayment {
@@ -76,7 +77,7 @@ impl Default for XcmpTaskParams {
 	}
 }
 
-fn create_xcmp_task_action(options: XcmpTaskParams) -> ActionOf<Test> {
+fn create_xcmp_action(options: XcmpActionParams) -> ActionOf<Test> {
 	Action::XCMP {
 		destination: options.destination,
 		schedule_fee: options.schedule_fee,
@@ -89,11 +90,15 @@ fn create_xcmp_task_action(options: XcmpTaskParams) -> ActionOf<Test> {
 	}
 }
 
+fn generate_random_num(min: u32, max: u32) -> u32 {
+	rand::thread_rng().gen_range(min, max)
+}
+
 fn calculate_local_action_schedule_fee(weight: Weight, num_of_execution: u32) -> u128 {
 	NATIVE_EXECUTION_WEIGHT_FEE * (weight.ref_time() as u128) * (num_of_execution as u128)
 }
 
-fn calculate_expected_xcmp_task_schedule_fee(
+fn calculate_expected_xcmp_action_schedule_fee(
 	schedule_fee_location: MultiLocation,
 	num_of_execution: u32,
 ) -> u128 {
@@ -357,7 +362,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 #[test]
 fn calculate_auto_compound_action_schedule_fee_amount_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 		let delegator = AccountId32::new(ALICE);
 		let collator = AccountId32::new(BOB);
 		let action = Action::AutoCompoundDelegatedStake {
@@ -380,7 +385,7 @@ fn calculate_auto_compound_action_schedule_fee_amount_works() {
 #[test]
 fn calculate_dynamic_dispatch_action_schedule_fee_amount_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 		let action = Action::DynamicDispatch { encoded_call: call.encode() };
@@ -400,11 +405,11 @@ fn calculate_dynamic_dispatch_action_schedule_fee_amount_works() {
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
-		let action = create_xcmp_task_action(XcmpTaskParams::default());
+		let num_of_execution = generate_random_num(1, 20);
+		let action = create_xcmp_action(XcmpActionParams::default());
 		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
-		let expected_schedule_fee_amount = calculate_expected_xcmp_task_schedule_fee(
+		let expected_schedule_fee_amount = calculate_expected_xcmp_action_schedule_fee(
 			action.schedule_fee_location::<Test>(),
 			num_of_execution,
 		);
@@ -416,10 +421,10 @@ fn calculate_xcmp_action_schedule_fee_amount_works() {
 fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_fees_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		ASSET_FEE_PER_SECOND.into_iter().for_each(|fee| {
-			let num_of_execution = 2;
-			let action = create_xcmp_task_action(XcmpTaskParams {
+			let num_of_execution = generate_random_num(1, 20);
+			let action = create_xcmp_action(XcmpActionParams {
 				schedule_fee: fee.asset_location.clone(),
-				..XcmpTaskParams::default()
+				..XcmpActionParams::default()
 			});
 
 			let fee_amount =
@@ -427,7 +432,7 @@ fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_fees_works(
 					.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
 			let expected_schedule_fee_amount =
-				calculate_expected_xcmp_task_schedule_fee(fee.asset_location, num_of_execution);
+				calculate_expected_xcmp_action_schedule_fee(fee.asset_location, num_of_execution);
 
 			assert_eq!(fee_amount, expected_schedule_fee_amount);
 		});
@@ -437,147 +442,153 @@ fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_fees_works(
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_with_absolute_or_relative_native_schedule_fee_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let action_absolute = create_xcmp_action(XcmpActionParams {
 			schedule_fee: MultiLocation::new(
 				1,
 				X1(Parachain(<Test as Config>::SelfParaId::get().into())),
 			),
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_1 = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
-			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
-
-		let action2 = create_xcmp_task_action(XcmpTaskParams {
-			schedule_fee: MultiLocation::new(0, Here),
-			..XcmpTaskParams::default()
-		});
-		let fee_amount_2 =
-			AutomationTime::calculate_schedule_fee_amount(&action2, num_of_execution)
+		let fee_amount_abosolute =
+			AutomationTime::calculate_schedule_fee_amount(&action_absolute, num_of_execution)
 				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		let expected_schedule_fee_amount = calculate_expected_xcmp_task_schedule_fee(
+		let action_relative = create_xcmp_action(XcmpActionParams {
+			schedule_fee: MultiLocation::new(0, Here),
+			..XcmpActionParams::default()
+		});
+		let fee_amount_relative =
+			AutomationTime::calculate_schedule_fee_amount(&action_relative, num_of_execution)
+				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+
+		let expected_schedule_fee_amount = calculate_expected_xcmp_action_schedule_fee(
 			MultiLocation::new(0, Here),
 			num_of_execution,
 		);
 
-		assert_eq!(fee_amount_1, fee_amount_2);
-		assert_eq!(fee_amount_1, expected_schedule_fee_amount);
+		assert_eq!(fee_amount_abosolute, fee_amount_relative);
+		assert_eq!(fee_amount_abosolute, expected_schedule_fee_amount);
 	})
 }
 
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_with_different_destination_returns_same_result() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let action = create_xcmp_action(XcmpActionParams {
 			destination: MultiLocation::new(1, X1(Parachain(PARA_ID))),
-			schedule_fee: MOONBASE_ASSET_LOCATION,
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_1 = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		let action2 = create_xcmp_task_action(XcmpTaskParams {
+		let action_diffrent_dest = create_xcmp_action(XcmpActionParams {
 			destination: MultiLocation::new(1, X1(Parachain(3000))),
-			schedule_fee: MOONBASE_ASSET_LOCATION,
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_2 =
-			AutomationTime::calculate_schedule_fee_amount(&action2, num_of_execution)
+		let fee_amount_diffrent_dest =
+			AutomationTime::calculate_schedule_fee_amount(&action_diffrent_dest, num_of_execution)
 				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		assert_eq!(fee_amount_1, fee_amount_2);
+		assert_eq!(fee_amount, fee_amount_diffrent_dest);
 	})
 }
 
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_with_different_execution_fee_returns_same_result() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let action = create_xcmp_action(XcmpActionParams {
 			execution_fee: AssetPayment {
 				asset_location: MOONBASE_ASSET_LOCATION.into(),
 				amount: 100,
 			},
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_1 = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		let action2 = create_xcmp_task_action(XcmpTaskParams {
+		let action_diffrent_execution_fee = create_xcmp_action(XcmpActionParams {
 			execution_fee: AssetPayment {
 				asset_location: MultiLocation::new(1, X1(Parachain(3000))).into(),
 				amount: 300,
 			},
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_2 =
-			AutomationTime::calculate_schedule_fee_amount(&action2, num_of_execution)
-				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+		let fee_amount_diffrent_execution_fee = AutomationTime::calculate_schedule_fee_amount(
+			&action_diffrent_execution_fee,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		assert_eq!(fee_amount_1, fee_amount_2);
+		assert_eq!(fee_amount, fee_amount_diffrent_execution_fee);
 	})
 }
 
 #[test]
-fn calculate_xcmp_action_schedule_fee_amount_with_different_flow_returns_same_result() {
+fn calculate_xcmp_action_schedule_fee_amount_with_different_instruction_sequence_returns_same_result(
+) {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let action = create_xcmp_action(XcmpActionParams {
 			instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_1 = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		let action2 = create_xcmp_task_action(XcmpTaskParams {
+		let action_diff_instruction_sequence = create_xcmp_action(XcmpActionParams {
 			instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_2 =
-			AutomationTime::calculate_schedule_fee_amount(&action2, num_of_execution)
-				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+		let fee_amount_diff_instruction_sequence = AutomationTime::calculate_schedule_fee_amount(
+			&action_diff_instruction_sequence,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		assert_eq!(fee_amount_1, fee_amount_2);
+		assert_eq!(fee_amount, fee_amount_diff_instruction_sequence);
 	})
 }
 
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_with_different_schedule_as_returns_same_result() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
+		let num_of_execution = generate_random_num(1, 20);
 
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let action = create_xcmp_action(XcmpActionParams {
 			schedule_as: Some(ALICE.into()),
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_1 = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution)
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		let action2 = create_xcmp_task_action(XcmpTaskParams {
+		let action_different_schedule_as = create_xcmp_action(XcmpActionParams {
 			schedule_as: Some(BOB.into()),
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
-		let fee_amount_2 =
-			AutomationTime::calculate_schedule_fee_amount(&action2, num_of_execution)
-				.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+		let fee_amount_different_schedule_as = AutomationTime::calculate_schedule_fee_amount(
+			&action_different_schedule_as,
+			num_of_execution,
+		)
+		.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 
-		assert_eq!(fee_amount_1, fee_amount_2);
+		assert_eq!(fee_amount, fee_amount_different_schedule_as);
 	})
 }
 
 #[test]
 fn calculate_xcmp_action_schedule_fee_amount_with_unknown_schedule_fees_fails() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let num_of_execution = 2;
-		let action = create_xcmp_task_action(XcmpTaskParams {
+		let num_of_execution = generate_random_num(1, 20);
+		let action = create_xcmp_action(XcmpActionParams {
 			schedule_fee: UNKNOWN_SCHEDULE_FEE,
-			..XcmpTaskParams::default()
+			..XcmpActionParams::default()
 		});
 		assert_noop!(
 			AutomationTime::calculate_schedule_fee_amount(&action, num_of_execution),
