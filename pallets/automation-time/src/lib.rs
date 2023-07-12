@@ -382,11 +382,13 @@ pub mod pallet {
 		///
 		/// # Parameters
 		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `execution_times`: The list of unix standard times in seconds for when the task should run.
-		/// * `para_id`: Parachain id the XCMP call will be sent to.
-		/// * `currency_id`: The currency in which fees will be paid.
+		/// * `schedule`: The triggering rules for recurring task or the list of unix standard times in seconds for when the task should run.
+		/// * `destination`: Destination the XCMP call will be sent to.
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
 		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
 		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time must end in a whole hour.
@@ -394,6 +396,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
@@ -429,6 +432,32 @@ pub mod pallet {
 			Ok(().into())
 		}
 
+		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The provided_id's length > 0
+		/// * The times are valid
+		/// * The given asset location is supported
+		///
+		/// # Parameters
+		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
+		/// * `schedule`: The triggering rules for recurring task or the list of unix standard times in seconds for when the task should run.
+		/// * `destination`: Destination the XCMP call will be sent to.
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
+		///
+		/// # Errors
+		/// * `InvalidTime`: Time must end in a whole hour.
+		/// * `PastTime`: Time must be in the future.
+		/// * `DuplicateTask`: There can be no duplicate tasks.
+		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
+		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `Other("proxy error: expected `ProxyType::Any`")`: schedule_as must be a proxy account of type "any" for the caller.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
 		pub fn schedule_xcmp_task_through_proxy(
