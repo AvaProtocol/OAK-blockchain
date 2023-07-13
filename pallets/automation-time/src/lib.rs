@@ -72,7 +72,9 @@ use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
 use scale_info::TypeInfo;
 use sp_runtime::{
-	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating, Zero, CheckedSub},
+	traits::{
+		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating, Zero,
+	},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{boxed::Box, vec, vec::Vec};
@@ -1099,19 +1101,29 @@ pub mod pallet {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			let balance = T::DelegatorActions::get_bond_balance(&delegator, &collator);
 			if balance.is_err() || balance.unwrap().is_zero() {
-				return (<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), Some(Error::<T>::NoDelegation.into()))
+				return (
+					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+					Some(Error::<T>::NoDelegation.into()),
+				)
 			}
 			let reserved_funds = account_minimum
 				.saturating_add(Self::calculate_schedule_fee_amount(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
-			match T::DelegatorActions::get_delegator_stakable_free_balance(&delegator).checked_sub(&reserved_funds) {
+			match T::DelegatorActions::get_delegator_stakable_free_balance(&delegator)
+				.checked_sub(&reserved_funds)
+			{
 				Some(delegation) => {
-					match T::DelegatorActions::delegator_bond_more(&delegator, &collator, delegation) {
+					match T::DelegatorActions::delegator_bond_more(
+						&delegator, &collator, delegation,
+					) {
 						Ok(_) => {
 							Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
 								task_id,
 								amount: delegation,
 							});
-							(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
+							(
+								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+								None,
+							)
 						},
 						Err(e) => {
 							Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
