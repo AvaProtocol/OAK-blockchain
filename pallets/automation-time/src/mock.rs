@@ -27,7 +27,7 @@ use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
 	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -44,6 +44,7 @@ pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
 pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
 pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
+pub const COLLATOR_ACCOUNT: [u8; 32] = [5u8; 32];
 
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
@@ -198,24 +199,22 @@ impl<
 {
 	fn delegator_bond_more(
 		delegator: &T::AccountId,
-		_: &T::AccountId,
+		_candidate: &T::AccountId,
 		amount: BalanceOf<T>,
 	) -> Result<bool, DispatchError> {
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
 		Ok(true)
 	}
-	fn delegator_bond_till_minimum(
-		delegator: &T::AccountId,
-		_: &T::AccountId,
-		account_minimum: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-		let delegation = C::free_balance(&delegator)
-			.checked_sub(&account_minimum)
-			.ok_or(Error::<T>::InsufficientBalance)?;
-		C::reserve(delegator, delegation)?;
-		Ok(delegation)
+
+	fn is_delegation_exist(_delegator: &T::AccountId, candidate: &T::AccountId) -> bool {
+		*candidate == T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap()
 	}
+
+	fn get_delegator_stakable_free_balance(delegator: &T::AccountId) -> BalanceOf<T> {
+		C::free_balance(delegator)
+	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())

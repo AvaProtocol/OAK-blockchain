@@ -73,7 +73,7 @@ use primitives::EnsureProxy;
 use scale_info::TypeInfo;
 use sp_runtime::{
 	traits::{
-		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating, Zero,
+		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
@@ -266,7 +266,8 @@ pub mod pallet {
 		BadVersion,
 		UnsupportedFeePayment,
 		CannotReanchor,
-		NoDelegation,
+		// Delegation Do Not Exist
+		DelegationDNE,
 	}
 
 	#[pallet::event]
@@ -1099,13 +1100,19 @@ pub mod pallet {
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			let balance = T::DelegatorActions::get_bond_balance(&delegator, &collator);
-			if balance.is_err() || balance.unwrap().is_zero() {
+			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
+				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationDNE);
+				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					task_id,
+					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
+					error: e,
+				});
 				return (
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					Some(Error::<T>::NoDelegation.into()),
+					Some(e.error),
 				)
 			}
+
 			let reserved_funds = account_minimum
 				.saturating_add(Self::calculate_schedule_fee_amount(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
 			match T::DelegatorActions::get_delegator_stakable_free_balance(&delegator)

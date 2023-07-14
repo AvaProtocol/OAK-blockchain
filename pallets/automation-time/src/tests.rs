@@ -364,7 +364,7 @@ fn calculate_auto_compound_action_schedule_fee_amount_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let num_of_execution = generate_random_num(1, 20);
 		let delegator = AccountId32::new(ALICE);
-		let collator = AccountId32::new(BOB);
+		let collator = AccountId32::new(COLLATOR_ACCOUNT);
 		let action = Action::AutoCompoundDelegatedStake {
 			delegator,
 			collator,
@@ -2114,7 +2114,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 			3600,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
-				collator: AccountId32::new(BOB),
+				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
 		);
@@ -2165,7 +2165,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
-				collator: AccountId32::new(BOB),
+				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
 		);
@@ -2214,36 +2214,60 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 fn auto_compound_delegated_stake_without_minimum_balance() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
-		let balance = Balances::free_balance(AccountId32::new(ALICE));
-		let account_minimum = balance * 2;
+		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		let account_minimum = before_balance * 2;
+		let frequency = 3_600;
 
-		add_task_to_task_queue(
+		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
 			vec![1],
-			vec![SCHEDULED_TIME],
+			SCHEDULED_TIME,
+			frequency,
 			Action::AutoCompoundDelegatedStake {
 				delegator: AccountId32::new(ALICE),
-				collator: AccountId32::new(BOB),
+				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
 		);
 
-		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		let new_balance = Balances::free_balance(AccountId32::new(ALICE));
-		assert_eq!(new_balance, balance);
 		events()
 			.into_iter()
 			.find(|e| match e {
-				RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
-					..
-				}) => true,
+				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. }) => true,
 				_ => false,
 			})
-			.expect("AutoCompound failure event should have been emitted");
+			.expect("TaskScheduled event should have been emitted");
+		let next_scheduled_time = SCHEDULED_TIME + frequency;
+		AutomationTime::get_scheduled_tasks(next_scheduled_time)
+			.expect("Task should have been rescheduled")
+			.tasks
+			.into_iter()
+			.find(|t| *t == (AccountId32::new(ALICE), task_id))
+			.expect("Task should have been rescheduled");
+		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
+			.expect("Task should not have been removed from task map");
+		assert_eq!(task.schedule.known_executions_left(), 1);
+		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
+
+		Timestamp::set_timestamp(next_scheduled_time * 1_000);
+		get_funds(AccountId32::new(ALICE));
+		System::reset_events();
+		AutomationTime::trigger_tasks(Weight::from_ref_time(100_000_000_000));
+
+		let found_event = events().into_iter().find(|e| match e {
+			RuntimeEvent::AutomationTime(
+				crate::Event::SuccesfullyAutoCompoundedDelegatorStake { .. },
+			) => true,
+			_ => false,
+		});
+
+		if found_event.is_some() {
+			panic!("AutoCompound success eventAutoCompound success event should not be emitted.");
+		}
 	})
 }
 
@@ -2252,7 +2276,7 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
-		let account_minimum = before_balance * 2;
+		let account_minimum = before_balance / 2;
 		let frequency = 3_600;
 
 		let task_id = add_recurring_task_to_task_queue(
