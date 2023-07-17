@@ -2,67 +2,23 @@ use core::marker::PhantomData;
 
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, BalanceOf, Config, InstructionSequence,
-	Schedule, TaskId, TaskOf,
+	Schedule, TaskOf,
 };
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Convert;
-use sp_std::vec::Vec;
+use sp_std::{vec, vec::Vec};
 use xcm::{latest::prelude::*, VersionedMultiLocation};
+
+use crate::migrations::utils::{
+	deprecate::{generate_old_task_id, old_taskid_to_idv2},
+	OldAccountTaskId, OldAction, OldTask, OldTaskId,
+};
 
 const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
-
-#[derive(Debug, Encode, Decode, TypeInfo)]
-#[scale_info(skip_type_params(MaxExecutionTimes))]
-pub struct OldTask<T: Config> {
-	pub owner_id: T::AccountId,
-	pub provided_id: Vec<u8>,
-	pub schedule: Schedule,
-	pub action: OldAction<T>,
-}
-
-impl<T: Config> From<OldTask<T>> for TaskOf<T> {
-	fn from(task: OldTask<T>) -> Self {
-		TaskOf::<T> {
-			owner_id: task.owner_id,
-			provided_id: task.provided_id,
-			schedule: task.schedule,
-			action: task.action.into(),
-		}
-	}
-}
-
-/// The enum that stores all action specific data.
-#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-pub enum OldAction<T: Config> {
-	Notify {
-		message: Vec<u8>,
-	},
-	NativeTransfer {
-		sender: T::AccountId,
-		recipient: T::AccountId,
-		amount: BalanceOf<T>,
-	},
-	XCMP {
-		para_id: ParaId,
-		currency_id: T::CurrencyId,
-		xcm_asset_location: VersionedMultiLocation,
-		encoded_call: Vec<u8>,
-		encoded_call_weight: Weight,
-		schedule_as: Option<T::AccountId>,
-	},
-	AutoCompoundDelegatedStake {
-		delegator: T::AccountId,
-		collator: T::AccountId,
-		account_minimum: BalanceOf<T>,
-	},
-	DynamicDispatch {
-		encoded_call: Vec<u8>,
-	},
-}
 
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 	fn from(action: OldAction<T>) -> Self {
@@ -109,7 +65,7 @@ pub type AccountTasks<T: Config> = StorageDoubleMap<
 	Twox64Concat,
 	AccountOf<T>,
 	Twox64Concat,
-	TaskId<T>,
+	OldTaskId<T>,
 	OldTask<T>,
 >;
 
@@ -121,7 +77,11 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 		let mut migrated_tasks = 0u32;
 		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
 			let migrated_task: TaskOf<T> = task.into();
-			crate::AccountTasks::<T>::insert(account_id, task_id, migrated_task);
+			crate::AccountTasks::<T>::insert(
+				account_id,
+				migrated_task.task_id.clone(),
+				migrated_task,
+			);
 
 			migrated_tasks += 1;
 		});
@@ -155,7 +115,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 #[cfg(test)]
 mod test {
 	use super::{
-		OldAction, OldTask, ParaId, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
+		generate_old_task_id, OldAction, OldTask, ParaId, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
 		INSTRUCTION_WEIGHT_REF_TIME,
 	};
 	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Pallet, Schedule, TaskOf};
@@ -169,7 +129,6 @@ mod test {
 			let para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
 			let schedule_as = Some(AccountId32::new(BOB));
-			let task_id = Pallet::<Test>::generate_task_id(account_id.clone(), vec![1]);
 			let encoded_call_weight = Weight::from_ref_time(10);
 
 			let task = OldTask::<Test> {
@@ -189,16 +148,26 @@ mod test {
 				},
 			};
 
-			super::AccountTasks::<Test>::insert(account_id.clone(), task_id, task);
+			let old_task_id =
+				generate_old_task_id::<Test>(account_id.clone(), task.provided_id.clone());
+			super::AccountTasks::<Test>::insert(account_id.clone(), old_task_id.clone(), task);
 
 			UpdateXcmpTask::<Test>::on_runtime_upgrade();
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
+
+			// 0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04
+			let task_id1 = vec![
+				48, 120, 100, 49, 50, 54, 51, 56, 52, 50, 101, 51, 52, 97, 100, 101, 98, 48, 48,
+				98, 101, 49, 49, 52, 54, 98, 51, 48, 98, 99, 54, 53, 50, 55, 57, 53, 49, 102, 48,
+				97, 48, 102, 53, 100, 53, 97, 51, 102, 55, 97, 55, 53, 56, 53, 51, 55, 55, 51, 53,
+				98, 56, 98, 99, 98, 48, 52,
+			];
 			assert_eq!(
-				crate::AccountTasks::<Test>::get(account_id.clone(), task_id).unwrap(),
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
 				TaskOf::<Test> {
 					owner_id: account_id.clone(),
-					provided_id: vec![1],
+					task_id: task_id1,
 					schedule: Schedule::Fixed {
 						execution_times: vec![0, 1].try_into().unwrap(),
 						executions_left: 2

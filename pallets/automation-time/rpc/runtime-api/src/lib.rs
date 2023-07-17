@@ -55,13 +55,12 @@ sp_api::decl_runtime_apis! {
 		Hash: Codec,
 		Balance: Codec,
 	{
-		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash;
 		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
 		fn get_time_automation_fees(action: AutomationAction, executions: u32) -> Balance;
 		fn calculate_optimal_autostaking(
 			principal: i128,
 			collator: AccountId
 		) -> Result<AutostakingResult, Vec<u8>>;
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash>;
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>>;
 	}
 }

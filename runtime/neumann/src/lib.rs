@@ -1135,10 +1135,6 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
-		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
-			AutomationTime::generate_task_id(account_id, provided_id)
-		}
-
 		fn query_fee_details(
 			uxt: <Block as BlockT>::Extrinsic,
 		) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
@@ -1223,19 +1219,8 @@ impl_runtime_apis! {
 			Ok(AutostakingResult{period: res.0, apy: res.1})
 		}
 
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash> {
-			ParachainStaking::delegator_state(account_id.clone())
-				.map_or(vec![], |s| s.delegations.0).into_iter()
-				.map(|d| d.owner)
-				.map(|collator_id| {
-					AutomationTime::generate_auto_compound_delegated_stake_provided_id(&account_id, &collator_id)
-				})
-				.map(|provided_id| {
-					AutomationTime::generate_task_id(account_id.clone(), provided_id)
-				})
-				.filter(|task_id| {
-					AutomationTime::get_account_task(account_id.clone(), task_id).is_some()
-				}).collect()
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
+			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
 		}
 	}
 
