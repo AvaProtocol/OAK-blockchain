@@ -266,8 +266,8 @@ pub mod pallet {
 		BadVersion,
 		UnsupportedFeePayment,
 		CannotReanchor,
-		// Delegation Do Not Exist
-		DelegationDNE,
+		// Delegation Not Found
+		DelegationNonFound,
 	}
 
 	#[pallet::event]
@@ -313,7 +313,7 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			error: DispatchError,
 		},
-		SuccesfullyAutoCompoundedDelegatorStake {
+		AutoCompoundDelegatorStakeSucceeded {
 			task_id: TaskId<T>,
 			amount: BalanceOf<T>,
 		},
@@ -321,6 +321,10 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			error_message: Vec<u8>,
 			error: DispatchErrorWithPostInfo,
+		},
+		AutoCompoundDelegatorStakeSkipped {
+			task_id: TaskId<T>,
+			message: Vec<u8>,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
@@ -1101,7 +1105,7 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
-				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationDNE);
+				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationNonFound);
 				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 					task_id,
 					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
@@ -1123,7 +1127,7 @@ pub mod pallet {
 						&delegator, &collator, delegation,
 					) {
 						Ok(_) => {
-							Self::deposit_event(Event::SuccesfullyAutoCompoundedDelegatorStake {
+							Self::deposit_event(Event::AutoCompoundDelegatorStakeSucceeded {
 								task_id,
 								amount: delegation,
 							});
@@ -1145,7 +1149,13 @@ pub mod pallet {
 						},
 					}
 				},
-				None => (<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None),
+				None => {
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeSkipped {
+						task_id,
+						message: "Balance less than minimum".into(),
+					});
+					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
+				},
 			}
 		}
 

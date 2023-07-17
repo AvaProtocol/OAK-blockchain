@@ -2131,7 +2131,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 			.into_iter()
 			.find(|e| match e {
 				RuntimeEvent::AutomationTime(
-					crate::Event::SuccesfullyAutoCompoundedDelegatorStake { .. },
+					crate::Event::AutoCompoundDelegatorStakeSucceeded { .. },
 				) => true,
 				_ => false,
 			})
@@ -2140,7 +2140,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		let fee = ExecutionWeightFee::get().saturating_mul(execution_weight.ref_time().into());
 		assert_eq!(
 			delegation_event,
-			RuntimeEvent::AutomationTime(crate::Event::SuccesfullyAutoCompoundedDelegatorStake {
+			RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeSucceeded {
 				task_id,
 				amount: before_balance
 					.checked_sub(account_minimum.saturating_add(fee))
@@ -2150,11 +2150,20 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 	})
 }
 
+// Scheduling an auto compound delegated stake task will succeed if the account has a sufficient balance and an delegation with the specificed collator.
+// Condition:
+// 1. User's wallet balance >= minimum balance + execution fee
+// 2. User has a delegation with the specificed collator
+// Expected result:
+// 1. Current execution will run and emit AutoCompoundDelegatorStakeSucceeded event
+// 2. Next execution will be scheduled
+// 3. The task will re-run in the next execution time and emit AutoCompoundDelegatorStakeSucceeded event again
 #[test]
-fn auto_compound_delegated_stake_reschedules_and_reruns() {
+fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		// Minimum balance is half of the user's wallet balance
 		let account_minimum = before_balance / 2;
 		let frequency = 3_600;
 
@@ -2174,13 +2183,30 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		events()
+		let emitted_events = events();
+
+		// Expected result:
+		// 1. Current execution will run and emit AutoCompoundDelegatorStakeSucceeded event
+		emitted_events
+			.clone()
 			.into_iter()
-			.find(|e| match e {
-				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. }) => true,
-				_ => false,
+			.find(|e| {
+				matches!(
+					e,
+					RuntimeEvent::AutomationTime(
+						crate::Event::AutoCompoundDelegatorStakeSucceeded { .. }
+					)
+				)
 			})
+			.expect("AutoCompoundDelegatorStakeSucceeded event should have been emitted");
+
+		// 2. Next execution will be scheduled
+		emitted_events
+			.clone()
+			.into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. })))
 			.expect("TaskScheduled event should have been emitted");
+
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
 			.expect("Task should have been rescheduled")
@@ -2193,6 +2219,7 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 		assert_eq!(task.schedule.known_executions_left(), 1);
 		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
 
+		// 3. The task will re-run in the next execution time
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
 		get_funds(AccountId32::new(ALICE));
 		System::reset_events();
@@ -2200,21 +2227,31 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 
 		events()
 			.into_iter()
-			.find(|e| match e {
-				RuntimeEvent::AutomationTime(
-					crate::Event::SuccesfullyAutoCompoundedDelegatorStake { .. },
-				) => true,
-				_ => false,
+			.find(|e| {
+				matches!(
+					e,
+					RuntimeEvent::AutomationTime(
+						crate::Event::AutoCompoundDelegatorStakeSucceeded { .. }
+					)
+				)
 			})
-			.expect("AutoCompound success event should have been emitted");
+			.expect("AutoCompoundDelegatorStakeSucceeded event should have been emitted again!");
 	})
 }
 
+// Scheduling an auto compound delegated stake task will succeed if the account has not enough balance and a delegation with the specificed collator.
+// Condition:
+// 1. User's wallet balance < minimum balance + execution fee
+// 2. User has a delegation with the specificed collator
+// Expected result:
+// 1. The current execution will be skipped, triggering the emission of an AutoCompoundDelegatorStakeSkipped event, message: Balance less than minimum
+// 2. Next execution will be scheduled
 #[test]
-fn auto_compound_delegated_stake_without_minimum_balance() {
+fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		// Minimum balance is twice of the user's wallet balance
 		let account_minimum = before_balance * 2;
 		let frequency = 3_600;
 
@@ -2234,13 +2271,19 @@ fn auto_compound_delegated_stake_without_minimum_balance() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		events()
+		let emitted_events = events();
+
+		// Expected result:
+		// 1. The current execution will be skipped, triggering the emission of an AutoCompoundDelegatorStakeSkipped event, message: Balance less than minimum
+		emitted_events.clone().into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeSkipped { message, .. }) if *message == "Balance less than minimum".as_bytes().to_vec())).expect("AutoCompoundDelegatorStakeSkipped event should have been emitted");
+
+		// 2. Next execution will be scheduled
+		emitted_events
 			.into_iter()
-			.find(|e| match e {
-				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. }) => true,
-				_ => false,
-			})
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. })))
 			.expect("TaskScheduled event should have been emitted");
+
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
 			.expect("Task should have been rescheduled")
@@ -2252,30 +2295,22 @@ fn auto_compound_delegated_stake_without_minimum_balance() {
 			.expect("Task should not have been removed from task map");
 		assert_eq!(task.schedule.known_executions_left(), 1);
 		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
-
-		Timestamp::set_timestamp(next_scheduled_time * 1_000);
-		get_funds(AccountId32::new(ALICE));
-		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(100_000_000_000));
-
-		let found_event = events().into_iter().find(|e| match e {
-			RuntimeEvent::AutomationTime(
-				crate::Event::SuccesfullyAutoCompoundedDelegatorStake { .. },
-			) => true,
-			_ => false,
-		});
-
-		if found_event.is_some() {
-			panic!("AutoCompound success eventAutoCompound success event should not be emitted.");
-		}
 	})
 }
 
+// Scheduling an auto compound delegated stake task will failed if the account has a sufficient balance and no delegation with the specificed collator.
+// Condition:
+// 1. User's wallet balance >= minimum balance + execution fee
+// 2. User has no delegation with the specificed collator
+// Expected result:
+// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+// 2. Next execution will not be scheduled
 #[test]
-fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
+fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		get_funds(AccountId32::new(ALICE));
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		// Minimum balance is half of the user's wallet balance
 		let account_minimum = before_balance / 2;
 		let frequency = 3_600;
 
@@ -2291,20 +2326,73 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 			},
 		);
 
-		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+		// Expected result:
+		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
 		events()
 			.into_iter()
-			.find(|e| match e {
-				RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
-					..
-				}) => true,
-				_ => false,
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed { error, .. }) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNonFound)))
+			.expect("AutoCompound failure event should have been emitted");
+
+		// 2. Next execution will not be scheduled
+		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
+			.filter(|scheduled| {
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
+			})
+			.is_none());
+		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+	})
+}
+
+// Scheduling an auto compound delegated stake task will failed if the account has not enough balance and no delegation with the specificed collator.
+// Condition:
+// 1. User's wallet balance < minimum balance + execution fee
+// 2. User has no delegation with the specificed collator
+// Expected result:
+// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+// 2. Next execution will not be scheduled
+#[test]
+fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(AccountId32::new(ALICE));
+		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		// Minimum balance is twice of the user's wallet balance
+		let account_minimum = before_balance * 2;
+		let frequency = 3_600;
+
+		let task_id = add_recurring_task_to_task_queue(
+			ALICE,
+			vec![1],
+			SCHEDULED_TIME,
+			frequency,
+			Action::AutoCompoundDelegatedStake {
+				delegator: AccountId32::new(ALICE),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+			},
+		);
+
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+
+		// Expected result:
+		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+		events()
+			.into_iter()
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
+						error,
+						..
+					}) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNonFound))
 			})
 			.expect("AutoCompound failure event should have been emitted");
+
+		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
 				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
