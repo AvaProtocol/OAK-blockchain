@@ -353,6 +353,10 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			error: DispatchError,
 		},
+		TaskCompleted {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+		},
 	}
 
 	#[pallet::hooks]
@@ -1183,6 +1187,10 @@ pub mod pallet {
 					*executions_left = executions_left.saturating_sub(1);
 					if *executions_left <= 0 {
 						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+						Self::deposit_event(Event::TaskCompleted {
+							who: task.owner_id.clone(),
+							task_id,
+						});
 					} else {
 						AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
 					}

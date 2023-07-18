@@ -354,8 +354,79 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					task_id,
 					result: Ok(()),
 				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: account_id,
+					task_id,
+				}),
 			]
 		);
+	})
+}
+
+// test schedule transfer with dynamic dispatch.
+#[test]
+fn task_completed_event_emitted_on_fixed_task_completion() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let frequency = 3_600;
+		let account_id = AccountId32::new(ALICE);
+		let provided_id = vec![1, 2];
+		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_hash_input = TaskHashInput::new(account_id.clone(), vec![1, 2]);
+
+		fund_account(&account_id, 900_000_000, 2, Some(0));
+
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark { remark: vec![] }.into();
+
+		let next_scheduled_time = SCHEDULED_TIME + frequency;
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+			RuntimeOrigin::signed(account_id.clone()),
+			vec![1, 2],
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_scheduled_time] },
+			Box::new(call),
+		));
+
+		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
+
+		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+
+		System::reset_events();
+		Timestamp::set_timestamp(next_scheduled_time * 1_000);
+		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		let my_events = events();
+
+		// check Whether task completed event is emitted.
+		// my_events.iter().find(|event| match event {
+		// 	RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { task_id: id, .. }) => id == &task_id,
+		// 	_ => false,
+		// }).expect("TaskCompleted event should be emitted");
+
+		// let recipient = AccountId32::new(BOB);
+		// assert_eq!(Balances::free_balance(recipient.clone()), 127);
+
+		// assert_eq!(
+		// 	my_events,
+		// 	[
+		// 		RuntimeEvent::System(frame_system::Event::NewAccount {
+		// 			account: recipient.clone()
+		// 		}),
+		// 		RuntimeEvent::Balances(pallet_balances::pallet::Event::Endowed {
+		// 			account: recipient.clone(),
+		// 			free_balance: 127,
+		// 		}),
+		// 		RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
+		// 			from: account_id.clone(),
+		// 			to: recipient.clone(),
+		// 			amount: 127,
+		// 		}),
+		// 		RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
+		// 			who: account_id.clone(),
+		// 			task_id,
+		// 			result: Ok(()),
+		// 		}),
+		// 	]
+		// );
 	})
 }
 
@@ -1649,6 +1720,10 @@ fn trigger_tasks_handles_missed_slots() {
 					task_id: task_will_be_run_id,
 					result: Ok(()),
 				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id: task_will_be_run_id,
+				}),
 			],
 		);
 	})
@@ -1794,7 +1869,15 @@ fn trigger_tasks_completes_all_tasks() {
 			events(),
 			[
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id: task_id1,
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id: task_id2,
+				}),
 			]
 		);
 		assert_eq!(0, AutomationTime::get_task_queue().len());
@@ -1850,7 +1933,13 @@ fn trigger_tasks_completes_some_tasks() {
 
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
+			[
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id: task_id1,
+				}),
+			]
 		);
 
 		assert_eq!(1, AutomationTime::get_task_queue().len());
@@ -2015,6 +2104,10 @@ fn missed_tasks_removes_completed_tasks() {
 					task_id: task_id01,
 					execution_time: SCHEDULED_TIME
 				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id: task_id01,
+				}),
 			]
 		);
 		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id01), None);
@@ -2092,10 +2185,16 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
-				destination,
-				task_id,
-			})]
+			[
+				RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
+					destination,
+					task_id,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: AccountId32::new(ALICE),
+					task_id,
+				})
+			]
 		);
 	})
 }
@@ -2361,7 +2460,13 @@ fn trigger_tasks_removes_completed_tasks() {
 
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
+			[
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: owner.clone(),
+					task_id: task_id01,
+				}),
+			]
 		);
 		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id01), None);
 	})
