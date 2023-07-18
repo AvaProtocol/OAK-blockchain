@@ -81,6 +81,8 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+pub const ERROR_MESSAGE_BALANCE_LOW: &str = "Balance less than minimum";
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -267,7 +269,7 @@ pub mod pallet {
 		UnsupportedFeePayment,
 		CannotReanchor,
 		// Delegation Not Found
-		DelegationNonFound,
+		DelegationNotFound,
 	}
 
 	#[pallet::event]
@@ -1105,7 +1107,7 @@ pub mod pallet {
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
-				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationNonFound);
+				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationNotFound);
 				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 					task_id,
 					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
@@ -1152,7 +1154,7 @@ pub mod pallet {
 				None => {
 					Self::deposit_event(Event::AutoCompoundDelegatorStakeSkipped {
 						task_id,
-						message: "Balance less than minimum".into(),
+						message: ERROR_MESSAGE_BALANCE_LOW.into(),
 					});
 					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
 				},

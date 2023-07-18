@@ -18,7 +18,7 @@
 use crate::{
 	mock::*, AccountTasks, Action, ActionOf, AssetPayment, Config, Error, InstructionSequence,
 	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf,
-	TaskQueueV2, WeightInfo,
+	TaskQueueV2, WeightInfo, ERROR_MESSAGE_BALANCE_LOW,
 };
 use codec::Encode;
 use frame_support::{
@@ -2276,7 +2276,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 		// Expected result:
 		// 1. The current execution will be skipped, triggering the emission of an AutoCompoundDelegatorStakeSkipped event, message: Balance less than minimum
 		emitted_events.clone().into_iter()
-			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeSkipped { message, .. }) if *message == "Balance less than minimum".as_bytes().to_vec())).expect("AutoCompoundDelegatorStakeSkipped event should have been emitted");
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeSkipped { message, .. }) if *message == ERROR_MESSAGE_BALANCE_LOW.as_bytes().to_vec())).expect("AutoCompoundDelegatorStakeSkipped event should have been emitted");
 
 		// 2. Next execution will be scheduled
 		emitted_events
@@ -2303,7 +2303,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 // 1. User's wallet balance >= minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
 // 2. Next execution will not be scheduled
 #[test]
 fn auto_compound_delegated_stake_enough_balance_no_delegation() {
@@ -2331,10 +2331,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		// Expected result:
-		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
 		events()
 			.into_iter()
-			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed { error, .. }) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNonFound)))
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed { error, .. }) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNotFound)))
 			.expect("AutoCompound failure event should have been emitted");
 
 		// 2. Next execution will not be scheduled
@@ -2352,7 +2352,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
 // 2. Next execution will not be scheduled
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
@@ -2380,7 +2380,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
 		// Expected result:
-		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNonFound
+		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
 		events()
 			.into_iter()
 			.find(|e| {
@@ -2388,7 +2388,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 					RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
 						error,
 						..
-					}) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNonFound))
+					}) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNotFound))
 			})
 			.expect("AutoCompound failure event should have been emitted");
 
