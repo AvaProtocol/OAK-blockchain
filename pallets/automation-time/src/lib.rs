@@ -64,13 +64,14 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
+use hex;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
-use scale_info::TypeInfo;
+use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{
 		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
@@ -81,6 +82,12 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+#[macro_export]
+macro_rules! ERROR_MESSAGE_DELEGATION_FORMAT {
+	() => {
+		"delegator: {:?}, collator: {:?}"
+	};
+}
 pub const ERROR_MESSAGE_BALANCE_LOW: &str = "Balance less than minimum";
 
 #[frame_support::pallet]
@@ -1108,9 +1115,14 @@ pub mod pallet {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
 			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
 				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationNotFound);
+				let error_message = format!(
+					ERROR_MESSAGE_DELEGATION_FORMAT!(),
+					hex::encode(Encode::encode(&delegator)),
+					hex::encode(Encode::encode(&collator))
+				);
 				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 					task_id,
-					error_message: Into::<&str>::into(e).as_bytes().to_vec(),
+					error_message: error_message.into(),
 					error: e,
 				});
 				return (

@@ -18,7 +18,7 @@
 use crate::{
 	mock::*, AccountTasks, Action, ActionOf, AssetPayment, Config, Error, InstructionSequence,
 	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf,
-	TaskQueueV2, WeightInfo, ERROR_MESSAGE_BALANCE_LOW,
+	TaskQueueV2, WeightInfo, ERROR_MESSAGE_BALANCE_LOW, ERROR_MESSAGE_DELEGATION_FORMAT,
 };
 use codec::Encode;
 use frame_support::{
@@ -28,6 +28,7 @@ use frame_support::{
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{self, RawOrigin};
+use hex;
 use rand::Rng;
 use sp_core::Get;
 use sp_runtime::{
@@ -2357,7 +2358,9 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
+		let delegator = AccountId32::new(ALICE);
+		let collator = AccountId32::new(BOB);
+		get_funds(delegator.clone());
 		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
 		// Minimum balance is twice of the user's wallet balance
 		let account_minimum = before_balance * 2;
@@ -2369,8 +2372,8 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 			SCHEDULED_TIME,
 			frequency,
 			Action::AutoCompoundDelegatedStake {
-				delegator: AccountId32::new(ALICE),
-				collator: AccountId32::new(BOB),
+				delegator: delegator.clone(),
+				collator: collator.clone(),
 				account_minimum,
 			},
 		);
@@ -2381,24 +2384,26 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 
 		// Expected result:
 		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+		let failed_error_message = format!(ERROR_MESSAGE_DELEGATION_FORMAT!(), hex::encode(&delegator), hex::encode(&collator));
 		events()
 			.into_iter()
 			.find(|e| {
 				matches!(e,
 					RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
+						error_message,
 						error,
 						..
-					}) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNotFound))
+					}) if *error == sp_runtime::DispatchErrorWithPostInfo::from(Error::<Test>::DelegationNotFound) && *error_message == failed_error_message.as_bytes().to_vec())
 			})
 			.expect("AutoCompound failure event should have been emitted");
 
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
+				scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+		assert!(AutomationTime::get_account_task(delegator.clone(), task_id).is_none());
 	})
 }
 
