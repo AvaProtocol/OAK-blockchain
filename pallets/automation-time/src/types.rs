@@ -2,12 +2,13 @@ use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
 use sp_std::prelude::*;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
 use xcm::{latest::prelude::*, VersionedMultiLocation};
+use crate::String;
 
 pub type Seconds = u64;
 pub type UnixTime = u64;
@@ -366,6 +367,31 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 		Ok(self)
 	}
 }
+
+#[derive(Eq, PartialEq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+pub struct DispatchErrorWithData<Data>
+where
+	Data: Eq + PartialEq + Clone + Encode + Decode + Printable,
+{
+	/// Additional data
+	pub data: Data,
+	pub error_message: Option<String>,
+	/// The actual `DispatchResult` indicating whether the dispatch was successful.
+	pub error: DispatchError,
+}
+
+#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct DelegationData<AccountId> {
+	pub delegator: AccountId,
+	pub collator: AccountId,
+}
+
+impl<AccountId> sp_runtime::traits::Printable for DelegationData<AccountId> {
+	fn print(&self) {
+		"actual_weight=".print();
+	}
+}
+
 
 #[cfg(test)]
 mod tests {

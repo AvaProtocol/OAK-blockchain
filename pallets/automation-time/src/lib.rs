@@ -81,6 +81,7 @@ use sp_runtime::{
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
+use scale_info::prelude::string::String;
 
 #[macro_export]
 macro_rules! ERROR_MESSAGE_DELEGATION_FORMAT {
@@ -109,6 +110,9 @@ pub mod pallet {
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId;
+
+
+	pub type DispatchErrorWithDelegationData<T> = DispatchErrorWithData<DelegationData<AccountOf<T>>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -330,6 +334,9 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			error_message: Vec<u8>,
 			error: DispatchErrorWithPostInfo,
+		},
+		AutoCompoundFailed {
+			error: DispatchErrorWithDelegationData<T>,
 		},
 		AutoCompoundDelegatorStakeSkipped {
 			task_id: TaskId<T>,
@@ -627,6 +634,28 @@ pub mod pallet {
 			AccountTasks::<T>::get(owner_id, task_id)
 				.ok_or(Error::<T>::TaskDoesNotExist)
 				.map(|task| Self::remove_task(task_id, task))?;
+
+			Ok(().into())
+		}
+
+		#[pallet::call_index(8)]
+		#[pallet::weight(1)]
+		pub fn test(
+			origin: OriginFor<T>,
+			delegator: AccountOf<T>,
+			collator: AccountOf<T>,
+		) -> DispatchResult {
+			let _who = ensure_signed(origin)?;
+
+			let error = DispatchErrorWithData {
+				data: DelegationData {
+					delegator: delegator.clone(),
+					collator: collator.clone(),
+				},
+				error_message: Some(String::from("HELLO!")),
+				error: Error::<T>::DelegationNotFound.into(),
+			};
+			Self::deposit_event(Event::AutoCompoundFailed { error: error.clone() });
 
 			Ok(().into())
 		}
