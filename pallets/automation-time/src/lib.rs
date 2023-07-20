@@ -71,7 +71,10 @@ use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
-use scale_info::{prelude::format, TypeInfo};
+use scale_info::{
+	prelude::{format, string::String},
+	TypeInfo,
+};
 use sp_runtime::{
 	traits::{
 		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
@@ -81,7 +84,6 @@ use sp_runtime::{
 use sp_std::{boxed::Box, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
-use scale_info::prelude::string::String;
 
 #[macro_export]
 macro_rules! ERROR_MESSAGE_DELEGATION_FORMAT {
@@ -111,8 +113,8 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId;
 
-
-	pub type DispatchErrorWithDelegationData<T> = DispatchErrorWithData<DelegationData<AccountOf<T>>>;
+	pub type DispatchErrorWithDelegationData<T> =
+		DispatchErrorWithData<DelegationData<AccountOf<T>>>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -648,10 +650,7 @@ pub mod pallet {
 			let _who = ensure_signed(origin)?;
 
 			let error = DispatchErrorWithData {
-				data: DelegationData {
-					delegator: delegator.clone(),
-					collator: collator.clone(),
-				},
+				data: DelegationData { delegator: delegator.clone(), collator: collator.clone() },
 				error_message: Some(String::from("HELLO!")),
 				error: Error::<T>::DelegationNotFound.into(),
 			};

@@ -7,8 +7,8 @@ use sp_std::prelude::*;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
-use xcm::{latest::prelude::*, VersionedMultiLocation};
 use crate::String;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 pub type Seconds = u64;
 pub type UnixTime = u64;
@@ -391,7 +391,6 @@ impl<AccountId> sp_runtime::traits::Printable for DelegationData<AccountId> {
 		"actual_weight=".print();
 	}
 }
-
 
 #[cfg(test)]
 mod tests {
