@@ -410,7 +410,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 		my_events
 			.into_iter()
 			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { .. })))
-			.expect("TaskCompleted event should not be emitted when task is completed");
+			.expect("TaskCompleted event should be emitted when task is completed");
 	})
 }
 
