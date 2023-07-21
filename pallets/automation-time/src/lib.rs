@@ -81,7 +81,7 @@ use sp_runtime::{
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{boxed::Box, vec, vec::Vec, collections::btree_map::BTreeMap};
+use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
@@ -673,8 +673,14 @@ pub mod pallet {
 
 			// Emit AutoCompoundFailed with DispatchErrorWithDataMap
 			let mut dataMap: BTreeMap<String, String> = BTreeMap::new();
-			dataMap.insert(String::from("delagator"), String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"));
-			dataMap.insert(String::from("collator"), String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"));
+			dataMap.insert(
+				String::from("delagator"),
+				String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"),
+			);
+			dataMap.insert(
+				String::from("collator"),
+				String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"),
+			);
 			let error = DispatchErrorWithDataMap {
 				data: DispatchErrorDataMap(dataMap),
 				error_message: Some(String::from("error_message")),
@@ -686,8 +692,9 @@ pub mod pallet {
 			let dataStrings = DispatchErrorDataStrings(
 				[
 					String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"),
-					String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m")
-				].to_vec(),
+					String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"),
+				]
+				.to_vec(),
 			);
 			let error = DispatchErrorWithDataStrings {
 				data: dataStrings,
