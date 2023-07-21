@@ -380,18 +380,6 @@ where
 	pub error: DispatchError,
 }
 
-#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct DelegationData<AccountId> {
-	pub delegator: AccountId,
-	pub collator: AccountId,
-}
-
-impl<AccountId> sp_runtime::traits::Printable for DelegationData<AccountId> {
-	fn print(&self) {
-		"actual_weight=".print();
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;

@@ -81,7 +81,7 @@ use sp_runtime::{
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{boxed::Box, vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec, collections::btree_map::BTreeMap};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
@@ -113,8 +113,27 @@ pub mod pallet {
 		<T as frame_system::Config>::AccountId,
 	>>::CurrencyId;
 
-	pub type DispatchErrorWithDelegationData<T> =
-		DispatchErrorWithData<DelegationData<AccountOf<T>>>;
+	#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+	pub struct DispatchErrorDataStrings(Vec<String>);
+	impl sp_runtime::traits::Printable for DispatchErrorDataStrings {
+		fn print(&self) {
+			for s in &self.0 {
+				sp_io::misc::print_utf8(s.as_bytes());
+			}
+		}
+	}
+	pub type DispatchErrorWithDataStrings = DispatchErrorWithData<DispatchErrorDataStrings>;
+
+	#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+	pub struct DispatchErrorDataMap(BTreeMap<String, String>);
+	impl sp_runtime::traits::Printable for DispatchErrorDataMap {
+		fn print(&self) {
+			for (key, value) in self.0.iter() {
+				sp_io::misc::print_utf8(format!("{:?}: {:?}, ", key, value).as_bytes());
+			}
+		}
+	}
+	pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config + pallet_timestamp::Config {
@@ -338,7 +357,10 @@ pub mod pallet {
 			error: DispatchErrorWithPostInfo,
 		},
 		AutoCompoundFailed {
-			error: DispatchErrorWithDelegationData<T>,
+			error: DispatchErrorWithDataMap,
+		},
+		AutoCompoundTestFailed {
+			error: DispatchErrorWithDataStrings,
 		},
 		AutoCompoundDelegatorStakeSkipped {
 			task_id: TaskId<T>,
@@ -649,12 +671,34 @@ pub mod pallet {
 		) -> DispatchResult {
 			let _who = ensure_signed(origin)?;
 
-			let error = DispatchErrorWithData {
-				data: DelegationData { delegator: delegator.clone(), collator: collator.clone() },
-				error_message: Some(String::from("HELLO!")),
+			// Emit AutoCompoundFailed with DispatchErrorWithDataMap
+			let mut dataMap: BTreeMap<String, String> = BTreeMap::new();
+			dataMap.insert(String::from("delagator"), String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"));
+			dataMap.insert(String::from("collator"), String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"));
+			let error = DispatchErrorWithDataMap {
+				data: DispatchErrorDataMap(dataMap),
+				error_message: Some(String::from("error_message")),
 				error: Error::<T>::DelegationNotFound.into(),
 			};
 			Self::deposit_event(Event::AutoCompoundFailed { error: error.clone() });
+
+			// Emit AutoCompoundTestFailed with DispatchErrorWithDataStrings
+			let dataStrings = DispatchErrorDataStrings(
+				[
+					String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"),
+					String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m")
+				].to_vec(),
+			);
+			let error = DispatchErrorWithDataStrings {
+				data: dataStrings,
+				error_message: Some(String::from("error_message")),
+				error: Error::<T>::DelegationNotFound.into(),
+			};
+			Self::deposit_event(Event::AutoCompoundTestFailed { error: error.clone() });
+
+			// Convert Error to String
+			let error = Into::<&str>::into(Error::<T>::DelegationNotFound);
+			log::error!("error: {:?}", error);
 
 			Ok(().into())
 		}
