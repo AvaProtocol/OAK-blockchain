@@ -2,9 +2,9 @@ use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
-use sp_std::{prelude::*, collections::btree_map::BTreeMap};
 use scale_info::prelude::{format, string::String};
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
+use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
@@ -244,7 +244,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
-		non_interrupt_errors: Vec<String>
+		non_interrupt_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let call: <T as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: message }.into();
@@ -264,7 +264,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		instruction_sequence: InstructionSequence,
-		non_interrupt_errors: Vec<String>
+		non_interrupt_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;

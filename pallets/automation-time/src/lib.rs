@@ -71,14 +71,17 @@ use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
-use scale_info::{prelude::{format, string::String}, TypeInfo};
+use scale_info::{
+	prelude::{format, string::String},
+	TypeInfo,
+};
 use sp_runtime::{
 	traits::{
 		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{boxed::Box, vec, vec::Vec, collections::btree_map::BTreeMap};
+use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
@@ -561,7 +564,13 @@ pub mod pallet {
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 			let non_interrupt_errors = vec![String::from("InsufficientBalance")];
-			Self::validate_and_schedule_task(action, who, provided_id, schedule, non_interrupt_errors)?;
+			Self::validate_and_schedule_task(
+				action,
+				who,
+				provided_id,
+				schedule,
+				non_interrupt_errors,
+			)?;
 			Ok(().into())
 		}
 
@@ -943,7 +952,7 @@ pub mod pallet {
 						let mut condition: BTreeMap<String, String> = BTreeMap::new();
 						condition.insert(String::from("type"), String::from("time"));
 						condition.insert(String::from("timestamp"), format!("{}", time_slot));
-						
+
 						Self::deposit_event(Event::TaskTriggered {
 							who: account_id.clone(),
 							task_id: task_id.clone(),
@@ -1455,8 +1464,13 @@ pub mod pallet {
 
 			let executions = schedule.known_executions_left();
 
-			let task =
-				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone(), non_interrupt_errors);
+			let task = TaskOf::<T>::new(
+				owner_id.clone(),
+				provided_id.clone(),
+				schedule,
+				action.clone(),
+				non_interrupt_errors,
+			);
 
 			let task_id =
 				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
@@ -1479,9 +1493,12 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-
 			match dispatch_error {
-				Some(err) if !task.non_interrupt_errors.contains(&String::from(Into::<&str>::into(err))) => {
+				Some(err)
+					if !task
+						.non_interrupt_errors
+						.contains(&String::from(Into::<&str>::into(err))) =>
+				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),
 						task_id,
@@ -1514,7 +1531,7 @@ pub mod pallet {
 							AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
 						},
 					};
-				}
+				},
 			}
 
 			// if let Some(err) = dispatch_error if task.non_interrupt_errors.contains(&err.as_str()) {
