@@ -2,8 +2,9 @@ use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
-use sp_std::prelude::*;
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
+use sp_std::{prelude::*, collections::btree_map::BTreeMap};
+use scale_info::prelude::{format, string::String};
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
@@ -213,6 +214,7 @@ pub struct Task<AccountId, Balance> {
 	pub provided_id: Vec<u8>,
 	pub schedule: Schedule,
 	pub action: Action<AccountId, Balance>,
+	pub non_interrupt_errors: Vec<String>,
 }
 
 impl<AccountId: Ord, Balance: Ord> PartialEq for Task<AccountId, Balance> {
@@ -232,8 +234,9 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		provided_id: Vec<u8>,
 		schedule: Schedule,
 		action: Action<AccountId, Balance>,
+		non_interrupt_errors: Vec<String>,
 	) -> Self {
-		Self { owner_id, provided_id, schedule, action }
+		Self { owner_id, provided_id, schedule, action, non_interrupt_errors }
 	}
 
 	pub fn create_event_task<T: Config>(
@@ -241,12 +244,13 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		provided_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
+		non_interrupt_errors: Vec<String>
 	) -> Result<Self, DispatchError> {
 		let call: <T as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: message }.into();
 		let action = Action::DynamicDispatch { encoded_call: call.encode() };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, provided_id, schedule, action))
+		Ok(Self::new(owner_id, provided_id, schedule, action, non_interrupt_errors))
 	}
 
 	pub fn create_xcmp_task<T: Config>(
@@ -260,6 +264,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		instruction_sequence: InstructionSequence,
+		non_interrupt_errors: Vec<String>
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
@@ -274,7 +279,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, provided_id, schedule, action))
+		Ok(Self::new(owner_id, provided_id, schedule, action, non_interrupt_errors))
 	}
 
 	pub fn create_auto_compound_delegated_stake_task<T: Config>(
@@ -284,6 +289,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		frequency: Seconds,
 		collator_id: AccountId,
 		account_minimum: Balance,
+		non_interrupt_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let action = Action::AutoCompoundDelegatedStake {
 			delegator: owner_id.clone(),
@@ -291,7 +297,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			account_minimum,
 		};
 		let schedule = Schedule::new_recurring_schedule::<T>(next_execution_time, frequency)?;
-		Ok(Self::new(owner_id, provided_id, schedule, action))
+		Ok(Self::new(owner_id, provided_id, schedule, action, non_interrupt_errors))
 	}
 
 	pub fn execution_times(&self) -> Vec<UnixTime> {
@@ -367,6 +373,29 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 	}
 }
 
+#[derive(Eq, PartialEq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
+pub struct DispatchErrorWithData<Data>
+where
+	Data: Eq + PartialEq + Clone + Encode + Decode + Printable,
+{
+	/// Additional data
+	pub data: Data,
+	pub message: Option<String>,
+	/// The actual `DispatchResult` indicating whether the dispatch was successful.
+	pub error: DispatchError,
+}
+
+#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct DispatchErrorDataMap(BTreeMap<String, String>);
+impl sp_runtime::traits::Printable for DispatchErrorDataMap {
+	fn print(&self) {
+		for (key, value) in self.0.iter() {
+			sp_io::misc::print_utf8(format!("{:?}: {:?}, ", key, value).as_bytes());
+		}
+	}
+}
+pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -389,6 +418,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				let task_id = TaskId::<Test>::default();
@@ -410,6 +440,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				let tasks = (0..MaxTasksPerSlot::get()).fold::<Vec<AccountTaskId<Test>>, _>(
@@ -444,6 +475,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				let task_id = TaskId::<Test>::default();

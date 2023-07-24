@@ -353,7 +353,7 @@ benchmarks! {
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![time.into()], vec![4, 5, 6]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![time.into()], vec![4, 5, 6], vec![]).unwrap();
 			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id).unwrap();
 			let missed_task = MissedTaskV2Of::<T>::new(caller.clone(), task_id, time.into());
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
@@ -394,7 +394,7 @@ benchmarks! {
 
 		for i in 0..v {
 			let provided_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![execution_time], vec![65, 65.saturating_add(i as u8)]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![execution_time], vec![65, 65.saturating_add(i as u8)], vec![]).unwrap();
 			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			task_ids.push((caller.clone(), task_id))
@@ -442,7 +442,7 @@ benchmarks! {
 			for j in 0..1 {
 				let time = time.saturating_add(3600);
 				let provided_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
-				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![time.into()], vec![4, 5, 6]).unwrap();
+				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![time.into()], vec![4, 5, 6], vec![]).unwrap();
 				let task_id = AutomationTime::<T>::schedule_task(&task, provided_id).unwrap();
 				<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			}
@@ -458,7 +458,7 @@ benchmarks! {
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			provided_id = increment_provided_id(provided_id);
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![current_time.into()], vec![4, 5, 6]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), provided_id.clone(), vec![current_time.into()], vec![4, 5, 6], vec![]).unwrap();
 			let task_id = AutomationTime::<T>::schedule_task(&task, provided_id.clone()).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 		}

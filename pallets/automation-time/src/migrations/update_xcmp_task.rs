@@ -31,6 +31,7 @@ impl<T: Config> From<OldTask<T>> for TaskOf<T> {
 			provided_id: task.provided_id,
 			schedule: task.schedule,
 			action: task.action.into(),
+			non_interrupt_errors: vec![],
 		}
 	}
 }

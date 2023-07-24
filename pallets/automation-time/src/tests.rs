@@ -1095,6 +1095,7 @@ fn schedule_execution_times_removes_dupes() {
 					vec![50],
 					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800],
 					vec![2, 4],
+					vec![],
 				)
 				.unwrap();
 
@@ -1466,6 +1467,7 @@ fn cancel_task_must_exist() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
+			vec![],
 		)
 		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);
@@ -1491,6 +1493,7 @@ fn cancel_task_not_found() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			vec![2, 4, 5],
+			vec![],
 		)
 		.unwrap();
 		let task_id = BlakeTwo256::hash_of(&task);

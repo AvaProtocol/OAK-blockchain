@@ -71,14 +71,14 @@ use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
-use scale_info::{prelude::format, TypeInfo};
+use scale_info::{prelude::{format, string::String}, TypeInfo};
 use sp_runtime::{
 	traits::{
 		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
-use sp_std::{boxed::Box, vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec, collections::btree_map::BTreeMap};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
@@ -374,6 +374,12 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 		},
+		TaskTriggered {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			condition: BTreeMap<String, String>,
+			non_interrupt_errors: Vec<String>,
+		},
 	}
 
 	#[pallet::hooks]
@@ -449,7 +455,7 @@ pub mod pallet {
 
 			let schedule = schedule.validated_into::<T>()?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, vec![])?;
 			Ok(().into())
 		}
 
@@ -515,7 +521,7 @@ pub mod pallet {
 			};
 			let schedule = schedule.validated_into::<T>()?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, vec![])?;
 			Ok(().into())
 		}
 
@@ -554,7 +560,8 @@ pub mod pallet {
 				account_minimum,
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
-			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			let non_interrupt_errors = vec![String::from("InsufficientBalance")];
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, non_interrupt_errors)?;
 			Ok(().into())
 		}
 
@@ -586,7 +593,7 @@ pub mod pallet {
 			let action = Action::DynamicDispatch { encoded_call };
 			let schedule = schedule.validated_into::<T>()?;
 
-			Self::validate_and_schedule_task(action, who, provided_id, schedule)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, vec![])?;
 			Ok(().into())
 		}
 
@@ -915,6 +922,13 @@ pub mod pallet {
 			mut weight_left: Weight,
 		) -> (Vec<AccountTaskId<T>>, Weight) {
 			let mut consumed_task_index: usize = 0;
+
+			let time_slot = Self::get_current_time_slot();
+			if time_slot.is_err() {
+				return (account_task_ids, weight_left)
+			}
+			let time_slot = time_slot.unwrap();
+
 			for (account_id, task_id) in account_task_ids.iter() {
 				consumed_task_index.saturating_inc();
 				let action_weight = match AccountTasks::<T>::get(account_id.clone(), task_id) {
@@ -926,6 +940,17 @@ pub mod pallet {
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
+						let mut condition: BTreeMap<String, String> = BTreeMap::new();
+						condition.insert(String::from("type"), String::from("time"));
+						condition.insert(String::from("timestamp"), format!("{}", time_slot));
+						
+						Self::deposit_event(Event::TaskTriggered {
+							who: account_id.clone(),
+							task_id: task_id.clone(),
+							condition,
+							non_interrupt_errors: task.non_interrupt_errors.clone(),
+						});
+
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
 							Action::Notify { message } => Self::run_notify_task(message),
 							Action::NativeTransfer { sender, recipient, amount } =>
@@ -1401,6 +1426,7 @@ pub mod pallet {
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			schedule: Schedule,
+			non_interrupt_errors: Vec<String>,
 		) -> DispatchResult {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
@@ -1430,7 +1456,7 @@ pub mod pallet {
 			let executions = schedule.known_executions_left();
 
 			let task =
-				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone());
+				TaskOf::<T>::new(owner_id.clone(), provided_id.clone(), schedule, action.clone(), non_interrupt_errors);
 
 			let task_id =
 				T::FeeHandler::pay_checked_fees_for(&owner_id, &action, executions, || {
@@ -1453,38 +1479,76 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-			if let Some(err) = dispatch_error {
-				Self::deposit_event(Event::<T>::TaskNotRescheduled {
-					who: task.owner_id.clone(),
-					task_id,
-					error: err,
-				});
-				AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			} else {
-				let owner_id = task.owner_id.clone();
-				let action = task.action.clone();
-				match Self::reschedule_existing_task(task_id, &mut task) {
-					Ok(_) => {
-						let schedule_as = match action {
-							Action::XCMP { schedule_as, .. } => schedule_as,
-							_ => None,
-						};
-						Self::deposit_event(Event::<T>::TaskRescheduled {
-							who: owner_id,
-							task_id,
-							schedule_as,
-						});
-					},
-					Err(err) => {
-						Self::deposit_event(Event::<T>::TaskFailedToReschedule {
-							who: task.owner_id.clone(),
-							task_id,
-							error: err,
-						});
-						AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-					},
-				};
+
+			match dispatch_error {
+				Some(err) if !task.non_interrupt_errors.contains(&String::from(Into::<&str>::into(err))) => {
+					Self::deposit_event(Event::<T>::TaskNotRescheduled {
+						who: task.owner_id.clone(),
+						task_id,
+						error: err,
+					});
+					AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+				},
+				_ => {
+					let owner_id = task.owner_id.clone();
+					let action = task.action.clone();
+					match Self::reschedule_existing_task(task_id, &mut task) {
+						Ok(_) => {
+							let schedule_as = match action {
+								Action::XCMP { schedule_as, .. } => schedule_as,
+								_ => None,
+							};
+							Self::deposit_event(Event::<T>::TaskRescheduled {
+								who: owner_id.clone(),
+								task_id,
+								schedule_as,
+							});
+							AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
+						},
+						Err(err) => {
+							Self::deposit_event(Event::<T>::TaskFailedToReschedule {
+								who: task.owner_id.clone(),
+								task_id,
+								error: err,
+							});
+							AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+						},
+					};
+				}
 			}
+
+			// if let Some(err) = dispatch_error if task.non_interrupt_errors.contains(&err.as_str()) {
+			// 	Self::deposit_event(Event::<T>::TaskNotRescheduled {
+			// 		who: task.owner_id.clone(),
+			// 		task_id,
+			// 		error: err,
+			// 	});
+			// 	AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+			// } else {
+			// 	let owner_id = task.owner_id.clone();
+			// 	let action = task.action.clone();
+			// 	match Self::reschedule_existing_task(task_id, &mut task) {
+			// 		Ok(_) => {
+			// 			let schedule_as = match action {
+			// 				Action::XCMP { schedule_as, .. } => schedule_as,
+			// 				_ => None,
+			// 			};
+			// 			Self::deposit_event(Event::<T>::TaskRescheduled {
+			// 				who: owner_id,
+			// 				task_id,
+			// 				schedule_as,
+			// 			});
+			// 		},
+			// 		Err(err) => {
+			// 			Self::deposit_event(Event::<T>::TaskFailedToReschedule {
+			// 				who: task.owner_id.clone(),
+			// 				task_id,
+			// 				error: err,
+			// 			});
+			// 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
+			// 		},
+			// 	};
+			// }
 		}
 
 		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
@@ -1503,17 +1567,6 @@ pub mod pallet {
 
 					let owner_id = task.owner_id.clone();
 					AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
-
-					let schedule_as = match task.action.clone() {
-						Action::XCMP { schedule_as, .. } => schedule_as.clone(),
-						_ => None,
-					};
-
-					Self::deposit_event(Event::<T>::TaskScheduled {
-						who: owner_id,
-						task_id,
-						schedule_as,
-					});
 				},
 				Schedule::Fixed { .. } => {},
 			}
