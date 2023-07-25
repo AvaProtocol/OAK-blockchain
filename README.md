@@ -108,7 +108,7 @@ We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Mangata
 3. Create an alias to the zombie program(on MacOS). Since the actual command of `npm run zombie` is `node ./packages/cli/dist/cli.js`, we can add an alias to it by editing the `~/.bash_profile` file. Simply, run `vim ~/.bash_profile` add one line `alias zombienet="node <your_absolute_path>/zombienet/javascript/packages/cli/dist/cli.js"` to it.
 4. Run `source ~/.bash_profile`. This will load the new ~/.bash_profile.
 5. Cd into OAK-blockchain folder, `cd ../../OAK-blockchain`.
-6. Spawn zombienet with our config file, `zombienet spawn zombienets/turing/xcmp.toml`.
+6. Spawn zombienet with our config file, `zombienet spawn zombienets/turing/mangata.toml`.
 
 The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Mangata node, and set up an HRMP channel between the parachains.
 
