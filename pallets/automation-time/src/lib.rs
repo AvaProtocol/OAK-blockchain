@@ -53,7 +53,7 @@ use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
+	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::Hash,
 	storage::{
@@ -64,7 +64,6 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
-use hex;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
@@ -77,7 +76,7 @@ use scale_info::{
 };
 use sp_runtime::{
 	traits::{
-		CheckedConversion, CheckedSub, Convert, Dispatchable, SaturatedConversion, Saturating,
+		CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating,
 	},
 	ArithmeticError, DispatchError, Perbill,
 };
@@ -92,6 +91,17 @@ macro_rules! ERROR_MESSAGE_DELEGATION_FORMAT {
 	};
 }
 pub const ERROR_MESSAGE_BALANCE_LOW: &str = "Balance less than minimum";
+
+#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
+pub struct DispatchErrorDataMap(BTreeMap<String, String>);
+impl sp_runtime::traits::Printable for DispatchErrorDataMap {
+	fn print(&self) {
+		for (key, value) in self.0.iter() {
+			sp_io::misc::print_utf8(format!("{:?}: {:?}, ", key, value).as_bytes());
+		}
+	}
+}
+pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -309,11 +319,6 @@ pub mod pallet {
 		SuccessfullyTransferredFunds {
 			task_id: TaskId<T>,
 		},
-		/// Successfully sent XCMP
-		XcmpTaskSucceeded {
-			task_id: T::Hash,
-			destination: MultiLocation,
-		},
 		/// Failed to send XCMP
 		XcmpTaskFailed {
 			task_id: T::Hash,
@@ -325,18 +330,10 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			error: DispatchError,
 		},
-		AutoCompoundDelegatorStakeSucceeded {
-			task_id: TaskId<T>,
-			amount: BalanceOf<T>,
-		},
 		AutoCompoundDelegatorStakeFailed {
+			who: AccountOf<T>,
 			task_id: TaskId<T>,
-			error_message: Vec<u8>,
-			error: DispatchErrorWithPostInfo,
-		},
-		AutoCompoundDelegatorStakeSkipped {
-			task_id: TaskId<T>,
-			message: Vec<u8>,
+			error: DispatchErrorWithDataMap,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
@@ -344,12 +341,12 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
 		},
-		/// The result of the DynamicDispatch action.
-		DynamicDispatchResult {
-			who: AccountOf<T>,
-			task_id: TaskId<T>,
-			result: DispatchResult,
-		},
+		// /// The result of the DynamicDispatch action.
+		// DynamicDispatchResult {
+		// 	who: AccountOf<T>,
+		// 	task_id: TaskId<T>,
+		// 	result: DispatchResult,
+		// },
 		/// The call for the DynamicDispatch action can no longer be decoded.
 		CallCannotBeDecoded {
 			who: AccountOf<T>,
@@ -383,6 +380,11 @@ pub mod pallet {
 			condition: BTreeMap<String, String>,
 			encoded_call: Vec<u8>,
 			cancel_upon_errors: Vec<String>,
+		},
+		TaskExecutionFailed {
+			who: AccountOf<T>,
+			task_id: TaskId<T>,
+			error: DispatchError,
 		},
 	}
 
@@ -1133,7 +1135,6 @@ pub mod pallet {
 				flow,
 			) {
 				Ok(()) => {
-					Self::deposit_event(Event::XcmpTaskSucceeded { task_id, destination });
 					(<T as Config>::WeightInfo::run_xcmp_task(), None)
 				},
 				Err(e) => {
@@ -1152,62 +1153,50 @@ pub mod pallet {
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
-				let e = sp_runtime::DispatchErrorWithPostInfo::from(Error::<T>::DelegationNotFound);
-				let error_message = format!(
-					ERROR_MESSAGE_DELEGATION_FORMAT!(),
-					hex::encode(Encode::encode(&delegator)),
-					hex::encode(Encode::encode(&collator))
-				);
-				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-					task_id,
-					error_message: error_message.into(),
-					error: e,
-				});
+			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
+			if fee_amount.is_err() {
 				return (
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					Some(e.error),
-				)
+					Some(fee_amount.unwrap_err()),
+				);
 			}
+			let fee_amount = fee_amount.unwrap();
 
-			let reserved_funds = account_minimum
-				.saturating_add(Self::calculate_schedule_fee_amount(&task.action, 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake"));
-			match T::DelegatorActions::get_delegator_stakable_free_balance(&delegator)
-				.checked_sub(&reserved_funds)
-			{
-				Some(delegation) => {
-					match T::DelegatorActions::delegator_bond_more(
-						&delegator, &collator, delegation,
-					) {
-						Ok(_) => {
-							Self::deposit_event(Event::AutoCompoundDelegatorStakeSucceeded {
-								task_id,
-								amount: delegation,
-							});
-							(
-								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-								None,
-							)
-						},
-						Err(e) => {
-							Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
-								task_id,
-								error_message: Into::<&str>::into(e).as_bytes().to_vec(),
-								error: e.into(),
-							});
-							return (
-								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-								Some(e.into()),
-							)
-						},
-					}
+			let reserved_funds = account_minimum.saturating_add(fee_amount);
+			match T::DelegatorActions::delegator_bond_till_minimum(
+				&delegator, &collator, reserved_funds,
+			) {
+				Ok(_) => {
+					(
+						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+						None,
+					)
 				},
-				None => {
-					Self::deposit_event(Event::AutoCompoundDelegatorStakeSkipped {
+				Err(e) => {
+					// BTreeMap::new()
+					// let error = DispatchErrorDataMap {
+					// 	data: 
+					// }
+
+					let mut data_map: BTreeMap<String, String> = BTreeMap::new();
+					data_map.insert(String::from("delagator"), String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"));
+					data_map.insert(String::from("collator"), String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"));
+
+					let error = DispatchErrorWithDataMap {
+						data: DispatchErrorDataMap(data_map),
+						message: Some(String::from(Into::<&str>::into(e))),
+						error: e.error,
+					};
+
+					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+						who: task.owner_id.clone(),
 						task_id,
-						message: ERROR_MESSAGE_BALANCE_LOW.into(),
+						error,
 					});
-					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None)
+					return (
+						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+						Some(e.error),
+					)
 				},
 			}
 		}
@@ -1236,12 +1225,6 @@ pub mod pallet {
 							Err(error_and_info) =>
 								(error_and_info.post_info.actual_weight, Err(error_and_info.error)),
 						};
-
-					Self::deposit_event(Event::DynamicDispatchResult {
-						who: caller,
-						task_id,
-						result,
-					});
 
 					(
 						maybe_actual_call_weight.unwrap_or(call_weight).saturating_add(
@@ -1596,6 +1579,13 @@ pub mod pallet {
 			task: TaskOf<T>,
 			error: Option<DispatchError>,
 		) {
+			if let Some(err) = error {
+				Self::deposit_event(Event::<T>::TaskExecutionFailed {
+					who: task.owner_id.clone(),
+					task_id,
+					error: err,
+				});
+			}
 			match task.schedule {
 				Schedule::Fixed { .. } =>
 					Self::decrement_task_and_remove_if_complete(task_id, task),

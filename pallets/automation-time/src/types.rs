@@ -2,9 +2,9 @@ use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
-use scale_info::prelude::{format, string::String};
+use scale_info::prelude::string::String;
 use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
-use sp_std::{collections::btree_map::BTreeMap, prelude::*};
+use sp_std::prelude::*;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
@@ -384,17 +384,6 @@ where
 	/// The actual `DispatchResult` indicating whether the dispatch was successful.
 	pub error: DispatchError,
 }
-
-#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct DispatchErrorDataMap(BTreeMap<String, String>);
-impl sp_runtime::traits::Printable for DispatchErrorDataMap {
-	fn print(&self) {
-		for (key, value) in self.0.iter() {
-			sp_io::misc::print_utf8(format!("{:?}: {:?}, ", key, value).as_bytes());
-		}
-	}
-}
-pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
 #[cfg(test)]
 mod tests {

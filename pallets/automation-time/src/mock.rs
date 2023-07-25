@@ -27,7 +27,7 @@ use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup, CheckedSub},
 	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -207,12 +207,16 @@ impl<
 		Ok(true)
 	}
 
-	fn is_delegation_exist(_delegator: &T::AccountId, candidate: &T::AccountId) -> bool {
-		*candidate == T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap()
-	}
-
-	fn get_delegator_stakable_free_balance(delegator: &T::AccountId) -> BalanceOf<T> {
-		C::free_balance(delegator)
+	fn delegator_bond_till_minimum(
+		delegator: &T::AccountId,
+		_candidate: &T::AccountId,
+		account_minimum: BalanceOf<T>,
+	) -> Result<BalanceOf<T>, frame_support::dispatch::DispatchErrorWithPostInfo> {
+		let delegation = C::free_balance(&delegator)
+			.checked_sub(&account_minimum)
+			.ok_or(Error::<T>::InsufficientBalance)?;
+		C::reserve(delegator, delegation)?;
+		Ok(delegation)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -580,7 +584,7 @@ pub fn create_task(
 ) -> sp_core::H256 {
 	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
 	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task = TaskOf::<Test>::new(owner.into(), provided_id, schedule, action);
+	let task = TaskOf::<Test>::new(owner.into(), provided_id, schedule, action, vec![]);
 	AccountTasks::<Test>::insert(AccountId::new(owner), task_id, task);
 	task_id
 }
