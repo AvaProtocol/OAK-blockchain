@@ -10,6 +10,7 @@ use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Convert;
 use sp_std::vec::Vec;
+use sp_std::vec;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
@@ -31,7 +32,7 @@ impl<T: Config> From<OldTask<T>> for TaskOf<T> {
 			provided_id: task.provided_id,
 			schedule: task.schedule,
 			action: task.action.into(),
-			non_interrupt_errors: vec![],
+			cancel_upon_errors: vec![],
 		}
 	}
 }

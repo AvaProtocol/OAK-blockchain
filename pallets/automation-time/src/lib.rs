@@ -381,7 +381,8 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId<T>,
 			condition: BTreeMap<String, String>,
-			non_interrupt_errors: Vec<String>,
+			encoded_call: Vec<u8>,
+			cancel_upon_errors: Vec<String>,
 		},
 	}
 
@@ -563,13 +564,12 @@ pub mod pallet {
 				account_minimum,
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
-			let non_interrupt_errors = vec![String::from("InsufficientBalance")];
 			Self::validate_and_schedule_task(
 				action,
 				who,
 				provided_id,
 				schedule,
-				non_interrupt_errors,
+				vec![],
 			)?;
 			Ok(().into())
 		}
@@ -953,11 +953,18 @@ pub mod pallet {
 						condition.insert(String::from("type"), String::from("time"));
 						condition.insert(String::from("timestamp"), format!("{}", time_slot));
 
+						let encoded_call = match task.action.clone() {
+							Action::XCMP { encoded_call, .. } => encoded_call,
+							Action::DynamicDispatch { encoded_call } => encoded_call,
+							_ => vec![],
+						};
+
 						Self::deposit_event(Event::TaskTriggered {
 							who: account_id.clone(),
 							task_id: task_id.clone(),
 							condition,
-							non_interrupt_errors: task.non_interrupt_errors.clone(),
+							encoded_call,
+							cancel_upon_errors: task.cancel_upon_errors.clone(),
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
@@ -1435,7 +1442,7 @@ pub mod pallet {
 			owner_id: AccountOf<T>,
 			provided_id: Vec<u8>,
 			schedule: Schedule,
-			non_interrupt_errors: Vec<String>,
+			cancel_upon_errors: Vec<String>,
 		) -> DispatchResult {
 			if provided_id.len() == 0 {
 				Err(Error::<T>::EmptyProvidedId)?
@@ -1469,7 +1476,7 @@ pub mod pallet {
 				provided_id.clone(),
 				schedule,
 				action.clone(),
-				non_interrupt_errors,
+				cancel_upon_errors,
 			);
 
 			let task_id =
@@ -1496,7 +1503,7 @@ pub mod pallet {
 			match dispatch_error {
 				Some(err)
 					if !task
-						.non_interrupt_errors
+						.cancel_upon_errors
 						.contains(&String::from(Into::<&str>::into(err))) =>
 				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
@@ -1534,7 +1541,7 @@ pub mod pallet {
 				},
 			}
 
-			// if let Some(err) = dispatch_error if task.non_interrupt_errors.contains(&err.as_str()) {
+			// if let Some(err) = dispatch_error if task.cancel_upon_errors.contains(&err.as_str()) {
 			// 	Self::deposit_event(Event::<T>::TaskNotRescheduled {
 			// 		who: task.owner_id.clone(),
 			// 		task_id,
