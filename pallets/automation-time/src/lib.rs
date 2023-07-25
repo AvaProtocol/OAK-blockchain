@@ -564,13 +564,7 @@ pub mod pallet {
 				account_minimum,
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
-			Self::validate_and_schedule_task(
-				action,
-				who,
-				provided_id,
-				schedule,
-				vec![],
-			)?;
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, vec![])?;
 			Ok(().into())
 		}
 

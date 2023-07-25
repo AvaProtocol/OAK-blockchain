@@ -9,8 +9,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use scale_info::TypeInfo;
 use sp_runtime::traits::Convert;
-use sp_std::vec::Vec;
-use sp_std::vec;
+use sp_std::{vec, vec::Vec};
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
