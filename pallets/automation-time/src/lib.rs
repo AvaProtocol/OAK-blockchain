@@ -75,9 +75,7 @@ use scale_info::{
 	TypeInfo,
 };
 use sp_runtime::{
-	traits::{
-		CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating,
-	},
+	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
@@ -1134,9 +1132,7 @@ pub mod pallet {
 				overall_weight,
 				flow,
 			) {
-				Ok(()) => {
-					(<T as Config>::WeightInfo::run_xcmp_task(), None)
-				},
+				Ok(()) => (<T as Config>::WeightInfo::run_xcmp_task(), None),
 				Err(e) => {
 					Self::deposit_event(Event::XcmpTaskFailed { task_id, destination, error: e });
 					(<T as Config>::WeightInfo::run_xcmp_task(), Some(e))
@@ -1158,29 +1154,33 @@ pub mod pallet {
 				return (
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 					Some(fee_amount.unwrap_err()),
-				);
+				)
 			}
 			let fee_amount = fee_amount.unwrap();
 
 			let reserved_funds = account_minimum.saturating_add(fee_amount);
 			match T::DelegatorActions::delegator_bond_till_minimum(
-				&delegator, &collator, reserved_funds,
+				&delegator,
+				&collator,
+				reserved_funds,
 			) {
-				Ok(_) => {
-					(
-						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-						None,
-					)
-				},
+				Ok(_) =>
+					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None),
 				Err(e) => {
 					// BTreeMap::new()
 					// let error = DispatchErrorDataMap {
-					// 	data: 
+					// 	data:
 					// }
 
 					let mut data_map: BTreeMap<String, String> = BTreeMap::new();
-					data_map.insert(String::from("delagator"), String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"));
-					data_map.insert(String::from("collator"), String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"));
+					data_map.insert(
+						String::from("delagator"),
+						String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"),
+					);
+					data_map.insert(
+						String::from("collator"),
+						String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"),
+					);
 
 					let error = DispatchErrorWithDataMap {
 						data: DispatchErrorDataMap(data_map),

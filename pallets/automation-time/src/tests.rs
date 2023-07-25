@@ -484,9 +484,11 @@ fn will_emit_task_completed_event_when_task_failed() {
 		let current_funds = Balances::free_balance(AccountId32::new(ALICE));
 
 		// Because the execution of the transfer task twice requires a total amount is larger than current balance, the second task will fail.
-		let call: <Test as frame_system::Config>::RuntimeCall =
-			pallet_balances::Call::transfer { dest: AccountId32::new(BOB), value: current_funds / 2 + 1 }
-				.into();
+		let call: <Test as frame_system::Config>::RuntimeCall = pallet_balances::Call::transfer {
+			dest: AccountId32::new(BOB),
+			value: current_funds / 2 + 1,
+		}
+		.into();
 
 		// Schedule a task to be executed at SCHEDULED_TIME and SCHEDULED_TIME + frequency.
 		let next_execution_time = SCHEDULED_TIME + frequency;
@@ -526,10 +528,10 @@ fn will_emit_task_completed_event_when_task_failed() {
 		// .expect("The DynamicDispatchResult event with error should be emitted when task failed");
 
 		// When a task fails, the TaskCompleted event will still be emitted.
-		let event = my_events.into_iter().find(|e| {
-			matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { .. }))
-		})
-		.expect("When a task fails, the TaskCompleted event will still be emitted");
+		let event = my_events
+			.into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { .. })))
+			.expect("When a task fails, the TaskCompleted event will still be emitted");
 	})
 }
 
@@ -2324,12 +2326,10 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 
 		assert_eq!(
 			events(),
-			[
-				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: AccountId32::new(ALICE),
-					task_id,
-				})
-			]
+			[RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+				who: AccountId32::new(ALICE),
+				task_id,
+			})]
 		);
 	})
 }

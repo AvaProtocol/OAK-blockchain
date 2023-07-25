@@ -27,7 +27,7 @@ use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup, CheckedSub},
+	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
 	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
