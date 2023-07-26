@@ -18,6 +18,12 @@ use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
+// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
+// These cons are used for our unit test
+// (Account, ProvidedID)
+pub const TEST_TASKID1: &str = "0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04";
+pub const TEST_TASKID2: &str = "0xf76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff";
+
 // Old format
 pub type OldTaskId<T> = <T as frame_system::Config>::Hash;
 pub type OldAccountTaskId<T> = (AccountOf<T>, OldTaskId<T>);

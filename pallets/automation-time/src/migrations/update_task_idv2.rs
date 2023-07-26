@@ -21,14 +21,8 @@ use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 use crate::migrations::utils::{
 	deprecate::{generate_old_task_id, old_taskid_to_idv2},
-	OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf,
+	OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf, TEST_TASKID1, TEST_TASKID2,
 };
-
-// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
-// These cons are used for our unit test
-// (Account, ProvidedID)
-const TEST_TASKID1: &str = "0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04";
-const TEST_TASKID2: &str = "0xf76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff";
 
 // This is old TaskQueueV2 with old Task
 #[frame_support::storage_alias]
@@ -256,22 +250,8 @@ mod test {
 			let task_owner2 = AccountId32::new(BOB);
 
 			// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
-			// (Account, ProvidedID)
-			// 0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04
-			let task_id1: Vec<u8> = vec![
-				48, 120, 100, 49, 50, 54, 51, 56, 52, 50, 101, 51, 52, 97, 100, 101, 98, 48, 48,
-				98, 101, 49, 49, 52, 54, 98, 51, 48, 98, 99, 54, 53, 50, 55, 57, 53, 49, 102, 48,
-				97, 48, 102, 53, 100, 53, 97, 51, 102, 55, 97, 55, 53, 56, 53, 51, 55, 55, 51, 53,
-				98, 56, 98, 99, 98, 48, 52,
-			];
-			// 0xf76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff
-			// (account_id2, 2) ->
-			let task_id2: Vec<u8> = vec![
-				48, 120, 102, 55, 54, 97, 99, 102, 48, 98, 49, 100, 56, 101, 102, 53, 48, 51, 52,
-				53, 48, 97, 52, 100, 53, 99, 49, 97, 52, 53, 49, 102, 49, 57, 50, 49, 97, 57, 48,
-				54, 101, 56, 55, 49, 49, 102, 53, 53, 49, 99, 50, 57, 52, 53, 101, 48, 57, 102, 98,
-				52, 52, 100, 101, 53, 102, 102,
-			];
+			let task_id1: Vec<u8> = TEST_TASKID1.as_bytes().to_vec();
+			let task_id2: Vec<u8> = TEST_TASKID2.as_bytes().to_vec();
 
 			super::ScheduledTasksV3::<Test>::insert(
 				3600,
@@ -338,22 +318,16 @@ mod test {
 					// (task owner, vec![33]) hash -> "0x7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
 					(
 						task_owner2.clone(),
-						vec![
-							48, 120, 55, 49, 57, 49, 102, 51, 100, 56, 51, 98, 99, 98, 101, 98, 50,
-							50, 49, 102, 55, 98, 48, 48, 102, 53, 48, 49, 101, 57, 97, 56, 100, 97,
-							51, 98, 97, 51, 99, 50, 100, 49, 53, 97, 54, 55, 50, 101, 98, 54, 57,
-							52, 101, 101, 55, 101, 48, 57, 100, 98, 97, 100, 100, 100, 49, 101
-						]
+						"0x7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
+							.as_bytes()
+							.to_vec(),
 					),
-					// (task owner1, vec![32]) hash -> "0x7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
+					// (task owner1, vec![32]) hash -> "0xe94040ca5d09f0e1023aecf5abc3afac0b9e66bc3b1209183b3a009f4c073c2b"
 					(
 						task_owner1.clone(),
-						vec![
-							48, 120, 101, 57, 52, 48, 52, 48, 99, 97, 53, 100, 48, 57, 102, 48,
-							101, 49, 48, 50, 51, 97, 101, 99, 102, 53, 97, 98, 99, 51, 97, 102, 97,
-							99, 48, 98, 57, 101, 54, 54, 98, 99, 51, 98, 49, 50, 48, 57, 49, 56,
-							51, 98, 51, 97, 48, 48, 57, 102, 52, 99, 48, 55, 51, 99, 50, 98
-						]
+						"0xe94040ca5d09f0e1023aecf5abc3afac0b9e66bc3b1209183b3a009f4c073c2b"
+							.as_bytes()
+							.to_vec(),
 					),
 				],
 				"migration failed to convert old ScheduledTasksV3 to new TaskID format"
@@ -368,23 +342,8 @@ mod test {
 			let account_id2 = AccountId32::new(BOB);
 
 			// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
-			// (Account, ProvidedID)
-			// (account_id1, 1) ->
-			// 0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04
-			let task_id1: Vec<u8> = vec![
-				48, 120, 100, 49, 50, 54, 51, 56, 52, 50, 101, 51, 52, 97, 100, 101, 98, 48, 48,
-				98, 101, 49, 49, 52, 54, 98, 51, 48, 98, 99, 54, 53, 50, 55, 57, 53, 49, 102, 48,
-				97, 48, 102, 53, 100, 53, 97, 51, 102, 55, 97, 55, 53, 56, 53, 51, 55, 55, 51, 53,
-				98, 56, 98, 99, 98, 48, 52,
-			];
-			// 0xf76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff
-			// (account_id2, 2) ->
-			let task_id2: Vec<u8> = vec![
-				48, 120, 102, 55, 54, 97, 99, 102, 48, 98, 49, 100, 56, 101, 102, 53, 48, 51, 52,
-				53, 48, 97, 52, 100, 53, 99, 49, 97, 52, 53, 49, 102, 49, 57, 50, 49, 97, 57, 48,
-				54, 101, 56, 55, 49, 49, 102, 53, 53, 49, 99, 50, 57, 52, 53, 101, 48, 57, 102, 98,
-				52, 52, 100, 101, 53, 102, 102,
-			];
+			let task_id1: Vec<u8> = TEST_TASKID1.as_bytes().to_vec();
+			let task_id2: Vec<u8> = TEST_TASKID2.as_bytes().to_vec();
 
 			let old_missed_queueu_v2 = vec![
 				OldMissedTaskV2 {

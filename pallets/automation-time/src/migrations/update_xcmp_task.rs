@@ -14,7 +14,7 @@ use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 use crate::migrations::utils::{
 	deprecate::{generate_old_task_id, old_taskid_to_idv2},
-	OldAccountTaskId, OldAction, OldTask, OldTaskId,
+	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
 const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
@@ -116,7 +116,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 mod test {
 	use super::{
 		generate_old_task_id, OldAction, OldTask, ParaId, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
-		INSTRUCTION_WEIGHT_REF_TIME,
+		INSTRUCTION_WEIGHT_REF_TIME, TEST_TASKID1,
 	};
 	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Pallet, Schedule, TaskOf};
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
@@ -156,13 +156,7 @@ mod test {
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
 
-			// 0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04
-			let task_id1 = vec![
-				48, 120, 100, 49, 50, 54, 51, 56, 52, 50, 101, 51, 52, 97, 100, 101, 98, 48, 48,
-				98, 101, 49, 49, 52, 54, 98, 51, 48, 98, 99, 54, 53, 50, 55, 57, 53, 49, 102, 48,
-				97, 48, 102, 53, 100, 53, 97, 51, 102, 55, 97, 55, 53, 56, 53, 51, 55, 55, 51, 53,
-				98, 56, 98, 99, 98, 48, 52,
-			];
+			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
 			assert_eq!(
 				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
 				TaskOf::<Test> {
