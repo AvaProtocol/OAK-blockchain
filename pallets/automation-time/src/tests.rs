@@ -36,6 +36,10 @@ use sp_runtime::{
 	AccountId32,
 };
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
+use sp_runtime::DispatchError::Module;
+use sp_runtime::ModuleError;
+use frame_support::pallet_prelude::DispatchError;
+use sp_std::collections::btree_map::BTreeMap;
 
 use pallet_balances;
 use pallet_valve::Shutdown;
@@ -321,7 +325,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 			RuntimeOrigin::signed(account_id.clone()),
 			vec![1, 2],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			Box::new(call),
+			Box::new(call.clone()),
 		));
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -334,9 +338,19 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		let recipient = AccountId32::new(BOB);
 		assert_eq!(Balances::free_balance(recipient.clone()), 127);
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
 		assert_eq!(
 			my_events,
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call: call.encode(),
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::System(frame_system::Event::NewAccount {
 					account: recipient.clone()
 				}),
@@ -349,11 +363,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					to: recipient.clone(),
 					amount: 127,
 				}),
-				// RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
-				// 	who: account_id.clone(),
-				// 	task_id,
-				// 	result: Ok(()),
-				// }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: account_id,
 					task_id,
@@ -416,6 +425,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 }
 
 // The TaskCompleted event will not be emitted when the task is canceled.
+#[test]
 fn will_not_emit_task_completed_event_when_task_canceled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
@@ -1076,7 +1086,7 @@ fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
 		get_funds(owner.clone());
-		let task_id1 = schedule_task(
+		let (_, task_id1) = schedule_task(
 			ALICE,
 			vec![50],
 			vec![
@@ -1172,11 +1182,11 @@ fn schedule_time_slot_full_rolls_back() {
 		let call1: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 
-		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
+		let (_, task_id1) = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 
 		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
-		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
+		let (_, task_id2) = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
 		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call.encode()));
@@ -1221,8 +1231,8 @@ fn schedule_time_slot_full_rolls_back() {
 #[test]
 fn cancel_works_for_fixed_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
-		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
+		let (_, task_id1) = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let (_, task_id2) = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
@@ -1261,7 +1271,7 @@ fn cancel_works_for_fixed_scheduled() {
 fn cancel_works_for_multiple_executions_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_id1 = schedule_task(
+		let (_, task_id1) = schedule_task(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
@@ -1338,7 +1348,7 @@ fn cancel_works_for_recurring_scheduled() {
 fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_id1 =
+		let (call, task_id1) =
 			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
@@ -1375,19 +1385,23 @@ fn cancel_works_for_an_executed_task() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
 		let my_events = events();
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
 		assert_eq!(
 			my_events,
-			//[RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![50] }),]
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id1,
+					condition,
+					encoded_call: call.encode(),
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
 					hash: BlakeTwo256::hash(&vec![50]),
 				}),
-				// RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
-				// 	who: owner.clone(),
-				// 	task_id: task_id1,
-				// 	result: Ok(()),
-				// }),
 			]
 		);
 		match AutomationTime::get_account_task(owner.clone(), task_id1) {
@@ -1527,7 +1541,7 @@ fn cancel_task_not_found() {
 fn cancel_task_fail_non_owner() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_id1 = schedule_task(
+		let (_, task_id1) = schedule_task(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
@@ -1551,7 +1565,7 @@ fn cancel_task_fail_non_owner() {
 // #[test]
 fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let (_, task_id) = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
@@ -1757,7 +1771,7 @@ fn trigger_tasks_updates_queues() {
 			SCHEDULED_TIME - 3600,
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
-		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
+		let (_, scheduled_task_id) = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
@@ -1781,6 +1795,7 @@ fn trigger_tasks_updates_queues() {
 #[test]
 fn trigger_tasks_handles_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: vec![40] }.into();
 
@@ -1793,15 +1808,15 @@ fn trigger_tasks_handles_missed_slots() {
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
-		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+		let (_, missed_task_id) = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
-			missed_task_id,
+			missed_task_id.clone(),
 			SCHEDULED_TIME - 3600,
 		);
 
-		let task_will_be_run_id = schedule_task(ALICE, vec![59], vec![SCHEDULED_TIME], vec![50]);
-		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
+		let (call, task_will_be_run_id) = schedule_task(ALICE, vec![59], vec![SCHEDULED_TIME], vec![50]);
+		let (_, scheduled_task_id) = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -1817,18 +1832,25 @@ fn trigger_tasks_handles_missed_slots() {
 		// the  final one is in current schedule will be move into the task queue
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue()[0].1, scheduled_task_id);
+
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+
 		assert_eq!(
 			events(),
 			vec![
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_will_be_run_id,
+					condition,
+					encoded_call: call.encode(),
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
 					hash: BlakeTwo256::hash(&vec![50]),
 				}),
-				// RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
-				// 	who: AccountId32::new(ALICE),
-				// 	task_id: task_will_be_run_id,
-				// 	result: Ok(()),
-				// }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
 					task_id: task_will_be_run_id,
@@ -1866,19 +1888,19 @@ fn trigger_tasks_limits_missed_slots() {
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
-		let missing_task_id1 =
+		let (_, missing_task_id1) =
 			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
 
-		let missing_task_id2 =
+		let (_, missing_task_id2) =
 			schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME - 7200], vec![50]);
-		let missing_task_id3 =
+		let (_, missing_task_id3) =
 			schedule_task(ALICE, vec![70], vec![SCHEDULED_TIME - 10800], vec![50]);
-		let missing_task_id4 =
+		let (_, missing_task_id4) =
 			schedule_task(ALICE, vec![80], vec![SCHEDULED_TIME - 14400], vec![50]);
-		let missing_task_id5 =
+		let (_, missing_task_id5) =
 			schedule_task(ALICE, vec![90], vec![SCHEDULED_TIME - 18000], vec![50]);
 
-		let task_id = schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![32]);
+		let (call, task_id) = schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![32]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
@@ -1895,18 +1917,25 @@ fn trigger_tasks_limits_missed_slots() {
 		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
 			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - 10800);
+
+			let mut condition: BTreeMap<String, String> = BTreeMap::new();
+			condition.insert(String::from("type"), String::from("time"));
+			condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+
 			assert_eq!(
 				my_events,
 				[
+					RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+						who: owner.clone(),
+						task_id: task_id.clone(),
+						condition: condition.clone(),
+						encoded_call: call.encode(),
+						cancel_upon_errors: vec![],
+					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
 						hash: BlakeTwo256::hash(&vec![32]),
 					}),
-					// RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
-					// 	who: owner.clone(),
-					// 	task_id,
-					// 	result: Ok(()),
-					// }),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
 						task_id,
@@ -1979,6 +2008,7 @@ fn trigger_tasks_limits_missed_slots() {
 fn trigger_tasks_completes_all_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let message_one: Vec<u8> = vec![2, 4, 5];
+		let owner = AccountId32::new(ALICE);
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
@@ -1996,13 +2026,31 @@ fn trigger_tasks_completes_all_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
 					task_id: task_id1,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner,
+					task_id: task_id2.clone(),
+					condition,
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2062,9 +2110,20 @@ fn trigger_tasks_completes_some_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(80_000));
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: AccountId32::new(ALICE),
+					task_id: task_id1.clone(),
+					condition,
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
@@ -2236,9 +2295,21 @@ fn missed_tasks_removes_completed_tasks() {
 
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
+
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id01.clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
@@ -2300,6 +2371,8 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 fn trigger_tasks_completes_some_xcmp_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let encoded_call = vec![3, 4, 5];
+		let owner = AccountId32::new(ALICE);
 		let task_id = add_task_to_task_queue(
 			ALICE,
 			vec![40],
@@ -2311,7 +2384,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10,
 				},
-				encoded_call: vec![3, 4, 5],
+				encoded_call: encoded_call.clone(),
 				encoded_call_weight: Weight::from_ref_time(100_000),
 				overall_weight: Weight::from_ref_time(200_000),
 				schedule_as: None,
@@ -2324,12 +2397,25 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-				who: AccountId32::new(ALICE),
-				task_id,
-			})]
+			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call,
+					cancel_upon_errors: vec![],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: owner,
+					task_id,
+				})
+			]
 		);
 	})
 }
@@ -2478,7 +2564,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has a delegation with the specificed collator
 // Expected result:
-// 1. The current execution will be skipped, triggering the emission of an AutoCompoundDelegatorStakeSkipped event, message: Balance less than minimum
+// 1. Emit TaskExecutionFailed event with error: InsufficientBalance
 // 2. Next execution will be scheduled
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
@@ -2507,16 +2593,17 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 
 		let emitted_events = events();
 
-		// // Expected result:
-		// // 1. The current execution will be skipped, triggering the emission of an AutoCompoundDelegatorStakeSkipped event, message: Balance less than minimum
-		// emitted_events.clone().into_iter()
-		// 	.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeSkipped { message, .. }) if *message == ERROR_MESSAGE_BALANCE_LOW.as_bytes().to_vec())).expect("AutoCompoundDelegatorStakeSkipped event should have been emitted");
+		// Expected result:
+		// 1. Emit TaskExecutionFailed event with error: InsufficientBalance
+		let insufficient_balance_error: DispatchError = <pallet_parachain_staking::Error<Test>>::InsufficientBalance.into();
+		let event = emitted_events.clone().into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { error, .. }) if *error == insufficient_balance_error )).expect("TaskExecutionFailed event should have been emitted");
 
-		// // 2. Next execution will be scheduled
-		// emitted_events
-		// 	.into_iter()
-		// 	.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. })))
-		// 	.expect("TaskScheduled event should have been emitted");
+		// 2. Next execution will be scheduled
+		emitted_events
+			.into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { .. })))
+			.expect("TaskRescheduled event should have been emitted");
 
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
@@ -2586,7 +2673,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+// 1. Emit TaskExecutionFailed event with error: DelegationDNE
 // 2. Next execution will not be scheduled
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
@@ -2615,8 +2702,8 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		// // Expected result:
-		// // 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+		// Expected result:
+		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
 		// let failed_error_message = format!(ERROR_MESSAGE_DELEGATION_FORMAT!(), hex::encode(&delegator), hex::encode(&collator));
 		// events()
 		// 	.into_iter()
@@ -2630,7 +2717,14 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		// 	})
 		// 	.expect("AutoCompound failure event should have been emitted");
 
-		// // 2. Next execution will not be scheduled
+		let delegation_dne_error: DispatchError = <pallet_parachain_staking::Error<Test>>::DelegationDNE.into();
+
+		let emit_events = events();
+		
+		let event = emit_events.into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { error, .. }) if *error == delegation_dne_error )).expect("TaskExecutionFailed event should have been emitted");
+
+		// 2. Next execution will not be scheduled
 		// assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 		// 	.filter(|scheduled| {
 		// 		scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id))
@@ -2654,7 +2748,7 @@ fn trigger_tasks_updates_executions_left() {
 			Action::Notify { message: message_one.clone() },
 		);
 
-		match AutomationTime::get_account_task(owner.clone(), task_id01) {
+		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2668,9 +2762,22 @@ fn trigger_tasks_updates_executions_left() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
-			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
+			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id01,
+					condition,
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+			]
 		);
 		match AutomationTime::get_account_task(owner.clone(), task_id01) {
 			None => {
@@ -2709,9 +2816,21 @@ fn trigger_tasks_removes_completed_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id01.clone(),
+					condition,
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
@@ -2750,13 +2869,32 @@ fn on_init_runs_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
 		AutomationTime::on_initialize(1);
+
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: task_id1,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id2.clone(),
+					condition: condition,
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2816,13 +2954,31 @@ fn on_init_check_task_queue() {
 
 		let owner = AccountId32::new(ALICE);
 
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: tasks[0].clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[0],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: tasks[1].clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2839,10 +2995,24 @@ fn on_init_check_task_queue() {
 		assert_eq!(
 			events(),
 			[
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: tasks[2].clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[2],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: tasks[3].clone(),
+					condition: condition.clone(),
+					encoded_call: vec![],
+					cancel_upon_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {

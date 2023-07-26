@@ -19,9 +19,9 @@ use super::*;
 use crate as pallet_automation_time;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
-	construct_runtime, parameter_types, traits::Everything, weights::Weight, PalletId,
+	construct_runtime, parameter_types, traits::{ ConstU128, ConstU32, Everything }, weights::Weight, PalletId, dispatch::DispatchErrorWithPostInfo,
 };
-use frame_system::{self as system, RawOrigin};
+use frame_system::{self as system, RawOrigin, EnsureRoot};
 use orml_traits::parameter_type_with_key;
 use primitives::EnsureProxy;
 use sp_core::H256;
@@ -39,6 +39,12 @@ type Block = system::mocking::MockBlock<Test>;
 pub type Balance = u128;
 pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
+
+const TOKEN_DECIMALS: u32 = 10;
+const TOKEN_BASE: u128 = 10;
+// Unit = the base number of indivisible units for balances
+const UNIT: Balance = TOKEN_BASE.pow(TOKEN_DECIMALS); // 10_000_000_000
+const DOLLAR: Balance = UNIT; // 10_000_000_000
 
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
@@ -93,6 +99,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
@@ -180,6 +187,8 @@ impl orml_currencies::Config for Test {
 pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
+	/// Minimum stake required to become a collator
+	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 
@@ -190,9 +199,52 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+impl pallet_parachain_staking::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
+	/// Minimum round length is 2 minutes (10 * 12 second block times)
+	type MinBlocksPerRound = ConstU32<10>;
+	/// Rounds before the collator leaving the candidates request can be executed
+	type LeaveCandidatesDelay = ConstU32<2>;
+	/// Rounds before the candidate bond increase/decrease can be executed
+	type CandidateBondLessDelay = ConstU32<2>;
+	/// Rounds before the delegator exit can be executed
+	type LeaveDelegatorsDelay = ConstU32<2>;
+	/// Rounds before the delegator revocation can be executed
+	type RevokeDelegationDelay = ConstU32<2>;
+	/// Rounds before the delegator bond increase/decrease can be executed
+	type DelegationBondLessDelay = ConstU32<2>;
+	/// Rounds before the reward is paid
+	type RewardPaymentDelay = ConstU32<2>;
+	/// Minimum collators selected per round, default at genesis and minimum forever after
+	type MinSelectedCandidates = ConstU32<5>;
+	/// Maximum top delegations per candidate
+	type MaxTopDelegationsPerCandidate = ConstU32<10>;
+	/// Maximum bottom delegations per candidate
+	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	/// Maximum delegations per delegator
+	type MaxDelegationsPerDelegator = ConstU32<10>;
+	type MinCollatorStk = MinCollatorStk;
+	/// Minimum stake required to be reserved to be a candidate
+	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
+	/// Minimum delegation amount after initial
+	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
+	/// Minimum initial stake required to be reserved to be a delegator
+	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+	/// Handler to notify the runtime when a collator is paid
+	type OnCollatorPayout = ();
+	type PayoutCollatorReward = ();
+	/// Handler to notify the runtime when a new round begins
+	type OnNewRound = ();
+	/// Any additional issuance that should be used for inflation calcs
+	type AdditionalIssuance = ();
+	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Test>;
+}
+
 pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
 impl<
-		T: Config + pallet::Config<Currency = C>,
+		T: Config + pallet::Config<Currency = C> + pallet_parachain_staking::Config,
 		C: frame_support::traits::ReservableCurrency<T::AccountId>,
 	> pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
 	for MockDelegatorActions<T, C>
@@ -209,12 +261,19 @@ impl<
 
 	fn delegator_bond_till_minimum(
 		delegator: &T::AccountId,
-		_candidate: &T::AccountId,
+		candidate: &T::AccountId,
 		account_minimum: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, frame_support::dispatch::DispatchErrorWithPostInfo> {
+	) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
+		log::error!("delegator_bond_till_minimum AAAAAAA");
+		if *candidate != T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap() {
+			log::error!("delegator_bond_till_minimum BBBB");
+			return Err(DispatchErrorWithPostInfo::from(<pallet_parachain_staking::Error<T>>::DelegationDNE));
+		}
+		log::error!("delegator_bond_till_minimum CCCCCC");
+
 		let delegation = C::free_balance(&delegator)
 			.checked_sub(&account_minimum)
-			.ok_or(Error::<T>::InsufficientBalance)?;
+			.ok_or(<pallet_parachain_staking::Error<T>>::InsufficientBalance)?;
 		C::reserve(delegator, delegation)?;
 		Ok(delegation)
 	}
@@ -485,7 +544,7 @@ pub fn schedule_task(
 	provided_id: Vec<u8>,
 	scheduled_times: Vec<u64>,
 	message: Vec<u8>,
-) -> sp_core::H256 {
+) -> (RuntimeCall, sp_core::H256) {
 	let account_id = AccountId32::new(owner);
 	let task_hash_input = TaskHashInput::new(account_id.clone(), provided_id.clone());
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
@@ -496,9 +555,9 @@ pub fn schedule_task(
 		RuntimeOrigin::signed(account_id.clone()),
 		provided_id,
 		ScheduleParam::Fixed { execution_times: scheduled_times },
-		Box::new(call),
+		Box::new(call.clone()),
 	));
-	BlakeTwo256::hash_of(&task_hash_input)
+	(call, BlakeTwo256::hash_of(&task_hash_input))
 }
 
 // A function to support test scheduling a Recurring schedule
@@ -590,7 +649,8 @@ pub fn create_task(
 }
 
 pub fn events() -> Vec<RuntimeEvent> {
-	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+	let events = System::events();
+	let evt = events.into_iter().map(|evt| evt.event).collect::<Vec<_>>();
 
 	System::reset_events();
 

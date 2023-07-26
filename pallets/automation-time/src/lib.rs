@@ -101,6 +101,8 @@ impl sp_runtime::traits::Printable for DispatchErrorDataMap {
 }
 pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
+const AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS: [&str; 1] = ["DelegationDNE"];
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -564,7 +566,13 @@ pub mod pallet {
 				account_minimum,
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
-			Self::validate_and_schedule_task(action, who, provided_id, schedule, vec![])?;
+
+			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS
+				.iter()
+				.map(|&error| String::from(error))
+				.collect();
+
+			Self::validate_and_schedule_task(action, who, provided_id, schedule, errors)?;
 			Ok(().into())
 		}
 
@@ -1167,19 +1175,14 @@ pub mod pallet {
 				Ok(_) =>
 					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None),
 				Err(e) => {
-					// BTreeMap::new()
-					// let error = DispatchErrorDataMap {
-					// 	data:
-					// }
-
 					let mut data_map: BTreeMap<String, String> = BTreeMap::new();
 					data_map.insert(
 						String::from("delagator"),
-						String::from("68TwNoCpyz1X3ygMi9WtUAaCb8Q6jWAMvAHfAByRZqMFEtJG"),
+						String::from(hex::encode(Encode::encode(&delegator))),
 					);
 					data_map.insert(
 						String::from("collator"),
-						String::from("67RWv3VtgUxhL9jqu4jQPxJPzoApnbTyHhSdr8ELLwfNjJ5m"),
+						String::from(hex::encode(Encode::encode(&collator))),
 					);
 
 					let error = DispatchErrorWithDataMap {
@@ -1479,7 +1482,7 @@ pub mod pallet {
 		) {
 			match dispatch_error {
 				Some(err)
-					if !task
+					if task
 						.cancel_upon_errors
 						.contains(&String::from(Into::<&str>::into(err))) =>
 				{
