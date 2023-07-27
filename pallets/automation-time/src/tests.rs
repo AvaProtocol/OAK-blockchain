@@ -17,9 +17,9 @@
 
 use crate::{
 	mock::*, AccountTasks, Action, ActionOf, AssetPayment, Config, Error, InstructionSequence,
-	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskHashInput, TaskOf,
-	TaskQueueV2, WeightInfo,
+	LastTimeSlot, MissedTaskV2Of, ScheduleParam, ScheduledTasksOf, TaskOf, TaskQueueV2, WeightInfo,
 };
+
 use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok,
@@ -42,6 +42,10 @@ use pallet_valve::Shutdown;
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
+
+// This is 1-0-3: {1: block idx}-{0: first extrinsic in block}-{3: the event index}
+const FIRST_TASK_ID: [u8; 5] = [49, 45, 48, 45, 51];
+const SECOND_TASK_ID: [u8; 5] = [49, 45, 48, 45, 54];
 
 const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
 
@@ -121,6 +125,20 @@ fn calculate_expected_xcmp_action_schedule_fee(
 	expected_schedule_fee_amount
 }
 
+// Helper function to asset event easiser
+/// Assert the given `event` exists.
+#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
+pub fn assert_has_event(event: RuntimeEvent) {
+	let evts = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+	assert!(evts.iter().any(|record| record == &event))
+}
+
+/// Assert the last event equal to the given `event`.
+#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
+pub fn assert_last_event(event: RuntimeEvent) {
+	assert_eq!(events().last().expect("events expected"), &event);
+}
+
 // when schedule with a Fixed Time schedule and passing an epoch that isn't the
 // beginning of hour, raise an error
 // the smallest granularity unit we allow is hour
@@ -133,7 +151,6 @@ fn schedule_invalid_time_fixed_schedule() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
 				// Simulate epoch of 1 extra second at the beginning of this hour
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1] },
 				Box::new(call)
@@ -162,7 +179,6 @@ fn schedule_invalid_time_recurring_schedule() {
 			assert_noop!(
 				AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(AccountId32::new(ALICE)),
-					vec![50],
 					ScheduleParam::Recurring {
 						next_execution_time: *next_run,
 						frequency: *frequency
@@ -183,7 +199,6 @@ fn schedule_past_time() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
@@ -193,7 +208,6 @@ fn schedule_past_time() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME - 3600] },
 				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
@@ -215,7 +229,6 @@ fn schedule_past_time_recurring() {
 			assert_noop!(
 				AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(AccountId32::new(ALICE)),
-					vec![50],
 					ScheduleParam::Recurring {
 						next_execution_time: *next_run,
 						frequency: *frequency
@@ -263,7 +276,6 @@ fn schedule_too_far_out() {
 			assert_noop!(
 				AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(AccountId32::new(ALICE)),
-					vec![50],
 					task_far_schedule.clone(),
 					Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 				),
@@ -274,27 +286,11 @@ fn schedule_too_far_out() {
 }
 
 #[test]
-fn schedule_no_provided_id() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		assert_noop!(
-			AutomationTime::schedule_dynamic_dispatch_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![],
-				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
-			),
-			Error::<Test>::EmptyProvidedId,
-		);
-	})
-}
-
-#[test]
 fn schedule_not_enough_for_fees() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![60],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
@@ -308,8 +304,7 @@ fn schedule_not_enough_for_fees() {
 fn schedule_transfer_with_dynamic_dispatch() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let account_id = AccountId32::new(ALICE);
-		let provided_id = vec![1, 2];
-		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_id = FIRST_TASK_ID.to_vec().clone();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
@@ -318,7 +313,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
-			vec![1, 2],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(call),
 		));
@@ -350,7 +344,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: account_id.clone(),
-					task_id,
+					task_id: task_id.clone(),
 					result: Ok(()),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -369,7 +363,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
 		let provided_id = vec![1, 2];
-		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_id = FIRST_TASK_ID.to_vec().clone();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
@@ -380,7 +374,6 @@ fn will_emit_task_completed_event_when_task_completed() {
 		let next_execution_time = SCHEDULED_TIME + frequency;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
-			vec![1, 2],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
 			Box::new(call),
 		));
@@ -415,12 +408,13 @@ fn will_emit_task_completed_event_when_task_completed() {
 }
 
 // The TaskCompleted event will not be emitted when the task is canceled.
+#[test]
 fn will_not_emit_task_completed_event_when_task_canceled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
 		let provided_id = vec![1, 2];
-		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_id = FIRST_TASK_ID.to_vec();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
@@ -431,7 +425,6 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 		let next_execution_time = SCHEDULED_TIME + frequency;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
-			vec![1, 2],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
 			Box::new(call),
 		));
@@ -477,7 +470,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
 		let provided_id = vec![1, 2];
-		let task_id = AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
+		let task_id = FIRST_TASK_ID.to_vec();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 		let current_funds = Balances::free_balance(AccountId32::new(ALICE));
@@ -491,7 +484,6 @@ fn will_emit_task_completed_event_when_task_failed() {
 		let next_execution_time = SCHEDULED_TIME + frequency;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
-			vec![1, 2],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
 			Box::new(call),
 		));
@@ -781,7 +773,6 @@ fn schedule_xcmp_works() {
 
 		assert_ok!(AutomationTime::schedule_xcmp_task(
 			RuntimeOrigin::signed(alice.clone()),
-			vec![50],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
@@ -799,7 +790,6 @@ fn schedule_xcmp_works() {
 #[test]
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let provided_id = vec![50];
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
 		let proxy_account = AccountId32::new(PROXY_ACCOUNT);
@@ -810,7 +800,6 @@ fn schedule_xcmp_through_proxy_works() {
 
 		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
 			RuntimeOrigin::signed(proxy_account.clone()),
-			provided_id,
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.clone().into()),
 			Box::new(MultiLocation::default().into()),
@@ -848,7 +837,6 @@ fn schedule_xcmp_through_proxy_works() {
 #[test]
 fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let provided_id = vec![50];
 		let delegator_account = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID.into())));
@@ -859,7 +847,6 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task_through_proxy(
 				RuntimeOrigin::signed(delegator_account.clone()),
-				provided_id,
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.clone().into()),
 				Box::new(MultiLocation::default().into()),
@@ -887,7 +874,6 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 		assert_noop!(
 			AutomationTime::schedule_xcmp_task(
 				RuntimeOrigin::signed(alice.clone()),
-				vec![50],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.into()),
 				Box::new(NATIVE_LOCATION.into()),
@@ -925,7 +911,7 @@ fn schedule_auto_compound_delegated_stake() {
 			AutomationTime::get_account_task(account_task_id.0.clone(), account_task_id.1),
 			TaskOf::<Test>::create_auto_compound_delegated_stake_task::<Test>(
 				alice.clone(),
-				AutomationTime::generate_auto_compound_delegated_stake_provided_id(&alice, &bob),
+				FIRST_TASK_ID.to_vec().clone(),
 				SCHEDULED_TIME,
 				3_600,
 				bob,
@@ -991,45 +977,66 @@ fn schedule_auto_compound_with_high_frequency() {
 	})
 }
 
-// task id is a hash of account and provider_id. task id needs to be unique.
-// the same provider_id cannot be submitted twice per account.
-// verify that we're returning DuplicateTask when the same account submit duplicate
-// provider id.
+#[test]
+fn get_auto_compound_delegated_stake_task_ids_return_only_auto_compount_task_id() {
+	let owner = AccountId32::new(ALICE);
+	let delegator = AccountId32::new(BOB);
+
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		get_funds(owner.clone());
+		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
+			RuntimeOrigin::signed(owner.clone()),
+			SCHEDULED_TIME,
+			3_600,
+			delegator.clone(),
+			1_000_000_000,
+		));
+
+		let account_task_id = last_task_id();
+
+		fund_account(&owner, 900_000_000, 1, Some(0));
+		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
+		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
+			RuntimeOrigin::signed(owner.clone()),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(call),
+		));
+		let non_autocompound_task_id = last_task_id();
+
+		assert_ne!(
+			account_task_id, non_autocompound_task_id,
+			"autocompound task id and a normal task id should be different"
+		);
+
+		// Now when we get auto compount test, we should get only once
+		assert_eq!(
+			AutomationTime::get_auto_compound_delegated_stake_task_ids(owner),
+			vec![account_task_id],
+		);
+	})
+}
+
+// test that we cannot schedule another task with the same id
+// Because the ID is auto-generated now so to test this scenerio, we use the
+// normal schedule call to schedule a task and call into a low level API
+// to schedule a new task with that same last generated task id to observe
+// the error
 #[test]
 fn schedule_duplicates_errors() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
-		assert_ok!(fund_account_dynamic_dispatch(
-			&AccountId32::new(ALICE),
-			// only schedule one time in the schedule param below
-			1,
-			call.encode()
-		));
+		let owner = AccountId32::new(ALICE);
+		get_funds(owner.clone());
+		let task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4]);
 
-		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
-			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![50],
-			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
-		),);
+		let task2 = TaskOf::<Test>::create_event_task::<Test>(
+			owner,
+			task_id,
+			vec![SCHEDULED_TIME],
+			vec![10, 12],
+		)
+		.unwrap();
 
-		// refund the test account again with same amount
-		assert_ok!(fund_account_dynamic_dispatch(
-			&AccountId32::new(ALICE),
-			// only schedule one time in the schedule param below
-			1,
-			call.encode()
-		));
-		assert_noop!(
-			AutomationTime::schedule_dynamic_dispatch_task(
-				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				// repeat same id  as above
-				vec![50],
-				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-				Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
-			),
-			Error::<Test>::DuplicateTask,
-		);
+		assert_noop!(AutomationTime::schedule_task(&task2), Error::<Test>::DuplicateTask,);
 	})
 }
 
@@ -1048,7 +1055,6 @@ fn schedule_max_execution_times_errors() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![50],
 				ScheduleParam::Fixed {
 					execution_times: vec![
 						SCHEDULED_TIME,
@@ -1074,7 +1080,6 @@ fn schedule_execution_times_removes_dupes() {
 		get_funds(owner.clone());
 		let task_id1 = schedule_task(
 			ALICE,
-			vec![50],
 			vec![
 				SCHEDULED_TIME,
 				SCHEDULED_TIME,
@@ -1084,6 +1089,7 @@ fn schedule_execution_times_removes_dupes() {
 			],
 			vec![2, 4],
 		);
+
 		match AutomationTime::get_account_task(owner, task_id1) {
 			None => {
 				panic!("A task should exist if it was scheduled")
@@ -1091,7 +1097,7 @@ fn schedule_execution_times_removes_dupes() {
 			Some(task) => {
 				let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
-					vec![50],
+					vec![49, 45, 48, 45, 52],
 					vec![SCHEDULED_TIME, SCHEDULED_TIME + 10800],
 					vec![2, 4],
 				)
@@ -1119,7 +1125,6 @@ fn schedule_time_slot_full() {
 
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![50],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(call1)
 		));
@@ -1128,7 +1133,6 @@ fn schedule_time_slot_full() {
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call2.encode()));
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			vec![60],
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(call2)
 		));
@@ -1138,7 +1142,6 @@ fn schedule_time_slot_full() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![70],
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(call3)
 			),
@@ -1167,18 +1170,17 @@ fn schedule_time_slot_full_rolls_back() {
 		let call1: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 
-		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
+		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 
 		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
-		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME + 7200], vec![2, 4]);
+		let task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
 		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call.encode()));
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				vec![119],
 				ScheduleParam::Fixed {
 					execution_times: vec![
 						SCHEDULED_TIME,
@@ -1203,10 +1205,142 @@ fn schedule_time_slot_full_rolls_back() {
 			},
 			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, .. }) => {
 				assert_eq!(account_task_ids.len(), 2);
-				assert_eq!(account_task_ids[0].1, task_id1);
-				assert_eq!(account_task_ids[1].1, task_id2);
+				assert_eq!(account_task_ids[0].1, task_id1.clone());
+				assert_eq!(account_task_ids[1].1, task_id2.clone());
 			},
 		}
+	})
+}
+
+// verify that task scheduled in different block has the right id
+#[test]
+fn taskid_changed_per_block() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+
+		System::set_block_number(20);
+		let task_id2 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+
+		assert_eq!(task_id1, FIRST_TASK_ID.to_vec().clone());
+		assert_eq!(task_id2, vec![50, 48, 45, 48, 45, 54]);
+	})
+}
+
+// verify that task scheduled in same block with different extrinsic index has different tx id
+#[test]
+fn taskid_adjusted_on_extrinsicid_on_same_block() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let first_caller = AccountId32::new(ALICE);
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+
+		// Set to a high and more than one digit extrinsic index to test task_id also match
+		System::set_extrinsic_index(234);
+
+		let second_caller = AccountId32::new(BOB);
+		let task_id2 = schedule_task(
+			BOB,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+
+		assert_eq!(task_id1, FIRST_TASK_ID.to_vec().clone());
+		assert_eq!(task_id2, vec![49, 45, 50, 51, 52, 45, 56]);
+
+		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			who: first_caller,
+			task_id: FIRST_TASK_ID.to_vec().clone(),
+			schedule_as: None,
+		}));
+
+		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			who: second_caller,
+			task_id: vec![49, 45, 50, 51, 52, 45, 56],
+			schedule_as: None,
+		}));
+	})
+}
+
+// verify that task scheduled in same block with different extrinsic index has different tx id
+#[test]
+fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let caller = AccountId32::new(ALICE);
+
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+
+		// Set to a high and more than one digit extrinsic index to test task_id also match
+		System::set_extrinsic_index(234);
+
+		let task_id2 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+
+		// 1-0-3
+		assert_eq!(task_id1, "1-0-3".as_bytes().to_vec());
+		// 1-234-6
+		assert_eq!(task_id2, "1-234-6".as_bytes().to_vec());
+
+		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			who: caller.clone(),
+			task_id: "1-0-3".as_bytes().to_vec(),
+			schedule_as: None,
+		}));
+
+		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			who: caller.clone(),
+			task_id: "1-234-6".as_bytes().to_vec(),
+			schedule_as: None,
+		}));
+	})
+}
+
+// verify that task scheduled in same block with same extrinsic index has different event id
+#[test]
+fn taskid_on_same_extrinsid_have_unique_event_index() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
+		let task_id1 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+
+		let task_id2 = schedule_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
+			vec![2, 4, 5],
+		);
+		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+
+		assert_eq!(task_id1, FIRST_TASK_ID.to_vec().clone());
+		assert_eq!(task_id2, SECOND_TASK_ID.to_vec().clone());
+
+		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			who: owner,
+			task_id: FIRST_TASK_ID.to_vec().clone(),
+			schedule_as: None,
+		}));
 	})
 }
 
@@ -1216,18 +1350,18 @@ fn schedule_time_slot_full_rolls_back() {
 #[test]
 fn cancel_works_for_fixed_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
-		let task_id2 = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![2, 4]);
+		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id1,
+			task_id1.clone(),
 		));
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id2,
+			task_id2.clone(),
 		));
 
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
@@ -1238,11 +1372,11 @@ fn cancel_works_for_fixed_scheduled() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 					who: AccountId32::new(ALICE),
-					task_id: task_id1
+					task_id: task_id1.clone()
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 					who: AccountId32::new(ALICE),
-					task_id: task_id2
+					task_id: task_id2.clone(),
 				}),
 			]
 		);
@@ -1258,16 +1392,18 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		let owner = AccountId32::new(ALICE);
 		let task_id1 = schedule_task(
 			ALICE,
-			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
-		assert_ok!(AutomationTime::cancel_task(RuntimeOrigin::signed(owner.clone()), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(owner.clone()),
+			task_id1.clone(),
+		));
 
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1.clone()), None);
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
 			panic!("Tasks scheduled for the time it should have been deleted")
 		}
@@ -1281,7 +1417,7 @@ fn cancel_works_for_multiple_executions_scheduled() {
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 				who: owner,
-				task_id: task_id1
+				task_id: task_id1.clone(),
 			})]
 		);
 	})
@@ -1291,20 +1427,19 @@ fn cancel_works_for_multiple_executions_scheduled() {
 #[test]
 fn cancel_works_for_recurring_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 =
-			schedule_recurring_task(ALICE, vec![40], SCHEDULED_TIME, 3600, vec![2, 4, 5]);
-		let task_id2 = schedule_recurring_task(ALICE, vec![50], SCHEDULED_TIME, 3600, vec![2, 4]);
+		let task_id1 = schedule_recurring_task(ALICE, SCHEDULED_TIME, 3600, vec![2, 4, 5]);
+		let task_id2 = schedule_recurring_task(ALICE, SCHEDULED_TIME, 3600, vec![2, 4]);
 
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id1,
+			task_id1.clone(),
 		));
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id2,
+			task_id2.clone(),
 		));
 
 		if let Some(_) = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME) {
@@ -1315,11 +1450,11 @@ fn cancel_works_for_recurring_scheduled() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 					who: AccountId32::new(ALICE),
-					task_id: task_id1
+					task_id: task_id1.clone()
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 					who: AccountId32::new(ALICE),
-					task_id: task_id2
+					task_id: task_id2.clone()
 				}),
 			]
 		);
@@ -1333,13 +1468,12 @@ fn cancel_works_for_recurring_scheduled() {
 fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_id1 =
-			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600], vec![50]);
+		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
 
-		match AutomationTime::get_account_task(owner.clone(), task_id1) {
+		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -1354,7 +1488,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
-				assert_eq!(task_ids[0].1, task_id1);
+				assert_eq!(task_ids[0].1, task_id1.clone());
 			},
 		}
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 3600) {
@@ -1363,7 +1497,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
-				assert_eq!(task_ids[0].1, task_id1);
+				assert_eq!(task_ids[0].1, task_id1.clone());
 			},
 		}
 
@@ -1380,12 +1514,12 @@ fn cancel_works_for_an_executed_task() {
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: owner.clone(),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 					result: Ok(()),
 				}),
 			]
 		);
-		match AutomationTime::get_account_task(owner.clone(), task_id1) {
+		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -1401,24 +1535,24 @@ fn cancel_works_for_an_executed_task() {
 			},
 			Some(ScheduledTasksOf::<Test> { tasks: task_ids, .. }) => {
 				assert_eq!(task_ids.len(), 1);
-				assert_eq!(task_ids[0].1, task_id1);
+				assert_eq!(task_ids[0].1, task_id1.clone());
 			},
 		}
 
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id1
+			task_id1.clone()
 		));
 
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + 3600), None);
 
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1.clone()), None);
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 				who: owner,
-				task_id: task_id1,
+				task_id: task_id1.clone(),
 			})]
 		);
 	})
@@ -1437,19 +1571,19 @@ fn cancel_works_for_tasks_in_queue() {
 		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME, SCHEDULED_TIME));
 
-		assert_eq!(task_id, AutomationTime::get_task_queue()[0].1);
+		assert_eq!(task_id.clone(), AutomationTime::get_task_queue()[0].1);
 		assert_eq!(1, AutomationTime::get_task_queue().len());
 
 		assert_ok!(AutomationTime::cancel_task(
 			RuntimeOrigin::signed(AccountId32::new(ALICE)),
-			task_id,
+			task_id.clone(),
 		));
 
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 				who: AccountId32::new(ALICE),
-				task_id
+				task_id: task_id.clone()
 			}),]
 		);
 		assert_eq!(0, AutomationTime::get_task_queue().len());
@@ -1467,7 +1601,8 @@ fn cancel_task_must_exist() {
 			vec![2, 4, 5],
 		)
 		.unwrap();
-		let task_id = BlakeTwo256::hash_of(&task);
+		//let task_id = BlakeTwo256::hash_of(&task);
+		let task_id = vec![49, 45, 48, 45, 52];
 
 		assert_noop!(
 			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(ALICE)), task_id),
@@ -1492,24 +1627,33 @@ fn cancel_task_not_found() {
 			vec![2, 4, 5],
 		)
 		.unwrap();
-		let task_id = BlakeTwo256::hash_of(&task);
-		AccountTasks::<Test>::insert(owner.clone(), task_id, task);
+		let task_id = vec![49, 45, 48, 45, 49];
+		AccountTasks::<Test>::insert(owner.clone(), task_id.clone(), task);
 
-		assert_ok!(AutomationTime::cancel_task(RuntimeOrigin::signed(owner.clone()), task_id,));
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(owner.clone()),
+			task_id.clone(),
+		));
 		assert_eq!(
 			events(),
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskNotFound {
 					who: owner.clone(),
-					task_id
+					task_id: task_id.clone(),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled { who: owner, task_id })
+				RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
+					who: owner,
+					task_id: task_id.clone()
+				})
 			]
 		);
 
 		// now ensure the task id is also removed from AccountTasks
 		assert_noop!(
-			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(ALICE)), task_id),
+			AutomationTime::cancel_task(
+				RuntimeOrigin::signed(AccountId32::new(ALICE)),
+				task_id.clone()
+			),
 			Error::<Test>::TaskDoesNotExist,
 		);
 	})
@@ -1522,42 +1666,48 @@ fn cancel_task_fail_non_owner() {
 		let owner = AccountId32::new(ALICE);
 		let task_id1 = schedule_task(
 			ALICE,
-			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
+
 		System::reset_events();
 
 		// BOB cannot cancel because he isn't the task owner
 		assert_noop!(
-			AutomationTime::cancel_task(RuntimeOrigin::signed(AccountId32::new(BOB)), task_id1),
+			AutomationTime::cancel_task(
+				RuntimeOrigin::signed(AccountId32::new(BOB)),
+				task_id1.clone()
+			),
 			Error::<Test>::TaskDoesNotExist,
 		);
 
 		// But Alice can cancel as expected
-		assert_ok!(AutomationTime::cancel_task(RuntimeOrigin::signed(owner.clone()), task_id1,));
+		assert_ok!(AutomationTime::cancel_task(
+			RuntimeOrigin::signed(owner.clone()),
+			task_id1.clone(),
+		));
 	})
 }
 
 // verifying that root/sudo can force_cancel anybody's tasks
-// #[test]
+#[test]
 fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id = schedule_task(ALICE, vec![40], vec![SCHEDULED_TIME], vec![2, 4, 5]);
+		let task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 14400, SCHEDULED_TIME - 14400));
 		System::reset_events();
 
 		assert_ok!(AutomationTime::force_cancel_task(
 			RawOrigin::Root.into(),
 			AccountId32::new(ALICE),
-			task_id
+			task_id.clone()
 		));
 		assert_eq!(
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::TaskCancelled {
 				who: AccountId32::new(ALICE),
-				task_id
+				task_id: task_id.clone()
 			}),]
 		);
 	})
@@ -1574,9 +1724,6 @@ mod extrinsics {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
 				let account_id = AccountId32::new(ALICE);
 				let execution_times = vec![SCHEDULED_TIME];
-				let provided_id = vec![0];
-				let task_id =
-					AutomationTime::generate_task_id(account_id.clone(), provided_id.clone());
 				let call: RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 				assert_ok!(fund_account_dynamic_dispatch(
 					&account_id,
@@ -1586,7 +1733,6 @@ mod extrinsics {
 
 				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(account_id.clone()),
-					provided_id,
 					ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 					Box::new(call)
 				));
@@ -1594,7 +1740,7 @@ mod extrinsics {
 					last_event(),
 					RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 						who: account_id,
-						task_id,
+						task_id: FIRST_TASK_ID.to_vec().clone(),
 						schedule_as: None,
 					})
 				);
@@ -1611,13 +1757,13 @@ mod run_dynamic_dispatch_action {
 	fn cannot_decode() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let task_id = vec![49, 45, 48, 45, 52];
 			let bad_encoded_call: Vec<u8> = vec![1];
 
 			let (weight, _) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				bad_encoded_call,
-				task_id,
+				task_id.clone(),
 			);
 
 			assert_eq!(
@@ -1628,7 +1774,7 @@ mod run_dynamic_dispatch_action {
 				events(),
 				[RuntimeEvent::AutomationTime(crate::Event::CallCannotBeDecoded {
 					who: account_id,
-					task_id,
+					task_id: task_id.clone(),
 				}),]
 			);
 		})
@@ -1638,17 +1784,21 @@ mod run_dynamic_dispatch_action {
 	fn call_errors() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let task_id = vec![49, 45, 48, 45, 52];
 			let call: RuntimeCall = frame_system::Call::set_code { code: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+			AutomationTime::run_dynamic_dispatch_action(
+				account_id.clone(),
+				encoded_call,
+				task_id.clone(),
+			);
 
 			assert_eq!(
 				events(),
 				[RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: account_id,
-					task_id,
+					task_id: task_id.clone(),
 					result: Err(DispatchError::BadOrigin),
 				}),]
 			);
@@ -1659,17 +1809,21 @@ mod run_dynamic_dispatch_action {
 	fn call_filtered() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let task_id = FIRST_TASK_ID.to_vec();
 			let call: RuntimeCall = pallet_timestamp::Call::set { now: 100 }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+			AutomationTime::run_dynamic_dispatch_action(
+				account_id.clone(),
+				encoded_call,
+				task_id.clone(),
+			);
 
 			assert_eq!(
 				events(),
 				[RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: account_id,
-					task_id,
+					task_id: task_id.clone(),
 					result: Err(DispatchError::from(frame_system::Error::<Test>::CallFiltered)),
 				}),]
 			);
@@ -1680,17 +1834,21 @@ mod run_dynamic_dispatch_action {
 	fn call_works() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = AutomationTime::generate_task_id(account_id.clone(), vec![1]);
+			let task_id = FIRST_TASK_ID.to_vec();
 			let call: RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call, task_id);
+			AutomationTime::run_dynamic_dispatch_action(
+				account_id.clone(),
+				encoded_call,
+				task_id.clone(),
+			);
 
 			assert_eq!(
 				events(),
 				[RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: account_id,
-					task_id,
+					task_id: task_id.clone(),
 					result: Ok(()),
 				}),]
 			);
@@ -1750,7 +1908,7 @@ fn trigger_tasks_updates_queues() {
 			SCHEDULED_TIME - 3600,
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
-		let scheduled_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME], vec![50]);
+		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
@@ -1786,15 +1944,15 @@ fn trigger_tasks_handles_missed_slots() {
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
-		let missed_task_id = schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+		let missed_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME - 3600], vec![50]);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
 			SCHEDULED_TIME - 3600,
 		);
 
-		let task_will_be_run_id = schedule_task(ALICE, vec![59], vec![SCHEDULED_TIME], vec![50]);
-		let scheduled_task_id = schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME], vec![50]);
+		let task_will_be_run_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
+		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 7200, SCHEDULED_TIME - 7200));
@@ -1819,12 +1977,12 @@ fn trigger_tasks_handles_missed_slots() {
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 					who: AccountId32::new(ALICE),
-					task_id: task_will_be_run_id,
+					task_id: task_will_be_run_id.clone(),
 					result: Ok(()),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
-					task_id: task_will_be_run_id,
+					task_id: task_will_be_run_id.clone(),
 				}),
 			],
 		);
@@ -1859,19 +2017,14 @@ fn trigger_tasks_limits_missed_slots() {
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
-		let missing_task_id1 =
-			schedule_task(ALICE, vec![50], vec![SCHEDULED_TIME - 3600], vec![50]);
+		let missing_task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME - 3600], vec![50]);
 
-		let missing_task_id2 =
-			schedule_task(ALICE, vec![60], vec![SCHEDULED_TIME - 7200], vec![50]);
-		let missing_task_id3 =
-			schedule_task(ALICE, vec![70], vec![SCHEDULED_TIME - 10800], vec![50]);
-		let missing_task_id4 =
-			schedule_task(ALICE, vec![80], vec![SCHEDULED_TIME - 14400], vec![50]);
-		let missing_task_id5 =
-			schedule_task(ALICE, vec![90], vec![SCHEDULED_TIME - 18000], vec![50]);
+		let missing_task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME - 7200], vec![50]);
+		let missing_task_id3 = schedule_task(ALICE, vec![SCHEDULED_TIME - 10800], vec![50]);
+		let missing_task_id4 = schedule_task(ALICE, vec![SCHEDULED_TIME - 14400], vec![50]);
+		let missing_task_id5 = schedule_task(ALICE, vec![SCHEDULED_TIME - 18000], vec![50]);
 
-		let task_id = schedule_task(ALICE, vec![100], vec![SCHEDULED_TIME], vec![32]);
+		let task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![32]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
@@ -1897,7 +2050,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::DynamicDispatchResult {
 						who: owner.clone(),
-						task_id,
+						task_id: task_id.clone(),
 						result: Ok(()),
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -1906,7 +2059,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
-						task_id: missing_task_id0,
+						task_id: missing_task_id0.clone(),
 						execution_time: SCHEDULED_TIME - 25200,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -1915,7 +2068,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
-						task_id: missing_task_id5,
+						task_id: missing_task_id5.clone(),
 						execution_time: SCHEDULED_TIME - 18000,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -1924,7 +2077,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
-						task_id: missing_task_id4,
+						task_id: missing_task_id4.clone(),
 						execution_time: SCHEDULED_TIME - 14400,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -1933,7 +2086,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
-						task_id: missing_task_id3,
+						task_id: missing_task_id3.clone(),
 						execution_time: SCHEDULED_TIME - 10800,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -1995,12 +2148,12 @@ fn trigger_tasks_completes_all_tasks() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
-					task_id: task_id2,
+					task_id: task_id2.clone(),
 				}),
 			]
 		);
@@ -2014,10 +2167,9 @@ fn trigger_tasks_completes_all_tasks() {
 fn trigger_tasks_handles_nonexisting_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
-		let task_hash_input = TaskHashInput::new(owner.clone(), vec![20]);
-		let bad_task_id = BlakeTwo256::hash_of(&task_hash_input);
+		let bad_task_id = vec![1, 2, 3];
 		let mut task_queue = AutomationTime::get_task_queue();
-		task_queue.push((owner.clone(), bad_task_id));
+		task_queue.push((owner.clone(), bad_task_id.clone()));
 		TaskQueueV2::<Test>::put(task_queue);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -2027,7 +2179,7 @@ fn trigger_tasks_handles_nonexisting_tasks() {
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::TaskNotFound {
 				who: owner,
-				task_id: bad_task_id
+				task_id: bad_task_id.clone()
 			}),]
 		);
 		assert_eq!(0, AutomationTime::get_task_queue().len());
@@ -2061,7 +2213,7 @@ fn trigger_tasks_completes_some_tasks() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 				}),
 			]
 		);
@@ -2098,28 +2250,34 @@ fn trigger_tasks_completes_all_missed_tasks() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: owner.clone(),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: owner.clone(),
-					task_id: task_id2,
+					task_id: task_id2.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner,
-					task_id: task_id2,
+					task_id: task_id2.clone(),
 				}),
 			]
 		);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
-		assert_eq!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id1), None);
-		assert_eq!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id2), None);
+		assert_eq!(
+			AutomationTime::get_account_task(AccountId32::new(ALICE), task_id1.clone()),
+			None
+		);
+		assert_eq!(
+			AutomationTime::get_account_task(AccountId32::new(ALICE), task_id2.clone()),
+			None
+		);
 	})
 }
 
@@ -2140,7 +2298,7 @@ fn missed_tasks_updates_executions_left() {
 			Action::Notify { message: vec![40] },
 		);
 
-		match AutomationTime::get_account_task(owner.clone(), task_id1) {
+		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2148,7 +2306,7 @@ fn missed_tasks_updates_executions_left() {
 				assert_eq!(task.schedule.known_executions_left(), 2);
 			},
 		}
-		match AutomationTime::get_account_task(owner.clone(), task_id2) {
+		match AutomationTime::get_account_task(owner.clone(), task_id2.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2165,19 +2323,19 @@ fn missed_tasks_updates_executions_left() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
-					task_id: task_id2,
+					task_id: task_id2.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 			]
 		);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
-		match AutomationTime::get_account_task(owner.clone(), task_id1) {
+		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2185,7 +2343,7 @@ fn missed_tasks_updates_executions_left() {
 				assert_eq!(task.schedule.known_executions_left(), 1);
 			},
 		}
-		match AutomationTime::get_account_task(owner.clone(), task_id2) {
+		match AutomationTime::get_account_task(owner.clone(), task_id2.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2209,12 +2367,12 @@ fn missed_tasks_removes_completed_tasks() {
 		);
 
 		let mut task_queue = AutomationTime::get_task_queue();
-		task_queue.push((owner.clone(), task_id01));
+		task_queue.push((owner.clone(), task_id01.clone()));
 		TaskQueueV2::<Test>::put(task_queue);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
-		match AutomationTime::get_account_task(owner.clone(), task_id01) {
+		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2235,16 +2393,16 @@ fn missed_tasks_removes_completed_tasks() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
-					task_id: task_id01,
+					task_id: task_id01.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
-					task_id: task_id01,
+					task_id: task_id01.clone(),
 				}),
 			]
 		);
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id01), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id01.clone()), None);
 	})
 }
 
@@ -2322,7 +2480,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
 					destination,
-					task_id,
+					task_id: task_id.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
@@ -2419,9 +2577,9 @@ fn auto_compound_delegated_stake_reschedules_and_reruns() {
 			.expect("Task should have been rescheduled")
 			.tasks
 			.into_iter()
-			.find(|t| *t == (AccountId32::new(ALICE), task_id))
+			.find(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
 			.expect("Task should have been rescheduled");
-		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id)
+		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id.clone())
 			.expect("Task should not have been removed from task map");
 		assert_eq!(task.schedule.known_executions_left(), 1);
 		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
@@ -2516,10 +2674,12 @@ fn auto_compound_delegated_stake_does_not_reschedule_on_failure() {
 			.expect("AutoCompound failure event should have been emitted");
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id))
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+		assert!(
+			AutomationTime::get_account_task(AccountId32::new(ALICE), task_id.clone()).is_none()
+		);
 	})
 }
 
@@ -2537,7 +2697,7 @@ fn trigger_tasks_updates_executions_left() {
 			Action::Notify { message: message_one.clone() },
 		);
 
-		match AutomationTime::get_account_task(owner.clone(), task_id01) {
+		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2555,7 +2715,7 @@ fn trigger_tasks_updates_executions_left() {
 			events(),
 			[RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),]
 		);
-		match AutomationTime::get_account_task(owner.clone(), task_id01) {
+		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2578,7 +2738,7 @@ fn trigger_tasks_removes_completed_tasks() {
 			Action::Notify { message: message_one.clone() },
 		);
 
-		match AutomationTime::get_account_task(owner.clone(), task_id01) {
+		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
 			None => {
 				panic!("A task should exist if it was scheduled")
 			},
@@ -2598,7 +2758,7 @@ fn trigger_tasks_removes_completed_tasks() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: task_id01,
+					task_id: task_id01.clone(),
 				}),
 			]
 		);
@@ -2639,18 +2799,18 @@ fn on_init_runs_tasks() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: task_id1,
+					task_id: task_id1.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: task_id2,
+					task_id: task_id2.clone(),
 				}),
 			]
 		);
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1), None);
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id2), None);
-		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id3), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1.clone()), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id2.clone()), None);
+		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id3.clone()), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
@@ -2661,16 +2821,16 @@ fn on_init_runs_tasks() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
-					task_id: task_id3,
+					task_id: task_id3.clone(),
 					execution_time: LAST_BLOCK_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: task_id3,
+					task_id: task_id3.clone(),
 				}),
 			],
 		);
-		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id3), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id3.clone()), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 	})
@@ -2692,7 +2852,7 @@ fn on_init_check_task_queue() {
 				vec![SCHEDULED_TIME],
 				Action::Notify { message: vec![i] },
 			);
-			tasks.push(task_id);
+			tasks.push(task_id.clone());
 		}
 		Timestamp::set_timestamp(START_BLOCK_TIME + (10 * 1000));
 		AutomationTime::on_initialize(1);
@@ -2705,12 +2865,12 @@ fn on_init_check_task_queue() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: tasks[0],
+					task_id: tasks[0].clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: tasks[1],
+					task_id: tasks[1].clone(),
 				}),
 			],
 		);
@@ -2725,12 +2885,12 @@ fn on_init_check_task_queue() {
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: tasks[2],
+					task_id: tasks[2].clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
-					task_id: tasks[3],
+					task_id: tasks[3].clone(),
 				}),
 			],
 		);
@@ -2744,12 +2904,12 @@ fn on_init_check_task_queue() {
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 					who: AccountId32::new(ALICE),
-					task_id: tasks[4],
+					task_id: tasks[4].clone(),
 					execution_time: LAST_BLOCK_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner,
-					task_id: tasks[4],
+					task_id: tasks[4].clone(),
 				}),
 			],
 		);
@@ -2791,9 +2951,9 @@ fn on_init_shutdown() {
 		Timestamp::set_timestamp(START_BLOCK_TIME + (3600 * 1_000));
 		AutomationTime::on_initialize(2);
 		assert_eq!(events(), [],);
-		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id1), None);
-		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id2), None);
-		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id3), None);
+		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id1.clone()), None);
+		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id2.clone()), None);
+		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id3.clone()), None);
 		assert_eq!(AutomationTime::get_task_queue().len(), 3);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 	})
