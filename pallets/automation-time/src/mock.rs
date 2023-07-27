@@ -17,6 +17,8 @@
 
 use super::*;
 use crate as pallet_automation_time;
+use crate::TaskIdV2;
+
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types, traits::Everything, weights::Weight, PalletId,
@@ -30,7 +32,7 @@ use sp_runtime::{
 	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
 	AccountId32, DispatchError, Perbill,
 };
-use sp_std::marker::PhantomData;
+use sp_std::{marker::PhantomData, vec::Vec};
 use xcm::latest::prelude::*;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
@@ -115,6 +117,7 @@ impl system::Config for Test {
 	type Lookup = IdentityLookup<Self::AccountId>;
 	type Header = Header;
 	type RuntimeEvent = RuntimeEvent;
+	//type RuntimeEvent = From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	type BlockHashCount = BlockHashCount;
 	type Version = ();
 	type PalletInfo = PalletInfo;
@@ -467,8 +470,8 @@ impl pallet_automation_time::Config for Test {
 
 // Build genesis storage according to the mock runtime.
 pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
-	let t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-	let mut ext = sp_io::TestExternalities::new(t);
+	let genesis_storage = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+	let mut ext = sp_io::TestExternalities::new(genesis_storage);
 	ext.execute_with(|| System::set_block_number(1));
 	ext.execute_with(|| Timestamp::set_timestamp(state_block_time));
 	ext
@@ -477,25 +480,19 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 // A function to support test scheduleing a Fixed schedule
 // We don't focus on making sure the execution run properly. We just focus on
 // making sure a task is scheduled into the queue
-pub fn schedule_task(
-	owner: [u8; 32],
-	provided_id: Vec<u8>,
-	scheduled_times: Vec<u64>,
-	message: Vec<u8>,
-) -> sp_core::H256 {
+pub fn schedule_task(owner: [u8; 32], scheduled_times: Vec<u64>, message: Vec<u8>) -> TaskIdV2 {
 	let account_id = AccountId32::new(owner);
-	let task_hash_input = TaskHashInput::new(account_id.clone(), provided_id.clone());
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
 
 	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.encode()));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 		RuntimeOrigin::signed(account_id.clone()),
-		provided_id,
 		ScheduleParam::Fixed { execution_times: scheduled_times },
 		Box::new(call),
 	));
-	BlakeTwo256::hash_of(&task_hash_input)
+
+	last_task_id()
 }
 
 // A function to support test scheduling a Recurring schedule
@@ -503,70 +500,67 @@ pub fn schedule_task(
 // making sure a task is scheduled into the queue
 pub fn schedule_recurring_task(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
 	next_execution_time: UnixTime,
 	frequency: Seconds,
 	message: Vec<u8>,
-) -> sp_core::H256 {
+) -> TaskIdV2 {
 	let account_id = AccountId32::new(owner);
-	let task_hash_input = TaskHashInput::new(account_id.clone(), provided_id.clone());
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
 
 	assert_ok!(fund_account_dynamic_dispatch(&account_id, 1, call.encode()));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 		RuntimeOrigin::signed(account_id.clone()),
-		provided_id,
 		ScheduleParam::Recurring { next_execution_time, frequency },
 		Box::new(call),
 	));
-	BlakeTwo256::hash_of(&task_hash_input)
+	last_task_id()
 }
 
 pub fn add_task_to_task_queue(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
+	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
-) -> sp_core::H256 {
+) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times).unwrap();
-	add_to_task_queue(owner, provided_id, schedule, action)
+	add_to_task_queue(owner, task_id, schedule, action)
 }
 
 pub fn add_recurring_task_to_task_queue(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
+	task_id: TaskIdV2,
 	scheduled_time: u64,
 	frequency: u64,
 	action: ActionOf<Test>,
-) -> sp_core::H256 {
+) -> TaskIdV2 {
 	let schedule = Schedule::new_recurring_schedule::<Test>(scheduled_time, frequency).unwrap();
-	add_to_task_queue(owner, provided_id, schedule, action)
+	add_to_task_queue(owner, task_id, schedule, action)
 }
 
 pub fn add_to_task_queue(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
+	task_id: TaskIdV2,
 	schedule: Schedule,
 	action: ActionOf<Test>,
-) -> sp_core::H256 {
-	let task_id = create_task(owner, provided_id, schedule, action);
+) -> TaskIdV2 {
+	let task_id = create_task(owner, task_id, schedule, action);
 	let mut task_queue = AutomationTime::get_task_queue();
-	task_queue.push((AccountId32::new(owner), task_id));
+	task_queue.push((AccountId32::new(owner), task_id.clone()));
 	TaskQueueV2::<Test>::put(task_queue);
 	task_id
 }
 
 pub fn add_task_to_missed_queue(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
+	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
-) -> sp_core::H256 {
+) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
-	let task_id = create_task(owner, provided_id, schedule, action);
+	let task_id = create_task(owner, task_id.clone(), schedule, action);
 	let missed_task =
-		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id, scheduled_times[0]);
+		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id.clone(), scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
 	missed_queue.push(missed_task);
 	MissedQueueV2::<Test>::put(missed_queue);
@@ -575,14 +569,12 @@ pub fn add_task_to_missed_queue(
 
 pub fn create_task(
 	owner: [u8; 32],
-	provided_id: Vec<u8>,
+	task_id: TaskIdV2,
 	schedule: Schedule,
 	action: ActionOf<Test>,
-) -> sp_core::H256 {
-	let task_hash_input = TaskHashInput::new(AccountId32::new(owner), provided_id.clone());
-	let task_id = BlakeTwo256::hash_of(&task_hash_input);
-	let task = TaskOf::<Test>::new(owner.into(), provided_id, schedule, action);
-	AccountTasks::<Test>::insert(AccountId::new(owner), task_id, task);
+) -> TaskIdV2 {
+	let task = TaskOf::<Test>::new(owner.into(), task_id.clone(), schedule, action);
+	AccountTasks::<Test>::insert(AccountId::new(owner), task_id.clone(), task);
 	task_id
 }
 
@@ -596,6 +588,31 @@ pub fn events() -> Vec<RuntimeEvent> {
 
 pub fn last_event() -> RuntimeEvent {
 	events().pop().unwrap()
+}
+
+// A utility test function to simplify the process of getting a task id that we just scheduled in the
+// test by looking at the last id and pluck it
+pub fn last_task_id() -> TaskIdV2 {
+	get_task_ids_from_events()
+		.last()
+		.expect("Unable to find a task_id from the existing TaskScheduled events")
+		.clone()
+}
+
+// A utility test function to pluck out the task id from events, useful when dealing with multiple
+// task scheduling
+pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
+	System::events()
+		.into_iter()
+		.filter_map(|e| match e.event {
+			RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+				who,
+				schedule_as,
+				task_id,
+			}) => Some(task_id),
+			_ => None,
+		})
+		.collect::<Vec<_>>()
 }
 
 pub fn get_funds(account: AccountId) {

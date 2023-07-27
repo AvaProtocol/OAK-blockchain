@@ -36,15 +36,6 @@ use std::sync::Arc;
 /// An RPC endpoint to provide information about tasks.
 #[rpc(client, server)]
 pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
-	/// Generates the task_id given the account_id and provided_id.
-	#[method(name = "automationTime_generateTaskId")]
-	fn generate_task_id(
-		&self,
-		account: AccountId,
-		provided_id: String,
-		at: Option<BlockHash>,
-	) -> RpcResult<Hash>;
-
 	#[method(name = "automationTime_queryFeeDetails")]
 	fn query_fee_details(
 		&self,
@@ -72,7 +63,7 @@ pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
 	fn get_auto_compound_delegated_stake_task_ids(
 		&self,
 		account: AccountId,
-	) -> RpcResult<Vec<Hash>>;
+	) -> RpcResult<Vec<Vec<u8>>>;
 }
 
 /// An implementation of Automation-specific RPC methods on full client.
@@ -115,26 +106,6 @@ where
 	AccountId: Codec,
 	Hash: Codec,
 {
-	fn generate_task_id(
-		&self,
-		account: AccountId,
-		provided_id: String,
-		at: Option<Block::Hash>,
-	) -> RpcResult<Hash> {
-		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
-
-		let runtime_api_result =
-			api.generate_task_id(&at, account, provided_id.as_bytes().to_vec());
-		runtime_api_result.map_err(|e| {
-			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-				Error::RuntimeError.into(),
-				"Unable to generate task_id",
-				Some(format!("{:?}", e)),
-			)))
-		})
-	}
-
 	fn query_fee_details(
 		&self,
 		encoded_xt: Bytes,
@@ -233,7 +204,7 @@ where
 	fn get_auto_compound_delegated_stake_task_ids(
 		&self,
 		account: AccountId,
-	) -> RpcResult<Vec<Hash>> {
+	) -> RpcResult<Vec<Vec<u8>>> {
 		let api = self.client.runtime_api();
 		let at = BlockId::hash(self.client.info().best_hash);
 
