@@ -19,15 +19,18 @@ use super::*;
 use crate as pallet_automation_time;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
-	construct_runtime, parameter_types, traits::{ ConstU128, ConstU32, Everything }, weights::Weight, PalletId, dispatch::DispatchErrorWithPostInfo,
+	construct_runtime, parameter_types,
+	traits::{ConstU32, Everything},
+	weights::Weight,
+	PalletId,
 };
-use frame_system::{self as system, RawOrigin, EnsureRoot};
+use frame_system::{self as system, RawOrigin};
 use orml_traits::parameter_type_with_key;
 use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
 	AccountId32, DispatchError, Perbill,
 };
 use sp_std::marker::PhantomData;
@@ -39,12 +42,6 @@ type Block = system::mocking::MockBlock<Test>;
 pub type Balance = u128;
 pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
-
-const TOKEN_DECIMALS: u32 = 10;
-const TOKEN_BASE: u128 = 10;
-// Unit = the base number of indivisible units for balances
-const UNIT: Balance = TOKEN_BASE.pow(TOKEN_DECIMALS); // 10_000_000_000
-const DOLLAR: Balance = UNIT; // 10_000_000_000
 
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
@@ -99,7 +96,6 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
-		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
@@ -188,7 +184,7 @@ pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Bala
 
 parameter_types! {
 	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
+	// pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 
@@ -199,52 +195,52 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
-impl pallet_parachain_staking::Config for Test {
-	type RuntimeEvent = RuntimeEvent;
-	type Currency = Balances;
-	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
-	/// Minimum round length is 2 minutes (10 * 12 second block times)
-	type MinBlocksPerRound = ConstU32<10>;
-	/// Rounds before the collator leaving the candidates request can be executed
-	type LeaveCandidatesDelay = ConstU32<2>;
-	/// Rounds before the candidate bond increase/decrease can be executed
-	type CandidateBondLessDelay = ConstU32<2>;
-	/// Rounds before the delegator exit can be executed
-	type LeaveDelegatorsDelay = ConstU32<2>;
-	/// Rounds before the delegator revocation can be executed
-	type RevokeDelegationDelay = ConstU32<2>;
-	/// Rounds before the delegator bond increase/decrease can be executed
-	type DelegationBondLessDelay = ConstU32<2>;
-	/// Rounds before the reward is paid
-	type RewardPaymentDelay = ConstU32<2>;
-	/// Minimum collators selected per round, default at genesis and minimum forever after
-	type MinSelectedCandidates = ConstU32<5>;
-	/// Maximum top delegations per candidate
-	type MaxTopDelegationsPerCandidate = ConstU32<10>;
-	/// Maximum bottom delegations per candidate
-	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
-	/// Maximum delegations per delegator
-	type MaxDelegationsPerDelegator = ConstU32<10>;
-	type MinCollatorStk = MinCollatorStk;
-	/// Minimum stake required to be reserved to be a candidate
-	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
-	/// Minimum delegation amount after initial
-	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
-	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
-	/// Handler to notify the runtime when a collator is paid
-	type OnCollatorPayout = ();
-	type PayoutCollatorReward = ();
-	/// Handler to notify the runtime when a new round begins
-	type OnNewRound = ();
-	/// Any additional issuance that should be used for inflation calcs
-	type AdditionalIssuance = ();
-	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Test>;
-}
+// impl pallet_parachain_staking::Config for Test {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Currency = Balances;
+// 	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
+// 	/// Minimum round length is 2 minutes (10 * 12 second block times)
+// 	type MinBlocksPerRound = ConstU32<10>;
+// 	/// Rounds before the collator leaving the candidates request can be executed
+// 	type LeaveCandidatesDelay = ConstU32<2>;
+// 	/// Rounds before the candidate bond increase/decrease can be executed
+// 	type CandidateBondLessDelay = ConstU32<2>;
+// 	/// Rounds before the delegator exit can be executed
+// 	type LeaveDelegatorsDelay = ConstU32<2>;
+// 	/// Rounds before the delegator revocation can be executed
+// 	type RevokeDelegationDelay = ConstU32<2>;
+// 	/// Rounds before the delegator bond increase/decrease can be executed
+// 	type DelegationBondLessDelay = ConstU32<2>;
+// 	/// Rounds before the reward is paid
+// 	type RewardPaymentDelay = ConstU32<2>;
+// 	/// Minimum collators selected per round, default at genesis and minimum forever after
+// 	type MinSelectedCandidates = ConstU32<5>;
+// 	/// Maximum top delegations per candidate
+// 	type MaxTopDelegationsPerCandidate = ConstU32<10>;
+// 	/// Maximum bottom delegations per candidate
+// 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+// 	/// Maximum delegations per delegator
+// 	type MaxDelegationsPerDelegator = ConstU32<10>;
+// 	type MinCollatorStk = MinCollatorStk;
+// 	/// Minimum stake required to be reserved to be a candidate
+// 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
+// 	/// Minimum delegation amount after initial
+// 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
+// 	/// Minimum initial stake required to be reserved to be a delegator
+// 	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+// 	/// Handler to notify the runtime when a collator is paid
+// 	type OnCollatorPayout = ();
+// 	type PayoutCollatorReward = ();
+// 	/// Handler to notify the runtime when a new round begins
+// 	type OnNewRound = ();
+// 	/// Any additional issuance that should be used for inflation calcs
+// 	type AdditionalIssuance = ();
+// 	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Test>;
+// }
 
 pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
 impl<
-		T: Config + pallet::Config<Currency = C> + pallet_parachain_staking::Config,
+		T: Config + pallet::Config<Currency = C>,
 		C: frame_support::traits::ReservableCurrency<T::AccountId>,
 	> pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
 	for MockDelegatorActions<T, C>
@@ -259,23 +255,16 @@ impl<
 		Ok(true)
 	}
 
-	fn delegator_bond_till_minimum(
-		delegator: &T::AccountId,
-		candidate: &T::AccountId,
-		account_minimum: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-		log::error!("delegator_bond_till_minimum AAAAAAA");
-		if *candidate != T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap() {
-			log::error!("delegator_bond_till_minimum BBBB");
-			return Err(DispatchErrorWithPostInfo::from(<pallet_parachain_staking::Error<T>>::DelegationDNE));
-		}
-		log::error!("delegator_bond_till_minimum CCCCCC");
+	fn is_delegation_exist(delegator: &T::AccountId, candidate: &T::AccountId) -> bool {
+		let has_delegator =
+			*delegator == T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap();
+		let has_delegation =
+			*candidate == T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap();
+		has_delegator && has_delegation
+	}
 
-		let delegation = C::free_balance(&delegator)
-			.checked_sub(&account_minimum)
-			.ok_or(<pallet_parachain_staking::Error<T>>::InsufficientBalance)?;
-		C::reserve(delegator, delegation)?;
-		Ok(delegation)
+	fn get_delegator_stakable_free_balance(delegator: &T::AccountId) -> BalanceOf<T> {
+		C::free_balance(delegator)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]

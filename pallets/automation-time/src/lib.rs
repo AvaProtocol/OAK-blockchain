@@ -55,7 +55,7 @@ use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::traits::Hash,
+	sp_runtime::traits::{CheckedSub, Hash},
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
@@ -82,14 +82,6 @@ use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
-#[macro_export]
-macro_rules! ERROR_MESSAGE_DELEGATION_FORMAT {
-	() => {
-		"delegator: {:?}, collator: {:?}"
-	};
-}
-pub const ERROR_MESSAGE_BALANCE_LOW: &str = "Balance less than minimum";
-
 #[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
 pub struct DispatchErrorDataMap(BTreeMap<String, String>);
 impl sp_runtime::traits::Printable for DispatchErrorDataMap {
@@ -101,7 +93,7 @@ impl sp_runtime::traits::Printable for DispatchErrorDataMap {
 }
 pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
-const AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS: [&str; 1] = ["DelegationDNE"];
+const AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS: [&str; 1] = ["DelegationNotFound"];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -341,12 +333,6 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			execution_time: UnixTime,
 		},
-		// /// The result of the DynamicDispatch action.
-		// DynamicDispatchResult {
-		// 	who: AccountOf<T>,
-		// 	task_id: TaskId<T>,
-		// 	result: DispatchResult,
-		// },
 		/// The call for the DynamicDispatch action can no longer be decoded.
 		CallCannotBeDecoded {
 			who: AccountOf<T>,
@@ -1156,7 +1142,35 @@ pub mod pallet {
 			task_id: TaskId<T>,
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
+			let mut delegation_info: BTreeMap<String, String> = BTreeMap::new();
+			delegation_info.insert(
+				String::from("delagator"),
+				String::from(hex::encode(Encode::encode(&delegator))),
+			);
+			delegation_info.insert(
+				String::from("collator"),
+				String::from(hex::encode(Encode::encode(&collator))),
+			);
+
 			// TODO: Handle edge case where user has enough funds to run task but not reschedule
+			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
+				// DelegationNotFound
+				let error_with_data = DispatchErrorWithDataMap {
+					data: DispatchErrorDataMap(delegation_info),
+					message: Some(String::from(Into::<&str>::into(Error::<T>::DelegationNotFound))),
+					error: Error::<T>::DelegationNotFound.into(),
+				};
+				Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+					who: task.owner_id.clone(),
+					task_id,
+					error: error_with_data.clone(),
+				});
+				return (
+					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+					Some(error_with_data.error),
+				)
+			}
+
 			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
 			if fee_amount.is_err() {
 				return (
@@ -1167,38 +1181,52 @@ pub mod pallet {
 			let fee_amount = fee_amount.unwrap();
 
 			let reserved_funds = account_minimum.saturating_add(fee_amount);
-			match T::DelegatorActions::delegator_bond_till_minimum(
-				&delegator,
-				&collator,
-				reserved_funds,
-			) {
-				Ok(_) =>
-					(<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(), None),
-				Err(e) => {
-					let mut data_map: BTreeMap<String, String> = BTreeMap::new();
-					data_map.insert(
-						String::from("delagator"),
-						String::from(hex::encode(Encode::encode(&delegator))),
-					);
-					data_map.insert(
-						String::from("collator"),
-						String::from(hex::encode(Encode::encode(&collator))),
-					);
-
+			match T::DelegatorActions::get_delegator_stakable_free_balance(&delegator)
+				.checked_sub(&reserved_funds)
+			{
+				Some(delegation) => {
+					match T::DelegatorActions::delegator_bond_more(
+						&delegator, &collator, delegation,
+					) {
+						Ok(_) => (
+							<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+							None,
+						),
+						Err(e) => {
+							let error = DispatchErrorWithDataMap {
+								data: DispatchErrorDataMap(delegation_info),
+								message: Some(String::from(Into::<&str>::into(e))),
+								error: e,
+							};
+							Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
+								who: task.owner_id.clone(),
+								task_id,
+								error,
+							});
+							return (
+								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+								Some(e),
+							)
+						},
+					}
+				},
+				None => {
+					// InsufficientBalance
 					let error = DispatchErrorWithDataMap {
-						data: DispatchErrorDataMap(data_map),
-						message: Some(String::from(Into::<&str>::into(e))),
-						error: e.error,
+						data: DispatchErrorDataMap(delegation_info),
+						message: Some(String::from(Into::<&str>::into(
+							Error::<T>::InsufficientBalance,
+						))),
+						error: Error::<T>::InsufficientBalance.into(),
 					};
-
 					Self::deposit_event(Event::AutoCompoundDelegatorStakeFailed {
 						who: task.owner_id.clone(),
 						task_id,
-						error,
+						error: error.clone(),
 					});
-					return (
+					(
 						<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-						Some(e.error),
+						Some(error.error),
 					)
 				},
 			}
@@ -1480,11 +1508,10 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
+			// When the error can be found in the cancel_upon_errors list, the next task execution will not be scheduled. Otherwise, continue to execute the next task.
 			match dispatch_error {
 				Some(err)
-					if task
-						.cancel_upon_errors
-						.contains(&String::from(Into::<&str>::into(err))) =>
+					if task.cancel_upon_errors.contains(&String::from(Into::<&str>::into(err))) =>
 				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),
@@ -1520,39 +1547,6 @@ pub mod pallet {
 					};
 				},
 			}
-
-			// if let Some(err) = dispatch_error if task.cancel_upon_errors.contains(&err.as_str()) {
-			// 	Self::deposit_event(Event::<T>::TaskNotRescheduled {
-			// 		who: task.owner_id.clone(),
-			// 		task_id,
-			// 		error: err,
-			// 	});
-			// 	AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			// } else {
-			// 	let owner_id = task.owner_id.clone();
-			// 	let action = task.action.clone();
-			// 	match Self::reschedule_existing_task(task_id, &mut task) {
-			// 		Ok(_) => {
-			// 			let schedule_as = match action {
-			// 				Action::XCMP { schedule_as, .. } => schedule_as,
-			// 				_ => None,
-			// 			};
-			// 			Self::deposit_event(Event::<T>::TaskRescheduled {
-			// 				who: owner_id,
-			// 				task_id,
-			// 				schedule_as,
-			// 			});
-			// 		},
-			// 		Err(err) => {
-			// 			Self::deposit_event(Event::<T>::TaskFailedToReschedule {
-			// 				who: task.owner_id.clone(),
-			// 				task_id,
-			// 				error: err,
-			// 			});
-			// 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id);
-			// 		},
-			// 	};
-			// }
 		}
 
 		fn reschedule_existing_task(task_id: TaskId<T>, task: &mut TaskOf<T>) -> DispatchResult {
