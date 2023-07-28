@@ -146,7 +146,17 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = (pallet_automation_time::migrations::update_xcmp_task::UpdateXcmpTask<Runtime>,);
+type Migrations = (
+	// First we upgrade storage from the old task id -> the new task id
+	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForTaskQueueV2<Runtime>,
+	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForMissedQueueV2<Runtime>,
+	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForScheduledTasksV3<
+		Runtime,
+	>,
+	// Then we add the extra info in new XCMP, we also update the new task id for AccountTasks in
+	// this migration
+	pallet_automation_time::migrations::update_xcmp_task::UpdateXcmpTask<Runtime>,
+);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -1159,10 +1169,6 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
-		fn generate_task_id(account_id: AccountId, provided_id: Vec<u8>) -> Hash {
-			AutomationTime::generate_task_id(account_id, provided_id)
-		}
-
 		fn query_fee_details(
 			uxt: <Block as BlockT>::Extrinsic,
 		) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
@@ -1249,19 +1255,8 @@ impl_runtime_apis! {
 			Ok(AutostakingResult{period: res.0, apy: res.1})
 		}
 
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Hash> {
-			ParachainStaking::delegator_state(account_id.clone())
-				.map_or(vec![], |s| s.delegations.0).into_iter()
-				.map(|d| d.owner)
-				.map(|collator_id| {
-					AutomationTime::generate_auto_compound_delegated_stake_provided_id(&account_id, &collator_id)
-				})
-				.map(|provided_id| {
-					AutomationTime::generate_task_id(account_id.clone(), provided_id)
-				})
-				.filter(|task_id| {
-					AutomationTime::get_account_task(account_id.clone(), task_id).is_some()
-				}).collect()
+		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
+			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
 		}
 	}
 
