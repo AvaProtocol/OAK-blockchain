@@ -342,7 +342,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					task_id: task_id.clone(),
 					condition,
 					encoded_call: call.encode(),
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::System(frame_system::Event::NewAccount {
 					account: recipient.clone()
@@ -1528,7 +1528,7 @@ fn cancel_works_for_an_executed_task() {
 					task_id: task_id1.clone(),
 					condition,
 					encoded_call: call.encode(),
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -1973,7 +1973,7 @@ fn trigger_tasks_handles_missed_slots() {
 					task_id: task_will_be_run_id.clone(),
 					condition,
 					encoded_call: call.encode(),
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
@@ -2053,7 +2053,7 @@ fn trigger_tasks_limits_missed_slots() {
 						task_id: task_id.clone(),
 						condition: condition.clone(),
 						encoded_call: call.encode(),
-						cancel_upon_errors: vec![],
+						abort_errors: vec![],
 					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
@@ -2161,7 +2161,7 @@ fn trigger_tasks_completes_all_tasks() {
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2173,7 +2173,7 @@ fn trigger_tasks_completes_all_tasks() {
 					task_id: task_id2.clone(),
 					condition,
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2244,7 +2244,7 @@ fn trigger_tasks_completes_some_tasks() {
 					task_id: task_id1.clone(),
 					condition,
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2436,7 +2436,7 @@ fn missed_tasks_removes_completed_tasks() {
 					task_id: task_id01.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
@@ -2876,7 +2876,7 @@ fn trigger_tasks_updates_executions_left() {
 					task_id: task_id01.clone(),
 					condition,
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 			]
@@ -2930,7 +2930,7 @@ fn trigger_tasks_removes_completed_tasks() {
 					task_id: task_id01.clone(),
 					condition,
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2983,7 +2983,7 @@ fn on_init_runs_tasks() {
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -2995,7 +2995,7 @@ fn on_init_runs_tasks() {
 					task_id: task_id2.clone(),
 					condition,
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -3067,7 +3067,7 @@ fn on_init_check_task_queue() {
 					task_id: tasks[0].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -3079,7 +3079,7 @@ fn on_init_check_task_queue() {
 					task_id: tasks[1].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -3101,7 +3101,7 @@ fn on_init_check_task_queue() {
 					task_id: tasks[2].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
@@ -3113,7 +3113,7 @@ fn on_init_check_task_queue() {
 					task_id: tasks[3].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {

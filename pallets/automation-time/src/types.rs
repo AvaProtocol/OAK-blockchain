@@ -214,7 +214,7 @@ pub struct Task<AccountId, Balance> {
 	pub task_id: Vec<u8>,
 	pub schedule: Schedule,
 	pub action: Action<AccountId, Balance>,
-	pub cancel_upon_errors: Vec<String>,
+	pub abort_errors: Vec<String>,
 }
 
 impl<AccountId: Ord, Balance: Ord> PartialEq for Task<AccountId, Balance> {
@@ -234,9 +234,9 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		task_id: Vec<u8>,
 		schedule: Schedule,
 		action: Action<AccountId, Balance>,
-		cancel_upon_errors: Vec<String>,
+		abort_errors: Vec<String>,
 	) -> Self {
-		Self { owner_id, task_id, schedule, action, cancel_upon_errors }
+		Self { owner_id, task_id, schedule, action, abort_errors }
 	}
 
 	pub fn create_event_task<T: Config>(
@@ -244,13 +244,13 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		task_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
-		cancel_upon_errors: Vec<String>,
+		abort_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let call: <T as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: message }.into();
 		let action = Action::DynamicDispatch { encoded_call: call.encode() };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, task_id, schedule, action, cancel_upon_errors))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn create_xcmp_task<T: Config>(
@@ -264,7 +264,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		instruction_sequence: InstructionSequence,
-		cancel_upon_errors: Vec<String>,
+		abort_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
@@ -279,7 +279,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, task_id, schedule, action, cancel_upon_errors))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn create_auto_compound_delegated_stake_task<T: Config>(
@@ -289,7 +289,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		frequency: Seconds,
 		collator_id: AccountId,
 		account_minimum: Balance,
-		cancel_upon_errors: Vec<String>,
+		abort_errors: Vec<String>,
 	) -> Result<Self, DispatchError> {
 		let action = Action::AutoCompoundDelegatedStake {
 			delegator: owner_id.clone(),
@@ -297,7 +297,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			account_minimum,
 		};
 		let schedule = Schedule::new_recurring_schedule::<T>(next_execution_time, frequency)?;
-		Ok(Self::new(owner_id, task_id, schedule, action, cancel_upon_errors))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn execution_times(&self) -> Vec<UnixTime> {

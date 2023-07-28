@@ -53,7 +53,7 @@ impl<T: Config> From<OldTask<T>> for TaskOf<T> {
 			task_id: deprecate::old_taskid_to_idv2::<T>(&old_task_id),
 			schedule: task.schedule,
 			action: task.action.into(),
-			cancel_upon_errors: vec![],
+			abort_errors: vec![],
 		}
 	}
 }

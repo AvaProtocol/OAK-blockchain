@@ -181,7 +181,7 @@ mod test {
 						schedule_as,
 						instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 					},
-					cancel_upon_errors: vec![],
+					abort_errors: vec![],
 				}
 			);
 		})

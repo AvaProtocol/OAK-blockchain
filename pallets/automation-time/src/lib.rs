@@ -93,7 +93,7 @@ impl sp_runtime::traits::Printable for DispatchErrorDataMap {
 }
 pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
-const AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS: [&str; 1] = ["DelegationNotFound"];
+const AUTO_COMPOUND_DELEGATION_abort_errors: [&str; 1] = ["DelegationNotFound"];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -369,7 +369,7 @@ pub mod pallet {
 			task_id: TaskIdV2,
 			condition: BTreeMap<String, String>,
 			encoded_call: Vec<u8>,
-			cancel_upon_errors: Vec<String>,
+			abort_errors: Vec<String>,
 		},
 		TaskExecutionFailed {
 			who: AccountOf<T>,
@@ -549,7 +549,7 @@ pub mod pallet {
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 
-			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_CANCEL_UPON_ERRORS
+			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_abort_errors
 				.iter()
 				.map(|&error| String::from(error))
 				.collect();
@@ -946,7 +946,7 @@ pub mod pallet {
 							task_id: task_id.clone(),
 							condition,
 							encoded_call,
-							cancel_upon_errors: task.cancel_upon_errors.clone(),
+							abort_errors: task.abort_errors.clone(),
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
@@ -1411,7 +1411,7 @@ pub mod pallet {
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			schedule: Schedule,
-			cancel_upon_errors: Vec<String>,
+			abort_errors: Vec<String>,
 		) -> DispatchResult {
 			match action.clone() {
 				Action::XCMP { execution_fee, instruction_sequence, .. } => {
@@ -1441,7 +1441,7 @@ pub mod pallet {
 				Self::generate_task_idv2(),
 				schedule,
 				action.clone(),
-				cancel_upon_errors,
+				abort_errors,
 			);
 
 			let task_id =
@@ -1466,10 +1466,10 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-			// When the error can be found in the cancel_upon_errors list, the next task execution will not be scheduled. Otherwise, continue to execute the next task.
+			// When the error can be found in the abort_errors list, the next task execution will not be scheduled. Otherwise, continue to execute the next task.
 			match dispatch_error {
 				Some(err)
-					if task.cancel_upon_errors.contains(&String::from(Into::<&str>::into(err))) =>
+					if task.abort_errors.contains(&String::from(Into::<&str>::into(err))) =>
 				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),
