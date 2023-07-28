@@ -1477,7 +1477,11 @@ fn cancel_works_for_an_executed_task() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
 		let call: RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
-		let task_id1 = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600], call.encode());
+		let task_id1 = schedule_dynamic_dispatch_task(
+			ALICE,
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
+			call.encode(),
+		);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
 		System::reset_events();
@@ -2816,7 +2820,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		// 			}) if *error == delegation_error.clone())
 		// 	})
 		// 	.expect("AutoCompoundDelegatorStakeFailed event should have been emitted");
-		
+
 		// emit_events.into_iter()
 		// 	.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { error, .. }) if *error == delegation_error )).expect("TaskExecutionFailed event should have been emitted");
 

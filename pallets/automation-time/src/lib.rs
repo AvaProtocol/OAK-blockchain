@@ -53,7 +53,7 @@ use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::{GetDispatchInfo, PostDispatchInfo},
+	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
 	sp_runtime::traits::{CheckedSub, Hash},
 	storage::{
@@ -81,7 +81,6 @@ use sp_runtime::{
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
-use frame_support::dispatch::DispatchErrorWithPostInfo;
 
 #[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
 pub struct DispatchErrorDataMap(BTreeMap<String, String>);
@@ -1173,12 +1172,11 @@ pub mod pallet {
 							<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 							None,
 						),
-						Err(e) => {
+						Err(e) =>
 							return (
 								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 								Some(e),
-							)
-						},
+							),
 					}
 				},
 				None => {

@@ -531,11 +531,7 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 // A function to support test scheduleing a Fixed schedule
 // We don't focus on making sure the execution run properly. We just focus on
 // making sure a task is scheduled into the queue
-pub fn schedule_task(
-	owner: [u8; 32],
-	scheduled_times: Vec<u64>,
-	message: Vec<u8>,
-) -> TaskIdV2 {
+pub fn schedule_task(owner: [u8; 32], scheduled_times: Vec<u64>, message: Vec<u8>) -> TaskIdV2 {
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
 	let task_id = schedule_dynamic_dispatch_task(owner, scheduled_times, call.encode());
 	task_id
