@@ -1468,9 +1468,7 @@ pub mod pallet {
 		) {
 			// When the error can be found in the abort_errors list, the next task execution will not be scheduled. Otherwise, continue to execute the next task.
 			match dispatch_error {
-				Some(err)
-					if task.abort_errors.contains(&String::from(Into::<&str>::into(err))) =>
-				{
+				Some(err) if task.abort_errors.contains(&String::from(Into::<&str>::into(err))) => {
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),
 						task_id: task_id.clone(),
