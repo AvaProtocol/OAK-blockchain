@@ -1480,7 +1480,7 @@ fn cancel_works_for_an_executed_task() {
 		let task_id1 = schedule_dynamic_dispatch_task(
 			ALICE,
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
-			call.encode(),
+			call.clone(),
 		);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 3600, SCHEDULED_TIME - 3600));
@@ -1943,7 +1943,10 @@ fn trigger_tasks_handles_missed_slots() {
 			SCHEDULED_TIME - 3600,
 		);
 
-		let task_will_be_run_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
+		let remark_message = vec![50];
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
+		let task_will_be_run_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
 		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -1977,7 +1980,7 @@ fn trigger_tasks_handles_missed_slots() {
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
-					hash: BlakeTwo256::hash(&vec![50]),
+					hash: BlakeTwo256::hash(&remark_message),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
@@ -2003,6 +2006,7 @@ fn trigger_tasks_handles_missed_slots() {
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let _ = env_logger::try_init();
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: vec![50] }.into();
 
@@ -2010,7 +2014,7 @@ fn trigger_tasks_limits_missed_slots() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::DynamicDispatch { encoded_call: call.encode() },
+			Action::DynamicDispatch { encoded_call: call.clone().encode() },
 		);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -2023,7 +2027,10 @@ fn trigger_tasks_limits_missed_slots() {
 		let missing_task_id4 = schedule_task(ALICE, vec![SCHEDULED_TIME - 14400], vec![50]);
 		let missing_task_id5 = schedule_task(ALICE, vec![SCHEDULED_TIME - 18000], vec![50]);
 
-		let task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![32]);
+		let remark_message = vec![50];
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
+		let task_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
@@ -2057,7 +2064,7 @@ fn trigger_tasks_limits_missed_slots() {
 					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
-						hash: BlakeTwo256::hash(&vec![32]),
+						hash: BlakeTwo256::hash(&remark_message),
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
@@ -2532,10 +2539,13 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		assert_eq!(
 			events(),
 			[
-				// RuntimeEvent::AutomationTime(crate::Event::XcmpTaskSucceeded {
-				// 	destination,
-				// 	task_id: task_id.clone(),
-				// }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: owner.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call,
+					abort_errors: vec![],
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { who: owner, task_id })
 			]
 		);

@@ -533,19 +533,18 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 // making sure a task is scheduled into the queue
 pub fn schedule_task(owner: [u8; 32], scheduled_times: Vec<u64>, message: Vec<u8>) -> TaskIdV2 {
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
-	let task_id = schedule_dynamic_dispatch_task(owner, scheduled_times, call.encode());
+	let task_id = schedule_dynamic_dispatch_task(owner, scheduled_times, call);
 	task_id
 }
 
 pub fn schedule_dynamic_dispatch_task(
 	owner: [u8; 32],
 	scheduled_times: Vec<u64>,
-	encoded_call: Vec<u8>,
+	call: RuntimeCall,
 ) -> TaskIdV2 {
 	let account_id = AccountId32::new(owner);
-	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
 
-	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), encoded_call));
+	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.clone().encode()));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 		RuntimeOrigin::signed(account_id.clone()),
