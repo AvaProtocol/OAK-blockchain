@@ -1946,7 +1946,8 @@ fn trigger_tasks_handles_missed_slots() {
 		let remark_message = vec![50];
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
-		let task_will_be_run_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
+		let task_will_be_run_id =
+			schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
 		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);

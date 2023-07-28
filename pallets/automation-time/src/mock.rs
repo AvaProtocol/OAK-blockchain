@@ -544,7 +544,11 @@ pub fn schedule_dynamic_dispatch_task(
 ) -> TaskIdV2 {
 	let account_id = AccountId32::new(owner);
 
-	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.clone().encode()));
+	assert_ok!(fund_account_dynamic_dispatch(
+		&account_id,
+		scheduled_times.len(),
+		call.clone().encode()
+	));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 		RuntimeOrigin::signed(account_id.clone()),
