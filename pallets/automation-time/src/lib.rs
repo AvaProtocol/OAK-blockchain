@@ -337,7 +337,7 @@ pub mod pallet {
 			error: DispatchError,
 		},
 		/// A recurring task attempted but failed to be rescheduled
-		TaskFailedToReschedule {
+		TaskRescheduleFailed {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 			error: DispatchError,
@@ -1486,7 +1486,7 @@ pub mod pallet {
 							AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
 						},
 						Err(err) => {
-							Self::deposit_event(Event::<T>::TaskFailedToReschedule {
+							Self::deposit_event(Event::<T>::TaskRescheduleFailed {
 								who: task.owner_id.clone(),
 								task_id: task_id.clone(),
 								error: err,
