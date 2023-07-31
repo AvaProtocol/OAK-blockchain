@@ -327,9 +327,6 @@ benchmarks! {
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
 	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id.clone()) }
-	verify {
-		// assert_last_event::<T>(Event::DynamicDispatchResult{ who: caller, task_id: task_id.clone(), result: Ok(()) }.into())
-	}
 
 	run_dynamic_dispatch_action_fail_decode {
 		let caller: T::AccountId = account("caller", 0, SEED);
