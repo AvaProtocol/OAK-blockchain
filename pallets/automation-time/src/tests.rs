@@ -2721,13 +2721,14 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 	})
 }
 
-// Scheduling an auto compound delegated stake task will succeed if the account has not enough balance and a delegation with the specificed collator.
+// If the account has not enough balance and a delegation with the specificed collator,
+// the next execution of the task will be re-scheduled because the InsufficientBalance error is not an abort error
 // Condition:
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has a delegation with the specificed collator
 // Expected result:
 // 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
-// 2. Next execution will be scheduled
+// 2. The next execution will be scheduled because the InsufficientBalance error is not an abort error
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -2763,7 +2764,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 		emitted_events.clone().into_iter()
 			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { error, .. }) if *error == insufficient_balance_error )).expect("TaskExecutionFailed event should have been emitted");
 
-		// 2. Next execution will be scheduled
+		// The next execution will be scheduled because the InsufficientBalance error is not an abort error
 		emitted_events
 			.into_iter()
 			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { .. })))
@@ -2783,13 +2784,14 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 	})
 }
 
-// Scheduling an auto compound delegated stake task will failed if the account has a sufficient balance and no delegator with the specificed collator.
+// If the account has a sufficient balance and no delegator with the specificed collator,
+// the next execution of the task will not be re-scheduled because the DelegatorDNE error is an abort error.
 // Condition:
 // 1. User's wallet balance >= minimum balance + execution fee
-// 2. User has no delegation with the specificed collator
+// 2. User has no delegator
 // Expected result:
 // 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegatorDNE
-// 2. Next execution will not be scheduled
+// 2. The next execution will be scheduled because the DelegatorDNE error is not an abort error
 #[test]
 fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -2835,6 +2837,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 			})
 			.expect("TaskExecutionFailed event should have been emitted");
 
+		// 2. The next execution will be scheduled because the DelegatorDNE error is not an abort error
 		emitted_events
 			.into_iter()
 			.find(|e| {
@@ -2846,7 +2849,6 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 			})
 			.expect("TaskNotRescheduled event should have been emitted");
 
-		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
 				scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id.clone()))
@@ -2856,13 +2858,14 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 	})
 }
 
-// Scheduling an auto compound delegated stake task will failed if the account has a sufficient balance and no delegation with the specificed collator.
+// If the account has a sufficient balance and no delegator with the specificed collator,
+// the next execution of the task will not be re-scheduled because the DelegationDNE error is an abort error.
 // Condition:
 // 1. User's wallet balance >= minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
 // 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
-// 2. Next execution will not be scheduled
+// 2. The next execution will be scheduled because the DelegationDNE error is not an abort error
 #[test]
 fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -2908,6 +2911,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 			})
 			.expect("TaskExecutionFailed event should have been emitted");
 
+		// 2. The next execution will be scheduled because the DelegationDNE error is not an abort error
 		emitted_events
 			.into_iter()
 			.find(|e| {
@@ -2919,7 +2923,6 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 			})
 			.expect("TaskNotRescheduled event should have been emitted");
 
-		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
 				scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id.clone()))
@@ -2929,13 +2932,14 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 	})
 }
 
-// Scheduling an auto compound delegated stake task will failed if the account has not enough balance and no delegation with the specificed collator.
+// If the account has a sufficient balance and no delegator with the specificed collator,
+// the next execution of the task will not be re-scheduled because the InsufficientBalance error is an abort error.
 // Condition:
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. Emit TaskExecutionFailed event with error: DelegationDNE
-// 2. Next execution will not be scheduled
+// 1. Emit TaskExecutionFailed event with error: InsufficientBalance
+// 2. The next execution will be scheduled because the InsufficientBalance error is not an abort error
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -2980,7 +2984,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 			})
 			.expect("TaskExecutionFailed event should have been emitted");
 
-		// 2. Next execution will be scheduled
+		// 2. The next execution will be scheduled because the InsufficientBalance error is not an abort error
 		emitted_events
 			.into_iter()
 			.find(|e| {

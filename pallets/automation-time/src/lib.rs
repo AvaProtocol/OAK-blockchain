@@ -351,6 +351,7 @@ pub mod pallet {
 			task_id: TaskIdV2,
 			condition: BTreeMap<String, String>,
 			encoded_call: Vec<u8>,
+			/// List of errors causing task abortion.
 			abort_errors: Vec<String>,
 		},
 		TaskExecuted {
@@ -535,6 +536,7 @@ pub mod pallet {
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 
+			// List of errors causing the auto compound task to be terminated.
 			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_ABORT_ERRORS
 				.iter()
 				.map(|&error| String::from(error))
@@ -1459,7 +1461,8 @@ pub mod pallet {
 			mut task: TaskOf<T>,
 			dispatch_error: Option<DispatchError>,
 		) {
-			// When the error can be found in the abort_errors list, the next task execution will not be scheduled. Otherwise, continue to execute the next task.
+			// When the error can be found in the abort_errors list, the next task execution will not be scheduled.
+			// Otherwise, continue to schedule next execution.
 			match dispatch_error {
 				Some(err) if task.abort_errors.contains(&String::from(Into::<&str>::into(err))) => {
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
