@@ -361,18 +361,6 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 	}
 }
 
-#[derive(Eq, PartialEq, Clone, Encode, Decode, RuntimeDebug, TypeInfo)]
-pub struct DispatchErrorWithData<Data>
-where
-	Data: Eq + PartialEq + Clone + Encode + Decode + Printable,
-{
-	/// Additional data
-	pub data: Data,
-	pub message: Option<String>,
-	/// The actual `DispatchResult` indicating whether the dispatch was successful.
-	pub error: DispatchError,
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;

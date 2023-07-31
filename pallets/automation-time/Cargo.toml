@@ -63,7 +63,6 @@ pallet-xcmp-handler = { path = "../xcmp-handler", default-features = false }
 primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
-env_logger = "0.9"
 rand = { version = "0.7.3" }
 serde = { version = "1.0.144" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }

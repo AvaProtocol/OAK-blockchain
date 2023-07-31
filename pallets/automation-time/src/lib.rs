@@ -82,17 +82,6 @@ use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
 use xcm::{latest::prelude::*, VersionedMultiLocation};
 
-#[derive(Clone, Eq, PartialEq, Default, RuntimeDebug, Encode, Decode, TypeInfo)]
-pub struct DispatchErrorDataMap(BTreeMap<String, String>);
-impl sp_runtime::traits::Printable for DispatchErrorDataMap {
-	fn print(&self) {
-		for (key, value) in self.0.iter() {
-			sp_io::misc::print_utf8(format!("{:?}: {:?}, ", key, value).as_bytes());
-		}
-	}
-}
-pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
-
 const AUTO_COMPOUND_DELEGATION_ABORT_ERRORS: [&str; 2] = ["DelegatorDNE", "DelegationDNE"];
 
 #[frame_support::pallet]
@@ -323,11 +312,6 @@ pub mod pallet {
 		SuccesfullyAutoCompoundedDelegatorStake {
 			task_id: TaskIdV2,
 			amount: BalanceOf<T>,
-		},
-		AutoCompoundDelegatorStakeFailed {
-			task_id: TaskIdV2,
-			error_message: Vec<u8>,
-			error: DispatchErrorWithPostInfo,
 		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {

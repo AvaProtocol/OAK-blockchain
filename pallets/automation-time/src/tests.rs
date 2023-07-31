@@ -2726,7 +2726,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 // 1. User's wallet balance < minimum balance + execution fee
 // 2. User has a delegation with the specificed collator
 // Expected result:
-// 1. Emit TaskExecutionFailed event with error: InsufficientBalance
+// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
 // 2. Next execution will be scheduled
 #[test]
 fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
@@ -2788,7 +2788,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 // 1. User's wallet balance >= minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegatorDNE
 // 2. Next execution will not be scheduled
 #[test]
 fn auto_compound_delegated_stake_enough_balance_no_delegator() {
@@ -2849,10 +2849,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
+				scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+		assert!(AutomationTime::get_account_task(delegator, task_id).is_none());
 	})
 }
 
@@ -2861,7 +2861,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 // 1. User's wallet balance >= minimum balance + execution fee
 // 2. User has no delegation with the specificed collator
 // Expected result:
-// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
 // 2. Next execution will not be scheduled
 #[test]
 fn auto_compound_delegated_stake_enough_balance_no_delegation() {
@@ -2925,10 +2925,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 				scheduled
 					.tasks
 					.iter()
-					.any(|t| *t == (AccountId32::new(DELEGATOR_ACCOUNT), task_id.clone()))
+					.any(|t| *t == (delegator.clone(), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(DELEGATOR_ACCOUNT), task_id)
+		assert!(AutomationTime::get_account_task(delegator, task_id)
 			.is_none());
 	})
 }
