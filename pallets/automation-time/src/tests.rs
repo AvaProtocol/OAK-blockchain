@@ -2922,14 +2922,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled
-					.tasks
-					.iter()
-					.any(|t| *t == (delegator.clone(), task_id.clone()))
+				scheduled.tasks.iter().any(|t| *t == (delegator.clone(), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(delegator, task_id)
-			.is_none());
+		assert!(AutomationTime::get_account_task(delegator, task_id).is_none());
 	})
 }
 
