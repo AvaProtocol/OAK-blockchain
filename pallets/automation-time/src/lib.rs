@@ -93,7 +93,7 @@ impl sp_runtime::traits::Printable for DispatchErrorDataMap {
 }
 pub type DispatchErrorWithDataMap = DispatchErrorWithData<DispatchErrorDataMap>;
 
-const AUTO_COMPOUND_DELEGATION_abort_errors: [&str; 1] = ["DelegationNotFound"];
+const AUTO_COMPOUND_DELEGATION_ABORT_ERRORS: [&str; 2] = ["DelegatorDNE", "DelegationDNE"];
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -280,8 +280,6 @@ pub mod pallet {
 		BadVersion,
 		UnsupportedFeePayment,
 		CannotReanchor,
-		// Delegation Not Found
-		DelegationNotFound,
 	}
 
 	#[pallet::event]
@@ -370,6 +368,10 @@ pub mod pallet {
 			condition: BTreeMap<String, String>,
 			encoded_call: Vec<u8>,
 			abort_errors: Vec<String>,
+		},
+		TaskExecuted {
+			who: AccountOf<T>,
+			task_id: TaskIdV2,
 		},
 		TaskExecutionFailed {
 			who: AccountOf<T>,
@@ -549,7 +551,7 @@ pub mod pallet {
 			};
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 
-			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_abort_errors
+			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_ABORT_ERRORS
 				.iter()
 				.map(|&error| String::from(error))
 				.collect();
@@ -995,6 +997,22 @@ pub mod pallet {
 									task_id.clone(),
 								),
 						};
+
+						// If an error occurs during the task execution process, the TaskExecutionFailed event will be emitted;
+						// Otherwise, the TaskExecuted event will be thrown.
+						if let Some(err) = dispatch_error {
+							Self::deposit_event(Event::<T>::TaskExecutionFailed {
+								who: task.owner_id.clone(),
+								task_id: task_id.clone(),
+								error: err,
+							});
+						} else {
+							Self::deposit_event(Event::<T>::TaskExecuted {
+								who: task.owner_id.clone(),
+								task_id: task_id.clone(),
+							});
+						}
+
 						Self::handle_task_post_processing(task_id.clone(), task, dispatch_error);
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1u64))
@@ -1142,15 +1160,6 @@ pub mod pallet {
 			task_id: TaskIdV2,
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
-			// TODO: Handle edge case where user has enough funds to run task but not reschedule
-			if !T::DelegatorActions::is_delegation_exist(&delegator, &collator) {
-				// DelegationNotFound
-				return (
-					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					Some(Error::<T>::DelegationNotFound.into()),
-				)
-			}
-
 			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
 			if fee_amount.is_err() {
 				return (
@@ -1534,13 +1543,6 @@ pub mod pallet {
 			task: TaskOf<T>,
 			error: Option<DispatchError>,
 		) {
-			if let Some(err) = error {
-				Self::deposit_event(Event::<T>::TaskExecutionFailed {
-					who: task.owner_id.clone(),
-					task_id: task_id.clone(),
-					error: err,
-				});
-			}
 			match task.schedule {
 				Schedule::Fixed { .. } =>
 					Self::decrement_task_and_remove_if_complete(task_id, task),

@@ -35,8 +35,6 @@ use sp_runtime::{
 	AccountId32,
 };
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
-// use sp_runtime::DispatchError::Module;
-// use sp_runtime::ModuleError;
 use frame_support::pallet_prelude::DispatchError;
 use sp_std::collections::btree_map::BTreeMap;
 
@@ -355,6 +353,10 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					from: account_id.clone(),
 					to: recipient.clone(),
 					amount: 127,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: account_id.clone(),
+					task_id: task_id.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: account_id,
@@ -1534,6 +1536,10 @@ fn cancel_works_for_an_executed_task() {
 					sender: owner.clone(),
 					hash: BlakeTwo256::hash(&vec![50]),
 				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+				}),
 			]
 		);
 		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
@@ -1585,6 +1591,7 @@ fn cancel_works_for_tasks_in_queue() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![2, 4, 5] },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME, SCHEDULED_TIME));
 
@@ -1892,6 +1899,7 @@ fn trigger_tasks_updates_queues() {
 			vec![40],
 			vec![SCHEDULED_TIME - 3600],
 			Action::Notify { message: vec![40] },
+			vec![],
 		);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
@@ -1932,6 +1940,7 @@ fn trigger_tasks_handles_missed_slots() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::DynamicDispatch { encoded_call: call.encode() },
+			vec![],
 		);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -1983,6 +1992,10 @@ fn trigger_tasks_handles_missed_slots() {
 					sender: AccountId32::new(ALICE),
 					hash: BlakeTwo256::hash(&remark_message),
 				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_will_be_run_id.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: AccountId32::new(ALICE),
 					task_id: task_will_be_run_id.clone(),
@@ -2007,7 +2020,6 @@ fn trigger_tasks_handles_missed_slots() {
 #[test]
 fn trigger_tasks_limits_missed_slots() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let _ = env_logger::try_init();
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: vec![50] }.into();
 
@@ -2016,6 +2028,7 @@ fn trigger_tasks_limits_missed_slots() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::DynamicDispatch { encoded_call: call.clone().encode() },
+			vec![],
 		);
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -2066,6 +2079,10 @@ fn trigger_tasks_limits_missed_slots() {
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
 						hash: BlakeTwo256::hash(&remark_message),
+					}),
+					RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+						who: owner.clone(),
+						task_id: task_id.clone(),
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
@@ -2145,6 +2162,7 @@ fn trigger_tasks_completes_all_tasks() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
@@ -2152,6 +2170,7 @@ fn trigger_tasks_completes_all_tasks() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -2172,20 +2191,28 @@ fn trigger_tasks_completes_all_tasks() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: AccountId32::new(ALICE),
+					who: owner.clone(),
 					task_id: task_id1.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
-					who: owner,
+					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
 					encoded_call: vec![],
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id2.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: AccountId32::new(ALICE),
+					who: owner,
 					task_id: task_id2.clone(),
 				}),
 			]
@@ -2222,12 +2249,14 @@ fn trigger_tasks_handles_nonexisting_tasks() {
 #[test]
 fn trigger_tasks_completes_some_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let owner = AccountId32::new(ALICE);
 		let message_one: Vec<u8> = vec![2, 4, 5];
 		let task_id1 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
@@ -2235,6 +2264,7 @@ fn trigger_tasks_completes_some_tasks() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -2248,23 +2278,27 @@ fn trigger_tasks_completes_some_tasks() {
 			events(),
 			[
 				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
-					who: AccountId32::new(ALICE),
+					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
 					encoded_call: vec![],
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: AccountId32::new(ALICE),
+					who: owner.clone(),
 					task_id: task_id1.clone(),
 				}),
 			]
 		);
 
 		assert_eq!(1, AutomationTime::get_task_queue().len());
-		assert_eq!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id1), None);
-		assert_ne!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id2), None);
+		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1), None);
+		assert_ne!(AutomationTime::get_account_task(owner, task_id2), None);
 	})
 }
 
@@ -2276,12 +2310,14 @@ fn trigger_tasks_completes_all_missed_tasks() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
+			vec![],
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![40] },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -2334,12 +2370,14 @@ fn missed_tasks_updates_executions_left() {
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
 			Action::Notify { message: vec![40] },
+			vec![],
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
 			Action::Notify { message: vec![40] },
+			vec![],
 		);
 
 		match AutomationTime::get_account_task(owner.clone(), task_id1.clone()) {
@@ -2408,6 +2446,7 @@ fn missed_tasks_removes_completed_tasks() {
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME - 3600],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 
 		let mut task_queue = AutomationTime::get_task_queue();
@@ -2447,13 +2486,17 @@ fn missed_tasks_removes_completed_tasks() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id01.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
-					who: AccountId32::new(ALICE),
+					who: owner.clone(),
 					task_id: task_id01.clone(),
 					execution_time: SCHEDULED_TIME
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: AccountId32::new(ALICE),
+					who: owner.clone(),
 					task_id: task_id01.clone(),
 				}),
 			]
@@ -2478,6 +2521,7 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 				recipient: AccountId32::new(BOB),
 				amount: transfer_amount,
 			},
+			vec![],
 		);
 		add_task_to_task_queue(
 			ALICE,
@@ -2488,6 +2532,7 @@ fn trigger_tasks_completes_some_native_transfer_tasks() {
 				recipient: AccountId32::new(BOB),
 				amount: transfer_amount,
 			},
+			vec![],
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -2526,6 +2571,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 				schedule_as: None,
 				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			},
+			vec![],
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -2546,6 +2592,10 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					condition,
 					encoded_call,
 					abort_errors: vec![],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id.clone(),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { who: owner, task_id })
 			]
@@ -2571,16 +2621,26 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
+			vec![],
 		);
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		let emitted_events = events();
 
 		let new_balance = Balances::free_balance(delegator.clone());
 		assert!(new_balance < before_balance);
 		assert_eq!(new_balance, account_minimum);
+
+		emitted_events
+			.clone()
+			.into_iter()
+			.find(|e| {
+				matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. }))
+			})
+			.expect("TaskExecuted event should have been emitted");
 	})
 }
 
@@ -2612,6 +2672,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
+			vec![],
 		);
 
 		System::reset_events();
@@ -2620,8 +2681,15 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 
 		let emitted_events = events();
 
-		// // Expected result:
-		// // 1. Current execution will run
+		// Expected result:
+		// 1. Current execution will run
+		emitted_events
+			.clone()
+			.into_iter()
+			.find(|e| {
+				matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. }))
+			})
+			.expect("TaskExecuted event should have been emitted");
 
 		// 2. Next execution will be scheduled
 		emitted_events
@@ -2684,6 +2752,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 				collator: AccountId32::new(COLLATOR_ACCOUNT),
 				account_minimum,
 			},
+			vec![],
 		);
 
 		System::reset_events();
@@ -2718,6 +2787,77 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 	})
 }
 
+// Scheduling an auto compound delegated stake task will failed if the account has a sufficient balance and no delegator with the specificed collator.
+// Condition:
+// 1. User's wallet balance >= minimum balance + execution fee
+// 2. User has no delegation with the specificed collator
+// Expected result:
+// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationNotFound
+// 2. Next execution will not be scheduled
+#[test]
+fn auto_compound_delegated_stake_enough_balance_no_delegator() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let delegator = AccountId32::new(ALICE);
+		get_funds(delegator.clone());
+		let before_balance = Balances::free_balance(delegator.clone());
+		// Minimum balance is half of the user's wallet balance
+		let account_minimum = before_balance / 2;
+		let frequency = 3_600;
+
+		let task_id = add_recurring_task_to_task_queue(
+			ALICE,
+			vec![1],
+			SCHEDULED_TIME,
+			frequency,
+			Action::AutoCompoundDelegatedStake {
+				delegator: delegator.clone(),
+				collator: AccountId32::new(BOB),
+				account_minimum,
+			},
+			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
+		);
+
+		System::reset_events();
+
+		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+
+		let emitted_events = events();
+
+		// Expected result:
+		// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
+		let delegator_error: DispatchError = <pallet_parachain_staking::Error<Test>>::DelegatorDNE.into();
+		emitted_events.clone()
+			.into_iter()
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
+						error,
+						..
+					}) if *error == delegator_error.clone())
+			})
+			.expect("TaskExecutionFailed event should have been emitted");
+
+		emitted_events
+			.into_iter()
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::TaskNotRescheduled {
+						error,
+						..
+					}) if *error == delegator_error.clone())
+			})
+			.expect("TaskNotRescheduled event should have been emitted");;
+
+		// 2. Next execution will not be scheduled
+		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
+			.filter(|scheduled| {
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
+			})
+			.is_none());
+		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+	})
+}
+
 // Scheduling an auto compound delegated stake task will failed if the account has a sufficient balance and no delegation with the specificed collator.
 // Condition:
 // 1. User's wallet balance >= minimum balance + execution fee
@@ -2736,7 +2876,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 		let frequency = 3_600;
 
 		let task_id = add_recurring_task_to_task_queue(
-			ALICE,
+			DELEGATOR_ACCOUNT,
 			vec![1],
 			SCHEDULED_TIME,
 			frequency,
@@ -2745,41 +2885,47 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 				collator: AccountId32::new(BOB),
 				account_minimum,
 			},
+			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
 		);
 
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
+		let emitted_events = events();
+
 		// Expected result:
-		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationDNE
-		let delegation_error: DispatchError = Error::<Test>::DelegationNotFound.into();
-		events()
+		// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
+		let delegation_error: DispatchError = <pallet_parachain_staking::Error<Test>>::DelegationDNE.into();
+		emitted_events.clone()
 			.into_iter()
-			.find(|e| match e {
-				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { .. }) => true,
-				_ => false,
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
+						error,
+						..
+					}) if *error == delegation_error.clone())
 			})
-			.expect("TaskScheduled event should have been emitted");
-		let next_scheduled_time = SCHEDULED_TIME + frequency;
-		AutomationTime::get_scheduled_tasks(next_scheduled_time)
-			.expect("Task should have been rescheduled")
-			.tasks
+			.expect("TaskExecutionFailed event should have been emitted");
+
+		emitted_events
 			.into_iter()
-			.find(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
-			.expect("Task should have been rescheduled");
-		let task = AutomationTime::get_account_task(AccountId32::new(ALICE), task_id.clone())
-			.expect("Task should not have been removed from task map");
-		assert_eq!(task.schedule.known_executions_left(), 1);
-		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::TaskNotRescheduled {
+						error,
+						..
+					}) if *error == delegation_error.clone())
+			})
+			.expect("TaskNotRescheduled event should have been emitted");;
 
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
+				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(DELEGATOR_ACCOUNT), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(ALICE), task_id).is_none());
+		assert!(AutomationTime::get_account_task(AccountId32::new(DELEGATOR_ACCOUNT), task_id).is_none());
 	})
 }
 
@@ -2796,13 +2942,13 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		let delegator = AccountId32::new(DELEGATOR_ACCOUNT);
 		let collator = AccountId32::new(BOB);
 		get_funds(delegator.clone());
-		let before_balance = Balances::free_balance(AccountId32::new(ALICE));
+		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is twice of the user's wallet balance
 		let account_minimum = before_balance * 2;
 		let frequency = 3_600;
 
 		let task_id = add_recurring_task_to_task_queue(
-			ALICE,
+			DELEGATOR_ACCOUNT,
 			vec![1],
 			SCHEDULED_TIME,
 			frequency,
@@ -2811,39 +2957,47 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 				collator: collator.clone(),
 				account_minimum,
 			},
+			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
 		);
 
 		System::reset_events();
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
-		let emit_events = events();
+		let emitted_events = events();
 
 		// Expected result:
-		// 1. The current execution will result in failure, triggering the emission of an AutoCompoundDelegatorStakeFailed event, error: DelegationDNE
-		// let delegation_error: DispatchError = Error::<Test>::DelegationNotFound.into();
-		// emit_events.clone()
-		// 	.into_iter()
-		// 	.find(|e| {
-		// 		matches!(e,
-		// 			RuntimeEvent::AutomationTime(crate::Event::AutoCompoundDelegatorStakeFailed {
-		// 				error: DispatchErrorWithDataMap { error, .. },
-		// 				..
-		// 			}) if *error == delegation_error.clone())
-		// 	})
-		// 	.expect("AutoCompoundDelegatorStakeFailed event should have been emitted");
-
-		// emit_events.into_iter()
-		// 	.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { error, .. }) if *error == delegation_error )).expect("TaskExecutionFailed event should have been emitted");
-
-		// 2. Next execution will not be scheduled
-		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
-			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(ALICE), task_id.clone()))
+		//  1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: InsufficientBalance
+		let insufficient_balance_error: DispatchError = Error::<Test>::InsufficientBalance.into();
+		emitted_events.clone()
+			.into_iter()
+			.find(|e| {
+				matches!(e,
+					RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
+						error,
+						..
+					}) if *error == insufficient_balance_error.clone())
 			})
-			.is_none());
-		assert!(
-			AutomationTime::get_account_task(AccountId32::new(ALICE), task_id.clone()).is_none()
-		);
+			.expect("TaskExecutionFailed event should have been emitted");
+
+		// 2. Next execution will be scheduled
+		emitted_events
+		.into_iter()
+		.find(|e| {
+			matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { .. }))
+		})
+		.expect("TaskRescheduled event should have been emitted");
+
+		let next_scheduled_time = SCHEDULED_TIME + frequency;
+		AutomationTime::get_scheduled_tasks(next_scheduled_time)
+			.expect("Task should have been rescheduled")
+			.tasks
+			.into_iter()
+			.find(|t| *t == (delegator.clone(), task_id.clone()))
+			.expect("Task should have been rescheduled");
+		let task = AutomationTime::get_account_task(delegator.clone(), task_id)
+			.expect("Task should not have been removed from task map");
+		assert_eq!(task.schedule.known_executions_left(), 1);
+		assert_eq!(task.execution_times(), vec![next_scheduled_time]);
 	})
 }
 
@@ -2859,6 +3013,7 @@ fn trigger_tasks_updates_executions_left() {
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 
 		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
@@ -2890,6 +3045,10 @@ fn trigger_tasks_updates_executions_left() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id01.clone(),
+				}),
 			]
 		);
 		match AutomationTime::get_account_task(owner.clone(), task_id01) {
@@ -2913,6 +3072,7 @@ fn trigger_tasks_removes_completed_tasks() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 
 		match AutomationTime::get_account_task(owner.clone(), task_id01.clone()) {
@@ -2944,6 +3104,10 @@ fn trigger_tasks_removes_completed_tasks() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id01.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
@@ -2964,6 +3128,7 @@ fn on_init_runs_tasks() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
@@ -2971,12 +3136,14 @@ fn on_init_runs_tasks() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
+			vec![],
 		);
 		let task_id3 = add_task_to_task_queue(
 			ALICE,
 			vec![60],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![50] },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
@@ -2997,6 +3164,10 @@ fn on_init_runs_tasks() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id1.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
@@ -3009,6 +3180,10 @@ fn on_init_runs_tasks() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: task_id2.clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
@@ -3058,6 +3233,7 @@ fn on_init_check_task_queue() {
 				vec![i],
 				vec![SCHEDULED_TIME],
 				Action::Notify { message: vec![i] },
+				vec![],
 			);
 			tasks.push(task_id.clone());
 		}
@@ -3081,6 +3257,10 @@ fn on_init_check_task_queue() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: tasks[0].clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[0].clone(),
@@ -3093,6 +3273,10 @@ fn on_init_check_task_queue() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: tasks[1].clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[1].clone(),
@@ -3115,6 +3299,10 @@ fn on_init_check_task_queue() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: tasks[2].clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[2].clone(),
@@ -3127,6 +3315,10 @@ fn on_init_check_task_queue() {
 					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: owner.clone(),
+					task_id: tasks[3].clone(),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: owner.clone(),
 					task_id: tasks[3].clone(),
@@ -3169,6 +3361,7 @@ fn on_init_shutdown() {
 			vec![40],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_one.clone() },
+			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
 		let task_id2 = add_task_to_task_queue(
@@ -3176,12 +3369,14 @@ fn on_init_shutdown() {
 			vec![50],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: message_two.clone() },
+			vec![],
 		);
 		let task_id3 = add_task_to_task_queue(
 			ALICE,
 			vec![60],
 			vec![SCHEDULED_TIME],
 			Action::Notify { message: vec![50] },
+			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
