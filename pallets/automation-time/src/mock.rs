@@ -22,11 +22,11 @@ use crate::TaskIdV2;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, Everything, ConstU128},
+	traits::{ConstU128, ConstU32, Everything},
 	weights::Weight,
 	PalletId,
 };
-use frame_system::{self as system, RawOrigin, EnsureRoot};
+use frame_system::{self as system, EnsureRoot, RawOrigin};
 use orml_traits::parameter_type_with_key;
 use primitives::EnsureProxy;
 use sp_core::H256;
@@ -257,11 +257,11 @@ impl<
 		amount: BalanceOf<T>,
 	) -> Result<bool, DispatchError> {
 		if *delegator != T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap() {
-			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into());
+			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into())
 		}
 
 		if *candidate != T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap() {
-			return Err(<pallet_parachain_staking::Error<T>>::DelegationDNE.into());
+			return Err(<pallet_parachain_staking::Error<T>>::DelegationDNE.into())
 		}
 
 		let delegation: u128 = amount.saturated_into();

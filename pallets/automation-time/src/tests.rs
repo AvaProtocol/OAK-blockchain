@@ -24,6 +24,7 @@ use codec::Encode;
 use frame_support::{
 	assert_noop, assert_ok,
 	dispatch::GetDispatchInfo,
+	pallet_prelude::DispatchError,
 	traits::OnInitialize,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
@@ -34,9 +35,8 @@ use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
-use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
-use frame_support::pallet_prelude::DispatchError;
 use sp_std::collections::btree_map::BTreeMap;
+use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use pallet_balances;
 use pallet_valve::Shutdown;
@@ -2637,9 +2637,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		emitted_events
 			.clone()
 			.into_iter()
-			.find(|e| {
-				matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. }))
-			})
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. })))
 			.expect("TaskExecuted event should have been emitted");
 	})
 }
@@ -2686,9 +2684,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 		emitted_events
 			.clone()
 			.into_iter()
-			.find(|e| {
-				matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. }))
-			})
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. })))
 			.expect("TaskExecuted event should have been emitted");
 
 		// 2. Next execution will be scheduled
@@ -2825,8 +2821,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 
 		// Expected result:
 		// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
-		let delegator_error: DispatchError = <pallet_parachain_staking::Error<Test>>::DelegatorDNE.into();
-		emitted_events.clone()
+		let delegator_error: DispatchError =
+			<pallet_parachain_staking::Error<Test>>::DelegatorDNE.into();
+		emitted_events
+			.clone()
 			.into_iter()
 			.find(|e| {
 				matches!(e,
@@ -2846,7 +2844,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 						..
 					}) if *error == delegator_error.clone())
 			})
-			.expect("TaskNotRescheduled event should have been emitted");;
+			.expect("TaskNotRescheduled event should have been emitted");
 
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
@@ -2896,8 +2894,10 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 
 		// Expected result:
 		// 1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: DelegationDNE
-		let delegation_error: DispatchError = <pallet_parachain_staking::Error<Test>>::DelegationDNE.into();
-		emitted_events.clone()
+		let delegation_error: DispatchError =
+			<pallet_parachain_staking::Error<Test>>::DelegationDNE.into();
+		emitted_events
+			.clone()
 			.into_iter()
 			.find(|e| {
 				matches!(e,
@@ -2917,15 +2917,19 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 						..
 					}) if *error == delegation_error.clone())
 			})
-			.expect("TaskNotRescheduled event should have been emitted");;
+			.expect("TaskNotRescheduled event should have been emitted");
 
 		// 2. Next execution will not be scheduled
 		assert!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + frequency)
 			.filter(|scheduled| {
-				scheduled.tasks.iter().any(|t| *t == (AccountId32::new(DELEGATOR_ACCOUNT), task_id.clone()))
+				scheduled
+					.tasks
+					.iter()
+					.any(|t| *t == (AccountId32::new(DELEGATOR_ACCOUNT), task_id.clone()))
 			})
 			.is_none());
-		assert!(AutomationTime::get_account_task(AccountId32::new(DELEGATOR_ACCOUNT), task_id).is_none());
+		assert!(AutomationTime::get_account_task(AccountId32::new(DELEGATOR_ACCOUNT), task_id)
+			.is_none());
 	})
 }
 
@@ -2968,7 +2972,8 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		// Expected result:
 		//  1. The current execution will result in failure, triggering the emission of an TaskExecutionFailed event, error: InsufficientBalance
 		let insufficient_balance_error: DispatchError = Error::<Test>::InsufficientBalance.into();
-		emitted_events.clone()
+		emitted_events
+			.clone()
 			.into_iter()
 			.find(|e| {
 				matches!(e,
@@ -2981,11 +2986,11 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 
 		// 2. Next execution will be scheduled
 		emitted_events
-		.into_iter()
-		.find(|e| {
-			matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { .. }))
-		})
-		.expect("TaskRescheduled event should have been emitted");
+			.into_iter()
+			.find(|e| {
+				matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { .. }))
+			})
+			.expect("TaskRescheduled event should have been emitted");
 
 		let next_scheduled_time = SCHEDULED_TIME + frequency;
 		AutomationTime::get_scheduled_tasks(next_scheduled_time)
