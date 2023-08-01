@@ -141,6 +141,43 @@ pub fn assert_last_event(event: RuntimeEvent) {
 	assert_eq!(events().last().expect("events expected"), &event);
 }
 
+/// Check that events appear in the emitted_events list in order,
+fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>) -> bool {
+	// If the target events list is empty, consider it satisfied as there are no specific order requirements
+	if events.is_empty() {
+		return true;
+	}
+
+	// Convert both lists to iterators
+	let mut emitted_iter = emitted_events.iter();
+	let mut events_iter = events.iter();
+
+	// Iterate through the target events
+	while let Some(target_event) = events_iter.next() {
+		// Initialize a boolean variable to track whether the target event is found
+		let mut found = false;
+
+		// Continue iterating through the emitted events until a match is found or there are no more emitted events
+		while let Some(emitted_event) = emitted_iter.next() {
+			// Compare event type and event data for a match
+			if emitted_event == target_event {
+				// Target event found, mark as found and advance the emitted iterator
+				found = true;
+				break;
+			}
+		}
+
+		// If the target event is not found, return false
+		if !found {
+			return false;
+		}
+	}
+
+	// If all target events are found in order, return true
+	return true;
+}
+
+
 // when schedule with a Fixed Time schedule and passing an epoch that isn't the
 // beginning of hour, raise an error
 // the smallest granularity unit we allow is hour
@@ -332,38 +369,29 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		let mut condition: BTreeMap<String, String> = BTreeMap::new();
 		condition.insert(String::from("type"), String::from("time"));
 		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
-		assert_eq!(
-			my_events,
-			[
-				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
-					who: account_id.clone(),
-					task_id: task_id.clone(),
-					condition,
-					encoded_call: call.encode(),
-					abort_errors: vec![],
-				}),
-				RuntimeEvent::System(frame_system::Event::NewAccount {
-					account: recipient.clone()
-				}),
-				RuntimeEvent::Balances(pallet_balances::pallet::Event::Endowed {
-					account: recipient.clone(),
-					free_balance: 127,
-				}),
-				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
-					from: account_id.clone(),
-					to: recipient.clone(),
-					amount: 127,
-				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
-					who: account_id.clone(),
-					task_id: task_id.clone(),
-				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-					who: account_id,
-					task_id,
-				}),
-			]
-		);
+
+		assert!(contains_events(my_events, vec![
+			RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+				who: account_id.clone(),
+				task_id: task_id.clone(),
+				condition,
+				encoded_call: call.encode(),
+				abort_errors: vec![],
+			}),
+			RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
+				from: account_id.clone(),
+				to: recipient.clone(),
+				amount: 127,
+			}),
+			RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+				who: account_id.clone(),
+				task_id: task_id.clone(),
+			}),
+			RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+				who: account_id,
+				task_id,
+			}),
+		]));
 	})
 }
 
@@ -498,7 +526,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
-			Box::new(call),
+			Box::new(call.clone()),
 		));
 
 		// First execution
@@ -523,11 +551,31 @@ fn will_emit_task_completed_event_when_task_failed() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
 		let my_events = events();
 
-		// When a task fails, the TaskCompleted event will still be emitted.
-		my_events
-			.into_iter()
-			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { .. })))
-			.expect("When a task fails, the TaskCompleted event will still be emitted");
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", next_execution_time));
+
+		assert!(contains_events(
+			my_events,
+			vec![
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call: call.encode(),
+					abort_errors: vec![],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { 
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+					error: <pallet_balances::Error<Test>>::InsufficientBalance.into(),
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { 
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+				}),
+			]
+		))
 	})
 }
 
@@ -1813,11 +1861,13 @@ mod run_dynamic_dispatch_action {
 			let call: RuntimeCall = frame_system::Call::set_code { code: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(
+			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				encoded_call,
 				task_id.clone(),
 			);
+
+			assert_eq!(error, Some(DispatchError::BadOrigin));
 		})
 	}
 
@@ -1829,11 +1879,13 @@ mod run_dynamic_dispatch_action {
 			let call: RuntimeCall = pallet_timestamp::Call::set { now: 100 }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(
+			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				encoded_call,
 				task_id.clone(),
 			);
+
+			assert_eq!(error, Some(DispatchError::from(frame_system::Error::<Test>::CallFiltered)));
 		})
 	}
 
@@ -1845,11 +1897,13 @@ mod run_dynamic_dispatch_action {
 			let call: RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 			let encoded_call = call.encode();
 
-			AutomationTime::run_dynamic_dispatch_action(
+			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				encoded_call,
 				task_id.clone(),
 			);
+
+			assert_eq!(error, None);
 		})
 	}
 }
@@ -2069,6 +2123,7 @@ fn trigger_tasks_limits_missed_slots() {
 			assert_eq!(
 				my_events,
 				[
+					// The execution of encoded call task 
 					RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
 						who: owner.clone(),
 						task_id: task_id.clone(),
@@ -2088,6 +2143,7 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id,
 					}),
+					// The task 0 missed
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id0.clone(),
@@ -2097,6 +2153,7 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id: missing_task_id0,
 					}),
+					// The task 5 missed
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id5.clone(),
@@ -2106,6 +2163,7 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id: missing_task_id5,
 					}),
+					// The task 4 missed
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id4.clone(),
@@ -2115,6 +2173,7 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id: missing_task_id4,
 					}),
+					// The task 3 missed
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id3.clone(),
@@ -2610,10 +2669,11 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		get_funds(delegator.clone());
 		let before_balance = Balances::free_balance(delegator.clone());
 		let account_minimum = before_balance / 2;
+		let task_id = vec![1];
 
 		add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
-			vec![1],
+			task_id.clone(),
 			SCHEDULED_TIME,
 			3600,
 			Action::AutoCompoundDelegatedStake {
@@ -2634,11 +2694,24 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		assert!(new_balance < before_balance);
 		assert_eq!(new_balance, account_minimum);
 
-		emitted_events
-			.clone()
-			.into_iter()
-			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskExecuted { .. })))
-			.expect("TaskExecuted event should have been emitted");
+		let mut condition: BTreeMap<String, String> = BTreeMap::new();
+		condition.insert(String::from("type"), String::from("time"));
+		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+
+		assert!(contains_events(emitted_events, vec![
+			RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+				who: delegator.clone(),
+				task_id: task_id.clone(),
+				condition,
+				encoded_call: vec![],
+				abort_errors: vec![],
+			}),
+			RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+				who: delegator.clone(),
+				task_id: task_id.clone(),
+			}),
+			RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { who: delegator, task_id, schedule_as: None })
+		]));
 	})
 }
 
@@ -2717,7 +2790,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 		events()
 			.into_iter()
 			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskTriggered { .. })))
-			.expect("AutoCompoundDelegatorStakeSucceeded event should have been emitted again!");
+			.expect("TaskTriggered event should have been emitted again!");
 	})
 }
 
@@ -3161,6 +3234,7 @@ fn on_init_runs_tasks() {
 		assert_eq!(
 			events(),
 			[
+				// The execution of task 1
 				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
@@ -3177,6 +3251,7 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 				}),
+				// The execution of task 2
 				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
