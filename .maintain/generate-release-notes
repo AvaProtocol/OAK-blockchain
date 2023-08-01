@@ -44,12 +44,14 @@ generate_srtool_block() {
 
   cat <<-EOF
   \`\`\`
-  Rust        : $rust
-  Version     : $spec ($extended)
-  Size        : $size
-  Proposal    : $proposal
-  IPFS        : $ipfs
-  BLAKE2_256  : $blake2_256
+  Rust             : $rust
+  Spec version     : $spec_version
+  Impl version     : $impl_version
+  Tx version       : $transaction_version
+  Size             : $size
+  Proposal         : $proposal
+  IPFS             : $ipfs
+  BLAKE2_256       : $blake2_256
   \`\`\`
 EOF
 }
