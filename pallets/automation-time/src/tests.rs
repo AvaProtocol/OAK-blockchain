@@ -145,7 +145,7 @@ pub fn assert_last_event(event: RuntimeEvent) {
 fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>) -> bool {
 	// If the target events list is empty, consider it satisfied as there are no specific order requirements
 	if events.is_empty() {
-		return true;
+		return true
 	}
 
 	// Convert both lists to iterators
@@ -163,20 +163,19 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 			if emitted_event == target_event {
 				// Target event found, mark as found and advance the emitted iterator
 				found = true;
-				break;
+				break
 			}
 		}
 
 		// If the target event is not found, return false
 		if !found {
-			return false;
+			return false
 		}
 	}
 
 	// If all target events are found in order, return true
-	return true;
+	return true
 }
-
 
 // when schedule with a Fixed Time schedule and passing an epoch that isn't the
 // beginning of hour, raise an error
@@ -370,28 +369,31 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		condition.insert(String::from("type"), String::from("time"));
 		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
 
-		assert!(contains_events(my_events, vec![
-			RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
-				who: account_id.clone(),
-				task_id: task_id.clone(),
-				condition,
-				encoded_call: call.encode(),
-				abort_errors: vec![],
-			}),
-			RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
-				from: account_id.clone(),
-				to: recipient.clone(),
-				amount: 127,
-			}),
-			RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
-				who: account_id.clone(),
-				task_id: task_id.clone(),
-			}),
-			RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-				who: account_id,
-				task_id,
-			}),
-		]));
+		assert!(contains_events(
+			my_events,
+			vec![
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call: call.encode(),
+					abort_errors: vec![],
+				}),
+				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
+					from: account_id.clone(),
+					to: recipient.clone(),
+					amount: 127,
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: account_id.clone(),
+					task_id: task_id.clone(),
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+					who: account_id,
+					task_id,
+				}),
+			]
+		));
 	})
 }
 
@@ -565,12 +567,12 @@ fn will_emit_task_completed_event_when_task_failed() {
 					encoded_call: call.encode(),
 					abort_errors: vec![],
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed { 
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 					error: <pallet_balances::Error<Test>>::InsufficientBalance.into(),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted { 
+				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 				}),
@@ -2123,7 +2125,7 @@ fn trigger_tasks_limits_missed_slots() {
 			assert_eq!(
 				my_events,
 				[
-					// The execution of encoded call task 
+					// The execution of encoded call task
 					RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
 						who: owner.clone(),
 						task_id: task_id.clone(),
@@ -2698,20 +2700,27 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		condition.insert(String::from("type"), String::from("time"));
 		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
 
-		assert!(contains_events(emitted_events, vec![
-			RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
-				who: delegator.clone(),
-				task_id: task_id.clone(),
-				condition,
-				encoded_call: vec![],
-				abort_errors: vec![],
-			}),
-			RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
-				who: delegator.clone(),
-				task_id: task_id.clone(),
-			}),
-			RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled { who: delegator, task_id, schedule_as: None })
-		]));
+		assert!(contains_events(
+			emitted_events,
+			vec![
+				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
+					who: delegator.clone(),
+					task_id: task_id.clone(),
+					condition,
+					encoded_call: vec![],
+					abort_errors: vec![],
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
+					who: delegator.clone(),
+					task_id: task_id.clone(),
+				}),
+				RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled {
+					who: delegator,
+					task_id,
+					schedule_as: None
+				})
+			]
+		));
 	})
 }
 
