@@ -6,6 +6,9 @@ on:
       tag:
         description: Tag for release
         required: true
+      draft:
+        description: draf release will not make the final image and skip some particular steps
+        type: boolean
 
 jobs:
   build-binary:
@@ -33,6 +36,7 @@ jobs:
         with:
           name: oak-collator
           path: artifacts/
+
   build-runtime:
     name: Build Runtime
     runs-on: ubuntu-latest
@@ -62,32 +66,19 @@ jobs:
           path: |
             ${{ matrix.chain }}-runtime.wasm
             ${{ matrix.chain }}-srtool-digest.json
+
   build-docker:
     name: Build Docker
     runs-on: ubuntu-latest
     needs: build-binary
-    steps:
-      - name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.inputs.tag }}
-      - name: Download binary
-        uses: actions/download-artifact@v2
-        with:
-          name: oak-collator
-      - name: Build
-        run: |
-          tag=${{ github.event.inputs.tag }}
-          docker_tag="${tag:1}"
-          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$docker_tag .
-          docker tag oaknetwork/turing:$docker_tag oaknetwork/turing:latest
-          docker push oaknetwork/turing:$docker_tag
-          docker push oaknetwork/turing:latest
+    use: ./.github/workflows/build-docker.yml
+    with:
+      tag: ${{ github.event.inputs.tag }}
+    secrets:
+      username: ${{ secrets.DOCKERHUB_USERNAME }}
+      password: ${{ secrets.DOCKERHUB_TOKEN }}
+    if: github.event.inputs.draft == 'true'
+
   release:
     name: Release
     runs-on: ubuntu-latest
