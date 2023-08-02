@@ -309,10 +309,6 @@ pub mod pallet {
 			task_id: TaskIdV2,
 			error: DispatchError,
 		},
-		SuccesfullyAutoCompoundedDelegatorStake {
-			task_id: TaskIdV2,
-			amount: BalanceOf<T>,
-		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
 			who: AccountOf<T>,
@@ -346,8 +342,6 @@ pub mod pallet {
 			task_id: TaskIdV2,
 			condition: BTreeMap<String, String>,
 			encoded_call: Vec<u8>,
-			/// List of errors causing task abortion.
-			abort_errors: Vec<String>,
 		},
 		TaskExecuted {
 			who: AccountOf<T>,
@@ -929,7 +923,6 @@ pub mod pallet {
 							task_id: task_id.clone(),
 							condition,
 							encoded_call,
-							abort_errors: task.abort_errors.clone(),
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
@@ -968,14 +961,12 @@ pub mod pallet {
 								delegator,
 								collator,
 								account_minimum,
-								task_id.clone(),
 								&task,
 							),
 							Action::DynamicDispatch { encoded_call } =>
 								Self::run_dynamic_dispatch_action(
 									task.owner_id.clone(),
 									encoded_call,
-									task_id.clone(),
 								),
 						};
 
@@ -1138,7 +1129,6 @@ pub mod pallet {
 			delegator: AccountOf<T>,
 			collator: AccountOf<T>,
 			account_minimum: BalanceOf<T>,
-			task_id: TaskIdV2,
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
@@ -1183,7 +1173,6 @@ pub mod pallet {
 		pub fn run_dynamic_dispatch_action(
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
-			task_id: TaskIdV2,
 		) -> (Weight, Option<DispatchError>) {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {

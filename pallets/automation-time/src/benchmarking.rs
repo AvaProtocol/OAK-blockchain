@@ -319,7 +319,7 @@ benchmarks! {
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
-	}: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, task_id.clone(), &task) }
+	}: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, &task) }
 
 	run_dynamic_dispatch_action {
 		let caller: T::AccountId = account("caller", 0, SEED);
@@ -327,7 +327,7 @@ benchmarks! {
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
 	}: {
-		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id.clone());
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call);
 		assert_eq!(error, None);
 	}
 
@@ -337,7 +337,7 @@ benchmarks! {
 
 		let bad_encoded_call: Vec<u8> = vec![1];
 	}: {
-		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id.clone());
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call);
 		assert_eq!(error, Some(DispatchError::from(Error::<T>::CallCannotBeDecoded)));
 	}
 

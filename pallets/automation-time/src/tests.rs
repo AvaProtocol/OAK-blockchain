@@ -371,7 +371,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					task_id: task_id.clone(),
 					condition,
 					encoded_call: call.encode(),
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
 					from: account_id.clone(),
@@ -556,7 +555,6 @@ fn will_emit_task_completed_event_when_task_failed() {
 					task_id: task_id.clone(),
 					condition,
 					encoded_call: call.encode(),
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
@@ -1267,7 +1265,6 @@ fn schedule_time_slot_full_rolls_back() {
 #[test]
 fn taskid_changed_per_block() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let owner = AccountId32::new(ALICE);
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600, SCHEDULED_TIME + 7200],
@@ -1571,7 +1568,6 @@ fn cancel_works_for_an_executed_task() {
 					task_id: task_id1.clone(),
 					condition,
 					encoded_call: call.encode(),
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -1815,14 +1811,10 @@ mod run_dynamic_dispatch_action {
 	fn cannot_decode() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = vec![49, 45, 48, 45, 52];
 			let bad_encoded_call: Vec<u8> = vec![1];
 
-			let (weight, error) = AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				bad_encoded_call,
-				task_id.clone(),
-			);
+			let (weight, error) =
+				AutomationTime::run_dynamic_dispatch_action(account_id.clone(), bad_encoded_call);
 
 			assert_eq!(
 				weight,
@@ -1837,15 +1829,11 @@ mod run_dynamic_dispatch_action {
 	fn call_errors() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = vec![49, 45, 48, 45, 52];
 			let call: RuntimeCall = frame_system::Call::set_code { code: vec![] }.into();
 			let encoded_call = call.encode();
 
-			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				encoded_call,
-				task_id.clone(),
-			);
+			let (_, error) =
+				AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call);
 
 			assert_eq!(error, Some(DispatchError::BadOrigin));
 		})
@@ -1855,15 +1843,11 @@ mod run_dynamic_dispatch_action {
 	fn call_filtered() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = FIRST_TASK_ID.to_vec();
 			let call: RuntimeCall = pallet_timestamp::Call::set { now: 100 }.into();
 			let encoded_call = call.encode();
 
-			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				encoded_call,
-				task_id.clone(),
-			);
+			let (_, error) =
+				AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call);
 
 			assert_eq!(error, Some(DispatchError::from(frame_system::Error::<Test>::CallFiltered)));
 		})
@@ -1873,15 +1857,11 @@ mod run_dynamic_dispatch_action {
 	fn call_works() {
 		new_test_ext(START_BLOCK_TIME).execute_with(|| {
 			let account_id = AccountId32::new(ALICE);
-			let task_id = FIRST_TASK_ID.to_vec();
 			let call: RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 			let encoded_call = call.encode();
 
-			let (_, error) = AutomationTime::run_dynamic_dispatch_action(
-				account_id.clone(),
-				encoded_call,
-				task_id.clone(),
-			);
+			let (_, error) =
+				AutomationTime::run_dynamic_dispatch_action(account_id.clone(), encoded_call);
 
 			assert_eq!(error, None);
 		})
@@ -2020,7 +2000,6 @@ fn trigger_tasks_handles_missed_slots() {
 					task_id: task_will_be_run_id.clone(),
 					condition,
 					encoded_call: call.encode(),
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
@@ -2084,7 +2063,7 @@ fn trigger_tasks_limits_missed_slots() {
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME - 25200, SCHEDULED_TIME - 25200));
 		System::reset_events();
 
-		let left_weight = AutomationTime::trigger_tasks(Weight::from_ref_time(7_769_423 + 200_000));
+		AutomationTime::trigger_tasks(Weight::from_ref_time(7_769_423 + 200_000));
 
 		let my_events = events();
 
@@ -2109,7 +2088,6 @@ fn trigger_tasks_limits_missed_slots() {
 						task_id: task_id.clone(),
 						condition: condition.clone(),
 						encoded_call: call.encode(),
-						abort_errors: vec![],
 					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
@@ -2227,7 +2205,6 @@ fn trigger_tasks_completes_all_tasks() {
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2243,7 +2220,6 @@ fn trigger_tasks_completes_all_tasks() {
 					task_id: task_id2.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2321,7 +2297,6 @@ fn trigger_tasks_completes_some_tasks() {
 					task_id: task_id1.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2522,7 +2497,6 @@ fn missed_tasks_removes_completed_tasks() {
 					task_id: task_id01.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2630,7 +2604,6 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					task_id: task_id.clone(),
 					condition,
 					encoded_call,
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
@@ -2686,7 +2659,6 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 					task_id: task_id.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: delegator.clone(),
@@ -3107,7 +3079,6 @@ fn trigger_tasks_updates_executions_left() {
 					task_id: task_id01.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3166,7 +3137,6 @@ fn trigger_tasks_removes_completed_tasks() {
 					task_id: task_id01.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3227,7 +3197,6 @@ fn on_init_runs_tasks() {
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3244,7 +3213,6 @@ fn on_init_runs_tasks() {
 					task_id: task_id2.clone(),
 					condition,
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3321,7 +3289,6 @@ fn on_init_check_task_queue() {
 					task_id: tasks[0].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3337,7 +3304,6 @@ fn on_init_check_task_queue() {
 					task_id: tasks[1].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3363,7 +3329,6 @@ fn on_init_check_task_queue() {
 					task_id: tasks[2].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3379,7 +3344,6 @@ fn on_init_check_task_queue() {
 					task_id: tasks[3].clone(),
 					condition: condition.clone(),
 					encoded_call: vec![],
-					abort_errors: vec![],
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
