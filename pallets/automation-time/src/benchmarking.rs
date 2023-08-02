@@ -326,16 +326,19 @@ benchmarks! {
 		let task_id = vec![49, 45, 48, 45, 52];
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
-	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id.clone()) }
+	}: {
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id.clone());
+		assert_eq!(error, None);
+	}
 
 	run_dynamic_dispatch_action_fail_decode {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let task_id = vec![49, 45, 48, 45, 52];
 
 		let bad_encoded_call: Vec<u8> = vec![1];
-	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id.clone()) }
-	verify {
-		assert_last_event::<T>(Event::CallCannotBeDecoded{ who: caller, task_id: task_id.clone() }.into())
+	}: {
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id.clone());
+		assert_eq!(error, Some(DispatchError::from(Error::<T>::CallCannotBeDecoded)));
 	}
 
 	/*

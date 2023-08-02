@@ -53,9 +53,9 @@ use codec::Decode;
 use core::convert::TryInto;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	dispatch::{DispatchErrorWithPostInfo, GetDispatchInfo, PostDispatchInfo},
+	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::traits::{CheckedSub, Hash},
+	sp_runtime::traits::CheckedSub,
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
@@ -318,11 +318,6 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 			execution_time: UnixTime,
-		},
-		/// The call for the DynamicDispatch action can no longer be decoded.
-		CallCannotBeDecoded {
-			who: AccountOf<T>,
-			task_id: TaskIdV2,
 		},
 		/// A recurring task was rescheduled
 		TaskRescheduled {
@@ -1216,15 +1211,10 @@ pub mod pallet {
 						result.err(),
 					)
 				},
-				Err(_) => {
-					// TODO: If the call cannot be decoded then cancel the task.
-
-					Self::deposit_event(Event::CallCannotBeDecoded { who: caller, task_id });
-					(
-						<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode(),
-						Some(Error::<T>::CallCannotBeDecoded.into()),
-					)
-				},
+				Err(_) => (
+					<T as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode(),
+					Some(Error::<T>::CallCannotBeDecoded.into()),
+				),
 			}
 		}
 
@@ -1456,15 +1446,15 @@ pub mod pallet {
 			Ok(())
 		}
 
-		fn reschedule_or_remove_task(
-			task_id: TaskIdV2,
-			mut task: TaskOf<T>,
-			dispatch_error: Option<DispatchError>,
-		) {
+		fn reschedule_or_remove_task(mut task: TaskOf<T>, dispatch_error: Option<DispatchError>) {
+			let task_id = task.task_id.clone();
 			// When the error can be found in the abort_errors list, the next task execution will not be scheduled.
 			// Otherwise, continue to schedule next execution.
 			match dispatch_error {
-				Some(err) if task.abort_errors.contains(&String::from(Into::<&str>::into(err))) => {
+				Some(err)
+					if err == DispatchError::from(Error::<T>::CallCannotBeDecoded) ||
+						task.abort_errors.contains(&String::from(Into::<&str>::into(err))) =>
+				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),
 						task_id: task_id.clone(),
@@ -1533,7 +1523,7 @@ pub mod pallet {
 			match task.schedule {
 				Schedule::Fixed { .. } =>
 					Self::decrement_task_and_remove_if_complete(task_id, task),
-				Schedule::Recurring { .. } => Self::reschedule_or_remove_task(task_id, task, error),
+				Schedule::Recurring { .. } => Self::reschedule_or_remove_task(task, error),
 			}
 		}
 

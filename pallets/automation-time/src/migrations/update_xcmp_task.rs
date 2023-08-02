@@ -1,16 +1,13 @@
 use core::marker::PhantomData;
 
 use crate::{
-	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, BalanceOf, Config, InstructionSequence,
-	Schedule, TaskOf,
+	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf,
 };
 use codec::{Decode, Encode};
-use cumulus_primitives_core::ParaId;
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
-use scale_info::TypeInfo;
 use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
 	deprecate::{generate_old_task_id, old_taskid_to_idv2},
@@ -75,7 +72,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 		log::info!(target: "automation-time", "UpdateXcmpTask migration");
 
 		let mut migrated_tasks = 0u32;
-		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
+		AccountTasks::<T>::iter().for_each(|(account_id, _task_id, task)| {
 			let migrated_task: TaskOf<T> = task.into();
 			crate::AccountTasks::<T>::insert(
 				account_id,
@@ -115,10 +112,11 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 #[cfg(test)]
 mod test {
 	use super::{
-		generate_old_task_id, OldAction, OldTask, ParaId, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
+		generate_old_task_id, OldAction, OldTask, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
 		INSTRUCTION_WEIGHT_REF_TIME, TEST_TASKID1,
 	};
-	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Pallet, Schedule, TaskOf};
+	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Schedule, TaskOf};
+	use cumulus_primitives_core::ParaId;
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
 	use xcm::latest::prelude::*;

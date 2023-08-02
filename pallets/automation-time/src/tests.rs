@@ -135,12 +135,6 @@ pub fn assert_has_event(event: RuntimeEvent) {
 	assert!(evts.iter().any(|record| record == &event))
 }
 
-/// Assert the last event equal to the given `event`.
-#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
-pub fn assert_last_event(event: RuntimeEvent) {
-	assert_eq!(events().last().expect("events expected"), &event);
-}
-
 /// Check that events appear in the emitted_events list in order,
 fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>) -> bool {
 	// If the target events list is empty, consider it satisfied as there are no specific order requirements
@@ -174,7 +168,7 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 	}
 
 	// If all target events are found in order, return true
-	return true
+	true
 }
 
 // when schedule with a Fixed Time schedule and passing an epoch that isn't the
@@ -403,7 +397,6 @@ fn will_emit_task_completed_event_when_task_completed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
-		let provided_id = vec![1, 2];
 		let task_id = FIRST_TASK_ID.to_vec().clone();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
@@ -454,7 +447,6 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
-		let provided_id = vec![1, 2];
 		let task_id = FIRST_TASK_ID.to_vec();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
@@ -510,7 +502,6 @@ fn will_emit_task_completed_event_when_task_failed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
-		let provided_id = vec![1, 2];
 		let task_id = FIRST_TASK_ID.to_vec();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
@@ -1668,14 +1659,6 @@ fn cancel_works_for_tasks_in_queue() {
 #[test]
 fn cancel_task_must_exist() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task = TaskOf::<Test>::create_event_task::<Test>(
-			AccountId32::new(ALICE),
-			vec![40],
-			vec![SCHEDULED_TIME],
-			vec![2, 4, 5],
-			vec![],
-		)
-		.unwrap();
 		//let task_id = BlakeTwo256::hash_of(&task);
 		let task_id = vec![49, 45, 48, 45, 52];
 
@@ -1835,7 +1818,7 @@ mod run_dynamic_dispatch_action {
 			let task_id = vec![49, 45, 48, 45, 52];
 			let bad_encoded_call: Vec<u8> = vec![1];
 
-			let (weight, _) = AutomationTime::run_dynamic_dispatch_action(
+			let (weight, error) = AutomationTime::run_dynamic_dispatch_action(
 				account_id.clone(),
 				bad_encoded_call,
 				task_id.clone(),
@@ -1845,13 +1828,8 @@ mod run_dynamic_dispatch_action {
 				weight,
 				<Test as Config>::WeightInfo::run_dynamic_dispatch_action_fail_decode()
 			);
-			assert_eq!(
-				events(),
-				[RuntimeEvent::AutomationTime(crate::Event::CallCannotBeDecoded {
-					who: account_id,
-					task_id: task_id.clone(),
-				}),]
-			);
+
+			assert_eq!(error, Some(DispatchError::from(Error::<Test>::CallCannotBeDecoded)));
 		})
 	}
 
@@ -2717,7 +2695,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskRescheduled {
 					who: delegator,
 					task_id,
-					schedule_as: None
+					schedule_as: None,
 				})
 			]
 		));

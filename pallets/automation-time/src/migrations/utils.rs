@@ -16,7 +16,7 @@ use frame_support::{
 use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::VersionedMultiLocation;
 
 // These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
 // These cons are used for our unit test

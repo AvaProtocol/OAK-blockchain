@@ -3,7 +3,7 @@ use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
 
 use scale_info::prelude::string::String;
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion, Printable};
+use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
 use sp_std::prelude::*;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
