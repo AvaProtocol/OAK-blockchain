@@ -2624,16 +2624,18 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		let account_minimum = before_balance / 2;
 		let task_id = vec![1];
 
+		let action = Action::AutoCompoundDelegatedStake {
+			delegator: delegator.clone(),
+			collator: AccountId32::new(COLLATOR_ACCOUNT),
+			account_minimum,
+		};
+
 		add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
 			task_id.clone(),
 			SCHEDULED_TIME,
 			3600,
-			Action::AutoCompoundDelegatedStake {
-				delegator: delegator.clone(),
-				collator: AccountId32::new(COLLATOR_ACCOUNT),
-				account_minimum,
-			},
+			action.clone(),
 			vec![],
 		);
 
@@ -2646,6 +2648,10 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		let new_balance = Balances::free_balance(delegator.clone());
 		assert!(new_balance < before_balance);
 		assert_eq!(new_balance, account_minimum);
+
+		let fee_amount = AutomationTime::calculate_schedule_fee_amount(&action, 1)
+			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
+		let delegation = before_balance - fee_amount - account_minimum;
 
 		let mut condition: BTreeMap<String, String> = BTreeMap::new();
 		condition.insert(String::from("type"), String::from("time"));
@@ -2660,6 +2666,14 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 					condition,
 					encoded_call: vec![],
 				}),
+				RuntimeEvent::ParachainStaking(
+					pallet_parachain_staking::Event::DelegationIncreased {
+						delegator: AccountId::from(DELEGATOR_ACCOUNT),
+						candidate: AccountId::from(COLLATOR_ACCOUNT),
+						amount: delegation,
+						in_top: true,
+					}
+				),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: delegator.clone(),
 					task_id: task_id.clone(),

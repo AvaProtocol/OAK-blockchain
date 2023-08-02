@@ -266,6 +266,12 @@ impl<
 
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
+		System::deposit_event(pallet_parachain_staking::Event::DelegationIncreased {
+			delegator: AccountId::from(DELEGATOR_ACCOUNT),
+			candidate: AccountId::from(COLLATOR_ACCOUNT),
+			amount: delegation,
+			in_top: true,
+		});
 		Ok(true)
 	}
 
