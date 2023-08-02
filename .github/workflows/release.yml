@@ -6,10 +6,6 @@ on:
       tag:
         description: Tag for release
         required: true
-      draft:
-        description: draf release will not make the final image and skip some particular steps
-        type: boolean
-        required: true
 
 jobs:
   build-binary:
@@ -67,18 +63,6 @@ jobs:
           path: |
             ${{ matrix.chain }}-runtime.wasm
             ${{ matrix.chain }}-srtool-digest.json
-
-  build-docker:
-    name: Build Docker
-    runs-on: ubuntu-latest
-    needs: build-binary
-    use: ./.github/workflows/build-docker.yml
-    with:
-      tag: ${{ github.event.inputs.tag }}
-    secrets:
-      username: ${{ secrets.DOCKERHUB_USERNAME }}
-      password: ${{ secrets.DOCKERHUB_TOKEN }}
-    if: github.event.inputs.draft == 'true'
 
   release:
     name: Release
