@@ -75,15 +75,16 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 		log::info!(target: "automation-time", "UpdateXcmpTask migration");
 
 		let mut migrated_tasks = 0u32;
-		AccountTasks::<T>::iter().for_each(|(account_id, task_id, task)| {
-			let migrated_task: TaskOf<T> = task.into();
-			crate::AccountTasks::<T>::insert(
-				account_id,
-				migrated_task.task_id.clone(),
-				migrated_task,
-			);
 
+		let mut tasks: Vec<(AccountOf<T>, TaskOf<T>)> = vec![];
+		AccountTasks::<T>::drain().for_each(|(account_id, task_id, task)| {
+			let migrated_task: TaskOf<T> = task.into();
+			tasks.push((account_id, migrated_task));
 			migrated_tasks += 1;
+		});
+
+		tasks.iter().for_each(|(account_id, task)| {
+			crate::AccountTasks::<T>::insert(account_id, task.task_id.clone(), task)
 		});
 
 		log::info!(
