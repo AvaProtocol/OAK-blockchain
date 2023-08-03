@@ -1,0 +1,37 @@
+name: Build Docker
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag for release
+        required: true
+
+jobs:
+  build-docker:
+    name: Build and Publis to Docker Hub
+    runs-on: ubuntu-latest
+    needs: build-binary
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: oak-collator
+      - name: Build
+        run: |
+          tag=${{ github.event.inputs.tag }}
+          docker_tag="${tag:1}"
+          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$docker_tag .
+          docker tag oaknetwork/turing:$docker_tag oaknetwork/turing:latest
+          docker push oaknetwork/turing:$docker_tag
+          docker push oaknetwork/turing:latest
+
