@@ -602,10 +602,10 @@ pub fn add_task_to_task_queue(
 	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
-	cancel_errors: Vec<String>,
+	abort_errors: Vec<String>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times).unwrap();
-	add_to_task_queue(owner, task_id, schedule, action, cancel_errors)
+	add_to_task_queue(owner, task_id, schedule, action, abort_errors)
 }
 
 pub fn add_recurring_task_to_task_queue(
@@ -639,10 +639,10 @@ pub fn add_task_to_missed_queue(
 	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
-	cancel_errors: Vec<String>,
+	abort_errors: Vec<String>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
-	let task_id = create_task(owner, task_id.clone(), schedule, action, cancel_errors);
+	let task_id = create_task(owner, task_id.clone(), schedule, action, abort_errors);
 	let missed_task =
 		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id.clone(), scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
