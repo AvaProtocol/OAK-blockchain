@@ -3,6 +3,7 @@ use core::marker::PhantomData;
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf,
 };
+#[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
 use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
 use sp_runtime::traits::Convert;

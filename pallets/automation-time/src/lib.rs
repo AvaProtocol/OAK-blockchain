@@ -70,10 +70,7 @@ use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
-use scale_info::{
-	prelude::{format, string::String},
-	TypeInfo,
-};
+use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
 	ArithmeticError, DispatchError, Perbill,
@@ -340,7 +337,7 @@ pub mod pallet {
 		TaskTriggered {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
-			condition: BTreeMap<String, String>,
+			condition: BTreeMap<Vec<u8>, Vec<u8>>,
 			encoded_call: Option<Vec<u8>>,
 		},
 		TaskExecuted {
@@ -526,9 +523,9 @@ pub mod pallet {
 			let schedule = Schedule::new_recurring_schedule::<T>(execution_time, frequency)?;
 
 			// List of errors causing the auto compound task to be terminated.
-			let errors: Vec<String> = AUTO_COMPOUND_DELEGATION_ABORT_ERRORS
+			let errors: Vec<Vec<u8>> = AUTO_COMPOUND_DELEGATION_ABORT_ERRORS
 				.iter()
-				.map(|&error| String::from(error))
+				.map(|&error| error.as_bytes().to_vec())
 				.collect();
 
 			Self::validate_and_schedule_task(action, who, schedule, errors)?;
@@ -908,9 +905,12 @@ pub mod pallet {
 						<T as Config>::WeightInfo::run_tasks_many_missing(1)
 					},
 					Some(task) => {
-						let mut condition: BTreeMap<String, String> = BTreeMap::new();
-						condition.insert(String::from("type"), String::from("time"));
-						condition.insert(String::from("timestamp"), format!("{}", time_slot));
+						let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+						condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+						condition.insert(
+							"timestamp".as_bytes().to_vec(),
+							format!("{}", time_slot).into_bytes(),
+						);
 
 						let encoded_call = match task.action.clone() {
 							Action::XCMP { encoded_call, .. } => Some(encoded_call),
@@ -1385,7 +1385,7 @@ pub mod pallet {
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			schedule: Schedule,
-			abort_errors: Vec<String>,
+			abort_errors: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			match action.clone() {
 				Action::XCMP { execution_fee, instruction_sequence, .. } => {
@@ -1442,7 +1442,8 @@ pub mod pallet {
 			match dispatch_error {
 				Some(err)
 					if err == DispatchError::from(Error::<T>::CallCannotBeDecoded) ||
-						task.abort_errors.contains(&String::from(Into::<&str>::into(err))) =>
+						task.abort_errors
+							.contains(&Into::<&str>::into(err).as_bytes().to_vec()) =>
 				{
 					Self::deposit_event(Event::<T>::TaskNotRescheduled {
 						who: task.owner_id.clone(),

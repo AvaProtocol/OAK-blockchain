@@ -365,9 +365,9 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		let recipient = AccountId32::new(BOB);
 		assert_eq!(Balances::free_balance(recipient.clone()), 127);
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), SCHEDULED_TIME.to_string().into_bytes());
 
 		assert!(contains_events(
 			my_events,
@@ -549,9 +549,10 @@ fn will_emit_task_completed_event_when_task_failed() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
 		let my_events = events();
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", next_execution_time));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition
+			.insert("timestamp".as_bytes().to_vec(), next_execution_time.to_string().into_bytes());
 
 		assert!(contains_events(
 			my_events,
@@ -1563,9 +1564,9 @@ fn cancel_works_for_an_executed_task() {
 		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
 		let my_events = events();
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), SCHEDULED_TIME.to_string().into_bytes());
 		assert_eq!(
 			my_events,
 			[
@@ -1994,9 +1995,9 @@ fn trigger_tasks_handles_missed_slots() {
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_task_queue()[0].1, scheduled_task_id);
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), SCHEDULED_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -2081,9 +2082,10 @@ fn trigger_tasks_limits_missed_slots() {
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
 			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - 10800);
 
-			let mut condition: BTreeMap<String, String> = BTreeMap::new();
-			condition.insert(String::from("type"), String::from("time"));
-			condition.insert(String::from("timestamp"), format!("{}", SCHEDULED_TIME));
+			let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+			condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+			condition
+				.insert("timestamp".as_bytes().to_vec(), SCHEDULED_TIME.to_string().into_bytes());
 
 			assert_eq!(
 				my_events,
@@ -2199,9 +2201,9 @@ fn trigger_tasks_completes_all_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -2291,9 +2293,9 @@ fn trigger_tasks_completes_some_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(80_000));
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -2491,9 +2493,9 @@ fn missed_tasks_removes_completed_tasks() {
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -2598,9 +2600,9 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -2659,9 +2661,9 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 			.expect(EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT);
 		let delegation = before_balance - fee_amount - account_minimum;
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert!(contains_events(
 			emitted_events,
@@ -2864,7 +2866,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 				collator: AccountId32::new(BOB),
 				account_minimum,
 			},
-			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
+			vec!["DelegatorDNE".as_bytes().to_vec(), "DelegationDNE".as_bytes().to_vec()],
 		);
 
 		System::reset_events();
@@ -2938,7 +2940,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 				collator: AccountId32::new(BOB),
 				account_minimum,
 			},
-			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
+			vec!["DelegatorDNE".as_bytes().to_vec(), "DelegationDNE".as_bytes().to_vec()],
 		);
 
 		System::reset_events();
@@ -3013,7 +3015,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 				collator: collator.clone(),
 				account_minimum,
 			},
-			vec![String::from("DelegatorDNE"), String::from("DelegationDNE")],
+			vec!["DelegatorDNE".as_bytes().to_vec(), "DelegationDNE".as_bytes().to_vec()],
 		);
 
 		System::reset_events();
@@ -3087,9 +3089,9 @@ fn trigger_tasks_updates_executions_left() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -3145,9 +3147,9 @@ fn trigger_tasks_removes_completed_tasks() {
 
 		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -3204,9 +3206,9 @@ fn on_init_runs_tasks() {
 
 		AutomationTime::on_initialize(1);
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
@@ -3297,9 +3299,9 @@ fn on_init_check_task_queue() {
 
 		let owner = AccountId32::new(ALICE);
 
-		let mut condition: BTreeMap<String, String> = BTreeMap::new();
-		condition.insert(String::from("type"), String::from("time"));
-		condition.insert(String::from("timestamp"), format!("{}", LAST_BLOCK_TIME));
+		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
+		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
+		condition.insert("timestamp".as_bytes().to_vec(), LAST_BLOCK_TIME.to_string().into_bytes());
 
 		assert_eq!(
 			events(),
