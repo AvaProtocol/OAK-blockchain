@@ -56,6 +56,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 			task_id.clone(),
 			times.clone(),
 			vec![4, 5, 6],
+			vec![],
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task).unwrap();
@@ -92,6 +93,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			Weight::from_ref_time(5_000),
 			Weight::from_ref_time(10_000),
 			InstructionSequence::PayThroughSovereignAccount,
+			vec![],
 		)
 		.unwrap();
 		let task_id = AutomationTime::<T>::schedule_task(&task).unwrap();
@@ -123,6 +125,7 @@ fn schedule_auto_compound_delegated_stake_tasks<T: Config>(
 			frequency,
 			collator,
 			account_minimum,
+			vec![],
 		)
 		.unwrap();
 		AutomationTime::<T>::schedule_task(&task).unwrap();
@@ -316,16 +319,16 @@ benchmarks! {
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
-	}: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, task_id.clone(), &task) }
+	}: { AutomationTime::<T>::run_auto_compound_delegated_stake_task(delegator, collator, account_minimum, &task) }
 
 	run_dynamic_dispatch_action {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let task_id = vec![49, 45, 48, 45, 52];
 		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
-	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call, task_id.clone()) }
-	verify {
-		assert_last_event::<T>(Event::DynamicDispatchResult{ who: caller, task_id: task_id.clone(), result: Ok(()) }.into())
+	}: {
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call);
+		assert_eq!(error, None);
 	}
 
 	run_dynamic_dispatch_action_fail_decode {
@@ -333,9 +336,9 @@ benchmarks! {
 		let task_id = vec![49, 45, 48, 45, 52];
 
 		let bad_encoded_call: Vec<u8> = vec![1];
-	}: { AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call, task_id.clone()) }
-	verify {
-		assert_last_event::<T>(Event::CallCannotBeDecoded{ who: caller, task_id: task_id.clone() }.into())
+	}: {
+		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), bad_encoded_call);
+		assert_eq!(error, Some(DispatchError::from(Error::<T>::CallCannotBeDecoded)));
 	}
 
 	/*
@@ -355,7 +358,7 @@ benchmarks! {
 
 		for i in 0..v {
 			let task_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time.into()], vec![4, 5, 6]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time.into()], vec![4, 5, 6], vec![]).unwrap();
 			AutomationTime::<T>::schedule_task(&task).unwrap();
 			let missed_task = MissedTaskV2Of::<T>::new(caller.clone(), task_id.clone(), time.into());
 			<AccountTasks<T>>::insert(caller.clone(), task_id.clone(), task);
@@ -395,7 +398,7 @@ benchmarks! {
 
 		for i in 0..v {
 			let task_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![execution_time], vec![65, 65.saturating_add(i as u8)]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![execution_time], vec![65, 65.saturating_add(i as u8)], vec![]).unwrap();
 			let task_id = AutomationTime::<T>::schedule_task(&task).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id.clone(), task);
 			task_ids.push((caller.clone(), task_id.clone()))
@@ -442,7 +445,7 @@ benchmarks! {
 			for j in 0..1 {
 				let time = time.saturating_add(3600);
 				let task_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
-				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time.into()], vec![4, 5, 6]).unwrap();
+				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time.into()], vec![4, 5, 6], vec![]).unwrap();
 				AutomationTime::<T>::schedule_task(&task).unwrap();
 				<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			}
@@ -458,7 +461,7 @@ benchmarks! {
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			task_id = increment_task_id(task_id);
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![current_time.into()], vec![4, 5, 6]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![current_time.into()], vec![4, 5, 6], vec![]).unwrap();
 			AutomationTime::<T>::schedule_task(&task).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id.clone(), task);
 		}
