@@ -213,6 +213,7 @@ pub struct Task<AccountId, Balance> {
 	pub task_id: Vec<u8>,
 	pub schedule: Schedule,
 	pub action: Action<AccountId, Balance>,
+	pub abort_errors: Vec<Vec<u8>>,
 }
 
 impl<AccountId: Ord, Balance: Ord> PartialEq for Task<AccountId, Balance> {
@@ -232,8 +233,9 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		task_id: Vec<u8>,
 		schedule: Schedule,
 		action: Action<AccountId, Balance>,
+		abort_errors: Vec<Vec<u8>>,
 	) -> Self {
-		Self { owner_id, task_id, schedule, action }
+		Self { owner_id, task_id, schedule, action, abort_errors }
 	}
 
 	pub fn create_event_task<T: Config>(
@@ -241,12 +243,13 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		task_id: Vec<u8>,
 		execution_times: Vec<UnixTime>,
 		message: Vec<u8>,
+		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
 		let call: <T as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: message }.into();
 		let action = Action::DynamicDispatch { encoded_call: call.encode() };
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, task_id, schedule, action))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn create_xcmp_task<T: Config>(
@@ -260,6 +263,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
 		instruction_sequence: InstructionSequence,
+		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
 		let destination =
 			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
@@ -274,7 +278,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;
-		Ok(Self::new(owner_id, task_id, schedule, action))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn create_auto_compound_delegated_stake_task<T: Config>(
@@ -284,6 +288,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		frequency: Seconds,
 		collator_id: AccountId,
 		account_minimum: Balance,
+		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
 		let action = Action::AutoCompoundDelegatedStake {
 			delegator: owner_id.clone(),
@@ -291,7 +296,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			account_minimum,
 		};
 		let schedule = Schedule::new_recurring_schedule::<T>(next_execution_time, frequency)?;
-		Ok(Self::new(owner_id, task_id, schedule, action))
+		Ok(Self::new(owner_id, task_id, schedule, action, abort_errors))
 	}
 
 	pub fn execution_times(&self) -> Vec<UnixTime> {
@@ -377,6 +382,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				let task_id = vec![48, 45, 48, 45, 48];
@@ -399,6 +405,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				let tasks = (0..MaxTasksPerSlot::get()).fold::<Vec<AccountTaskId<Test>>, _>(
@@ -433,6 +440,7 @@ mod tests {
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],
+					vec![],
 				)
 				.unwrap();
 				// When we schedule a test on the first block, on the first extrinsics and no event
