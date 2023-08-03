@@ -74,7 +74,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 		let mut migrated_tasks = 0u32;
 
 		let mut tasks: Vec<(AccountOf<T>, TaskOf<T>)> = vec![];
-		AccountTasks::<T>::drain().for_each(|(account_id, task_id, task)| {
+		AccountTasks::<T>::drain().for_each(|(account_id, _task_id, task)| {
 			let migrated_task: TaskOf<T> = task.into();
 			tasks.push((account_id, migrated_task));
 			migrated_tasks += 1;

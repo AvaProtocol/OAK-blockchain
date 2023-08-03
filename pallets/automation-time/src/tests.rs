@@ -135,6 +135,12 @@ pub fn assert_has_event(event: RuntimeEvent) {
 	assert!(evts.iter().any(|record| record == &event))
 }
 
+#[allow(dead_code)]
+#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
+pub fn assert_last_event(event: RuntimeEvent) {
+	assert_eq!(events().last().expect("events expected"), &event);
+}
+
 /// Check that events appear in the emitted_events list in order,
 fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>) -> bool {
 	// If the target events list is empty, consider it satisfied as there are no specific order requirements
