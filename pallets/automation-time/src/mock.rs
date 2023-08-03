@@ -275,14 +275,6 @@ impl<
 		Ok(true)
 	}
 
-	fn is_delegation_exist(delegator: &T::AccountId, candidate: &T::AccountId) -> bool {
-		let has_delegator =
-			*delegator == T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap();
-		let has_delegation =
-			*candidate == T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap();
-		has_delegator && has_delegation
-	}
-
 	fn get_delegator_stakable_free_balance(delegator: &T::AccountId) -> BalanceOf<T> {
 		C::free_balance(delegator)
 	}
