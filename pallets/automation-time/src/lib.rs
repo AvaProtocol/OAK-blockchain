@@ -341,7 +341,7 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 			condition: BTreeMap<String, String>,
-			encoded_call: Vec<u8>,
+			encoded_call: Option<Vec<u8>>,
 		},
 		TaskExecuted {
 			who: AccountOf<T>,
@@ -913,9 +913,9 @@ pub mod pallet {
 						condition.insert(String::from("timestamp"), format!("{}", time_slot));
 
 						let encoded_call = match task.action.clone() {
-							Action::XCMP { encoded_call, .. } => encoded_call,
-							Action::DynamicDispatch { encoded_call } => encoded_call,
-							_ => vec![],
+							Action::XCMP { encoded_call, .. } => Some(encoded_call),
+							Action::DynamicDispatch { encoded_call } => Some(encoded_call),
+							_ => None,
 						};
 
 						Self::deposit_event(Event::TaskTriggered {

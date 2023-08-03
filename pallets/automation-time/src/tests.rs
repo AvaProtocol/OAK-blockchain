@@ -376,7 +376,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: call.encode(),
+					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
 					from: account_id.clone(),
@@ -560,7 +560,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: call.encode(),
+					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
@@ -1573,7 +1573,7 @@ fn cancel_works_for_an_executed_task() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
-					encoded_call: call.encode(),
+					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2005,7 +2005,7 @@ fn trigger_tasks_handles_missed_slots() {
 					who: owner.clone(),
 					task_id: task_will_be_run_id.clone(),
 					condition,
-					encoded_call: call.encode(),
+					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
@@ -2093,7 +2093,7 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id: task_id.clone(),
 						condition: condition.clone(),
-						encoded_call: call.encode(),
+						encoded_call: Some(call.encode()),
 					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
@@ -2210,7 +2210,7 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2225,7 +2225,7 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2302,7 +2302,7 @@ fn trigger_tasks_completes_some_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2502,7 +2502,7 @@ fn missed_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -2609,7 +2609,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					who: owner.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call,
+					encoded_call: Some(encoded_call),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
@@ -2670,7 +2670,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 					who: delegator.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::ParachainStaking(
 					pallet_parachain_staking::Event::DelegationIncreased {
@@ -3098,7 +3098,7 @@ fn trigger_tasks_updates_executions_left() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3156,7 +3156,7 @@ fn trigger_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3216,7 +3216,7 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3232,7 +3232,7 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3308,7 +3308,7 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[0].clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3323,7 +3323,7 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[1].clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3348,7 +3348,7 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[2].clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
@@ -3363,7 +3363,7 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[3].clone(),
 					condition: condition.clone(),
-					encoded_call: vec![],
+					encoded_call: None,
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
