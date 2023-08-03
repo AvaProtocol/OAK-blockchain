@@ -202,7 +202,6 @@ mod test {
 	};
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
-	use xcm::latest::prelude::*;
 
 	#[test]
 	fn on_runtime_upgrade() {

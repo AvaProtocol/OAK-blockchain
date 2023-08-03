@@ -1205,8 +1205,6 @@ impl_runtime_apis! {
 			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
-			log::error!("fee_handler.schedule_fee_amount: {:?}", fee_handler.schedule_fee_amount);
-			log::error!("fee_handler.execution_fee_amount: {:?}", fee_handler.execution_fee_amount);
 			Ok(AutomationFeeDetails {
 				schedule_fee: fee_handler.schedule_fee_amount.into(),
 				execution_fee: fee_handler.execution_fee_amount.into()

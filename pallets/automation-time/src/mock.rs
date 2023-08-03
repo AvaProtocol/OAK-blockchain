@@ -21,15 +21,18 @@ use crate::TaskIdV2;
 
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
-	construct_runtime, parameter_types, traits::Everything, weights::Weight, PalletId,
+	construct_runtime, parameter_types,
+	traits::{ConstU128, ConstU32, Everything},
+	weights::Weight,
+	PalletId,
 };
-use frame_system::{self as system, RawOrigin};
+use frame_system::{self as system, EnsureRoot, RawOrigin};
 use orml_traits::parameter_type_with_key;
 use primitives::EnsureProxy;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
-	traits::{AccountIdConversion, BlakeTwo256, CheckedSub, Convert, IdentityLookup},
+	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
 	AccountId32, DispatchError, Perbill,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
@@ -46,12 +49,15 @@ pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
 pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
 pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
+pub const COLLATOR_ACCOUNT: [u8; 32] = [5u8; 32];
 
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
 pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
+
+const DOLLAR: u128 = 10_000_000_000;
 
 pub const MOONBASE_ASSET_LOCATION: MultiLocation =
 	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
@@ -94,6 +100,7 @@ construct_runtime!(
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 		Currencies: orml_currencies::{Pallet, Call},
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>},
+		ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>},
 	}
 );
 
@@ -182,6 +189,8 @@ impl orml_currencies::Config for Test {
 pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
+	/// Minimum stake required to become a collator
+	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 
@@ -192,33 +201,84 @@ impl pallet_timestamp::Config for Test {
 	type WeightInfo = ();
 }
 
+impl pallet_parachain_staking::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type MonetaryGovernanceOrigin = EnsureRoot<AccountId>;
+	/// Minimum round length is 2 minutes (10 * 12 second block times)
+	type MinBlocksPerRound = ConstU32<10>;
+	/// Rounds before the collator leaving the candidates request can be executed
+	type LeaveCandidatesDelay = ConstU32<2>;
+	/// Rounds before the candidate bond increase/decrease can be executed
+	type CandidateBondLessDelay = ConstU32<2>;
+	/// Rounds before the delegator exit can be executed
+	type LeaveDelegatorsDelay = ConstU32<2>;
+	/// Rounds before the delegator revocation can be executed
+	type RevokeDelegationDelay = ConstU32<2>;
+	/// Rounds before the delegator bond increase/decrease can be executed
+	type DelegationBondLessDelay = ConstU32<2>;
+	/// Rounds before the reward is paid
+	type RewardPaymentDelay = ConstU32<2>;
+	/// Minimum collators selected per round, default at genesis and minimum forever after
+	type MinSelectedCandidates = ConstU32<5>;
+	/// Maximum top delegations per candidate
+	type MaxTopDelegationsPerCandidate = ConstU32<10>;
+	/// Maximum bottom delegations per candidate
+	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	/// Maximum delegations per delegator
+	type MaxDelegationsPerDelegator = ConstU32<10>;
+	type MinCollatorStk = MinCollatorStk;
+	/// Minimum stake required to be reserved to be a candidate
+	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
+	/// Minimum delegation amount after initial
+	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
+	/// Minimum initial stake required to be reserved to be a delegator
+	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+	/// Handler to notify the runtime when a collator is paid
+	type OnCollatorPayout = ();
+	type PayoutCollatorReward = ();
+	/// Handler to notify the runtime when a new round begins
+	type OnNewRound = ();
+	/// Any additional issuance that should be used for inflation calcs
+	type AdditionalIssuance = ();
+	type WeightInfo = pallet_parachain_staking::weights::SubstrateWeight<Test>;
+}
+
 pub struct MockDelegatorActions<T, C>(PhantomData<(T, C)>);
 impl<
-		T: Config + pallet::Config<Currency = C>,
+		T: Config + pallet::Config<Currency = C> + pallet_parachain_staking::Config,
 		C: frame_support::traits::ReservableCurrency<T::AccountId>,
 	> pallet_parachain_staking::DelegatorActions<T::AccountId, BalanceOf<T>>
 	for MockDelegatorActions<T, C>
 {
 	fn delegator_bond_more(
 		delegator: &T::AccountId,
-		_: &T::AccountId,
+		candidate: &T::AccountId,
 		amount: BalanceOf<T>,
 	) -> Result<bool, DispatchError> {
+		if *delegator != T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap() {
+			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into())
+		}
+
+		if *candidate != T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap() {
+			return Err(<pallet_parachain_staking::Error<T>>::DelegationDNE.into())
+		}
+
 		let delegation: u128 = amount.saturated_into();
 		C::reserve(delegator, delegation.saturated_into())?;
+		System::deposit_event(pallet_parachain_staking::Event::DelegationIncreased {
+			delegator: AccountId::from(DELEGATOR_ACCOUNT),
+			candidate: AccountId::from(COLLATOR_ACCOUNT),
+			amount: delegation,
+			in_top: true,
+		});
 		Ok(true)
 	}
-	fn delegator_bond_till_minimum(
-		delegator: &T::AccountId,
-		_: &T::AccountId,
-		account_minimum: BalanceOf<T>,
-	) -> Result<BalanceOf<T>, DispatchErrorWithPostInfo> {
-		let delegation = C::free_balance(&delegator)
-			.checked_sub(&account_minimum)
-			.ok_or(Error::<T>::InsufficientBalance)?;
-		C::reserve(delegator, delegation)?;
-		Ok(delegation)
+
+	fn get_delegator_stakable_free_balance(delegator: &T::AccountId) -> BalanceOf<T> {
+		C::free_balance(delegator)
 	}
+
 	#[cfg(feature = "runtime-benchmarks")]
 	fn setup_delegator(_: &T::AccountId, _: &T::AccountId) -> DispatchResultWithPostInfo {
 		Ok(().into())
@@ -481,17 +541,29 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 // We don't focus on making sure the execution run properly. We just focus on
 // making sure a task is scheduled into the queue
 pub fn schedule_task(owner: [u8; 32], scheduled_times: Vec<u64>, message: Vec<u8>) -> TaskIdV2 {
-	let account_id = AccountId32::new(owner);
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
+	let task_id = schedule_dynamic_dispatch_task(owner, scheduled_times, call);
+	task_id
+}
 
-	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.encode()));
+pub fn schedule_dynamic_dispatch_task(
+	owner: [u8; 32],
+	scheduled_times: Vec<u64>,
+	call: RuntimeCall,
+) -> TaskIdV2 {
+	let account_id = AccountId32::new(owner);
+
+	assert_ok!(fund_account_dynamic_dispatch(
+		&account_id,
+		scheduled_times.len(),
+		call.clone().encode()
+	));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 		RuntimeOrigin::signed(account_id.clone()),
 		ScheduleParam::Fixed { execution_times: scheduled_times },
-		Box::new(call),
+		Box::new(call.clone()),
 	));
-
 	last_task_id()
 }
 
@@ -522,9 +594,10 @@ pub fn add_task_to_task_queue(
 	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
+	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times).unwrap();
-	add_to_task_queue(owner, task_id, schedule, action)
+	add_to_task_queue(owner, task_id, schedule, action, abort_errors)
 }
 
 pub fn add_recurring_task_to_task_queue(
@@ -533,9 +606,10 @@ pub fn add_recurring_task_to_task_queue(
 	scheduled_time: u64,
 	frequency: u64,
 	action: ActionOf<Test>,
+	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_recurring_schedule::<Test>(scheduled_time, frequency).unwrap();
-	add_to_task_queue(owner, task_id, schedule, action)
+	add_to_task_queue(owner, task_id, schedule, action, abort_errors)
 }
 
 pub fn add_to_task_queue(
@@ -543,8 +617,9 @@ pub fn add_to_task_queue(
 	task_id: TaskIdV2,
 	schedule: Schedule,
 	action: ActionOf<Test>,
+	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
-	let task_id = create_task(owner, task_id, schedule, action);
+	let task_id = create_task(owner, task_id, schedule, action, abort_errors);
 	let mut task_queue = AutomationTime::get_task_queue();
 	task_queue.push((AccountId32::new(owner), task_id.clone()));
 	TaskQueueV2::<Test>::put(task_queue);
@@ -556,9 +631,10 @@ pub fn add_task_to_missed_queue(
 	task_id: TaskIdV2,
 	scheduled_times: Vec<u64>,
 	action: ActionOf<Test>,
+	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
-	let task_id = create_task(owner, task_id.clone(), schedule, action);
+	let task_id = create_task(owner, task_id.clone(), schedule, action, abort_errors);
 	let missed_task =
 		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id.clone(), scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
@@ -572,14 +648,16 @@ pub fn create_task(
 	task_id: TaskIdV2,
 	schedule: Schedule,
 	action: ActionOf<Test>,
+	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
-	let task = TaskOf::<Test>::new(owner.into(), task_id.clone(), schedule, action);
+	let task = TaskOf::<Test>::new(owner.into(), task_id.clone(), schedule, action, abort_errors);
 	AccountTasks::<Test>::insert(AccountId::new(owner), task_id.clone(), task);
 	task_id
 }
 
 pub fn events() -> Vec<RuntimeEvent> {
-	let evt = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+	let events = System::events();
+	let evt = events.into_iter().map(|evt| evt.event).collect::<Vec<_>>();
 
 	System::reset_events();
 
