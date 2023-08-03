@@ -5,7 +5,11 @@ use crate::{
 };
 #[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
-use frame_support::{traits::OnRuntimeUpgrade, weights::Weight, Twox64Concat};
+use frame_support::{
+	traits::{Get, OnRuntimeUpgrade},
+	weights::{RuntimeDbWeight, Weight},
+	Twox64Concat,
+};
 use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
@@ -72,7 +76,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 	fn on_runtime_upgrade() -> Weight {
 		log::info!(target: "automation-time", "UpdateXcmpTask migration");
 
-		let mut migrated_tasks = 0u32;
+		let mut migrated_tasks = 0u64;
 
 		let mut tasks: Vec<(AccountOf<T>, TaskOf<T>)> = vec![];
 		AccountTasks::<T>::drain().for_each(|(account_id, _task_id, task)| {
@@ -91,7 +95,8 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 			migrated_tasks
 		);
 
-		<T as Config>::WeightInfo::migration_upgrade_xcmp_task(migrated_tasks)
+		let db_weight: RuntimeDbWeight = T::DbWeight::get();
+		db_weight.reads_writes(migrated_tasks + 1, migrated_tasks + 1)
 	}
 
 	#[cfg(feature = "try-runtime")]
