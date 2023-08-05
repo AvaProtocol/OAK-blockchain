@@ -110,6 +110,8 @@ We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Mangata
 5. Cd into OAK-blockchain folder, `cd ../../OAK-blockchain`.
 6. Spawn zombienet with our config file, `zombienet spawn zombienets/turing/mangata.toml`.
 
+> Note that if you encounter issue with the above source code build approach and running it on MacOS, try to download the `zombienet-macos` binary from its Release page and run `./zombienet-macos spawn zombienets/turing/mangata.toml`.
+
 The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Mangata node, and set up an HRMP channel between the parachains.
 
 ## Slo-mo - manually run local networks
