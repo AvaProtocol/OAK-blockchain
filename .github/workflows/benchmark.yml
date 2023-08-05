@@ -2,12 +2,30 @@ name: Benchmark
 
 on:
   workflow_dispatch:
+    inputs:
+      pallet:
+        description: provided a list of pallet to run benchmark on
+        default: 'automation_time,vesting,valve,xcmp_handler'
+        required: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  gen-params:
+    runs-on: ubuntu-latest
+    outputs:
+      pallet: ${{ steps.set-matrix.outputs.pallet }}
+    steps:
+      - id: set-matrix
+        run: |
+          # Matrix only take a list so we use fromJSON to convert raw json string data to list
+          # The input is from Github action input, which doesn't support list so we take raw string separate by ','
+          # Convert the string a,b,c -> a json array ["a", "b", "c"] with bracket and double quote properly
+          echo "pallet=$(echo -n ${{ inputs.pallet }} | jq --raw-input --slurp 'split(",")' -c)" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+
   build-binary:
     runs-on: self-hosted
     steps:
@@ -28,17 +46,15 @@ jobs:
           name: oak-collator
           path: artifacts/
           retention-days: 1
+
   run-benchmarks:
     name: Run Benchmarks
     runs-on: self-hosted
-    needs: build-binary
+    needs: [gen-params, build-binary]
     strategy:
       matrix:
-        pallet:
-          - automation_time
-          - vesting
-          - valve
-          - xcmp_handler
+         pallet: ${{ fromJSON(needs.gen-params.outputs.pallet) }}
+
     steps:
       - name: Download binary
         uses: actions/download-artifact@v2

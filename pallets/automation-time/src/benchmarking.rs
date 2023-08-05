@@ -215,16 +215,14 @@ benchmarks! {
 
 		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
+
+		let initial_event_count = frame_system::Pallet::<T>::event_count() as u8;
 	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call))
 	verify {
 		{
-			let length = frame_system::Pallet::<T>::events().len() as u8;
-			// Our task id will be in this format: 1-0-[event-index]
-			//   1 -> block number(we run in first block)
-			//   0 -> extrinsic index
-			// Because there is the event itself and we count from 0, so the event index of final
-			// one will be : total - 2 + (ascii of 0)
-			assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: vec![49, 45, 48, 45, 48 + length-2],   }.into())
+			//panic!("events count: {:?} final {:?} data:{:?}", initial_event_count, frame_system::Pallet::<T>::event_count(), frame_system::Pallet::<T>::events());
+			// the task id schedule on first block, first extrinsics, but depend on which path in unitest or in benchmark the initial_event_count might be different therefore we get it from the initial state
+			assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(),   }.into())
 		}
 	}
 
@@ -246,10 +244,11 @@ benchmarks! {
 
 		// Almost fill up all time slots
 		schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
+		let initial_event_count = frame_system::Pallet::<T>::event_count() as u8;
 	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call))
 	verify {
-		let length = frame_system::Pallet::<T>::events().len() as u8;
-		assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: vec![49, 45, 48, 45, 48 + length-2],   }.into())
+		// the task id schedule on first block, first extrinsics, but depend on which path in unitest or in benchmark the initial_event_count might be different therefore we get it from the initial state
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(),   }.into())
 	}
 
 	cancel_scheduled_task_full {
