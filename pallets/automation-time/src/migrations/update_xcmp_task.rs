@@ -19,7 +19,7 @@ use crate::migrations::utils::{
 	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
-const EXECUTION_FEE_AMOUNT: u128 = 3_000_000_000;
+const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
 
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
