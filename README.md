@@ -99,7 +99,7 @@ The binary file is located at ./target/release/mangata-node.
 We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Mangata node in [zombienets/turing/mangata.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/zombienets/turing/mangata.toml), so the easiest way to spin up a local network is through below steps.
 
 1. Clone and build source of [Zombienet]
-   1. `git clone https://github.com/paritytech/zombienet.git`
+   1. `git clone https://github.com/paritytech/zombienet.git`. It’s recommended to check out a stable release version instead of using the code on master branch. For example, the latest stable version tested is [v1.3.63](https://github.com/paritytech/zombienet/releases/tag/v1.3.63), and you sync to the tip of by calling `git fetch --tags && git checkout v1.3.63`.
    1. `cd zombienet/javascript`
    1. Make sure your node version is compatible with that in [javascript/package.json](https://github.com/paritytech/zombienet/blob/main/javascript/package.json), for example `"node": ">=16"`.
    1. `npm install`
@@ -109,6 +109,8 @@ We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Mangata
 4. Run `source ~/.bash_profile`. This will load the new ~/.bash_profile.
 5. Cd into OAK-blockchain folder, `cd ../../OAK-blockchain`.
 6. Spawn zombienet with our config file, `zombienet spawn zombienets/turing/mangata.toml`.
+
+> Note that if you encounter issue with the above source code build approach and running it on MacOS, try to download the `zombienet-macos` binary from its Release page and run `./zombienet-macos spawn zombienets/turing/mangata.toml`.
 
 The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Mangata node, and set up an HRMP channel between the parachains.
 

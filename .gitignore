@@ -16,3 +16,6 @@
 # Parachain registration files
 genesis-state
 genesis-wasm
+
+# zombienet binary for MacOS to run scripts in the ./zombienets folder
+zombienet-macos
