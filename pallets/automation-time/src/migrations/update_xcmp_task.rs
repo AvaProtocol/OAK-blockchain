@@ -19,6 +19,8 @@ use crate::migrations::utils::{
 	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
+use pallet_balances;
+
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
 
@@ -27,9 +29,17 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 		match action {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
-			OldAction::Notify { message } => Self::Notify { message },
-			OldAction::NativeTransfer { sender, recipient, amount } =>
-				Self::NativeTransfer { sender, recipient, amount },
+			OldAction::Notify { message } => {
+                let call = frame_system::Call::<T>::remark_with_event { remark: vec![50] };
+                Self::DynamicDispatch { encoded_call: call.encode() }
+            },
+			OldAction::NativeTransfer { sender, recipient, amount } => {
+                let call = pallet_balances::Call::<T>::transfer {
+                    dest: recipient,
+                    value: amount,
+                };
+               Self::DynamicDispatch { encoded_call: call.encode(), }
+            },
 			OldAction::XCMP {
 				para_id,
 				currency_id,
