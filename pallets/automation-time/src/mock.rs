@@ -33,8 +33,7 @@ use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
-	AccountId32, DispatchError, Perbill,
-	MultiAddress,
+	AccountId32, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 use xcm::latest::prelude::*;
@@ -497,15 +496,18 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 }
 
 pub struct MockTransferCallCreator;
-impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall> for MockTransferCallCreator {
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
+	for MockTransferCallCreator
+{
 	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
 		// let dest: AccountId32 = <sp_runtime::MultiAddress<sp_runtime::AccountId32, u32> as sp_runtime::traits::Convert>::convert(dest);
 		let account_id = match dest {
 			MultiAddress::Id(i) => Some(i),
 			_ => None,
 		};
-		
-		let call: RuntimeCall = pallet_balances::Call::transfer { dest: account_id.unwrap(), value }.into();
+
+		let call: RuntimeCall =
+			pallet_balances::Call::transfer { dest: account_id.unwrap(), value }.into();
 		call
 	}
 }

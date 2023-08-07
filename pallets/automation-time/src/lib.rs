@@ -51,7 +51,7 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
-use cumulus_primitives_core::{ParaId, relay_chain::AccountIndex};
+use cumulus_primitives_core::{relay_chain::AccountIndex, ParaId};
 use frame_support::{
 	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
@@ -73,8 +73,7 @@ use primitives::EnsureProxy;
 use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
-	ArithmeticError, DispatchError, Perbill,
-	MultiAddress,
+	ArithmeticError, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -105,9 +104,7 @@ pub mod pallet {
 	>>::CurrencyId;
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_timestamp::Config
-	{
+	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
@@ -196,7 +193,11 @@ pub mod pallet {
 		//The paraId of this chain.
 		type SelfParaId: Get<ParaId>;
 
-		type TransferCallCreator: primitives::TransferCallCreator<MultiAddress<Self::AccountId, ()>, BalanceOf<Self>, <Self as frame_system::Config>::RuntimeCall>; 
+		type TransferCallCreator: primitives::TransferCallCreator<
+			MultiAddress<Self::AccountId, ()>,
+			BalanceOf<Self>,
+			<Self as frame_system::Config>::RuntimeCall,
+		>;
 	}
 
 	#[pallet::pallet]

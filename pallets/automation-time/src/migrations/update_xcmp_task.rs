@@ -37,7 +37,11 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 				Self::DynamicDispatch { encoded_call: call.encode() }
 			},
 			OldAction::NativeTransfer { recipient, amount, .. } => {
-				let call: <T as frame_system::Config>::RuntimeCall = T::TransferCallCreator::create_transfer_call(sp_runtime::MultiAddress::Id(recipient), amount);
+				let call: <T as frame_system::Config>::RuntimeCall =
+					T::TransferCallCreator::create_transfer_call(
+						sp_runtime::MultiAddress::Id(recipient),
+						amount,
+					);
 				Self::DynamicDispatch { encoded_call: call.encode() }
 			},
 			OldAction::XCMP {

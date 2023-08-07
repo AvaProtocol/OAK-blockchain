@@ -36,7 +36,7 @@ use sp_runtime::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Zero,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug, MultiAddress,
+	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
@@ -902,7 +902,9 @@ impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 }
 
 pub struct AnimationTransferCallCreator;
-impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall> for AnimationTransferCallCreator {
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
+	for AnimationTransferCallCreator
+{
 	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
 		let call: RuntimeCall = pallet_balances::Call::transfer { dest, value }.into();
 		call
