@@ -178,7 +178,8 @@ mod tests {
 			get_funds(alice.clone());
 			let starting_funds = Balances::free_balance(alice.clone());
 
-            let call: <Test as frame_system::Config>::RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 			let mut spy = 0;
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
@@ -199,7 +200,8 @@ mod tests {
 	fn errors_when_not_enough_funds_for_fee() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
-            let call: <Test as frame_system::Config>::RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
 				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
@@ -217,7 +219,8 @@ mod tests {
 			get_funds(alice.clone());
 
 			let starting_funds = Balances::free_balance(alice.clone());
-            let call: <Test as frame_system::Config>::RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for::<(), _>(
 				&alice,
