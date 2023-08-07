@@ -29,6 +29,9 @@ use sp_std::marker::PhantomData;
 use xcm::latest::prelude::*;
 use xcm_builder::TakeRevenue;
 
+//use parity_scale_codec::Encode;
+use codec::Encode;
+
 /// Handle execution fee payments in the context of automation actions
 pub trait HandleFees<T: Config> {
 	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
@@ -172,12 +175,15 @@ mod tests {
 	fn pay_checked_fees_for_success() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
-			get_funds(alice.clone());
+			fund_account(&alice.clone(), 900_000_000, 1, Some(0));
 			let starting_funds = Balances::free_balance(alice.clone());
+
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 			let mut spy = 0;
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
-				&Action::Notify { message: vec![0] },
+				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
 				1,
 				|| {
 					spy += 1;
@@ -194,9 +200,11 @@ mod tests {
 	fn errors_when_not_enough_funds_for_fee() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
-				&Action::Notify { message: vec![0] },
+				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
 				1,
 				|| Ok(()),
 			);
@@ -208,11 +216,15 @@ mod tests {
 	fn does_not_charge_fees_when_prereq_errors() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
-			get_funds(alice.clone());
+			fund_account(&alice.clone(), 900_000_000, 1, Some(0));
+
 			let starting_funds = Balances::free_balance(alice.clone());
+			let call: <Test as frame_system::Config>::RuntimeCall =
+				frame_system::Call::remark_with_event { remark: vec![50] }.into();
+
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for::<(), _>(
 				&alice,
-				&Action::Notify { message: vec![0] },
+				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
 				1,
 				|| Err("error".into()),
 			);

@@ -65,6 +65,7 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
+use pallet_balances;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
@@ -104,7 +105,9 @@ pub mod pallet {
 	>>::CurrencyId;
 
 	#[pallet::config]
-	pub trait Config: frame_system::Config + pallet_timestamp::Config {
+	pub trait Config:
+		frame_system::Config + pallet_timestamp::Config + pallet_balances::Config
+	{
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
@@ -282,17 +285,9 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 		},
-		/// Notify event for the task.
-		Notify {
-			message: Vec<u8>,
-		},
 		/// A Task was not found.
 		TaskNotFound {
 			who: AccountOf<T>,
-			task_id: TaskIdV2,
-		},
-		/// Successfully transferred funds
-		SuccessfullyTransferredFunds {
 			task_id: TaskIdV2,
 		},
 		/// Failed to send XCMP
@@ -926,14 +921,6 @@ pub mod pallet {
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
-							Action::Notify { message } => Self::run_notify_task(message),
-							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
 							Action::XCMP {
 								destination,
 								execution_fee,
@@ -1054,36 +1041,6 @@ pub mod pallet {
 				return (vec![], weight_left)
 			} else {
 				return (missed_tasks.split_off(consumed_task_index), weight_left)
-			}
-		}
-
-		/// Fire the notify event with the custom message.
-		pub fn run_notify_task(message: Vec<u8>) -> (Weight, Option<DispatchError>) {
-			Self::deposit_event(Event::Notify { message });
-
-			(<T as Config>::WeightInfo::run_notify_task(), None)
-		}
-
-		pub fn run_native_transfer_task(
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-			task_id: TaskIdV2,
-		) -> (Weight, Option<DispatchError>) {
-			match T::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
-				Ok(_number) => {
-					Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id });
-					(<T as Config>::WeightInfo::run_native_transfer_task(), None)
-				},
-				Err(e) => {
-					Self::deposit_event(Event::TransferFailed { task_id, error: e });
-					(<T as Config>::WeightInfo::run_native_transfer_task(), Some(e))
-				},
 			}
 		}
 

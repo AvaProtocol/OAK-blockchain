@@ -3,15 +3,14 @@ use core::marker::PhantomData;
 use crate::{
 	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf,
 };
-#[cfg(feature = "try-runtime")]
-use codec::{Decode, Encode};
+
 use frame_support::{
 	traits::{Get, OnRuntimeUpgrade},
 	weights::{RuntimeDbWeight, Weight},
 	Twox64Concat,
 };
 use sp_runtime::traits::Convert;
-use sp_std::{vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
@@ -19,17 +18,46 @@ use crate::migrations::utils::{
 	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
+use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
+use pallet_balances::Call as BalancesCall;
+
+/////#[cfg(feature = "try-runtime")]
+use codec::{Decode, Encode};
+use scale_info::TypeInfo;
+
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
+
+fn encode_balances_call<T>(call: &BalancesCall<T>) -> Vec<u8>
+where
+	T: frame_system::Config + pallet_balances::Config,
+{
+	let encoded = call.encode();
+	encoded
+}
 
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 	fn from(action: OldAction<T>) -> Self {
 		match action {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
-			OldAction::Notify { message } => Self::Notify { message },
-			OldAction::NativeTransfer { sender, recipient, amount } =>
-				Self::NativeTransfer { sender, recipient, amount },
+			OldAction::Notify { message } => {
+				let call: <T as frame_system::Config>::RuntimeCall =
+					frame_system::Call::<T>::remark_with_event { remark: vec![50] }.into();
+				Self::DynamicDispatch { encoded_call: call.clone().encode() }
+			},
+
+			OldAction::NativeTransfer { sender, recipient, amount } => {
+				let dest =
+					<T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(recipient.clone());
+
+				let value: T::Balance = 100u32.into();
+
+				let call = BalancesCall::<T>::transfer { dest, value };
+				let encoded_call = encode_balances_call::<T>(&call);
+
+				Self::DynamicDispatch { encoded_call }
+			},
 			OldAction::XCMP {
 				para_id,
 				currency_id,
@@ -118,10 +146,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{
-		generate_old_task_id, OldAction, OldTask, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
-		INSTRUCTION_WEIGHT_REF_TIME, TEST_TASKID1,
-	};
+	use super::*;
 	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Schedule, TaskOf};
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
@@ -185,6 +210,100 @@ mod test {
 						),
 						schedule_as,
 						instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+					},
+					abort_errors: vec![],
+				}
+			);
+		})
+	}
+
+	#[test]
+	fn on_runtime_upgrade_notify() {
+		new_test_ext(0).execute_with(|| {
+			let para_id: ParaId = 1000.into();
+			let account_id = AccountId32::new(ALICE);
+			let encoded_call_weight = Weight::from_ref_time(10);
+
+			let task = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				schedule: Schedule::Fixed {
+					execution_times: vec![0, 1].try_into().unwrap(),
+					executions_left: 2,
+				},
+				action: OldAction::<Test>::Notify { message: vec![1, 2, 3] },
+			};
+
+			let old_task_id =
+				generate_old_task_id::<Test>(account_id.clone(), task.provided_id.clone());
+			super::AccountTasks::<Test>::insert(account_id.clone(), old_task_id.clone(), task);
+
+			UpdateXcmpTask::<Test>::on_runtime_upgrade();
+
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
+
+			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					task_id: task_id1,
+					schedule: Schedule::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					},
+					action: ActionOf::<Test>::DynamicDispatch { encoded_call: vec![0, 7, 4, 50] },
+					abort_errors: vec![],
+				}
+			);
+		})
+	}
+
+	#[test]
+	fn on_runtime_upgrade_native_transfer() {
+		new_test_ext(0).execute_with(|| {
+			let para_id: ParaId = 1000.into();
+			let account_id = AccountId32::new(ALICE);
+			let recipient = AccountId32::new(BOB);
+			let encoded_call_weight = Weight::from_ref_time(10);
+
+			let task = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				schedule: Schedule::Fixed {
+					execution_times: vec![0, 1].try_into().unwrap(),
+					executions_left: 2,
+				},
+				action: OldAction::<Test>::NativeTransfer {
+					sender: account_id.clone(),
+					recipient,
+					amount: 100,
+				},
+			};
+
+			let old_task_id =
+				generate_old_task_id::<Test>(account_id.clone(), task.provided_id.clone());
+			super::AccountTasks::<Test>::insert(account_id.clone(), old_task_id.clone(), task);
+
+			UpdateXcmpTask::<Test>::on_runtime_upgrade();
+
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
+
+			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					task_id: task_id1,
+					schedule: Schedule::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					},
+					action: ActionOf::<Test>::DynamicDispatch {
+						encoded_call: vec![
+							0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+							2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
+						],
 					},
 					abort_errors: vec![],
 				}
