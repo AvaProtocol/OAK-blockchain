@@ -19,44 +19,33 @@ use crate::migrations::utils::{
 };
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
-use pallet_balances::Call as BalancesCall;
 
-/////#[cfg(feature = "try-runtime")]
+//#[cfg(feature = "try-runtime")]
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
 
-fn encode_balances_call<T>(call: &BalancesCall<T>) -> Vec<u8>
-where
-	T: frame_system::Config + pallet_balances::Config,
-{
-	let encoded = call.encode();
-	encoded
-}
-
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 	fn from(action: OldAction<T>) -> Self {
+		use codec::{Decode, Encode};
+		use primitives::TransferCallCreator;
 		match action {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
 			OldAction::Notify { message } => {
 				let call: <T as frame_system::Config>::RuntimeCall =
-					frame_system::Call::<T>::remark_with_event { remark: vec![50] }.into();
-				Self::DynamicDispatch { encoded_call: call.clone().encode() }
+					frame_system::Call::<T>::remark_with_event { remark: message }.into();
+				Self::DynamicDispatch { encoded_call: call.encode() }
 			},
-
-			OldAction::NativeTransfer { sender, recipient, amount } => {
-				let dest =
-					<T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(recipient.clone());
-
-				let value: T::Balance = 100u32.into();
-
-				let call = BalancesCall::<T>::transfer { dest, value };
-				let encoded_call = encode_balances_call::<T>(&call);
-
-				Self::DynamicDispatch { encoded_call }
+			OldAction::NativeTransfer { recipient, amount, .. } => {
+				let call: <T as frame_system::Config>::RuntimeCall =
+					T::TransferCallCreator::create_transfer_call(
+						sp_runtime::MultiAddress::Id(recipient),
+						amount,
+					);
+				Self::DynamicDispatch { encoded_call: call.encode() }
 			},
 			OldAction::XCMP {
 				para_id,
@@ -252,7 +241,7 @@ mod test {
 						execution_times: vec![0, 1].try_into().unwrap(),
 						executions_left: 2
 					},
-					action: ActionOf::<Test>::DynamicDispatch { encoded_call: vec![0, 7, 4, 50] },
+					action: ActionOf::<Test>::DynamicDispatch { encoded_call: vec![0, 7, 12, 1, 2, 3] },
 					abort_errors: vec![],
 				}
 			);
@@ -301,8 +290,7 @@ mod test {
 					},
 					action: ActionOf::<Test>::DynamicDispatch {
 						encoded_call: vec![
-							0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-							2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
+                            2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
 						],
 					},
 					abort_errors: vec![],

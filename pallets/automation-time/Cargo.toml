@@ -70,6 +70,7 @@ rand = { version = "0.7.3" }
 serde = { version = "1.0.144" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 
+pallet-balances = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.38" }
 pallet-xcm = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.38" }
 xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.38" }
 

@@ -51,11 +51,11 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
-use cumulus_primitives_core::ParaId;
+use cumulus_primitives_core::{relay_chain::AccountIndex, ParaId};
 use frame_support::{
 	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::traits::CheckedSub,
+	sp_runtime::traits::{CheckedSub, StaticLookup},
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
@@ -74,7 +74,7 @@ use primitives::EnsureProxy;
 use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
-	ArithmeticError, DispatchError, Perbill,
+	ArithmeticError, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -195,6 +195,12 @@ pub mod pallet {
 
 		//The paraId of this chain.
 		type SelfParaId: Get<ParaId>;
+
+		type TransferCallCreator: primitives::TransferCallCreator<
+			MultiAddress<Self::AccountId, ()>,
+			BalanceOf<Self>,
+			<Self as frame_system::Config>::RuntimeCall,
+		>;
 	}
 
 	#[pallet::pallet]

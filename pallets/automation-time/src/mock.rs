@@ -28,12 +28,12 @@ use frame_support::{
 };
 use frame_system::{self as system, EnsureRoot, RawOrigin};
 use orml_traits::parameter_type_with_key;
-use primitives::EnsureProxy;
+use primitives::{EnsureProxy, TransferCallCreator};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
-	AccountId32, DispatchError, Perbill,
+	AccountId32, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 use xcm::latest::prelude::*;
@@ -495,6 +495,23 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 	}
 }
 
+pub struct MockTransferCallCreator;
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
+	for MockTransferCallCreator
+{
+	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
+		// let dest: AccountId32 = <sp_runtime::MultiAddress<sp_runtime::AccountId32, u32> as sp_runtime::traits::Convert>::convert(dest);
+		let account_id = match dest {
+			MultiAddress::Id(i) => Some(i),
+			_ => None,
+		};
+
+		let call: RuntimeCall =
+			pallet_balances::Call::transfer { dest: account_id.unwrap(), value }.into();
+		call
+	}
+}
+
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 	// The universal location within the global consensus system
@@ -526,6 +543,7 @@ impl pallet_automation_time::Config for Test {
 	type EnsureProxy = MockEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Test>;
+	type TransferCallCreator = MockTransferCallCreator;
 }
 
 // Build genesis storage according to the mock runtime.
