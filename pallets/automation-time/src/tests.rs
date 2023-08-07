@@ -1882,7 +1882,6 @@ mod run_dynamic_dispatch_action {
 }
 
 // Weights to use for tests below
-// 20_000: run scheduled task (run_notify_task, run_native_transfer_task)
 // 10_000v: run per missed task (run_missed_tasks_many_found)
 // 10_000v: run per task not found in map (run_missed_tasks_many_missing, run_tasks_many_missing)
 // 50_000v: weight check for running 1 more task, current static v=1 (run_tasks_many_found)

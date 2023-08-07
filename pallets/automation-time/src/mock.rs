@@ -341,13 +341,6 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
-	fn schedule_notify_task_empty() -> Weight {
-		Weight::zero()
-	}
-	fn schedule_notify_task_full(_v: u32) -> Weight {
-		Weight::zero()
-	}
-
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		Weight::zero()
 	}
@@ -368,12 +361,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn force_cancel_scheduled_task_full() -> Weight {
 		Weight::zero()
-	}
-	fn run_notify_task() -> Weight {
-		Weight::from_ref_time(20_000)
-	}
-	fn run_native_transfer_task() -> Weight {
-		Weight::from_ref_time(20_000)
 	}
 	fn run_xcmp_task() -> Weight {
 		Weight::from_ref_time(20_000)
@@ -410,9 +397,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(900_000)
-	}
-	fn migration_upgrade_xcmp_task(_: u32) -> Weight {
-		Weight::zero()
 	}
 }
 
@@ -712,14 +696,15 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
