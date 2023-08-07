@@ -6,33 +6,37 @@ timeout = 1000
 default_command = "../polkadot/target/release/polkadot"
 chain = "rococo-local"
 
-[[relaychain.nodes]]
-name = "alice"
+    [[relaychain.nodes]]
+    name = "alice"
+    ws_port = 60613
+    rpc_port = 8850
 
-[[relaychain.nodes]]
-name = "bob"
+    [[relaychain.nodes]]
+    name = "bob"
+    ws_port = 60614
+    rpc_port = 8851
 
 [[parachains]]
 id = 2114
 cumulus_based = true
 chain = "turing-dev"
 
-[parachains.collator]
-name = "turing-col-1"
-command = "./target/release/oak-collator"
-ws_port = 9946
-rpc_port = 8855
+    [parachains.collator]
+    name = "turing-col-1"
+    command = "./target/release/oak-collator"
+    ws_port = 9946
+    rpc_port = 8855
 
 [[parachains]]
 id = 2110
 cumulus_based = true
 chain = "rococo-local"
 
-[parachains.collator]
-name = "mangata-col-1"
-command = "../mangata-node/target/release/mangata-node"
-ws_port = 9947
-rpc_port = 8866
+    [parachains.collator]
+    name = "mangata-col-1"
+    command = "../mangata-node/target/release/mangata-node"
+    ws_port = 9947
+    rpc_port = 8866
 
 [[hrmp_channels]]
 sender = 2114
