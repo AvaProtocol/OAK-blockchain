@@ -67,3 +67,7 @@ pub type Block = generic::Block<Header, UncheckedExtrinsic>;
 pub trait EnsureProxy<AccountId> {
 	fn ensure_ok(delegator: AccountId, delegatee: AccountId) -> Result<(), &'static str>;
 }
+
+pub trait TransferCallCreator<AccountId, Balance, RuntimeCall> {
+	fn create_transfer_call(dest: AccountId, value: Balance) -> RuntimeCall;
+}

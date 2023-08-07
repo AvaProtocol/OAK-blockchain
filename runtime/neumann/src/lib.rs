@@ -36,6 +36,7 @@ use sp_runtime::{
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
+	MultiAddress,
 };
 
 use sp_std::{cmp::Ordering, prelude::*};
@@ -106,7 +107,7 @@ pub use pallet_automation_price;
 pub use pallet_automation_time;
 use pallet_xcmp_handler::InstructionSequence;
 
-use primitives::EnsureProxy;
+use primitives::{EnsureProxy, TransferCallCreator};
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -872,6 +873,14 @@ impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 	}
 }
 
+pub struct AnimationTransferCallCreator;
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall> for AnimationTransferCallCreator {
+	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
+		let call: RuntimeCall = pallet_balances::Call::transfer { dest, value }.into();
+		call
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = ConstU32<576>;
@@ -898,6 +907,7 @@ impl pallet_automation_time::Config for Runtime {
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type TransferCallCreator = AnimationTransferCallCreator;
 }
 
 impl pallet_automation_price::Config for Runtime {
