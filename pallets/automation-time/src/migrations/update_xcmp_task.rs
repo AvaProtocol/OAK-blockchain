@@ -241,7 +241,9 @@ mod test {
 						execution_times: vec![0, 1].try_into().unwrap(),
 						executions_left: 2
 					},
-					action: ActionOf::<Test>::DynamicDispatch { encoded_call: vec![0, 7, 12, 1, 2, 3] },
+					action: ActionOf::<Test>::DynamicDispatch {
+						encoded_call: vec![0, 7, 12, 1, 2, 3]
+					},
 					abort_errors: vec![],
 				}
 			);
@@ -290,7 +292,8 @@ mod test {
 					},
 					action: ActionOf::<Test>::DynamicDispatch {
 						encoded_call: vec![
-                            2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
+							2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+							2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
 						],
 					},
 					abort_errors: vec![],
