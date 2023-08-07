@@ -19,7 +19,11 @@ use crate::migrations::utils::{
 	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
-use pallet_balances;
+use pallet_balances::Call as BalancesCall;
+use frame_support::{
+	dispatch::GetDispatchInfo,
+	pallet_prelude::DispatchError,
+};
 
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
@@ -30,15 +34,18 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
 			OldAction::Notify { message } => {
-                let call = frame_system::Call::<T>::remark_with_event { remark: vec![50] };
+                let call: <T as frame_system::Config>::RuntimeCall =
+                    frame_system::Call::<T>::remark_with_event { remark: vec![50] }.into();
                 Self::DynamicDispatch { encoded_call: call.encode() }
             },
 			OldAction::NativeTransfer { sender, recipient, amount } => {
-                let call = pallet_balances::Call::<T>::transfer {
-                    dest: recipient,
+                let dest = <T::Lookup as sp_runtime::traits::StaticLookup>::unlookup(recipient.clone());
+
+		        let call: <T as frame_system::Config>::RuntimeCall = pallet_balances::Call::transfer {
+                    dest,
                     value: amount,
                 };
-               Self::DynamicDispatch { encoded_call: call.encode(), }
+                Self::DynamicDispatch { encoded_call: call.encode() }
             },
 			OldAction::XCMP {
 				para_id,
