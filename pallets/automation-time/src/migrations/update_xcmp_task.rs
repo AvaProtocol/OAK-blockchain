@@ -7,14 +7,13 @@ use frame_support::{
 	Twox64Concat,
 };
 use sp_runtime::traits::Convert;
-use sp_std::{boxed::Box, vec, vec::Vec};
+use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
-	deprecate::generate_old_task_id, OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
+	deprecate::generate_old_task_id, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
-use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
 use primitives::TransferCallCreator;
 
 #[cfg(feature = "try-runtime")]
@@ -93,6 +92,7 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 		let mut tasks: Vec<(AccountOf<T>, TaskOf<T>)> = vec![];
 		AccountTasks::<T>::drain().for_each(|(account_id, _task_id, task)| {
 			let migrated_task: TaskOf<T> = task.into();
+
 			tasks.push((account_id, migrated_task));
 			migrated_tasks += 1;
 		});
@@ -169,7 +169,7 @@ mod test {
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
 
-			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			let task_id1 = hex::decode(TEST_TASKID1).expect("malform hex code for test task id");
 			assert_eq!(
 				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
 				TaskOf::<Test> {
@@ -221,9 +221,7 @@ mod test {
 
 			UpdateXcmpTask::<Test>::on_runtime_upgrade();
 
-			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
-
-			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			let task_id1 = hex::decode(TEST_TASKID1).expect("malform hex code for test task id");
 			assert_eq!(
 				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
 				TaskOf::<Test> {
@@ -280,7 +278,7 @@ mod test {
 
 			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
 
-			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			let task_id1 = hex::decode(TEST_TASKID1).expect("malform hex code for test task id");
 			assert_eq!(
 				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
 				TaskOf::<Test> {

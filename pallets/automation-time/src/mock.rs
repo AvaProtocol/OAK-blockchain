@@ -684,11 +684,8 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 	System::events()
 		.into_iter()
 		.filter_map(|e| match e.event {
-			RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
-				who,
-				schedule_as,
-				task_id,
-			}) => Some(task_id),
+			RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { task_id, .. }) =>
+				Some(task_id),
 			_ => None,
 		})
 		.collect::<Vec<_>>()
