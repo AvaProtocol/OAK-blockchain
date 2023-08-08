@@ -203,7 +203,6 @@ mod test {
 	#[test]
 	fn on_runtime_upgrade_notify() {
 		new_test_ext(0).execute_with(|| {
-			let para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
 
 			let task = OldTask::<Test> {
