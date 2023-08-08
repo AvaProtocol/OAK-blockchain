@@ -11,7 +11,7 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
-	deprecate::{generate_old_task_id, old_taskid_to_idv2},
+	deprecate::{generate_old_task_id},
 	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
@@ -206,7 +206,6 @@ mod test {
 		new_test_ext(0).execute_with(|| {
 			let para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
-			let encoded_call_weight = Weight::from_ref_time(10);
 
 			let task = OldTask::<Test> {
 				owner_id: account_id.clone(),
@@ -260,7 +259,6 @@ mod test {
 			let _para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
 			let recipient = AccountId32::new(BOB);
-			let encoded_call_weight = Weight::from_ref_time(10);
 
 			let task = OldTask::<Test> {
 				owner_id: account_id.clone(),

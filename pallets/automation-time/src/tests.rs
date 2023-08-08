@@ -316,7 +316,6 @@ fn schedule_too_far_out() {
 		]
 		.iter()
 		{
-			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
 			assert_noop!(
 				AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(AccountId32::new(ALICE)),
@@ -408,7 +407,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
-		let task_id = FIRST_TASK_ID.to_vec().clone();
+		let _task_id = FIRST_TASK_ID.to_vec().clone();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
@@ -1234,7 +1233,7 @@ fn schedule_time_slot_full_rolls_back() {
 
 		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 
-		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
+		let _call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 		let task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
