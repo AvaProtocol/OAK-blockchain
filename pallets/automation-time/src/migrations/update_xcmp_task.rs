@@ -215,7 +215,7 @@ mod test {
 					execution_times: vec![0, 1].try_into().unwrap(),
 					executions_left: 2,
 				},
-				action: OldAction::<Test>::Notify { message: vec![1, 2, 3] },
+				action: OldAction::<Test>::Notify { message: "hello world".as_bytes().to_vec() },
 			};
 
 			let old_task_id =
@@ -237,7 +237,14 @@ mod test {
 						executions_left: 2
 					},
 					action: ActionOf::<Test>::DynamicDispatch {
-						encoded_call: vec![0, 7, 12, 1, 2, 3]
+                        // a = [0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
+                        // irb(main):002:0> a.pack("c*").unpack("H*").first
+                        // => "00072c68656c6c6f20776f726c64"
+                        // Take this hex to polkadotjs and decode we will get
+                        //  decoded call: system remarkWithEvent
+                        //  remark: hello world
+                        //  https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fturing-rpc.dwellir.com#/extrinsics/decode/0x00072c68656c6c6f20776f726c64
+						encoded_call: vec![0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
 					},
 					abort_errors: vec![],
 				}
@@ -248,7 +255,7 @@ mod test {
 	#[test]
 	fn on_runtime_upgrade_native_transfer() {
 		new_test_ext(0).execute_with(|| {
-			let para_id: ParaId = 1000.into();
+			let _para_id: ParaId = 1000.into();
 			let account_id = AccountId32::new(ALICE);
 			let recipient = AccountId32::new(BOB);
 			let encoded_call_weight = Weight::from_ref_time(10);
