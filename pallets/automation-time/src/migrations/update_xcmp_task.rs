@@ -237,14 +237,16 @@ mod test {
 						executions_left: 2
 					},
 					action: ActionOf::<Test>::DynamicDispatch {
-                        // a = [0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
-                        // irb(main):002:0> a.pack("c*").unpack("H*").first
-                        // => "00072c68656c6c6f20776f726c64"
-                        // Take this hex to polkadotjs and decode we will get
-                        //  decoded call: system remarkWithEvent
-                        //  remark: hello world
-                        //  https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fturing-rpc.dwellir.com#/extrinsics/decode/0x00072c68656c6c6f20776f726c64
-						encoded_call: vec![0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
+						// a = [0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
+						// irb(main):002:0> a.pack("c*").unpack("H*").first
+						// => "00072c68656c6c6f20776f726c64"
+						// Take this hex to polkadotjs and decode we will get
+						//  decoded call: system remarkWithEvent
+						//  remark: hello world
+						//  https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fturing-rpc.dwellir.com#/extrinsics/decode/0x00072c68656c6c6f20776f726c64
+						encoded_call: vec![
+							0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100
+						]
 					},
 					abort_errors: vec![],
 				}
