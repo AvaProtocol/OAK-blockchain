@@ -60,7 +60,7 @@ use frame_support::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
+	traits::{Contains, Currency, IsSubType, OriginTrait},
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
@@ -73,7 +73,7 @@ use primitives::EnsureProxy;
 use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
 	traits::{CheckedConversion, Convert, Dispatchable, SaturatedConversion, Saturating},
-	ArithmeticError, DispatchError, Perbill,
+	ArithmeticError, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
@@ -192,6 +192,12 @@ pub mod pallet {
 
 		//The paraId of this chain.
 		type SelfParaId: Get<ParaId>;
+
+		type TransferCallCreator: primitives::TransferCallCreator<
+			MultiAddress<Self::AccountId, ()>,
+			BalanceOf<Self>,
+			<Self as frame_system::Config>::RuntimeCall,
+		>;
 	}
 
 	#[pallet::pallet]
@@ -237,8 +243,6 @@ pub mod pallet {
 		PastTime,
 		/// Time cannot be too far in the future.
 		TimeTooFarOut,
-		/// The message cannot be empty.
-		EmptyMessage,
 		/// There can be no duplicate tasks.
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
@@ -247,10 +251,6 @@ pub mod pallet {
 		TaskDoesNotExist,
 		/// Block time not set.
 		BlockTimeNotSet,
-		/// Amount has to be larger than 0.1 OAK.
-		InvalidAmount,
-		/// Sender cannot transfer money to self.
-		TransferToSelf,
 		/// Insufficient balance to pay execution fee.
 		InsufficientBalance,
 		/// Account liquidity restrictions prevent withdrawal.
@@ -282,17 +282,9 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 		},
-		/// Notify event for the task.
-		Notify {
-			message: Vec<u8>,
-		},
 		/// A Task was not found.
 		TaskNotFound {
 			who: AccountOf<T>,
-			task_id: TaskIdV2,
-		},
-		/// Successfully transferred funds
-		SuccessfullyTransferredFunds {
 			task_id: TaskIdV2,
 		},
 		/// Failed to send XCMP
@@ -926,14 +918,6 @@ pub mod pallet {
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
-							Action::Notify { message } => Self::run_notify_task(message),
-							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
 							Action::XCMP {
 								destination,
 								execution_fee,
@@ -1054,36 +1038,6 @@ pub mod pallet {
 				return (vec![], weight_left)
 			} else {
 				return (missed_tasks.split_off(consumed_task_index), weight_left)
-			}
-		}
-
-		/// Fire the notify event with the custom message.
-		pub fn run_notify_task(message: Vec<u8>) -> (Weight, Option<DispatchError>) {
-			Self::deposit_event(Event::Notify { message });
-
-			(<T as Config>::WeightInfo::run_notify_task(), None)
-		}
-
-		pub fn run_native_transfer_task(
-			sender: AccountOf<T>,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-			task_id: TaskIdV2,
-		) -> (Weight, Option<DispatchError>) {
-			match T::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
-				Ok(_number) => {
-					Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id });
-					(<T as Config>::WeightInfo::run_native_transfer_task(), None)
-				},
-				Err(e) => {
-					Self::deposit_event(Event::TransferFailed { task_id, error: e });
-					(<T as Config>::WeightInfo::run_native_transfer_task(), Some(e))
-				},
 			}
 		}
 

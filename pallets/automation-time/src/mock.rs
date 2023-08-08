@@ -28,12 +28,12 @@ use frame_support::{
 };
 use frame_system::{self as system, EnsureRoot, RawOrigin};
 use orml_traits::parameter_type_with_key;
-use primitives::EnsureProxy;
+use primitives::{EnsureProxy, TransferCallCreator};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{AccountIdConversion, BlakeTwo256, Convert, IdentityLookup},
-	AccountId32, DispatchError, Perbill,
+	AccountId32, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
 use xcm::latest::prelude::*;
@@ -290,8 +290,8 @@ parameter_types! {
 	#[derive(Debug)]
 	pub const MaxExecutionTimes: u32 = 3;
 	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
-	pub const MaxBlockWeight: u64 = 1_000_000;
-	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(10);
+	pub const MaxBlockWeight: u64 = 20_000_000;
+	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
 
@@ -341,13 +341,6 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeight<Test> {
-	fn schedule_notify_task_empty() -> Weight {
-		Weight::zero()
-	}
-	fn schedule_notify_task_full(_v: u32) -> Weight {
-		Weight::zero()
-	}
-
 	fn schedule_auto_compound_delegated_stake_task_full() -> Weight {
 		Weight::zero()
 	}
@@ -368,12 +361,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn force_cancel_scheduled_task_full() -> Weight {
 		Weight::zero()
-	}
-	fn run_notify_task() -> Weight {
-		Weight::from_ref_time(20_000)
-	}
-	fn run_native_transfer_task() -> Weight {
-		Weight::from_ref_time(20_000)
 	}
 	fn run_xcmp_task() -> Weight {
 		Weight::from_ref_time(20_000)
@@ -410,9 +397,6 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	}
 	fn shift_missed_tasks() -> Weight {
 		Weight::from_ref_time(900_000)
-	}
-	fn migration_upgrade_xcmp_task(_: u32) -> Weight {
-		Weight::zero()
 	}
 }
 
@@ -495,6 +479,22 @@ impl EnsureProxy<AccountId> for MockEnsureProxy {
 	}
 }
 
+pub struct MockTransferCallCreator;
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
+	for MockTransferCallCreator
+{
+	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
+		let account_id = match dest {
+			MultiAddress::Id(i) => Some(i),
+			_ => None,
+		};
+
+		let call: RuntimeCall =
+			pallet_balances::Call::transfer { dest: account_id.unwrap(), value }.into();
+		call
+	}
+}
+
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 	// The universal location within the global consensus system
@@ -526,6 +526,7 @@ impl pallet_automation_time::Config for Test {
 	type EnsureProxy = MockEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Test>;
+	type TransferCallCreator = MockTransferCallCreator;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -694,14 +695,15 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = MockWeight::<Test>::run_native_transfer_task() * 2;
+	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();

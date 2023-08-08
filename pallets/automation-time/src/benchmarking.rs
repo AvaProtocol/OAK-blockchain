@@ -282,13 +282,6 @@ benchmarks! {
 		let task_id = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, caller, task_id)
 
-	run_notify_task {
-		let message = b"hello there".to_vec();
-	}: { AutomationTime::<T>::run_notify_task(message.clone()) }
-	verify {
-		assert_last_event::<T>(Event::Notify{ message }.into())
-	}
-
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;

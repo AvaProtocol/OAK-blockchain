@@ -1,23 +1,25 @@
 use core::marker::PhantomData;
 
-use crate::{
-	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf,
-};
-#[cfg(feature = "try-runtime")]
-use codec::{Decode, Encode};
+use crate::{AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf};
 use frame_support::{
 	traits::{Get, OnRuntimeUpgrade},
 	weights::{RuntimeDbWeight, Weight},
 	Twox64Concat,
 };
 use sp_runtime::traits::Convert;
-use sp_std::{vec, vec::Vec};
+use sp_std::{boxed::Box, vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
-	deprecate::{generate_old_task_id, old_taskid_to_idv2},
-	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
+	deprecate::generate_old_task_id, OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
+
+use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
+use primitives::TransferCallCreator;
+
+#[cfg(feature = "try-runtime")]
+use codec::Decode;
+use codec::Encode;
 
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
@@ -27,9 +29,19 @@ impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 		match action {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
-			OldAction::Notify { message } => Self::Notify { message },
-			OldAction::NativeTransfer { sender, recipient, amount } =>
-				Self::NativeTransfer { sender, recipient, amount },
+			OldAction::Notify { message } => {
+				let call: <T as frame_system::Config>::RuntimeCall =
+					frame_system::Call::<T>::remark_with_event { remark: message }.into();
+				Self::DynamicDispatch { encoded_call: call.encode() }
+			},
+			OldAction::NativeTransfer { recipient, amount, .. } => {
+				let call: <T as frame_system::Config>::RuntimeCall =
+					T::TransferCallCreator::create_transfer_call(
+						sp_runtime::MultiAddress::Id(recipient),
+						amount,
+					);
+				Self::DynamicDispatch { encoded_call: call.encode() }
+			},
 			OldAction::XCMP {
 				para_id,
 				currency_id,
@@ -118,15 +130,11 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 
 #[cfg(test)]
 mod test {
-	use super::{
-		generate_old_task_id, OldAction, OldTask, UpdateXcmpTask, EXECUTION_FEE_AMOUNT,
-		INSTRUCTION_WEIGHT_REF_TIME, TEST_TASKID1,
-	};
+	use super::*;
 	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Schedule, TaskOf};
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
-	use xcm::latest::prelude::*;
 
 	#[test]
 	fn on_runtime_upgrade() {
@@ -185,6 +193,108 @@ mod test {
 						),
 						schedule_as,
 						instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+					},
+					abort_errors: vec![],
+				}
+			);
+		})
+	}
+
+	#[test]
+	fn on_runtime_upgrade_notify() {
+		new_test_ext(0).execute_with(|| {
+			let account_id = AccountId32::new(ALICE);
+
+			let task = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				schedule: Schedule::Fixed {
+					execution_times: vec![0, 1].try_into().unwrap(),
+					executions_left: 2,
+				},
+				action: OldAction::<Test>::Notify { message: "hello world".as_bytes().to_vec() },
+			};
+
+			let old_task_id =
+				generate_old_task_id::<Test>(account_id.clone(), task.provided_id.clone());
+			super::AccountTasks::<Test>::insert(account_id.clone(), old_task_id.clone(), task);
+
+			UpdateXcmpTask::<Test>::on_runtime_upgrade();
+
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
+
+			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					task_id: task_id1,
+					schedule: Schedule::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					},
+					action: ActionOf::<Test>::DynamicDispatch {
+						// a = [0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100]
+						// irb(main):002:0> a.pack("c*").unpack("H*").first
+						// => "00072c68656c6c6f20776f726c64"
+						// Take this hex to polkadotjs and decode we will get
+						//  decoded call: system remarkWithEvent
+						//  remark: hello world
+						//  https://polkadot.js.org/apps/?rpc=wss%3A%2F%2Fturing-rpc.dwellir.com#/extrinsics/decode/0x00072c68656c6c6f20776f726c64
+						encoded_call: vec![
+							0, 7, 44, 104, 101, 108, 108, 111, 32, 119, 111, 114, 108, 100
+						]
+					},
+					abort_errors: vec![],
+				}
+			);
+		})
+	}
+
+	#[test]
+	fn on_runtime_upgrade_native_transfer() {
+		new_test_ext(0).execute_with(|| {
+			let _para_id: ParaId = 1000.into();
+			let account_id = AccountId32::new(ALICE);
+			let recipient = AccountId32::new(BOB);
+
+			let task = OldTask::<Test> {
+				owner_id: account_id.clone(),
+				provided_id: vec![1],
+				schedule: Schedule::Fixed {
+					execution_times: vec![0, 1].try_into().unwrap(),
+					executions_left: 2,
+				},
+				action: OldAction::<Test>::NativeTransfer {
+					sender: account_id.clone(),
+					recipient,
+					amount: 100,
+				},
+			};
+
+			let old_task_id =
+				generate_old_task_id::<Test>(account_id.clone(), task.provided_id.clone());
+			super::AccountTasks::<Test>::insert(account_id.clone(), old_task_id.clone(), task);
+
+			UpdateXcmpTask::<Test>::on_runtime_upgrade();
+
+			assert_eq!(crate::AccountTasks::<Test>::iter().count(), 1);
+
+			let task_id1 = TEST_TASKID1.as_bytes().to_vec();
+			assert_eq!(
+				crate::AccountTasks::<Test>::get(account_id.clone(), task_id1.clone()).unwrap(),
+				TaskOf::<Test> {
+					owner_id: account_id.clone(),
+					task_id: task_id1,
+					schedule: Schedule::Fixed {
+						execution_times: vec![0, 1].try_into().unwrap(),
+						executions_left: 2
+					},
+					action: ActionOf::<Test>::DynamicDispatch {
+						encoded_call: vec![
+							2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+							2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 145, 1
+						],
 					},
 					abort_errors: vec![],
 				}

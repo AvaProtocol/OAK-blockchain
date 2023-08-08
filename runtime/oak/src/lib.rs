@@ -36,7 +36,7 @@ use sp_runtime::{
 		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT, ConvertInto, Zero,
 	},
 	transaction_validity::{TransactionSource, TransactionValidity},
-	AccountId32, ApplyExtrinsicResult, Percent, RuntimeDebug,
+	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
@@ -99,14 +99,13 @@ use common_runtime::{
 	CurrencyHooks,
 };
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	AccountId, Address, Amount, AuraId, Balance, BlockNumber, EnsureProxy, Hash, Header, Index,
+	Signature, TransferCallCreator,
 };
 
 // Custom pallet imports
 pub use pallet_automation_time;
 use pallet_xcmp_handler::InstructionSequence;
-
-use primitives::EnsureProxy;
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
@@ -892,6 +891,16 @@ impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 	}
 }
 
+pub struct MigrationTransferCallCreator;
+impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
+	for MigrationTransferCallCreator
+{
+	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
+		let call: RuntimeCall = pallet_balances::Call::transfer { dest, value }.into();
+		call
+	}
+}
+
 impl pallet_automation_time::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = ConstU32<256>;
@@ -918,6 +927,7 @@ impl pallet_automation_time::Config for Runtime {
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type TransferCallCreator = MigrationTransferCallCreator;
 }
 
 pub struct ClosedCallFilter;
