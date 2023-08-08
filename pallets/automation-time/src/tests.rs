@@ -96,6 +96,12 @@ fn create_xcmp_action(options: XcmpActionParams) -> ActionOf<Test> {
 	}
 }
 
+fn create_dynamic_dispatch_remark_action(remark: Vec<u8>) -> ActionOf<Test> {
+	let call: <Test as frame_system::Config>::RuntimeCall =
+		frame_system::Call::remark_with_event { remark }.into();
+	Action::DynamicDispatch { encoded_call: call.encode() }
+}
+
 fn generate_random_num(min: u32, max: u32) -> u32 {
 	rand::thread_rng().gen_range(min, max)
 }
@@ -310,7 +316,6 @@ fn schedule_too_far_out() {
 		]
 		.iter()
 		{
-			let call: RuntimeCall = frame_system::Call::remark { remark: vec![12] }.into();
 			assert_noop!(
 				AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(AccountId32::new(ALICE)),
@@ -402,7 +407,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let frequency = 3_600;
 		let account_id = AccountId32::new(ALICE);
-		let task_id = FIRST_TASK_ID.to_vec().clone();
+		let _task_id = FIRST_TASK_ID.to_vec().clone();
 
 		fund_account(&account_id, 900_000_000, 2, Some(0));
 
@@ -1228,7 +1233,7 @@ fn schedule_time_slot_full_rolls_back() {
 
 		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4, 5]);
 
-		let call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
+		let _call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 		let task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME + 7200], vec![2, 4]);
 
@@ -1634,7 +1639,7 @@ fn cancel_works_for_tasks_in_queue() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![2, 4, 5] },
+			create_dynamic_dispatch_remark_action(vec![2, 4, 5]),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((SCHEDULED_TIME, SCHEDULED_TIME));
@@ -1876,7 +1881,6 @@ mod run_dynamic_dispatch_action {
 }
 
 // Weights to use for tests below
-// 20_000: run scheduled task (run_notify_task, run_native_transfer_task)
 // 10_000v: run per missed task (run_missed_tasks_many_found)
 // 10_000v: run per task not found in map (run_missed_tasks_many_missing, run_tasks_many_missing)
 // 50_000v: weight check for running 1 more task, current static v=1 (run_tasks_many_found)
@@ -1919,7 +1923,7 @@ fn trigger_tasks_updates_queues() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME - 3600],
-			Action::Notify { message: vec![40] },
+			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		let missed_task = MissedTaskV2Of::<Test>::new(
@@ -2186,7 +2190,7 @@ fn trigger_tasks_completes_all_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
@@ -2194,12 +2198,12 @@ fn trigger_tasks_completes_all_tasks() {
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_two.clone() },
+			create_dynamic_dispatch_remark_action(message_two.clone()),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_ref_time(20_000_000));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2212,9 +2216,12 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
@@ -2227,9 +2234,12 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 8, 2, 4]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_two),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
@@ -2278,7 +2288,7 @@ fn trigger_tasks_completes_some_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
@@ -2286,7 +2296,7 @@ fn trigger_tasks_completes_some_tasks() {
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_two.clone() },
+			create_dynamic_dispatch_remark_action(message_two.clone()),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -2304,9 +2314,12 @@ fn trigger_tasks_completes_some_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
@@ -2331,14 +2344,14 @@ fn trigger_tasks_completes_all_missed_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![40] },
+			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![40] },
+			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -2391,14 +2404,14 @@ fn missed_tasks_updates_executions_left() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
-			Action::Notify { message: vec![40] },
+			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
-			Action::Notify { message: vec![40] },
+			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 
@@ -2467,7 +2480,7 @@ fn missed_tasks_removes_completed_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME - 3600],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 
@@ -2488,7 +2501,7 @@ fn missed_tasks_removes_completed_tasks() {
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
+		AutomationTime::trigger_tasks(Weight::from_ref_time(20_000_000));
 
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -2504,9 +2517,12 @@ fn missed_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 12, 2, 5, 7]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
@@ -2523,49 +2539,6 @@ fn missed_tasks_removes_completed_tasks() {
 			]
 		);
 		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id01.clone()), None);
-	})
-}
-
-#[test]
-fn trigger_tasks_completes_some_native_transfer_tasks() {
-	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		get_funds(AccountId32::new(ALICE));
-		let current_funds = Balances::free_balance(AccountId32::new(ALICE));
-		let transfer_amount = 1;
-
-		add_task_to_task_queue(
-			ALICE,
-			vec![40],
-			vec![SCHEDULED_TIME],
-			Action::NativeTransfer {
-				sender: AccountId32::new(ALICE),
-				recipient: AccountId32::new(BOB),
-				amount: transfer_amount,
-			},
-			vec![],
-		);
-		add_task_to_task_queue(
-			ALICE,
-			vec![50],
-			vec![SCHEDULED_TIME],
-			Action::NativeTransfer {
-				sender: AccountId32::new(ALICE),
-				recipient: AccountId32::new(BOB),
-				amount: transfer_amount,
-			},
-			vec![],
-		);
-
-		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
-		System::reset_events();
-
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
-
-		assert_eq!(
-			Balances::free_balance(AccountId32::new(ALICE)),
-			current_funds - (transfer_amount * 2)
-		);
-		assert_eq!(Balances::free_balance(AccountId32::new(BOB)), transfer_amount * 2);
 	})
 }
 
@@ -3071,7 +3044,7 @@ fn trigger_tasks_updates_executions_left() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + 3600],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 
@@ -3100,9 +3073,12 @@ fn trigger_tasks_updates_executions_left() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition,
-					encoded_call: None,
+					encoded_call: (Some(vec![0, 7, 12, 2, 5, 7])),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
@@ -3129,7 +3105,7 @@ fn trigger_tasks_removes_completed_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 
@@ -3158,9 +3134,12 @@ fn trigger_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition,
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 12, 2, 5, 7]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
@@ -3184,7 +3163,7 @@ fn on_init_runs_tasks() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
@@ -3192,14 +3171,14 @@ fn on_init_runs_tasks() {
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_two.clone() },
+			create_dynamic_dispatch_remark_action(message_two.clone()),
 			vec![],
 		);
 		let task_id3 = add_task_to_task_queue(
 			ALICE,
 			vec![60],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![50] },
+			create_dynamic_dispatch_remark_action(vec![50]),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
@@ -3218,9 +3197,12 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_one.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_one),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
@@ -3234,9 +3216,12 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 8, 2, 4]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: message_two.clone() }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(&message_two),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
@@ -3289,7 +3274,7 @@ fn on_init_check_task_queue() {
 				ALICE,
 				vec![i],
 				vec![SCHEDULED_TIME],
-				Action::Notify { message: vec![i] },
+				create_dynamic_dispatch_remark_action(vec![i]),
 				vec![],
 			);
 			tasks.push(task_id.clone());
@@ -3310,9 +3295,12 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[0].clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 4, 0]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![0] }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(vec![0].as_slice()),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: tasks[0].clone(),
@@ -3325,9 +3313,12 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[1].clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 4, 1]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![1] }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(vec![1].as_slice()),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: tasks[1].clone(),
@@ -3350,9 +3341,12 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[2].clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 4, 2]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![2] }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(vec![2].as_slice()),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: tasks[2].clone(),
@@ -3365,9 +3359,12 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[3].clone(),
 					condition: condition.clone(),
-					encoded_call: None,
+					encoded_call: Some(vec![0, 7, 4, 3]),
 				}),
-				RuntimeEvent::AutomationTime(crate::Event::Notify { message: vec![3] }),
+				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
+					sender: owner.clone(),
+					hash: BlakeTwo256::hash(vec![3].as_slice()),
+				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
 					task_id: tasks[3].clone(),
@@ -3413,7 +3410,7 @@ fn on_init_shutdown() {
 			ALICE,
 			vec![40],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_one.clone() },
+			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
 		let message_two: Vec<u8> = vec![2, 4];
@@ -3421,14 +3418,14 @@ fn on_init_shutdown() {
 			ALICE,
 			vec![50],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: message_two.clone() },
+			create_dynamic_dispatch_remark_action(message_two.clone()),
 			vec![],
 		);
 		let task_id3 = add_task_to_task_queue(
 			ALICE,
 			vec![60],
 			vec![SCHEDULED_TIME],
-			Action::Notify { message: vec![50] },
+			create_dynamic_dispatch_remark_action(vec![50]),
 			vec![],
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));

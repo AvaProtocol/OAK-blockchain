@@ -1,11 +1,9 @@
 use core::marker::PhantomData;
 
 use crate::{
-	AccountTaskId, Action, Config, MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2,
-	UnixTime,
+	AccountTaskId, Config, MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime,
 };
 use codec::{Decode, Encode};
-use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::EncodeLike,
 	storage::types::ValueQuery,
@@ -192,15 +190,15 @@ impl<T: Config> OnRuntimeUpgrade for UpdateTaskIDV2ForMissedQueueV2<T> {
 #[cfg(test)]
 mod test {
 	use super::{
-		generate_old_task_id, old_taskid_to_idv2, MissedTaskV2, ParaId,
-		UpdateTaskIDV2ForMissedQueueV2, UpdateTaskIDV2ForScheduledTasksV3,
-		UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1, TEST_TASKID2,
+		generate_old_task_id, MissedTaskV2, UpdateTaskIDV2ForMissedQueueV2,
+		UpdateTaskIDV2ForScheduledTasksV3, UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1,
+		TEST_TASKID2,
 	};
 	use crate::{
-		migrations::utils::{OldMissedTaskV2, OldScheduledTasksOf, OldTask},
+		migrations::utils::{OldMissedTaskV2, OldScheduledTasksOf},
 		mock::*,
 	};
-	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
+	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
 
 	#[test]

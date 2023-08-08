@@ -22,14 +22,6 @@ pub struct AssetPayment {
 /// The enum that stores all action specific data.
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 pub enum Action<AccountId, Balance> {
-	Notify {
-		message: Vec<u8>,
-	},
-	NativeTransfer {
-		sender: AccountId,
-		recipient: AccountId,
-		amount: Balance,
-	},
 	XCMP {
 		destination: MultiLocation,
 		schedule_fee: MultiLocation,
@@ -53,8 +45,6 @@ pub enum Action<AccountId, Balance> {
 impl<AccountId, Balance> Action<AccountId, Balance> {
 	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
-			Action::Notify { .. } => <T as Config>::WeightInfo::run_notify_task(),
-			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_native_transfer_task(),
 			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
@@ -84,12 +74,6 @@ impl<AccountId: Clone + Decode, Balance: AtLeast32BitUnsigned> From<AutomationAc
 			AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes())
 				.expect("always valid");
 		match a {
-			AutomationAction::Notify => Action::Notify { message: "default".into() },
-			AutomationAction::NativeTransfer => Action::NativeTransfer {
-				sender: default_account.clone(),
-				recipient: default_account,
-				amount: 0u32.into(),
-			},
 			AutomationAction::XCMP => Action::XCMP {
 				destination: MultiLocation::default(),
 				schedule_fee: MultiLocation::default(),

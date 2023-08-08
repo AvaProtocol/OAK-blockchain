@@ -35,8 +35,6 @@ pub struct AutostakingResult {
 #[derive(Debug, PartialEq, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum AutomationAction {
-	Notify,
-	NativeTransfer,
 	XCMP,
 	AutoCompoundDelegatedStake,
 }
