@@ -1,8 +1,7 @@
 use core::marker::PhantomData;
 
 use crate::{
-	AccountTaskId, Config,  MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2,
-	UnixTime,
+	AccountTaskId, Config, MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime,
 };
 use codec::{Decode, Encode};
 use frame_support::{
@@ -191,15 +190,15 @@ impl<T: Config> OnRuntimeUpgrade for UpdateTaskIDV2ForMissedQueueV2<T> {
 #[cfg(test)]
 mod test {
 	use super::{
-		generate_old_task_id, MissedTaskV2,
-		UpdateTaskIDV2ForMissedQueueV2, UpdateTaskIDV2ForScheduledTasksV3,
-		UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1, TEST_TASKID2,
+		generate_old_task_id, MissedTaskV2, UpdateTaskIDV2ForMissedQueueV2,
+		UpdateTaskIDV2ForScheduledTasksV3, UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1,
+		TEST_TASKID2,
 	};
 	use crate::{
 		migrations::utils::{OldMissedTaskV2, OldScheduledTasksOf},
 		mock::*,
 	};
-	use frame_support::{traits::OnRuntimeUpgrade};
+	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
 
 	#[test]

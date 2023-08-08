@@ -11,8 +11,7 @@ use sp_std::{boxed::Box, vec, vec::Vec};
 use xcm::latest::prelude::*;
 
 use crate::migrations::utils::{
-	deprecate::{generate_old_task_id},
-	OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
+	deprecate::generate_old_task_id, OldAccountTaskId, OldAction, OldTask, OldTaskId, TEST_TASKID1,
 };
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
