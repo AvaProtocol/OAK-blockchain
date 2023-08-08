@@ -99,14 +99,13 @@ use common_runtime::{
 	CurrencyHooks,
 };
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, Hash, Header, Index, Signature,
+	AccountId, Address, Amount, AuraId, Balance, BlockNumber, EnsureProxy, Hash, Header, Index,
+	Signature, TransferCallCreator,
 };
 
 // Custom pallet imports
 pub use pallet_automation_time;
 use pallet_xcmp_handler::InstructionSequence;
-
-use primitives::{EnsureProxy, TransferCallCreator};
 
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;

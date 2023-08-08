@@ -51,21 +51,20 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
-use cumulus_primitives_core::{relay_chain::AccountIndex, ParaId};
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
-	sp_runtime::traits::{CheckedSub, StaticLookup},
+	sp_runtime::traits::CheckedSub,
 	storage::{
 		with_transaction,
 		TransactionOutcome::{Commit, Rollback},
 	},
-	traits::{Contains, Currency, ExistenceRequirement, IsSubType, OriginTrait},
+	traits::{Contains, Currency, IsSubType, OriginTrait},
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
-use pallet_balances;
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
@@ -105,9 +104,7 @@ pub mod pallet {
 	>>::CurrencyId;
 
 	#[pallet::config]
-	pub trait Config:
-		frame_system::Config + pallet_timestamp::Config + pallet_balances::Config
-	{
+	pub trait Config: frame_system::Config + pallet_timestamp::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
 		/// Weight information for the extrinsics in this module.
@@ -246,8 +243,6 @@ pub mod pallet {
 		PastTime,
 		/// Time cannot be too far in the future.
 		TimeTooFarOut,
-		/// The message cannot be empty.
-		EmptyMessage,
 		/// There can be no duplicate tasks.
 		DuplicateTask,
 		/// Time slot is full. No more tasks can be scheduled for this time.
@@ -256,10 +251,6 @@ pub mod pallet {
 		TaskDoesNotExist,
 		/// Block time not set.
 		BlockTimeNotSet,
-		/// Amount has to be larger than 0.1 OAK.
-		InvalidAmount,
-		/// Sender cannot transfer money to self.
-		TransferToSelf,
 		/// Insufficient balance to pay execution fee.
 		InsufficientBalance,
 		/// Account liquidity restrictions prevent withdrawal.

@@ -484,7 +484,6 @@ impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
 	for MockTransferCallCreator
 {
 	fn create_transfer_call(dest: MultiAddress<AccountId, ()>, value: Balance) -> RuntimeCall {
-		// let dest: AccountId32 = <sp_runtime::MultiAddress<sp_runtime::AccountId32, u32> as sp_runtime::traits::Convert>::convert(dest);
 		let account_id = match dest {
 			MultiAddress::Id(i) => Some(i),
 			_ => None,

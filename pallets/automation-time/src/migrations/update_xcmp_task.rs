@@ -1,9 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::{
-	weights::WeightInfo, AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf,
-};
-
+use crate::{AccountOf, ActionOf, AssetPayment, Config, InstructionSequence, TaskOf};
 use frame_support::{
 	traits::{Get, OnRuntimeUpgrade},
 	weights::{RuntimeDbWeight, Weight},
@@ -19,18 +16,17 @@ use crate::migrations::utils::{
 };
 
 use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::DispatchError};
+use primitives::TransferCallCreator;
 
-//#[cfg(feature = "try-runtime")]
-use codec::{Decode, Encode};
-use scale_info::TypeInfo;
+#[cfg(feature = "try-runtime")]
+use codec::Decode;
+use codec::Encode;
 
 const EXECUTION_FEE_AMOUNT: u128 = 4_000_000_000;
 const INSTRUCTION_WEIGHT_REF_TIME: u64 = 150_000_000;
 
 impl<T: Config> From<OldAction<T>> for ActionOf<T> {
 	fn from(action: OldAction<T>) -> Self {
-		use codec::{Decode, Encode};
-		use primitives::TransferCallCreator;
 		match action {
 			OldAction::AutoCompoundDelegatedStake { delegator, collator, account_minimum } =>
 				Self::AutoCompoundDelegatedStake { delegator, collator, account_minimum },
@@ -140,7 +136,6 @@ mod test {
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;
-	use xcm::latest::prelude::*;
 
 	#[test]
 	fn on_runtime_upgrade() {

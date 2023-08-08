@@ -29,9 +29,6 @@ use sp_std::marker::PhantomData;
 use xcm::latest::prelude::*;
 use xcm_builder::TakeRevenue;
 
-//use parity_scale_codec::Encode;
-use codec::Encode;
-
 /// Handle execution fee payments in the context of automation actions
 pub trait HandleFees<T: Config> {
 	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
@@ -168,6 +165,7 @@ where
 mod tests {
 	use super::*;
 	use crate::{mock::*, Action};
+	use codec::Encode;
 	use frame_benchmarking::frame_support::assert_err;
 	use frame_support::sp_runtime::AccountId32;
 
