@@ -287,17 +287,6 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 		},
-		/// Failed to send XCMP
-		XcmpTaskFailed {
-			task_id: TaskIdV2,
-			destination: MultiLocation,
-			error: DispatchError,
-		},
-		/// Transfer Failed
-		TransferFailed {
-			task_id: TaskIdV2,
-			error: DispatchError,
-		},
 		/// The task could not be run at the scheduled time.
 		TaskMissed {
 			who: AccountOf<T>,
@@ -934,7 +923,6 @@ pub mod pallet {
 								encoded_call,
 								encoded_call_weight,
 								overall_weight,
-								task_id.clone(),
 								instruction_sequence,
 							),
 							Action::AutoCompoundDelegatedStake {
@@ -1048,7 +1036,6 @@ pub mod pallet {
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
-			task_id: TaskIdV2,
 			flow: InstructionSequence,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
@@ -1071,10 +1058,7 @@ pub mod pallet {
 				flow,
 			) {
 				Ok(()) => (<T as Config>::WeightInfo::run_xcmp_task(), None),
-				Err(e) => {
-					Self::deposit_event(Event::XcmpTaskFailed { task_id, destination, error: e });
-					(<T as Config>::WeightInfo::run_xcmp_task(), Some(e))
-				},
+				Err(e) => (<T as Config>::WeightInfo::run_xcmp_task(), Some(e)),
 			}
 		}
 

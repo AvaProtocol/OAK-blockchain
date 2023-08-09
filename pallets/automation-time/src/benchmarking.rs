@@ -299,7 +299,7 @@ benchmarks! {
 		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 
 		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
-	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), task_id.clone(), InstructionSequence::PayThroughSovereignAccount) }
+	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), InstructionSequence::PayThroughSovereignAccount) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);
