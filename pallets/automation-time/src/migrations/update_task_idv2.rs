@@ -1,8 +1,6 @@
 use core::marker::PhantomData;
 
-use crate::{
-	AccountTaskId, Config, MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime,
-};
+use crate::{AccountTaskId, Config, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime};
 use codec::{Decode, Encode};
 use frame_support::{
 	storage::types::ValueQuery,
@@ -14,8 +12,7 @@ use frame_support::{
 use sp_std::vec::Vec;
 
 use crate::migrations::utils::{
-	deprecate::{generate_old_task_id, old_taskid_to_idv2},
-	OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf, TEST_TASKID1, TEST_TASKID2,
+	deprecate::old_taskid_to_idv2, OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf,
 };
 
 // This is old TaskQueueV2 with old Task
@@ -185,14 +182,18 @@ impl<T: Config> OnRuntimeUpgrade for UpdateTaskIDV2ForMissedQueueV2<T> {
 
 #[cfg(test)]
 mod test {
+
 	use super::{
-		generate_old_task_id, MissedTaskV2, UpdateTaskIDV2ForMissedQueueV2,
-		UpdateTaskIDV2ForScheduledTasksV3, UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1,
-		TEST_TASKID2,
+		UpdateTaskIDV2ForMissedQueueV2, UpdateTaskIDV2ForScheduledTasksV3,
+		UpdateTaskIDV2ForTaskQueueV2,
 	};
 	use crate::{
-		migrations::utils::{OldMissedTaskV2, OldScheduledTasksOf},
+		migrations::utils::{
+			deprecate::generate_old_task_id, OldMissedTaskV2, OldScheduledTasksOf, TEST_TASKID1,
+			TEST_TASKID2,
+		},
 		mock::*,
+		MissedTaskV2,
 	};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;

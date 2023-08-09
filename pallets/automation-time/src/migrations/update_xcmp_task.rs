@@ -10,9 +10,7 @@ use sp_runtime::traits::Convert;
 use sp_std::{vec, vec::Vec};
 use xcm::latest::prelude::*;
 
-use crate::migrations::utils::{
-	deprecate::generate_old_task_id, OldAction, OldTask, OldTaskId, TEST_TASKID1,
-};
+use crate::migrations::utils::{OldAction, OldTask, OldTaskId};
 
 use primitives::TransferCallCreator;
 
@@ -131,7 +129,12 @@ impl<T: Config> OnRuntimeUpgrade for UpdateXcmpTask<T> {
 #[cfg(test)]
 mod test {
 	use super::*;
-	use crate::{mock::*, ActionOf, AssetPayment, InstructionSequence, Schedule, TaskOf};
+	use crate::{
+		migrations::utils::{deprecate::generate_old_task_id, TEST_TASKID1},
+		mock::*,
+		ActionOf, AssetPayment, InstructionSequence, Schedule, TaskOf,
+	};
+
 	use cumulus_primitives_core::ParaId;
 	use frame_support::{traits::OnRuntimeUpgrade, weights::Weight};
 	use sp_runtime::AccountId32;

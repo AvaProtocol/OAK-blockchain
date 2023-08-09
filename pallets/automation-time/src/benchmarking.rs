@@ -176,7 +176,7 @@ benchmarks! {
 
 		let fee = AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 100u128 };
 
-		let mut task_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
+		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
 		let foreign_currency_amount = T::MultiCurrency::minimum_balance(currency_id.into())
 			.saturating_add(1u32.into())
 			.saturating_mul(ED_MULTIPLIER.into())
