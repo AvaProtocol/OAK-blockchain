@@ -1,26 +1,19 @@
 // Holding the old data structure so we can share them betwen multiple migrations
-use crate::{
-	weights::WeightInfo, AccountOf, AccountTaskId, Action, ActionOf, AssetPayment, BalanceOf,
-	Config, InstructionSequence, MissedTaskV2, MissedTaskV2Of, Schedule, TaskIdV2, TaskOf,
-	UnixTime,
-};
+use crate::{AccountOf, BalanceOf, Config, Schedule, TaskOf, UnixTime};
 
 use codec::{Decode, Encode};
 use cumulus_primitives_core::ParaId;
-use frame_support::{
-	dispatch::EncodeLike, storage::types::ValueQuery, traits::OnRuntimeUpgrade, weights::Weight,
-	Twox64Concat,
-};
+use frame_support::weights::Weight;
 
-use scale_info::{prelude::format, TypeInfo};
+use scale_info::TypeInfo;
 use sp_std::{vec, vec::Vec};
 use xcm::VersionedMultiLocation;
 
 // These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
 // These cons are used for our unit test
 // (Account, ProvidedID)
-pub const TEST_TASKID1: &str = "0xd1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04";
-pub const TEST_TASKID2: &str = "0xf76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff";
+pub const TEST_TASKID1: &str = "d1263842e34adeb00be1146b30bc6527951f0a0f5d5a3f7a758537735b8bcb04";
+pub const TEST_TASKID2: &str = "f76acf0b1d8ef503450a4d5c1a451f1921a906e8711f551c2945e09fb44de5ff";
 
 // Old format
 pub type OldTaskId<T> = <T as frame_system::Config>::Hash;
@@ -127,8 +120,7 @@ pub mod deprecate {
 	}
 
 	pub fn old_taskid_to_idv2<T: frame_system::Config>(old_task_id: &OldTaskId<T>) -> Vec<u8> {
-		let task_id = format!("{:?}", old_task_id);
-		return task_id.as_bytes().to_vec()
+		old_task_id.as_ref().into()
 	}
 
 	pub fn generate_old_task_id<T: frame_system::Config>(

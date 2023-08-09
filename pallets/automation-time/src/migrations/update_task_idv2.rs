@@ -1,25 +1,18 @@
 use core::marker::PhantomData;
 
-use crate::{
-	AccountTaskId, Config, MissedTaskV2, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime,
-};
+use crate::{AccountTaskId, Config, MissedTaskV2Of, ScheduledTasksOf, TaskIdV2, UnixTime};
 use codec::{Decode, Encode};
 use frame_support::{
-	dispatch::EncodeLike,
 	storage::types::ValueQuery,
 	traits::{Get, OnRuntimeUpgrade},
 	weights::{RuntimeDbWeight, Weight},
 	Twox64Concat,
 };
-use scale_info::{prelude::format, TypeInfo};
 
-use sp_runtime::traits::Convert;
-use sp_std::{vec, vec::Vec};
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use sp_std::vec::Vec;
 
 use crate::migrations::utils::{
-	deprecate::{generate_old_task_id, old_taskid_to_idv2},
-	OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf, TEST_TASKID1, TEST_TASKID2,
+	deprecate::old_taskid_to_idv2, OldAccountTaskId, OldMissedTaskV2Of, OldScheduledTasksOf,
 };
 
 // This is old TaskQueueV2 with old Task
@@ -189,14 +182,18 @@ impl<T: Config> OnRuntimeUpgrade for UpdateTaskIDV2ForMissedQueueV2<T> {
 
 #[cfg(test)]
 mod test {
+
 	use super::{
-		generate_old_task_id, MissedTaskV2, UpdateTaskIDV2ForMissedQueueV2,
-		UpdateTaskIDV2ForScheduledTasksV3, UpdateTaskIDV2ForTaskQueueV2, TEST_TASKID1,
-		TEST_TASKID2,
+		UpdateTaskIDV2ForMissedQueueV2, UpdateTaskIDV2ForScheduledTasksV3,
+		UpdateTaskIDV2ForTaskQueueV2,
 	};
 	use crate::{
-		migrations::utils::{OldMissedTaskV2, OldScheduledTasksOf},
+		migrations::utils::{
+			deprecate::generate_old_task_id, OldMissedTaskV2, OldScheduledTasksOf, TEST_TASKID1,
+			TEST_TASKID2,
+		},
 		mock::*,
+		MissedTaskV2,
 	};
 	use frame_support::traits::OnRuntimeUpgrade;
 	use sp_runtime::AccountId32;
@@ -207,8 +204,10 @@ mod test {
 			let account_id1 = AccountId32::new(ALICE);
 			let account_id2 = AccountId32::new(BOB);
 
-			let task_id1: Vec<u8> = TEST_TASKID1.as_bytes().to_vec();
-			let task_id2: Vec<u8> = TEST_TASKID2.as_bytes().to_vec();
+			let task_id1: Vec<u8> =
+				hex::decode(TEST_TASKID1).expect("test task id hex code is malformed");
+			let task_id2: Vec<u8> =
+				hex::decode(TEST_TASKID2).expect("test task id hex code is malformed");
 
 			let old_taskqueuev2 = vec![
 				(account_id1.clone(), generate_old_task_id::<Test>(account_id1.clone(), vec![1])),
@@ -247,8 +246,8 @@ mod test {
 			let task_owner2 = AccountId32::new(BOB);
 
 			// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
-			let task_id1: Vec<u8> = TEST_TASKID1.as_bytes().to_vec();
-			let task_id2: Vec<u8> = TEST_TASKID2.as_bytes().to_vec();
+			let task_id1: Vec<u8> = hex::decode(TEST_TASKID1).expect("TEST_TASKID1 is malformed");
+			let task_id2: Vec<u8> = hex::decode(TEST_TASKID2).expect("TEST_TASKID1 is malformed");
 
 			super::ScheduledTasksV3::<Test>::insert(
 				3600,
@@ -315,16 +314,18 @@ mod test {
 					// (task owner, vec![33]) hash -> "0x7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
 					(
 						task_owner2.clone(),
-						"0x7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
-							.as_bytes()
-							.to_vec(),
+						hex::decode(
+							"7191f3d83bcbeb221f7b00f501e9a8da3ba3c2d15a672eb694ee7e09dbaddd1e"
+						)
+						.expect("invalid hex code")
 					),
 					// (task owner1, vec![32]) hash -> "0xe94040ca5d09f0e1023aecf5abc3afac0b9e66bc3b1209183b3a009f4c073c2b"
 					(
 						task_owner1.clone(),
-						"0xe94040ca5d09f0e1023aecf5abc3afac0b9e66bc3b1209183b3a009f4c073c2b"
-							.as_bytes()
-							.to_vec(),
+						hex::decode(
+							"e94040ca5d09f0e1023aecf5abc3afac0b9e66bc3b1209183b3a009f4c073c2b"
+						)
+						.expect("invalid hex code"),
 					),
 				],
 				"migration failed to convert old ScheduledTasksV3 to new TaskID format"
@@ -339,8 +340,10 @@ mod test {
 			let account_id2 = AccountId32::new(BOB);
 
 			// These are H256/BlakeTwo256 hex generate from our old task id generation from hashing
-			let task_id1: Vec<u8> = TEST_TASKID1.as_bytes().to_vec();
-			let task_id2: Vec<u8> = TEST_TASKID2.as_bytes().to_vec();
+			let task_id1: Vec<u8> =
+				hex::decode(TEST_TASKID1).expect("test task id hex code is malformed");
+			let task_id2: Vec<u8> =
+				hex::decode(TEST_TASKID2).expect("test task id hex code is malformed");
 
 			let old_missed_queueu_v2 = vec![
 				OldMissedTaskV2 {
