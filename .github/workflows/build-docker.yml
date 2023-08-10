@@ -1,37 +1,88 @@
-name: Build Docker
+name: Relase Docker Image
 
 on:
   workflow_dispatch:
     inputs:
+      release_action_run_id:
+        required: true
+        description: "release action run id(the last number in URL of release action run) where we will download artifact from"
+        type: string
       tag:
         description: Tag for release
         required: true
+        type: string
+      draft:
+        description: "in draft mode, we won't update the lastest tag"
+        required: true
+        default: 'true'
+        type: boolean
 
 jobs:
   build-docker:
-    name: Build and Publis to Docker Hub
+    permissions:
+      contents: 'read'
+      actions: 'read'
+
+    name: Build and Publish to Docker Hub
     runs-on: ubuntu-latest
-    needs: build-binary
     steps:
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
           ref: ${{ github.event.inputs.tag }}
-      - name: Download binary
-        uses: actions/download-artifact@v2
-        with:
-          name: oak-collator
+
+      - name: download artifact
+        run: |
+          artifact_url=$(curl -sL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}"\
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/OAK-Foundation/OAK-blockchain/actions/runs/${{ inputs.release_action_run_id }}/artifacts | jq -r '.artifacts[] | select(.name == "oak-collator") | .archive_download_url ')
+          echo "Found artifact url for oak-collator ${artifact_url}"
+
+          curl \
+              -sL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              -o oak-collator.zip $artifact_url
+          unzip oak-collator.zip
+          chmod +x ./oak-collator
+
+      - name: oak-collator version vs tag validation
+        run: |
+          # Ensure the version in the binary match the tag to avoid accidently publish wrong binary
+          tag=${{ github.event.inputs.tag }}
+          ./oak-collator --version
+          ./oak-collator --version 2>&1 | grep "oak-collator ${tag:1}-"
+
+      # In draft mode we will push to below tag:
+      # reponame/imagename:{{git_revision}}
+      # reponame/imagename:{{tag}}-{{git_revision}}
+      # so we will have image such as
+      #   oaknetwork/turing:2.0.0
+      #
+      # and we can test these image
       - name: Build
         run: |
           tag=${{ github.event.inputs.tag }}
-          docker_tag="${tag:1}"
-          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:$docker_tag .
-          docker tag oaknetwork/turing:$docker_tag oaknetwork/turing:latest
-          docker push oaknetwork/turing:$docker_tag
-          docker push oaknetwork/turing:latest
+          docker build -f ./docker/turing/Dockerfile -t oaknetwork/turing:${GITHUB_SHA} .
 
+          docker_tag="${tag:1}"
+          docker tag oaknetwork/turing:${GITHUB_SHA} oaknetwork/turing:${docker_tag}
+          docker push oaknetwork/turing:$docker_tag
+
+      # when not in draft mode, we will update the pointer tag
+      # so we will have image such as
+      #   oaknetwork/turing:latest
+      - name: Push latest tag to docker hub
+        run: |
+          docker tag oaknetwork/turing:${GITHUB_SHA} oaknetwork/turing:latest
+          docker push oaknetwork/turing:latest
+        if: ${{ inputs.draft == false }}
