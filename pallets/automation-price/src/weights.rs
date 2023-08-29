@@ -27,11 +27,15 @@ pub trait WeightInfo {
 	
 	fn delete_asset_extrinsic() -> Weight;
 	fn asset_price_update_extrinsic() -> Weight;
-	fn add_asset_extrinsic() -> Weight;
+	fn initialize_asset_extrinsic() -> Weight;
 	fn schedule_transfer_task_extrinsic() -> Weight;
+    fn run_xcmp_task() -> Weight;
 }
 
-impl WeightInfo for () {
+/// TODO: these are hard code value, need to be change
+/// Weights for pallet_automation_time using the Substrate node and recommended hardware.
+pub struct SubstrateWeight<T>(PhantomData<T>);
+impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn emit_event() -> Weight {
 		Weight::from_ref_time(20_000_000 as u64)
 	}
@@ -69,12 +73,19 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(21 as u64))
 			.saturating_add(RocksDbWeight::get().writes(21 as u64))
 	}
-	fn add_asset_extrinsic() -> Weight{
+	fn initialize_asset_extrinsic() -> Weight{
 		Weight::from_ref_time(220_000_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(4 as u64))
 			.saturating_add(RocksDbWeight::get().writes(5 as u64))
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight{
+		Weight::from_ref_time(200_000_000 as u64)
+			.saturating_add(RocksDbWeight::get().reads(6 as u64))
+			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+	}
+
+    // TODO: Re-generate
+	fn run_xcmp_task() -> Weight{
 		Weight::from_ref_time(200_000_000 as u64)
 			.saturating_add(RocksDbWeight::get().reads(6 as u64))
 			.saturating_add(RocksDbWeight::get().writes(4 as u64))
