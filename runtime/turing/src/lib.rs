@@ -145,17 +145,7 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = (
-	// First we upgrade storage from the old task id -> the new task id
-	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForTaskQueueV2<Runtime>,
-	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForMissedQueueV2<Runtime>,
-	pallet_automation_time::migrations::update_task_idv2::UpdateTaskIDV2ForScheduledTasksV3<
-		Runtime,
-	>,
-	// Then we add the extra info in new XCMP, we also update the new task id for AccountTasks in
-	// this migration
-	pallet_automation_time::migrations::update_xcmp_task::UpdateXcmpTask<Runtime>,
-);
+type Migrations = ();
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
