@@ -1069,10 +1069,10 @@ pub mod pallet {
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
-			if fee_amount.is_err() {
+			if let Err(error) = fee_amount {
 				return (
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					Some(fee_amount.unwrap_err()),
+					Some(error),
 				)
 			}
 			let fee_amount = fee_amount.unwrap();
