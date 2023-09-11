@@ -167,7 +167,7 @@ pub mod pallet {
 						*amount > <T>::Currency::minimum_balance(),
 						"Cannot vest less than the existential deposit"
 					);
-					scheduled_vests.push((account.clone(), amount.clone()));
+					scheduled_vests.push((account.clone(), *amount));
 					unvested_allocation = unvested_allocation.saturating_add(*amount);
 				}
 				VestingSchedule::<T>::insert(time, scheduled_vests);

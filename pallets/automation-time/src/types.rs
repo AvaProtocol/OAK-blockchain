@@ -60,7 +60,7 @@ impl<AccountId, Balance> Action<AccountId, Balance> {
 
 	pub fn schedule_fee_location<T: Config>(&self) -> MultiLocation {
 		match self {
-			Action::XCMP { schedule_fee, .. } => (*schedule_fee).clone(),
+			Action::XCMP { schedule_fee, .. } => *schedule_fee,
 			_ => MultiLocation::default(),
 		}
 	}
@@ -372,7 +372,7 @@ mod tests {
 				let task_id = vec![48, 45, 48, 45, 48];
 				assert_err!(
 					ScheduledTasksOf::<Test> { tasks: vec![], weight: MaxWeightPerSlot::get() }
-						.try_push::<Test, BalanceOf<Test>>(task_id.clone(), &task),
+						.try_push::<Test, BalanceOf<Test>>(task_id, &task),
 					Error::<Test>::TimeSlotFull
 				);
 			})
@@ -385,7 +385,7 @@ mod tests {
 				let id = (alice.clone(), vec![49, 45, 48, 45, 42]);
 
 				let task = TaskOf::<Test>::create_event_task::<Test>(
-					alice.clone(),
+					alice,
 					vec![0],
 					vec![SCHEDULED_TIME],
 					vec![0],

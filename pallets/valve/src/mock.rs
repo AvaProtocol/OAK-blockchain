@@ -156,15 +156,10 @@ impl Config for Test {
 }
 
 /// Externality builder for pallet maintenance mode's mock runtime
+#[derive(Default)]
 pub(crate) struct ExtBuilder {
 	valve_closed: bool,
 	closed_gates: Vec<Vec<u8>>,
-}
-
-impl Default for ExtBuilder {
-	fn default() -> ExtBuilder {
-		ExtBuilder { valve_closed: false, closed_gates: vec![] }
-	}
 }
 
 impl ExtBuilder {

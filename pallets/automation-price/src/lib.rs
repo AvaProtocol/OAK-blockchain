@@ -304,7 +304,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
-			if Self::is_shutdown() == true {
+			if Self::is_shutdown() {
 				return T::DbWeight::get().reads(1u64)
 			}
 
@@ -344,8 +344,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
-			T::FeeHandler::can_pay_fee(&who, fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			T::FeeHandler::can_pay_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
 			Self::validate_and_schedule_task(
 				who.clone(),
 				provided_id,
@@ -355,9 +354,9 @@ pub mod pallet {
 				recipient,
 				amount,
 			)?;
-			T::FeeHandler::withdraw_fee(&who, fee.clone())
+			T::FeeHandler::withdraw_fee(&who, fee)
 				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Initialize an asset
@@ -419,7 +418,7 @@ pub mod pallet {
 					0,
 				)?;
 			}
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Post asset update
@@ -447,8 +446,7 @@ pub mod pallet {
 				}
 			}
 			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
-			T::FeeHandler::can_pay_fee(&who.clone(), fee.clone())
-				.map_err(|_| Error::<T>::InsufficientBalance)?;
+			T::FeeHandler::can_pay_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
 			if let Some(asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
 				let last_asset_price: AssetPrice = match Self::get_asset_price(asset.clone()) {
 					None => Err(Error::<T>::AssetNotSupported)?,
@@ -483,13 +481,13 @@ pub mod pallet {
 					)?;
 				}
 				AssetPrices::<T>::insert(asset.clone(), value);
-				T::FeeHandler::withdraw_fee(&who, fee.clone())
+				T::FeeHandler::withdraw_fee(&who, fee)
 					.map_err(|_| Error::<T>::LiquidityRestrictions)?;
 				Self::deposit_event(Event::AssetUpdated { asset });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Delete an asset
@@ -518,7 +516,7 @@ pub mod pallet {
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
-			Ok(().into())
+			Ok(())
 		}
 	}
 
@@ -562,7 +560,7 @@ pub mod pallet {
 					};
 				}
 				ScheduledAssetDeletion::<T>::remove(current_time_slot);
-				weight_left = weight_left - asset_reset_weight;
+				weight_left -= asset_reset_weight;
 			}
 
 			// run as many scheduled tasks as we can
@@ -571,7 +569,7 @@ pub mod pallet {
 				.saturating_sub(T::DbWeight::get().reads(1u64))
 				// For measuring the TaskQueue::<T>::put(tasks_left);
 				.saturating_sub(T::DbWeight::get().writes(1u64));
-			if task_queue.len() > 0 {
+			if !task_queue.is_empty() {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				weight_left = new_weight_left;
 				TaskQueue::<T>::put(tasks_left);
@@ -588,13 +586,13 @@ pub mod pallet {
 				if let Some(mut future_scheduled_deletion_assets) =
 					Self::get_scheduled_asset_period_reset(new_time_slot)
 				{
-					future_scheduled_deletion_assets.push(asset.clone());
+					future_scheduled_deletion_assets.push(asset);
 					<ScheduledAssetDeletion<T>>::insert(
 						new_time_slot,
 						future_scheduled_deletion_assets,
 					);
 				} else {
-					let new_asset_list = vec![asset.clone()];
+					let new_asset_list = vec![asset];
 					<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
 				}
 			};
@@ -614,7 +612,7 @@ pub mod pallet {
 				upper_bound,
 				lower_bound,
 				expiration_period,
-				asset_sudo: asset_owner.clone(),
+				asset_sudo: asset_owner,
 			};
 			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
 			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
@@ -694,7 +692,7 @@ pub mod pallet {
 				consumed_task_index.saturating_inc();
 				let action_weight = match Self::get_task(task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.1.clone() });
+						Self::deposit_event(Event::TaskNotFound { task_id: task_id.1 });
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
@@ -725,15 +723,14 @@ pub mod pallet {
 			}
 
 			if consumed_task_index == task_ids.len() {
-				return (vec![], weight_left)
+				(vec![], weight_left)
 			} else {
-				return (task_ids.split_off(consumed_task_index), weight_left)
+				(task_ids.split_off(consumed_task_index), weight_left)
 			}
 		}
 
 		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
-			let task_hash_input =
-				TaskHashInput::<T> { owner_id: owner_id.clone(), provided_id: provided_id.clone() };
+			let task_hash_input = TaskHashInput::<T> { owner_id, provided_id };
 			T::Hashing::hash_of(&task_hash_input)
 		}
 
@@ -747,22 +744,20 @@ pub mod pallet {
 			direction: AssetDirection,
 			trigger_percentage: AssetPercentage,
 		) -> Result<T::Hash, Error<T>> {
-			let task_id = Self::generate_task_id(owner_id.clone(), provided_id.clone());
-			if let Some(_) = Self::get_task((asset.clone(), task_id.clone())) {
+			let task_id = Self::generate_task_id(owner_id, provided_id);
+			if let Some(_) = Self::get_task((asset.clone(), task_id)) {
 				Err(Error::<T>::DuplicateTask)?
 			}
-			if let Some(mut asset_tasks) = Self::get_scheduled_tasks((
-				asset.clone(),
-				direction.clone(),
-				trigger_percentage.clone(),
-			)) {
-				if let Err(_) = asset_tasks.try_push(task_id.clone()) {
+			if let Some(mut asset_tasks) =
+				Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage))
+			{
+				if asset_tasks.try_push(task_id).is_err() {
 					Err(Error::<T>::MaxTasksReached)?
 				}
 				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
 			} else {
 				let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-					vec![task_id.clone()].try_into().unwrap();
+					vec![task_id].try_into().unwrap();
 				<ScheduledTasks<T>>::insert(
 					(asset, direction, trigger_percentage),
 					scheduled_tasks,
@@ -782,7 +777,7 @@ pub mod pallet {
 			recipient: T::AccountId,
 			amount: BalanceOf<T>,
 		) -> Result<(), Error<T>> {
-			if provided_id.len() == 0 {
+			if provided_id.is_empty() {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 			let asset_target_price: AssetPrice = match Self::get_asset_baseline_price(asset.clone())
@@ -794,7 +789,7 @@ pub mod pallet {
 				None => Err(Error::<T>::AssetNotSupported)?,
 				Some(asset_price) => asset_price,
 			};
-			match direction.clone() {
+			match direction {
 				Direction::Down =>
 					if last_asset_price < asset_target_price {
 						let last_asset_percentage =
@@ -848,11 +843,9 @@ pub mod pallet {
 			};
 			for percentage in lower..adjusted_higher {
 				// TODO: pull all and cycle through in memory
-				if let Some(asset_tasks) = Self::get_scheduled_tasks((
-					asset.clone(),
-					direction.clone(),
-					percentage.clone(),
-				)) {
+				if let Some(asset_tasks) =
+					Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage))
+				{
 					for task in asset_tasks {
 						existing_task_queue.push((asset.clone(), task));
 					}

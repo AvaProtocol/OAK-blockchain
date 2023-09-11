@@ -330,7 +330,7 @@ impl pallet_balances::Config for Runtime {
 
 parameter_types! {
 	pub const BasicDeposit:  Balance = 10 * DOLLAR; // 258 bytes on-chain
-	pub const FieldDeposit:  Balance = 1 * DOLLAR; // 66 bytes on-chain
+	pub const FieldDeposit:  Balance = DOLLAR; // 66 bytes on-chain
 	pub const SubAccountDeposit:  Balance = 2 * DOLLAR; // 53 bytes on-chain
 }
 
@@ -686,16 +686,16 @@ impl pallet_sudo::Config for Runtime {
 
 parameter_types! {
 	pub const ProposalBond: Permill = Permill::from_percent(5);
-	pub const ProposalBondMinimum: Balance = 1 * DOLLAR;
+	pub const ProposalBondMinimum: Balance = DOLLAR;
 	pub const ProposalBondMaximum: Balance = 5 * DOLLAR;
-	pub const SpendPeriod: BlockNumber = 1 * DAYS;
+	pub const SpendPeriod: BlockNumber = DAYS;
 	pub const Burn: Permill = Permill::from_percent(0);
-	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipCountdown: BlockNumber = DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
-	pub const TipReportDepositBase: Balance = 1 * UNIT;
-	pub const DataDepositPerByte: Balance = 1 * CENT;
-	pub const BountyDepositBase: Balance = 1 * UNIT;
-	pub const BountyDepositPayoutDelay: BlockNumber = 1 * DAYS;
+	pub const TipReportDepositBase: Balance = UNIT;
+	pub const DataDepositPerByte: Balance = CENT;
+	pub const BountyDepositBase: Balance = UNIT;
+	pub const BountyDepositPayoutDelay: BlockNumber = DAYS;
 	pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
 	pub const BountyUpdatePeriod: BlockNumber = 14 * DAYS;
 	pub const CuratorDepositMultiplier: Permill = Permill::from_percent(50);
@@ -1194,8 +1194,8 @@ impl_runtime_apis! {
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
 			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount.into(),
-				execution_fee: fee_handler.execution_fee_amount.into()
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
 			})
 		}
 

@@ -65,11 +65,11 @@ pub fn do_calculate_optimal_autostaking(
 		if total_earnings > best_earnings {
 			best_earnings = total_earnings;
 			best_period = period;
-			best_apy = (total_earnings as f64 / principal as f64) * (365 as f64 / duration as f64);
+			best_apy = (total_earnings as f64 / principal as f64) * (365_f64 / duration as f64);
 		}
 	}
 
-	return (best_period, best_apy)
+	(best_period, best_apy)
 }
 
 #[cfg(test)]
@@ -89,7 +89,7 @@ mod tests {
 	fn test_1() {
 		let principal = 50 * DOLLAR;
 		let collator_stake = 500_000 * DOLLAR;
-		let fee = 1 * DOLLAR;
+		let fee = DOLLAR;
 
 		let result = do_calculate_optimal_autostaking(
 			principal,
@@ -105,7 +105,7 @@ mod tests {
 	fn test_2() {
 		let principal = 250_000 * DOLLAR;
 		let collator_stake = 500_000 * DOLLAR;
-		let fee = 1 * DOLLAR;
+		let fee = DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
 			collator_stake,
@@ -190,7 +190,7 @@ mod tests {
 	fn test_8() {
 		let principal = 50 * DOLLAR;
 		let collator_stake = 250_000 * DOLLAR;
-		let fee = 1 * DOLLAR;
+		let fee = DOLLAR;
 		let daily_collator_awards = 500_000 / 365 * DOLLAR;
 		let result = do_calculate_optimal_autostaking(
 			principal,
@@ -209,7 +209,7 @@ mod tests {
 
 		let principal = 5_000 * DOLLAR;
 		let collator_stake = 20_000_000_000_000_000;
-		let fee = 1 * DOLLAR;
+		let fee = DOLLAR;
 		let daily_collator_awards = (money_supply as f64 * 0.025) as i128 / 24 / 365;
 		let result = do_calculate_optimal_autostaking(
 			principal,

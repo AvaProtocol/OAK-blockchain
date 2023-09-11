@@ -117,7 +117,7 @@ where
 		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
-				format!("Unable to decode extrinsic."),
+				"Unable to decode extrinsic.".to_string(),
 				Some(format!("{:?}", e)),
 			))
 		})?;
@@ -126,7 +126,7 @@ where
 			.map_err(|e| {
 				CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
-					format!("Unable to query fee details."),
+					"Unable to query fee details.".to_string(),
 					Some(format!("{:?}", e)),
 				))
 			})?
@@ -134,7 +134,7 @@ where
 				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
 					"Unable to get fees.",
-					Some(String::from_utf8(e).unwrap_or(String::default())),
+					Some(String::from_utf8(e).unwrap_or_default()),
 				)))
 			})?;
 
@@ -176,7 +176,7 @@ where
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
 				"RPC value doesn't fit in u64 representation",
-				Some(format!("RPC value cannot be translated into u64 representation")),
+				Some("RPC value cannot be translated into u64 representation".to_string()),
 			)))
 		})
 	}
@@ -198,7 +198,7 @@ where
 		};
 		runtime_api_result
 			.map_err(|e| mapped_err(format!("{:?}", e)))
-			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or_default())))?
 	}
 
 	fn get_auto_compound_delegated_stake_task_ids(

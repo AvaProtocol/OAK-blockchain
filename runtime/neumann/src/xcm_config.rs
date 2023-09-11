@@ -322,7 +322,7 @@ impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
 				Some(NATIVE_TOKEN_ID),
-			_ => AssetRegistryOf::<Runtime>::location_to_asset_id(location.clone()),
+			_ => AssetRegistryOf::<Runtime>::location_to_asset_id(location),
 		}
 	}
 }
