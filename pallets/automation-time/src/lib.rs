@@ -1150,7 +1150,7 @@ pub mod pallet {
 			match task.schedule {
 				Schedule::Fixed { ref mut executions_left, .. } => {
 					*executions_left = executions_left.saturating_sub(1);
-					if *executions_left <= 0 {
+					if *executions_left == 0 {
 						AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
 						Self::deposit_event(Event::TaskCompleted {
 							who: task.owner_id.clone(),
