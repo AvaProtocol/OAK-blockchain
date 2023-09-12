@@ -1266,7 +1266,7 @@ pub mod pallet {
 
 			let execution_times = task.execution_times();
 
-			if AccountTasks::<T>::contains_key(owner_id, task.task_id.clone()) {
+			if AccountTasks::<T>::contains_key(&owner_id, task.task_id.clone()) {
 				Err(Error::<T>::DuplicateTask)?;
 			}
 
