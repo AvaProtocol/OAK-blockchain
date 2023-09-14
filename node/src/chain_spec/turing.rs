@@ -11,8 +11,8 @@ use codec::Encode;
 use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, SudoConfig, ValveConfig,
-	VestingConfig,
+	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, SudoConfig, TechnicalMembershipConfig,
+	ValveConfig, VestingConfig,
 };
 use xcm::{prelude::*, VersionedMultiLocation::V3};
 
