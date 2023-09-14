@@ -289,7 +289,7 @@ parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
 	pub const MaxExecutionTimes: u32 = 3;
-	pub const MaxScheduleSeconds: u64 = 24 * 60 * 60;
+	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
 	pub const MaxBlockWeight: u64 = 20_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);

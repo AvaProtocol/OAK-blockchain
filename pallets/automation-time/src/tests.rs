@@ -295,14 +295,14 @@ fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for task_far_schedule in vec![
 			// only one time slot that is far
-			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 24 * 60 * 60] },
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + 1 * 24 * 60 * 60] },
 			// the first time slot is close, but the rest are too far
 			ScheduleParam::Fixed {
-				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + 24 * 60 * 60],
+				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + 1 * 24 * 60 * 60],
 			},
 			// the next_execution_time is too far
 			ScheduleParam::Recurring {
-				next_execution_time: SCHEDULED_TIME + 24 * 60 * 60,
+				next_execution_time: SCHEDULED_TIME + 1 * 24 * 60 * 60,
 				frequency: 3600,
 			},
 			// the next_execution_time is closed, but frequency is too big, make it further to
