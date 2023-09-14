@@ -172,7 +172,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_name: create_runtime_str!("oak"),
 	authoring_version: 1,
 	spec_version: 295,
-	impl_version: 0,
+	impl_version: 1,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 18,
 	state_version: 0,
@@ -745,7 +745,7 @@ impl pallet_preimage::Config for Runtime {
 }
 
 parameter_types! {
-	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(10) * RuntimeBlockWeights::get().max_block;
+	pub MaximumSchedulerWeight: Weight = Perbill::from_percent(40) * RuntimeBlockWeights::get().max_block;
 	pub const NoPreimagePostponement: Option<u32> = Some(10);
 }
 
