@@ -302,7 +302,7 @@ pub mod pallet {
 					.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let target_xcm = Xcm(vec![
-				DescendOrigin::<()>(descend_location.clone()),
+				DescendOrigin::<()>(descend_location),
 				WithdrawAsset::<()>(target_asset.clone().into()),
 				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(xcm_weight) },
 				Transact::<()> {
@@ -347,7 +347,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::XcmTransactedLocally);
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Send XCM instructions to parachain.
@@ -357,7 +357,7 @@ pub mod pallet {
 			target_instructions: xcm::latest::Xcm<()>,
 		) -> Result<(), DispatchError> {
 			#[allow(unused_variables)]
-			let destination_location = destination.clone();
+			let destination_location = destination;
 
 			#[cfg(all(not(test), feature = "runtime-benchmarks"))]
 			let destination_location = MultiLocation::new(1, Here);
@@ -372,7 +372,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::XcmSent { destination });
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Create and transact instructions.
@@ -405,7 +405,7 @@ pub mod pallet {
 			Self::transact_in_local_chain(local_instructions)?;
 			Self::transact_in_target_chain(destination, target_instructions)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Pay for XCMP fees.
@@ -432,7 +432,7 @@ pub mod pallet {
 				}),
 			};
 
-			Ok(().into())
+			Ok(())
 		}
 	}
 }
@@ -474,13 +474,13 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 			flow,
 		)?;
 
-		Ok(()).into()
+		Ok(())
 	}
 
 	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
 		Self::pay_xcm_fee(source, fee)?;
 
-		Ok(()).into()
+		Ok(())
 	}
 }
 

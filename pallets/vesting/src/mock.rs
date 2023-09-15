@@ -116,14 +116,9 @@ impl Config for Test {
 	type Currency = Balances;
 }
 
+#[derive(Default)]
 pub(crate) struct ExtBuilder {
 	vesting_schedule: Vec<(u64, Vec<(AccountId, Balance)>)>,
-}
-
-impl Default for ExtBuilder {
-	fn default() -> ExtBuilder {
-		ExtBuilder { vesting_schedule: Default::default() }
-	}
 }
 
 impl ExtBuilder {

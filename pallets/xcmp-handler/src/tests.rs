@@ -45,12 +45,12 @@ fn get_instruction_set_local_currency_instructions() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let expected_instructions = XcmpHandler::get_local_currency_instructions(
-			destination.clone(),
+			destination,
 			asset_location,
 			descend_location,
 			transact_encoded_call.clone(),
-			transact_encoded_call_weight.clone(),
-			overall_weight.clone(),
+			transact_encoded_call_weight,
+			overall_weight,
 			10,
 		)
 		.unwrap();
@@ -107,14 +107,14 @@ fn get_local_currency_instructions_works() {
 fn transact_in_local_chain_works() {
 	new_test_ext().execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
-		let asset_location = destination.clone();
+		let asset_location = destination;
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
 		let xcm_weight = transact_encoded_call_weight
 			.checked_add(&Weight::from_ref_time(100_000_000))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
-		let asset = MultiAsset { id: Concrete(asset_location.clone()), fun: Fungible(xcm_fee) };
+		let asset = MultiAsset { id: Concrete(asset_location), fun: Fungible(xcm_fee) };
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
@@ -122,7 +122,7 @@ fn transact_in_local_chain_works() {
 			destination,
 			asset_location,
 			descend_location,
-			transact_encoded_call.clone(),
+			transact_encoded_call,
 			transact_encoded_call_weight,
 			xcm_weight,
 			xcm_fee,
@@ -135,14 +135,11 @@ fn transact_in_local_chain_works() {
 			vec![
 				// Withdrawing asset
 				(
-					asset.clone().into(),
+					asset.clone(),
 					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
 				),
 				// Depositing asset
-				(
-					asset.clone().into(),
-					MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) }
-				),
+				(asset, MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) }),
 			]
 		);
 		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmTransactedLocally)]);
@@ -165,7 +162,7 @@ fn transact_in_target_chain_works() {
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
 		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
-			destination.clone(),
+			destination,
 			asset_location,
 			descend_location,
 			transact_encoded_call.clone(),
@@ -175,7 +172,7 @@ fn transact_in_target_chain_works() {
 		)
 		.unwrap();
 
-		assert_ok!(XcmpHandler::transact_in_target_chain(destination.clone(), target_instructions));
+		assert_ok!(XcmpHandler::transact_in_target_chain(destination, target_instructions));
 		assert_eq!(
 			sent_xcm(),
 			vec![(
@@ -196,7 +193,7 @@ fn transact_in_target_chain_works() {
 					Transact {
 						origin_kind: OriginKind::SovereignAccount,
 						require_weight_at_most: transact_encoded_call_weight,
-						call: transact_encoded_call.clone().into(),
+						call: transact_encoded_call.into(),
 					},
 					RefundSurplus,
 					DepositAsset {

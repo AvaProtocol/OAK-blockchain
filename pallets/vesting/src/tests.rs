@@ -138,16 +138,9 @@ fn additional_issuance() {
 }
 
 fn get_schedule() -> Vec<(u64, Vec<(AccountId, Balance)>)> {
-	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-	first_vest.push((ALICE, 100));
-	first_vest.push((BOB, 100));
-	scheduled_vests.push((FIRST_VEST_TIME, first_vest));
-	let mut second_vest: Vec<(AccountId, Balance)> = vec![];
-	second_vest.push((ALICE, 200));
-	second_vest.push((BOB, 200));
-	scheduled_vests.push((SECOND_VEST_TIME, second_vest));
-
+	let first_vest = vec![(ALICE, 100), (BOB, 100)];
+	let second_vest = vec![(ALICE, 200), (BOB, 200)];
+	let scheduled_vests = vec![(FIRST_VEST_TIME, first_vest), (SECOND_VEST_TIME, second_vest)];
 	scheduled_vests
 }
 

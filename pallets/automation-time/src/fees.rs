@@ -132,7 +132,7 @@ where
 		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let schedule_fee_location = action.schedule_fee_location::<T>().into();
+		let schedule_fee_location = action.schedule_fee_location::<T>();
 
 		let schedule_fee_amount: u128 =
 			Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
@@ -173,7 +173,7 @@ mod tests {
 	fn pay_checked_fees_for_success() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
-			fund_account(&alice.clone(), 900_000_000, 1, Some(0));
+			fund_account(&alice, 900_000_000, 1, Some(0));
 			let starting_funds = Balances::free_balance(alice.clone());
 
 			let call: <Test as frame_system::Config>::RuntimeCall =
@@ -181,7 +181,7 @@ mod tests {
 			let mut spy = 0;
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
-				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
+				&Action::DynamicDispatch { encoded_call: call.encode() },
 				1,
 				|| {
 					spy += 1;
@@ -202,7 +202,7 @@ mod tests {
 				frame_system::Call::remark_with_event { remark: vec![50] }.into();
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
-				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
+				&Action::DynamicDispatch { encoded_call: call.encode() },
 				1,
 				|| Ok(()),
 			);
@@ -214,7 +214,7 @@ mod tests {
 	fn does_not_charge_fees_when_prereq_errors() {
 		new_test_ext(0).execute_with(|| {
 			let alice = AccountId32::new(ALICE);
-			fund_account(&alice.clone(), 900_000_000, 1, Some(0));
+			fund_account(&alice, 900_000_000, 1, Some(0));
 
 			let starting_funds = Balances::free_balance(alice.clone());
 			let call: <Test as frame_system::Config>::RuntimeCall =
@@ -222,7 +222,7 @@ mod tests {
 
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for::<(), _>(
 				&alice,
-				&Action::DynamicDispatch { encoded_call: call.clone().encode() },
+				&Action::DynamicDispatch { encoded_call: call.encode() },
 				1,
 				|| Err("error".into()),
 			);

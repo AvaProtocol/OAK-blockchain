@@ -322,7 +322,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		/// Sudo or a member of the CallAccessFilter can call.
 		pub fn ensure_allowed(origin: OriginFor<T>) -> DispatchResult {
-			if let Err(_) = ensure_root(origin.clone()) {
+			if ensure_root(origin.clone()).is_err() {
 				let who = ensure_signed(origin)?;
 				if !T::CallAccessFilter::contains(&who) {
 					Err(Error::<T>::NotAllowed)?;

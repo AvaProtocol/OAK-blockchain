@@ -417,11 +417,11 @@ where
 		_overall_weight: Weight,
 		_flow: InstructionSequence,
 	) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
+		Ok(())
 	}
 
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
+		Ok(())
 	}
 }
 
@@ -543,8 +543,8 @@ pub fn new_test_ext(state_block_time: u64) -> sp_io::TestExternalities {
 // making sure a task is scheduled into the queue
 pub fn schedule_task(owner: [u8; 32], scheduled_times: Vec<u64>, message: Vec<u8>) -> TaskIdV2 {
 	let call: RuntimeCall = frame_system::Call::remark_with_event { remark: message }.into();
-	let task_id = schedule_dynamic_dispatch_task(owner, scheduled_times, call);
-	task_id
+
+	schedule_dynamic_dispatch_task(owner, scheduled_times, call)
 }
 
 pub fn schedule_dynamic_dispatch_task(
@@ -554,16 +554,12 @@ pub fn schedule_dynamic_dispatch_task(
 ) -> TaskIdV2 {
 	let account_id = AccountId32::new(owner);
 
-	assert_ok!(fund_account_dynamic_dispatch(
-		&account_id,
-		scheduled_times.len(),
-		call.clone().encode()
-	));
+	assert_ok!(fund_account_dynamic_dispatch(&account_id, scheduled_times.len(), call.encode()));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
-		RuntimeOrigin::signed(account_id.clone()),
+		RuntimeOrigin::signed(account_id),
 		ScheduleParam::Fixed { execution_times: scheduled_times },
-		Box::new(call.clone()),
+		Box::new(call),
 	));
 	last_task_id()
 }
@@ -583,7 +579,7 @@ pub fn schedule_recurring_task(
 	assert_ok!(fund_account_dynamic_dispatch(&account_id, 1, call.encode()));
 
 	assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
-		RuntimeOrigin::signed(account_id.clone()),
+		RuntimeOrigin::signed(account_id),
 		ScheduleParam::Recurring { next_execution_time, frequency },
 		Box::new(call),
 	));
@@ -635,7 +631,7 @@ pub fn add_task_to_missed_queue(
 	abort_errors: Vec<Vec<u8>>,
 ) -> TaskIdV2 {
 	let schedule = Schedule::new_fixed_schedule::<Test>(scheduled_times.clone()).unwrap();
-	let task_id = create_task(owner, task_id.clone(), schedule, action, abort_errors);
+	let task_id = create_task(owner, task_id, schedule, action, abort_errors);
 	let missed_task =
 		MissedTaskV2Of::<Test>::new(AccountId32::new(owner), task_id.clone(), scheduled_times[0]);
 	let mut missed_queue = AutomationTime::get_missed_queue();
@@ -692,7 +688,7 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
@@ -700,7 +696,7 @@ pub fn get_funds(account: AccountId) {
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
@@ -742,8 +738,7 @@ pub fn fund_account(
 pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 	let location = location
 		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
-				.into(),
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
 			<Test as Config>::UniversalLocation::get(),
 		)
 		.expect("Reanchor location failed");

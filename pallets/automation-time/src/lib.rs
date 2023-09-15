@@ -334,7 +334,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_block: T::BlockNumber) -> Weight {
-			if Self::is_shutdown() == true {
+			if Self::is_shutdown() {
 				return T::DbWeight::get().reads(1u64)
 			}
 
@@ -402,7 +402,7 @@ pub mod pallet {
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
@@ -465,7 +465,7 @@ pub mod pallet {
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Schedule a task to increase delegation to a specified up to a minimum balance
@@ -509,7 +509,7 @@ pub mod pallet {
 				.collect();
 
 			Self::validate_and_schedule_task(action, who, schedule, errors)?;
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Schedule a task that will dispatch a call.
@@ -539,7 +539,7 @@ pub mod pallet {
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Cancel a task.
@@ -560,7 +560,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::TaskDoesNotExist)
 				.map(|task| Self::remove_task(task_id.clone(), task))?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Sudo can force cancel a task.
@@ -584,7 +584,7 @@ pub mod pallet {
 				.ok_or(Error::<T>::TaskDoesNotExist)
 				.map(|task| Self::remove_task(task_id.clone(), task))?;
 
-			Ok(().into())
+			Ok(())
 		}
 	}
 
@@ -675,7 +675,7 @@ pub mod pallet {
 			// run as many scheduled tasks as we can
 			let task_queue = Self::get_task_queue();
 			weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
-			if task_queue.len() > 0 {
+			if !task_queue.is_empty() {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				TaskQueueV2::<T>::put(tasks_left);
 				weight_left = new_weight_left.saturating_sub(T::DbWeight::get().writes(1u64));
@@ -688,7 +688,7 @@ pub mod pallet {
 			if weight_left.ref_time() >= run_missed_task_weight.ref_time() {
 				let missed_queue = Self::get_missed_queue();
 				weight_left = weight_left.saturating_sub(T::DbWeight::get().reads(1u64));
-				if missed_queue.len() > 0 {
+				if !missed_queue.is_empty() {
 					let (tasks_left, new_weight_left) =
 						Self::run_missed_tasks(missed_queue, weight_left);
 
@@ -856,7 +856,7 @@ pub mod pallet {
 					tasks.push(new_missed_task);
 				}
 			}
-			return tasks
+			tasks
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
@@ -973,9 +973,9 @@ pub mod pallet {
 			}
 
 			if consumed_task_index == account_task_ids.len() {
-				return (vec![], weight_left)
+				(vec![], weight_left)
 			} else {
-				return (account_task_ids.split_off(consumed_task_index), weight_left)
+				(account_task_ids.split_off(consumed_task_index), weight_left)
 			}
 		}
 
@@ -1022,9 +1022,9 @@ pub mod pallet {
 			}
 
 			if consumed_task_index == missed_tasks.len() {
-				return (vec![], weight_left)
+				(vec![], weight_left)
 			} else {
-				return (missed_tasks.split_off(consumed_task_index), weight_left)
+				(missed_tasks.split_off(consumed_task_index), weight_left)
 			}
 		}
 
@@ -1069,10 +1069,10 @@ pub mod pallet {
 			task: &TaskOf<T>,
 		) -> (Weight, Option<DispatchError>) {
 			let fee_amount = Self::calculate_schedule_fee_amount(&task.action, 1);
-			if fee_amount.is_err() {
+			if let Err(error) = fee_amount {
 				return (
 					<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-					Some(fee_amount.unwrap_err()),
+					Some(error),
 				)
 			}
 			let fee_amount = fee_amount.unwrap();
@@ -1089,11 +1089,10 @@ pub mod pallet {
 							<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 							None,
 						),
-						Err(e) =>
-							return (
-								<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-								Some(e),
-							),
+						Err(e) => (
+							<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+							Some(e),
+						),
 					}
 				},
 				None => {
@@ -1114,7 +1113,7 @@ pub mod pallet {
 			match <T as Config>::Call::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
 					let mut dispatch_origin: T::RuntimeOrigin =
-						frame_system::RawOrigin::Signed(caller.clone()).into();
+						frame_system::RawOrigin::Signed(caller).into();
 					dispatch_origin.add_filter(
 						|call: &<T as frame_system::Config>::RuntimeCall| {
 							T::ScheduleAllowList::contains(call)
@@ -1151,11 +1150,11 @@ pub mod pallet {
 			match task.schedule {
 				Schedule::Fixed { ref mut executions_left, .. } => {
 					*executions_left = executions_left.saturating_sub(1);
-					if *executions_left <= 0 {
+					if *executions_left == 0 {
 						AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
 						Self::deposit_event(Event::TaskCompleted {
 							who: task.owner_id.clone(),
-							task_id: task_id.clone(),
+							task_id,
 						});
 					} else {
 						AccountTasks::<T>::insert(task.owner_id.clone(), task_id, task);
@@ -1170,11 +1169,7 @@ pub mod pallet {
 			let mut found_task: bool = false;
 			let mut execution_times = task.execution_times();
 			Self::clean_execution_times_vector(&mut execution_times);
-			let current_time_slot = match Self::get_current_time_slot() {
-				Ok(time_slot) => time_slot,
-				// This will only occur for the first block in the chain.
-				Err(_) => 0,
-			};
+			let current_time_slot = Self::get_current_time_slot().unwrap_or(0);
 
 			if let Some((last_time_slot, _)) = Self::get_last_slot() {
 				for execution_time in execution_times.iter().rev() {
@@ -1262,10 +1257,7 @@ pub mod pallet {
 			}
 
 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
-			Self::deposit_event(Event::TaskCancelled {
-				who: task.owner_id,
-				task_id: task_id.clone(),
-			});
+			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 
 		/// Schedule task and return it's task_id.
@@ -1274,7 +1266,7 @@ pub mod pallet {
 
 			let execution_times = task.execution_times();
 
-			if AccountTasks::<T>::contains_key(owner_id.clone(), task.task_id.clone()) {
+			if AccountTasks::<T>::contains_key(&owner_id, task.task_id.clone()) {
 				Err(Error::<T>::DuplicateTask)?;
 			}
 
@@ -1303,9 +1295,7 @@ pub mod pallet {
 			with_transaction(|| -> storage::TransactionOutcome<Result<TaskIdV2, DispatchError>> {
 				for time in execution_times.iter() {
 					let mut scheduled_tasks = Self::get_scheduled_tasks(*time).unwrap_or_default();
-					if let Err(_) =
-						scheduled_tasks.try_push::<T, BalanceOf<T>>(task_id.clone(), task)
-					{
+					if scheduled_tasks.try_push::<T, BalanceOf<T>>(task_id.clone(), task).is_err() {
 						return Rollback(Err(DispatchError::Other("time slot full")))
 					}
 					<ScheduledTasksV3<T>>::insert(*time, scheduled_tasks);
@@ -1330,14 +1320,13 @@ pub mod pallet {
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let asset_location = asset_location
 						.reanchored(
-							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())))
-								.into(),
+							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
 							T::UniversalLocation::get(),
 						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 					// Only native token are supported as the XCMP fee for local deductions
 					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
-						asset_location != MultiLocation::new(0, Here).into()
+						asset_location != MultiLocation::new(0, Here)
 					{
 						Err(Error::<T>::UnsupportedFeePayment)?
 					}
@@ -1403,7 +1392,7 @@ pub mod pallet {
 								task_id: task_id.clone(),
 								schedule_as,
 							});
-							AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
+							AccountTasks::<T>::insert(owner_id, task_id, task.clone());
 						},
 						Err(err) => {
 							Self::deposit_event(Event::<T>::TaskRescheduleFailed {
@@ -1435,7 +1424,7 @@ pub mod pallet {
 					})?;
 
 					let owner_id = task.owner_id.clone();
-					AccountTasks::<T>::insert(owner_id.clone(), task_id, task.clone());
+					AccountTasks::<T>::insert(owner_id, task_id, task.clone());
 				},
 				Schedule::Fixed { .. } => {},
 			}
@@ -1456,15 +1445,11 @@ pub mod pallet {
 
 		pub fn generate_task_idv2() -> TaskIdV2 {
 			let current_block_number =
-				match TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number()).ok() {
-					Some(i) => i,
-					None => 0,
-				};
+				TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number())
+					.ok()
+					.unwrap_or(0);
 
-			let tx_id = match <frame_system::Pallet<T>>::extrinsic_index() {
-				Some(i) => i,
-				None => 0,
-			};
+			let tx_id = <frame_system::Pallet<T>>::extrinsic_index().unwrap_or(0);
 
 			let evt_index = <frame_system::Pallet<T>>::event_count();
 
@@ -1478,7 +1463,7 @@ pub mod pallet {
 		pub fn get_auto_compound_delegated_stake_task_ids(
 			account_id: AccountOf<T>,
 		) -> Vec<TaskIdV2> {
-			AccountTasks::<T>::iter_prefix_values(account_id.clone())
+			AccountTasks::<T>::iter_prefix_values(account_id)
 				.filter(|task| {
 					match task.action {
 						// We don't care about the inner content, we just want to pick out the
@@ -1504,7 +1489,7 @@ pub mod pallet {
 			let schedule_fee_location = action.schedule_fee_location::<T>();
 			let schedule_fee_location = schedule_fee_location
 				.reanchored(
-					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))).into(),
+					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
 					T::UniversalLocation::get(),
 				)
 				.map_err(|_| Error::<T>::CannotReanchor)?;

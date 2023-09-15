@@ -172,9 +172,8 @@ impl SendXcm for TestSendXcm {
 		if message.clone().unwrap() == err_message {
 			Err(SendError::Transport("Destination location full"))
 		} else {
-			SENT_XCM.with(|q| {
-				q.borrow_mut().push((destination.clone().unwrap(), message.clone().unwrap()))
-			});
+			SENT_XCM
+				.with(|q| q.borrow_mut().push(((*destination).unwrap(), message.clone().unwrap())));
 			Ok(((), MultiAssets::new()))
 		}
 	}
@@ -203,7 +202,7 @@ pub struct DummyAssetTransactor;
 impl TransactAsset for DummyAssetTransactor {
 	fn deposit_asset(what: &MultiAsset, who: &MultiLocation, _context: &XcmContext) -> XcmResult {
 		let asset = what.clone();
-		let location = who.clone();
+		let location = *who;
 		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset, location)));
 		Ok(())
 	}
@@ -214,7 +213,7 @@ impl TransactAsset for DummyAssetTransactor {
 		_maybe_context: Option<&XcmContext>,
 	) -> Result<Assets, XcmError> {
 		let asset = what.clone();
-		let location = who.clone();
+		let location = *who;
 		TRANSACT_ASSET.with(|q| q.borrow_mut().push((asset.clone(), location)));
 		Ok(asset.into())
 	}
@@ -223,7 +222,7 @@ impl TransactAsset for DummyAssetTransactor {
 parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 	pub UniversalLocation: InteriorMultiLocation =
-		X1(Parachain(2114).into());
+		X1(Parachain(2114));
 	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 }
 pub struct XcmConfig;

@@ -1182,8 +1182,8 @@ impl_runtime_apis! {
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
 			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount.into(),
-				execution_fee: fee_handler.execution_fee_amount.into()
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
 			})
 		}
 

@@ -83,6 +83,6 @@ where
 		};
 		runtime_api_result
 			.map_err(|e| mapped_err(format!("{:?}", e)))
-			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or(String::default()))))?
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or_default())))?
 	}
 }
