@@ -249,8 +249,6 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		instruction_sequence: InstructionSequence,
 		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
-		let destination =
-			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
 			schedule_fee,
