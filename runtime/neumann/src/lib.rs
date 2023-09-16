@@ -845,12 +845,10 @@ parameter_types! {
 pub struct ScheduleAllowList;
 impl Contains<RuntimeCall> for ScheduleAllowList {
 	fn contains(c: &RuntimeCall) -> bool {
-		match c {
-			RuntimeCall::System(_) => true,
-			RuntimeCall::Balances(_) => true,
-			RuntimeCall::ParachainStaking(_) => true,
-			_ => false,
-		}
+		matches!(
+			c,
+			RuntimeCall::System(_) | RuntimeCall::Balances(_) | RuntimeCall::ParachainStaking(_)
+		)
 	}
 }
 
@@ -925,15 +923,15 @@ impl pallet_automation_price::Config for Runtime {
 pub struct ClosedCallFilter;
 impl Contains<RuntimeCall> for ClosedCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
-		match c {
-			RuntimeCall::AssetRegistry(_) => false,
-			RuntimeCall::AutomationTime(_) => false,
-			RuntimeCall::Balances(_) => false,
-			RuntimeCall::Bounties(_) => false,
-			RuntimeCall::ParachainStaking(_) => false,
-			RuntimeCall::Treasury(_) => false,
-			_ => true,
-		}
+		!matches!(
+			c,
+			RuntimeCall::AssetRegistry(_) |
+				RuntimeCall::AutomationTime(_) |
+				RuntimeCall::Balances(_) |
+				RuntimeCall::Bounties(_) |
+				RuntimeCall::ParachainStaking(_) |
+				RuntimeCall::Treasury(_)
+		)
 	}
 }
 

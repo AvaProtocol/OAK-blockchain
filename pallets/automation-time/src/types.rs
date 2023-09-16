@@ -627,10 +627,7 @@ mod tests {
 		#[test]
 		fn number_of_known_executions_for_fixed() {
 			new_test_ext(0).execute_with(|| {
-				let s = Schedule::Fixed {
-					execution_times: vec![].try_into().unwrap(),
-					executions_left: 5,
-				};
+				let s = Schedule::Fixed { execution_times: vec![], executions_left: 5 };
 				assert_eq!(s.known_executions_left(), 5);
 			})
 		}

@@ -745,7 +745,7 @@ pub mod pallet {
 			trigger_percentage: AssetPercentage,
 		) -> Result<T::Hash, Error<T>> {
 			let task_id = Self::generate_task_id(owner_id, provided_id);
-			if let Some(_) = Self::get_task((asset.clone(), task_id)) {
+			if Self::get_task((asset.clone(), task_id)).is_some() {
 				Err(Error::<T>::DuplicateTask)?
 			}
 			if let Some(mut asset_tasks) =

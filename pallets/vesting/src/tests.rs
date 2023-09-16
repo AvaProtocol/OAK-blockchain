@@ -33,9 +33,7 @@ fn genesis_default() {
 #[should_panic = "Invalid time"]
 fn genesis_bad_time() {
 	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-	first_vest.push((ALICE, 100));
-	first_vest.push((BOB, 100));
+	let first_vest: Vec<(AccountId, Balance)> = vec![(ALICE, 100), (BOB, 100)];
 	scheduled_vests.push((FIRST_VEST_TIME + 120, first_vest));
 
 	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {})
@@ -45,11 +43,8 @@ fn genesis_bad_time() {
 #[should_panic = "Cannot vest less than the existential deposit"]
 fn genesis_low_amount() {
 	let mut scheduled_vests: Vec<(u64, Vec<(AccountId, Balance)>)> = vec![];
-	let mut first_vest: Vec<(AccountId, Balance)> = vec![];
-	first_vest.push((ALICE, 1));
-	first_vest.push((BOB, 100));
+	let first_vest: Vec<(AccountId, Balance)> = vec![(ALICE, 1), (BOB, 100)];
 	scheduled_vests.push((FIRST_VEST_TIME, first_vest));
-
 	ExtBuilder::default().schedule(scheduled_vests).build().execute_with(|| {})
 }
 

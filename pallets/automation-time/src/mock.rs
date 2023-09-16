@@ -428,11 +428,7 @@ where
 pub struct ScheduleAllowList;
 impl Contains<RuntimeCall> for ScheduleAllowList {
 	fn contains(c: &RuntimeCall) -> bool {
-		match c {
-			RuntimeCall::System(_) => true,
-			RuntimeCall::Balances(_) => true,
-			_ => false,
-		}
+		matches!(c, RuntimeCall::System(_) | RuntimeCall::Balances(_))
 	}
 }
 
@@ -743,13 +739,10 @@ pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 		)
 		.expect("Reanchor location failed");
 
-	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| match item {
-		MockAssetFeePerSecond { asset_location, .. } => *asset_location == location,
+	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| {
+		let MockAssetFeePerSecond { asset_location, .. } = item;
+		*asset_location == location
 	});
 
-	if found_asset.is_some() {
-		Some(found_asset.unwrap().fee_per_second)
-	} else {
-		None
-	}
+	found_asset.map(|asset| asset.fee_per_second)
 }

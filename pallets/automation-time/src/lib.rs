@@ -917,7 +917,7 @@ pub mod pallet {
 								..
 							} => Self::run_xcmp_task(
 								destination,
-								schedule_as.unwrap_or(task.owner_id.clone()),
+								schedule_as.unwrap_or_else(|| task.owner_id.clone()),
 								execution_fee,
 								encoded_call,
 								encoded_call_weight,
@@ -1314,25 +1314,22 @@ pub mod pallet {
 			schedule: Schedule,
 			abort_errors: Vec<Vec<u8>>,
 		) -> DispatchResult {
-			match action.clone() {
-				Action::XCMP { execution_fee, instruction_sequence, .. } => {
-					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
-						.map_err(|()| Error::<T>::BadVersion)?;
-					let asset_location = asset_location
-						.reanchored(
-							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
-							T::UniversalLocation::get(),
-						)
-						.map_err(|_| Error::<T>::CannotReanchor)?;
-					// Only native token are supported as the XCMP fee for local deductions
-					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
-						asset_location != MultiLocation::new(0, Here)
-					{
-						Err(Error::<T>::UnsupportedFeePayment)?
-					}
-				},
-				_ => (),
-			};
+			if let Action::XCMP { execution_fee, instruction_sequence, .. } = action.clone() {
+				let asset_location = MultiLocation::try_from(execution_fee.asset_location)
+					.map_err(|()| Error::<T>::BadVersion)?;
+				let asset_location = asset_location
+					.reanchored(
+						&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
+						T::UniversalLocation::get(),
+					)
+					.map_err(|_| Error::<T>::CannotReanchor)?;
+				// Only native token are supported as the XCMP fee for local deductions
+				if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
+					asset_location != MultiLocation::new(0, Here)
+				{
+					Err(Error::<T>::UnsupportedFeePayment)?
+				}
+			}
 
 			let executions = schedule.known_executions_left();
 
