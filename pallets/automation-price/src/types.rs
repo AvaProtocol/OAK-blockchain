@@ -1,7 +1,6 @@
 use crate::{weights::WeightInfo, Config, InstructionSequence};
 
-use frame_support::{pallet_prelude::*};
-
+use frame_support::pallet_prelude::*;
 
 use sp_std::prelude::*;
 

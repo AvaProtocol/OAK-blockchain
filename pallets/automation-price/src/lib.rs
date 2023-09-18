@@ -295,8 +295,6 @@ pub mod pallet {
 		BTreeMap<TaskId, u128>,
 	>;
 
-
-
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasks<T: Config> = StorageNMap<
@@ -525,18 +523,18 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
 		pub fn delete_asset(
-            origin: OriginFor<T>,
-            chain: ChainName,
+			origin: OriginFor<T>,
+			chain: ChainName,
 			exchange: Exchange,
 			asset1: AssetName,
-			asset2: AssetName
-        ) -> DispatchResult {
+			asset2: AssetName,
+		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
 			ensure_root(origin)?;
 
-            let key = (chain, exchange, &asset1, &asset2);
+			let key = (chain, exchange, &asset1, &asset2);
 
-            // TODO: handle delete
+			// TODO: handle delete
 			if let Some(_asset_target_price) = Self::get_asset_registry_info(key) {
 				//Self::delete_asset_tasks(asset.clone());
 				Self::deposit_event(Event::AssetDeleted { asset: asset1 });

@@ -19,20 +19,15 @@ use crate::{mock::*, AssetPayment, Config};
 
 use pallet_xcmp_handler::InstructionSequence;
 
-
 use frame_support::{
 	assert_ok,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{self, RawOrigin};
 use sp_core::Get;
-use sp_runtime::{
-	AccountId32,
-};
+use sp_runtime::AccountId32;
 
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
-
-
 
 use crate::weights::WeightInfo;
 
@@ -105,7 +100,7 @@ fn calculate_expected_xcmp_action_schedule_fee(
 		)
 		.expect("Location reanchor failed");
 	let weight = <Test as Config>::WeightInfo::run_xcmp_task();
-	
+
 	if schedule_fee_location == MultiLocation::default() {
 		calculate_local_action_schedule_fee(weight, num_of_execution)
 	} else {
