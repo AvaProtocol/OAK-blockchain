@@ -22,7 +22,7 @@ use crate::TaskIdV2;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, Everything},
+	traits::{ConstU128, ConstU64, ConstU32, Everything},
 	weights::Weight,
 	PalletId,
 };
@@ -513,6 +513,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type MaxWeightPerSlot = MaxWeightPerSlot;
+	type SlotPeriod = ConstU64<600>;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = CurrencyId;

@@ -51,7 +51,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	ensure, parameter_types,
 	traits::{
-		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
+		ConstU128, ConstU64, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
 		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
 	},
 	weights::{
@@ -891,6 +891,7 @@ impl pallet_automation_time::Config for Runtime {
 	// Roughly .125% of parachain block weight per hour
 	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .00125
 	type MaxWeightPerSlot = ConstU128<150_000_000_000>;
+	type SlotPeriod = ConstU64<600>;
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
