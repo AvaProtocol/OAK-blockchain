@@ -106,6 +106,7 @@ pub mod pallet {
 	type AssetName = Vec<u8>;
 	type AssetPair = (AssetName, AssetName);
 	type AssetPrice = u128;
+	type TriggerFunction = Vec<u8>;
 
 	/// The struct that stores all information needed for a task.
 	#[derive(Debug, Eq, Encode, Decode, TypeInfo, Clone)]
@@ -289,8 +290,8 @@ pub mod pallet {
 		(
 			NMapKey<Twox64Concat, ChainName>,
 			NMapKey<Twox64Concat, Exchange>,
-			NMapKey<Twox64Concat, AssetName>,
-			NMapKey<Twox64Concat, AssetName>,
+			NMapKey<Twox64Concat, AssetPair>,
+			NMapKey<Twox64Concat, TriggerFunction>,
 		),
 		BTreeMap<TaskId, u128>,
 	>;
@@ -848,16 +849,14 @@ pub mod pallet {
 			// TODO: correct TaskRegistry to new format
 			<Tasks<T>>::insert(task.task_id.clone(), &task);
 
-			if let Some(mut task_index) = Self::get_sorted_tasks_index((
-				&task.chain,
-				&task.exchange,
-				&task.asset_pair.0,
-				&task.asset_pair.1,
-			)) {
-				task_index.insert(task.task_id.clone(), task.trigger_params[0]);
+			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+
+			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
+				// TODO: remove hard code and take right param
+				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
 			} else {
-				let mut task_index = BTreeMap::<TaskId, u128>::new();
-				task_index.insert(task.task_id.clone(), task.trigger_params[0]);
+				let mut sorted_task_index = BTreeMap::<TaskId, u128>::new();
+				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
 
 				// TODO: sorted based on trigger_function comparison of the parameter
 				// then at the time of trigger we cut off all the left part of the tree
@@ -865,10 +864,10 @@ pub mod pallet {
 					(
 						task.chain.clone(),
 						task.exchange.clone(),
-						task.asset_pair.0.clone(),
-						task.asset_pair.1.clone(),
+						task.asset_pair.clone(),
+						task.trigger_function.clone(),
 					),
-					task_index,
+					sorted_task_index,
 				);
 			}
 

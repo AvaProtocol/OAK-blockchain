@@ -213,7 +213,7 @@ fn test_update_asset_prices() {
 }
 
 #[test]
-fn test_schedule_xcmp_tak_ok() {
+fn test_schedule_xcmp_task_ok() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		// TODO: Setup fund once we add fund check and weight
 		let para_id: u32 = 1000;
@@ -224,7 +224,7 @@ fn test_schedule_xcmp_tak_ok() {
 		setup_asset(&creator);
 
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator),
+			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
 			exchange1.to_vec(),
 			asset1.to_vec(),
@@ -262,5 +262,37 @@ fn test_schedule_xcmp_tak_ok() {
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
 		// Ensure task is inserted into the right SortedIndex
+
+		// Create  second task, and make sure both are recorded
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			1005u128,
+			"gt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+		let task_ids2 = get_task_ids_from_events();
+		let task_id2 = task_ids2.last().expect("task failed to schedule");
+		assert_ne!(task_id, task_id2, "task id dup");
+
+		let q = AutomationPrice::get_sorted_tasks_index((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+			"gt".as_bytes().to_vec(),
+		));
+		assert_eq!(q.into_iter().count(), 2);
 	})
 }
