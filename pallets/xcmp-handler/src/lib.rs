@@ -310,11 +310,6 @@ pub mod pallet {
 					require_weight_at_most: transact_encoded_call_weight,
 					call: transact_encoded_call.into(),
 				},
-				RefundSurplus::<()>,
-				DepositAsset::<()> {
-					assets: Wild(AllCounted(1)),
-					beneficiary: MultiLocation { parents: 1, interior: descend_location },
-				},
 			]);
 
 			Ok((Xcm(vec![]), target_xcm))
