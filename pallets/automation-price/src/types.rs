@@ -1,8 +1,8 @@
-use crate::{weights::WeightInfo, Config, Error, InstructionSequence, Pallet};
+use crate::{weights::WeightInfo, Config, InstructionSequence};
 
-use frame_support::{dispatch::GetDispatchInfo, pallet_prelude::*, traits::Get};
+use frame_support::{pallet_prelude::*};
 
-use sp_runtime::traits::{AtLeast32BitUnsigned, CheckedConversion};
+
 use sp_std::prelude::*;
 
 use xcm::{latest::prelude::*, VersionedMultiLocation};
@@ -48,7 +48,7 @@ impl<AccountId, Balance> Action<AccountId, Balance> {
 
 	pub fn schedule_fee_location<T: Config>(&self) -> MultiLocation {
 		match self {
-			Action::XCMP { schedule_fee, .. } => (*schedule_fee).clone(),
+			Action::XCMP { schedule_fee, .. } => *schedule_fee,
 			_ => MultiLocation::default(),
 		}
 	}

@@ -19,24 +19,20 @@ use crate::{mock::*, AssetPayment, Config};
 
 use pallet_xcmp_handler::InstructionSequence;
 
-use codec::Encode;
+
 use frame_support::{
-	assert_noop, assert_ok,
-	dispatch::GetDispatchInfo,
-	pallet_prelude::DispatchError,
-	traits::OnInitialize,
+	assert_ok,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{self, RawOrigin};
 use sp_core::Get;
 use sp_runtime::{
-	traits::{BlakeTwo256, Hash},
 	AccountId32,
 };
-use sp_std::collections::btree_map::BTreeMap;
+
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
-use pallet_valve::Shutdown;
+
 
 use crate::weights::WeightInfo;
 
@@ -80,7 +76,7 @@ impl Default for XcmpActionParams {
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
 		XcmpActionParams {
 			destination: MultiLocation::new(1, X1(Parachain(PARA_ID))),
-			schedule_fee: DEFAULT_SCHEDULE_FEE_LOCATION.into(),
+			schedule_fee: DEFAULT_SCHEDULE_FEE_LOCATION,
 			execution_fee: AssetPayment {
 				asset_location: MOONBASE_ASSET_LOCATION.into(),
 				amount: 100,
@@ -104,21 +100,20 @@ fn calculate_expected_xcmp_action_schedule_fee(
 ) -> u128 {
 	let schedule_fee_location = schedule_fee_location
 		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
-				.into(),
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
 			<Test as Config>::UniversalLocation::get(),
 		)
 		.expect("Location reanchor failed");
 	let weight = <Test as Config>::WeightInfo::run_xcmp_task();
-	let expected_schedule_fee_amount = if schedule_fee_location == MultiLocation::default() {
+	
+	if schedule_fee_location == MultiLocation::default() {
 		calculate_local_action_schedule_fee(weight, num_of_execution)
 	} else {
 		let fee_per_second =
 			get_fee_per_second(&schedule_fee_location).expect("Get fee per second should work");
 		fee_per_second * (weight.ref_time() as u128) * (num_of_execution as u128) /
 			(WEIGHT_REF_TIME_PER_SECOND as u128)
-	};
-	expected_schedule_fee_amount
+	}
 }
 
 // Helper function to asset event easiser
@@ -144,15 +139,15 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 
 	// Convert both lists to iterators
 	let mut emitted_iter = emitted_events.iter();
-	let mut events_iter = events.iter();
+	let events_iter = events.iter();
 
 	// Iterate through the target events
-	while let Some(target_event) = events_iter.next() {
+	for target_event in events_iter {
 		// Initialize a boolean variable to track whether the target event is found
 		let mut found = false;
 
 		// Continue iterating through the emitted events until a match is found or there are no more emitted events
-		while let Some(emitted_event) = emitted_iter.next() {
+		for emitted_event in emitted_iter.by_ref() {
 			// Compare event type and event data for a match
 			if emitted_event == target_event {
 				// Target event found, mark as found and advance the emitted iterator

@@ -19,14 +19,14 @@ use super::*;
 use crate as pallet_automation_price;
 use crate::TaskId;
 
-use frame_benchmarking::frame_support::assert_ok;
+
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, Everything},
+	traits::{ConstU32, Everything},
 	weights::Weight,
 	PalletId,
 };
-use frame_system::{self as system, EnsureRoot, RawOrigin};
+use frame_system::{self as system, RawOrigin};
 use orml_traits::parameter_type_with_key;
 use primitives::{EnsureProxy, TransferCallCreator};
 use sp_core::H256;
@@ -200,7 +200,7 @@ impl pallet_automation_price::Config for Test {
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
-	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
+	pub const MaxScheduleSeconds: u64 = 24 * 60 * 60;
 	pub const MaxBlockWeight: u64 = 20_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
@@ -252,35 +252,35 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWeight<Test> {
 	fn emit_event() -> Weight {
-		Weight::from_ref_time(20_000_000 as u64)
+		Weight::from_ref_time(20_000_000_u64)
 	}
 	fn run_native_transfer_task() -> Weight {
-		Weight::from_ref_time(230_000_000 as u64)
+		Weight::from_ref_time(230_000_000_u64)
 	}
-	fn reset_asset(v: u32) -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
+	fn reset_asset(_v: u32) -> Weight {
+		Weight::from_ref_time(200_000_000_u64)
 	}
 	fn update_asset_reset() -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
+		Weight::from_ref_time(200_000_000_u64)
 	}
 	fn delete_asset_tasks() -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
+		Weight::from_ref_time(200_000_000_u64)
 	}
 	fn delete_asset_extrinsic() -> Weight {
-		Weight::from_ref_time(220_000_000 as u64)
+		Weight::from_ref_time(220_000_000_u64)
 	}
 	fn asset_price_update_extrinsic() -> Weight {
-		Weight::from_ref_time(220_000_000 as u64)
+		Weight::from_ref_time(220_000_000_u64)
 	}
 	fn initialize_asset_extrinsic() -> Weight {
-		Weight::from_ref_time(220_000_000 as u64)
+		Weight::from_ref_time(220_000_000_u64)
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
+		Weight::from_ref_time(200_000_000_u64)
 	}
 
 	fn run_xcmp_task() -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
+		Weight::from_ref_time(200_000_000_u64)
 	}
 }
 
@@ -301,11 +301,11 @@ where
 		_overall_weight: Weight,
 		_flow: InstructionSequence,
 	) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
+		Ok(())
 	}
 
 	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
-		Ok(().into())
+		Ok(())
 	}
 }
 
@@ -431,15 +431,15 @@ pub fn get_task_ids_from_events() -> Vec<TaskId> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
-	let max_execution_fee = action_fee * u128::from(1u128);
+	let max_execution_fee = action_fee;
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = Weight::from_ref_time(20_000 as u64) * 2;
+	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
@@ -457,11 +457,11 @@ pub fn get_xcmp_funds(account: AccountId) {
 pub fn fund_account_dynamic_dispatch(
 	account: &AccountId,
 	execution_count: usize,
-	encoded_call: Vec<u8>,
+	_encoded_call: Vec<u8>,
 ) -> Result<(), DispatchError> {
 	//let action: ActionOf<Test> = Action::DynamicDispatch { encoded_call };
 	//let action_weight = action.execution_weight::<Test>()?;
-	let action_weight: u64 = 1_000_000;
+	let _action_weight: u64 = 1_000_000;
 	fund_account(account, 1_000_000, execution_count, None);
 	Ok(())
 }
@@ -505,8 +505,7 @@ pub const ASSET_FEE_PER_SECOND: [MockAssetFeePerSecond; 3] = [
 pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 	let location = location
 		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into())))
-				.into(),
+			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
 			<Test as Config>::UniversalLocation::get(),
 		)
 		.expect("Reanchor location failed");

@@ -295,6 +295,8 @@ pub mod pallet {
 		BTreeMap<TaskId, u128>,
 	>;
 
+
+
 	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_tasks)]
 	pub type ScheduledTasks<T: Config> = StorageNMap<
@@ -307,14 +309,6 @@ pub mod pallet {
 	#[pallet::getter(fn get_scheduled_asset_period_reset)]
 	pub type ScheduledAssetDeletion<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_asset_baseline_price)]
-	pub type AssetBaselinePrices<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetPrice>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_asset_price)]
-	pub type AssetPrices<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetPrice>;
 
 	// Tasks hold all active task, look up through (Owner, TaskId)
 	#[pallet::storage]
@@ -530,14 +524,22 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
-		pub fn delete_asset(origin: OriginFor<T>, asset: AssetName) -> DispatchResult {
+		pub fn delete_asset(
+            origin: OriginFor<T>,
+            chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName
+        ) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
 			ensure_root(origin)?;
-			if let Some(_asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
-				AssetBaselinePrices::<T>::remove(asset.clone());
-				AssetPrices::<T>::remove(asset.clone());
-				Self::delete_asset_tasks(asset.clone());
-				Self::deposit_event(Event::AssetDeleted { asset });
+
+            let key = (chain, exchange, &asset1, &asset2);
+
+            // TODO: handle delete
+			if let Some(_asset_target_price) = Self::get_asset_registry_info(key) {
+				//Self::delete_asset_tasks(asset.clone());
+				Self::deposit_event(Event::AssetDeleted { asset: asset1 });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}

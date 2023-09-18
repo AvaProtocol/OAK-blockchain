@@ -16,7 +16,7 @@
 // limitations under the License.
 
 /// ! Traits and default implementation for paying execution fees.
-use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
+use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf};
 
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
@@ -131,7 +131,7 @@ where
 		action: &ActionOf<T>,
 		executions: u32,
 	) -> Result<Self, DispatchError> {
-		let schedule_fee_location = action.schedule_fee_location::<T>().into();
+		let schedule_fee_location = action.schedule_fee_location::<T>();
 
 		// TODO: FIX THIS BEFORE MERGE
 		let schedule_fee_amount: u128 = 1_000;
