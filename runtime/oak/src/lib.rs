@@ -52,7 +52,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	ensure, parameter_types,
 	traits::{
-		ConstU128, ConstU64, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
+		ConstU128, ConstU16, ConstU32, ConstU64, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
 		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp,
 	},
 	weights::{

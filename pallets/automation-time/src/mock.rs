@@ -22,7 +22,7 @@ use crate::TaskIdV2;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU64, ConstU32, Everything},
+	traits::{ConstU128, ConstU32, ConstU64, Everything},
 	weights::Weight,
 	PalletId,
 };

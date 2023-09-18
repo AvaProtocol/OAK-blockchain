@@ -609,7 +609,8 @@ pub mod pallet {
 			}
 
 			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
-			let diff_to_slot = now.checked_rem(T::SlotPeriod::get()).ok_or(ArithmeticError::Overflow)?;
+			let diff_to_slot =
+				now.checked_rem(T::SlotPeriod::get()).ok_or(ArithmeticError::Overflow)?;
 			Ok(now.checked_sub(diff_to_slot).ok_or(ArithmeticError::Overflow)?)
 		}
 
@@ -625,7 +626,9 @@ pub mod pallet {
 				return Ok(())
 			}
 
-			let remainder = scheduled_time.checked_rem(T::SlotPeriod::get()).ok_or(ArithmeticError::Overflow)?;
+			let remainder = scheduled_time
+				.checked_rem(T::SlotPeriod::get())
+				.ok_or(ArithmeticError::Overflow)?;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
 			}
@@ -795,8 +798,8 @@ pub mod pallet {
 					allotted_weight,
 				);
 
-				let last_missed_slot_tracker =
-					last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(T::SlotPeriod::get()));
+				let last_missed_slot_tracker = last_missed_slot
+					.saturating_add(missed_slots_moved.saturating_mul(T::SlotPeriod::get()));
 				let used_weight = append_weight;
 				(last_missed_slot_tracker, used_weight)
 			} else {
@@ -815,8 +818,9 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff =
-				(current_time_slot.saturating_sub(last_missed_slot) / T::SlotPeriod::get()).saturating_sub(1);
+			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) /
+				T::SlotPeriod::get())
+			.saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight.ref_time() <
 					<T as Config>::WeightInfo::shift_missed_tasks().ref_time()
