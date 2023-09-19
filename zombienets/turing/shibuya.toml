@@ -42,10 +42,10 @@ chain = "shibuya-dev"
 sender = 2114
 recipient = 2000
 max_capacity = 8
-max_message_size = 512
+max_message_size = 102400
 
 [[hrmp_channels]]
 sender = 2000
 recipient = 2114
 max_capacity = 8
-max_message_size = 512
+max_message_size = 102400
