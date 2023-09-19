@@ -640,6 +640,7 @@ pub mod pallet {
 				return weight_left
 			}
 
+            
 			// remove assets as necessary
 			//let current_time_slot = match Self::get_current_time_slot() {
 			//	Ok(time_slot) => time_slot,
@@ -854,6 +855,7 @@ pub mod pallet {
 			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
 				// TODO: remove hard code and take right param
 				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
+                SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			} else {
 				let mut sorted_task_index = BTreeMap::<TaskId, u128>::new();
 				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
@@ -861,12 +863,7 @@ pub mod pallet {
 				// TODO: sorted based on trigger_function comparison of the parameter
 				// then at the time of trigger we cut off all the left part of the tree
 				SortedTasksIndex::<T>::insert(
-					(
-						task.chain.clone(),
-						task.exchange.clone(),
-						task.asset_pair.clone(),
-						task.trigger_function.clone(),
-					),
+					key,
 					sorted_task_index,
 				);
 			}

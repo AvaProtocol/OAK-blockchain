@@ -287,12 +287,14 @@ fn test_schedule_xcmp_task_ok() {
 		let task_id2 = task_ids2.last().expect("task failed to schedule");
 		assert_ne!(task_id, task_id2, "task id dup");
 
-		let q = AutomationPrice::get_sorted_tasks_index((
+		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
 			chain1.to_vec(),
 			exchange1.to_vec(),
 			(asset1.to_vec(), asset2.to_vec()),
 			"gt".as_bytes().to_vec(),
-		));
-		assert_eq!(q.into_iter().count(), 2);
+		)).unwrap();
+		let task_ids : Vec<Vec<u8>> = sorted_task_index.into_keys().collect();
+		assert_eq!(task_ids, 
+            vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50)));
 	})
 }
