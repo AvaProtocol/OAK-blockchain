@@ -292,9 +292,9 @@ fn test_schedule_xcmp_task_ok() {
 			exchange1.to_vec(),
 			(asset1.to_vec(), asset2.to_vec()),
 			"gt".as_bytes().to_vec(),
-		)).unwrap();
-		let task_ids : Vec<Vec<u8>> = sorted_task_index.into_keys().collect();
-		assert_eq!(task_ids, 
-            vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50)));
+		))
+		.unwrap();
+		let task_ids: Vec<Vec<u8>> = sorted_task_index.into_keys().collect();
+		assert_eq!(task_ids, vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50)));
 	})
 }
