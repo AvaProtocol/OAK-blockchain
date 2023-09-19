@@ -875,11 +875,14 @@ fn schedule_xcmp_through_proxy_works() {
 		// Find the TaskScheduled event in the event list and verify if the who within it is correct.
 		events()
 			.into_iter()
-			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
+			.find(|e| match e {
+				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 				who,
 				schedule_as,
 				..
-			}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone())))
+			}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
+				_ => false,
+			})
 			.expect("TaskScheduled event should emit with 'who' being proxy_account, and 'schedule_as' being delegator_account.");
 	})
 }
