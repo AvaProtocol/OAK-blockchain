@@ -13,9 +13,10 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
+#![allow(missing_docs)]
 
 use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
-use sp_std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Weight functions needed for pallet_automation_time.
 pub trait WeightInfo {
@@ -33,50 +34,50 @@ pub trait WeightInfo {
 
 impl WeightInfo for () {
 	fn emit_event() -> Weight {
-		Weight::from_ref_time(20_000_000 as u64)
+		Weight::from_parts(20_000_000, 5000)
 	}
 	fn run_native_transfer_task() -> Weight {
-		Weight::from_ref_time(230_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes(2 as u64))
+		Weight::from_parts(230_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(2_u64))
 	}
 	fn reset_asset(v: u32, ) -> Weight {
-		Weight::from_ref_time(200_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
-			.saturating_add(Weight::from_ref_time(20_000_000 as u64).saturating_mul(v as u64))
-			.saturating_add(RocksDbWeight::get().reads((4 as u64).saturating_mul(v as u64)))
-			.saturating_add(RocksDbWeight::get().writes((5 as u64).saturating_mul(v as u64)))
+		Weight::from_parts(200_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
+			.saturating_add(Weight::from_parts(20_000_000, 0).saturating_mul(v.into()))
+			.saturating_add(RocksDbWeight::get().reads((4_u64).saturating_mul(v.into())))
+			.saturating_add(RocksDbWeight::get().writes((5_u64).saturating_mul(v.into())))
 	}
 	fn update_asset_reset() -> Weight{
-		Weight::from_ref_time(200_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(2 as u64))
-			.saturating_add(RocksDbWeight::get().writes(1 as u64))
+		Weight::from_parts(200_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(2_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 	fn delete_asset_tasks() -> Weight{
-		Weight::from_ref_time(200_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(1 as u64))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
+		Weight::from_parts(200_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
 	}
 	fn delete_asset_extrinsic() -> Weight{
-		Weight::from_ref_time(220_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(3 as u64))
-			.saturating_add(RocksDbWeight::get().writes(7 as u64))
+		Weight::from_parts(220_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(3_u64))
+			.saturating_add(RocksDbWeight::get().writes(7_u64))
 	}
 	fn asset_price_update_extrinsic() -> Weight{
-		Weight::from_ref_time(220_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(5 as u64))
-			.saturating_add(RocksDbWeight::get().writes(3 as u64))
-			.saturating_add(RocksDbWeight::get().reads(21 as u64))
-			.saturating_add(RocksDbWeight::get().writes(21 as u64))
+		Weight::from_parts(220_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(5_u64))
+			.saturating_add(RocksDbWeight::get().writes(3_u64))
+			.saturating_add(RocksDbWeight::get().reads(21_u64))
+			.saturating_add(RocksDbWeight::get().writes(21_u64))
 	}
 	fn add_asset_extrinsic() -> Weight{
-		Weight::from_ref_time(220_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(4 as u64))
-			.saturating_add(RocksDbWeight::get().writes(5 as u64))
+		Weight::from_parts(220_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(4_u64))
+			.saturating_add(RocksDbWeight::get().writes(5_u64))
 	}
 	fn schedule_transfer_task_extrinsic() -> Weight{
-		Weight::from_ref_time(200_000_000 as u64)
-			.saturating_add(RocksDbWeight::get().reads(6 as u64))
-			.saturating_add(RocksDbWeight::get().writes(4 as u64))
+		Weight::from_parts(200_000_000, 5000)
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
 }
