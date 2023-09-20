@@ -187,7 +187,7 @@ fn test_update_asset_prices() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let sender = AccountId32::new(ALICE);
 
-        setup_asset(&sender, chain1.to_vec());
+		setup_asset(&sender, chain1.to_vec());
 
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(sender),
@@ -203,7 +203,7 @@ fn test_update_asset_prices() {
 		let p = AutomationPrice::get_asset_price_data((
 			chain1.to_vec(),
 			exchange1.to_vec(),
-			(asset1.to_vec(), asset2.to_vec())
+			(asset1.to_vec(), asset2.to_vec()),
 		))
 		.expect("cannot get price");
 
@@ -216,8 +216,8 @@ fn test_update_asset_prices_multi() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let sender = AccountId32::new(ALICE);
 
-        setup_asset(&sender, chain1.to_vec());
-        setup_asset(&sender, chain2.to_vec());
+		setup_asset(&sender, chain1.to_vec());
+		setup_asset(&sender, chain2.to_vec());
 
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(sender),
@@ -227,13 +227,13 @@ fn test_update_asset_prices_multi() {
 			vec!(asset2.to_vec(), asset2.to_vec()),
 			vec!(1005, 1009),
 			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
-			vec!(1, 1),
+			vec!(1, 2),
 		));
 
 		let p1 = AutomationPrice::get_asset_price_data((
 			chain1.to_vec(),
 			exchange1.to_vec(),
-			(asset1.to_vec(), asset2.to_vec())
+			(asset1.to_vec(), asset2.to_vec()),
 		))
 		.expect("cannot get price");
 
@@ -243,12 +243,12 @@ fn test_update_asset_prices_multi() {
 		let p2 = AutomationPrice::get_asset_price_data((
 			chain2.to_vec(),
 			exchange1.to_vec(),
-			(asset1.to_vec(), asset2.to_vec())
+			(asset1.to_vec(), asset2.to_vec()),
 		))
 		.expect("cannot get price");
 
-		assert_eq!(p2.round, 1);
-		assert_eq!(p2.amount, 1005);
+		assert_eq!(p2.round, 2);
+		assert_eq!(p2.amount, 1009);
 	})
 }
 
