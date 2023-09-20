@@ -261,8 +261,7 @@ pub mod pallet {
 		(
 			NMapKey<Twox64Concat, ChainName>,
 			NMapKey<Twox64Concat, Exchange>,
-			NMapKey<Twox64Concat, AssetName>,
-			NMapKey<Twox64Concat, AssetName>,
+			NMapKey<Twox64Concat, AssetPair>,
 		),
 		RegistryInfo<T>,
 	>;
@@ -275,8 +274,7 @@ pub mod pallet {
 		(
 			NMapKey<Twox64Concat, ChainName>,
 			NMapKey<Twox64Concat, Exchange>,
-			NMapKey<Twox64Concat, AssetName>,
-			NMapKey<Twox64Concat, AssetName>,
+			NMapKey<Twox64Concat, AssetPair>,
 		),
 		PriceData,
 	>;
@@ -484,7 +482,7 @@ pub mod pallet {
 				let asset2 = assets2[index].clone();
 				let round = rounds[index].clone();
 
-				let key = (&chain, &exchange, &asset1, &asset2);
+				let key = (&chain, &exchange, (&asset1, &asset2));
 
 				if !AssetRegistry::<T>::contains_key(&key) {
 					// TODO: emit error and continue update the rest instead, temporary do this to
@@ -533,7 +531,7 @@ pub mod pallet {
 			// TODO: needs fees if opened up to non-sudo
 			ensure_root(origin)?;
 
-			let key = (chain, exchange, &asset1, &asset2);
+			let key = (chain, exchange, (&asset1, &asset2));
 
 			// TODO: handle delete
 			if let Some(_asset_target_price) = Self::get_asset_registry_info(key) {
@@ -640,6 +638,24 @@ pub mod pallet {
 				return weight_left
 			}
 
+            // Iterate over sorted task index
+            // TODO: Capture and only take the one whether price move fast enough
+            //for let key in SortedTasksIndex::<T>::iter_keys() {
+            //    let (chain, exchange, asset_pair, trigger_func) = key;
+
+            //    let current_price = PriceRegistry::get(chain, exchange, asset_pair);
+
+            //    let sort_task_index = get_sorted_tasks_index(key);
+            //    // Now for gt less get all the left part
+            //    if trigger_func == vec!(103, 116) {
+
+            //    } else {
+            //    }
+            //}
+
+
+
+
 			// remove assets as necessary
 			//let current_time_slot = match Self::get_current_time_slot() {
 			//	Ok(time_slot) => time_slot,
@@ -694,7 +710,7 @@ pub mod pallet {
 			decimal: u8,
 			asset_owners: Vec<AccountOf<T>>,
 		) -> Result<(), DispatchError> {
-			let key = (&chain, &exchange, &asset1, &asset2);
+			let key = (&chain, &exchange, (&asset1, &asset2));
 
 			if AssetRegistry::<T>::contains_key(&key) {
 				Err(Error::<T>::AssetAlreadyInitialized)?

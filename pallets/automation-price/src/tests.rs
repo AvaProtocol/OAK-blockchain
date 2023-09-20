@@ -54,10 +54,10 @@ struct XcmpActionParams {
 	instruction_sequence: InstructionSequence,
 }
 
-fn setup_asset(sender: &AccountId32) {
+fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
 	AutomationPrice::initialize_asset(
 		RawOrigin::Root.into(),
-		chain1.to_vec(),
+		chain,
 		exchange1.to_vec(),
 		asset1.to_vec(),
 		asset2.to_vec(),
@@ -163,6 +163,7 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 
 const exchange1: &[u8] = "exchange1".as_bytes();
 const chain1: &[u8] = "KUSAMA".as_bytes();
+const chain2: &[u8] = "DOT".as_bytes();
 const asset1: &[u8] = "TUR".as_bytes();
 const asset2: &[u8] = "USDC".as_bytes();
 
@@ -186,7 +187,7 @@ fn test_update_asset_prices() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let sender = AccountId32::new(ALICE);
 
-		setup_asset(&sender);
+        setup_asset(&sender, chain1.to_vec());
 
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(sender),
@@ -202,13 +203,52 @@ fn test_update_asset_prices() {
 		let p = AutomationPrice::get_asset_price_data((
 			chain1.to_vec(),
 			exchange1.to_vec(),
-			asset1.to_vec(),
-			asset2.to_vec(),
+			(asset1.to_vec(), asset2.to_vec())
 		))
 		.expect("cannot get price");
 
 		assert_eq!(p.round, 1);
 		assert_eq!(p.amount, 1005);
+	})
+}
+#[test]
+fn test_update_asset_prices_multi() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let sender = AccountId32::new(ALICE);
+
+        setup_asset(&sender, chain1.to_vec());
+        setup_asset(&sender, chain2.to_vec());
+
+		assert_ok!(AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(sender),
+			vec!(chain1.to_vec(), chain2.to_vec()),
+			vec!(exchange1.to_vec(), exchange1.to_vec()),
+			vec!(asset1.to_vec(), asset1.to_vec()),
+			vec!(asset2.to_vec(), asset2.to_vec()),
+			vec!(1005, 1009),
+			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
+			vec!(1, 1),
+		));
+
+		let p1 = AutomationPrice::get_asset_price_data((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec())
+		))
+		.expect("cannot get price");
+
+		assert_eq!(p1.round, 1);
+		assert_eq!(p1.amount, 1005);
+
+		let p2 = AutomationPrice::get_asset_price_data((
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec())
+		))
+		.expect("cannot get price");
+
+		assert_eq!(p2.round, 1);
+		assert_eq!(p2.amount, 1005);
 	})
 }
 
@@ -221,7 +261,7 @@ fn test_schedule_xcmp_task_ok() {
 		let call: Vec<u8> = vec![2, 4, 5];
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
-		setup_asset(&creator);
+		setup_asset(&creator, chain1.to_vec());
 
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
