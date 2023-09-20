@@ -640,18 +640,20 @@ pub mod pallet {
 
 			// Iterate over sorted task index
 			// TODO: Capture and only take the one whether price move fast enough
-			//for let key in SortedTasksIndex::<T>::iter_keys() {
-			//    let (chain, exchange, asset_pair, trigger_func) = key;
+			for key in SortedTasksIndex::<T>::iter_keys() {
+			    let (chain, exchange, asset_pair, trigger_func) = key.clone();
 
-			//    let current_price = PriceRegistry::get(chain, exchange, asset_pair);
+                // TODO: Swap asset to check pair
+			    let current_price = Self::get_asset_price_data((&chain, &exchange, &asset_pair));
 
-			//    let sort_task_index = get_sorted_tasks_index(key);
-			//    // Now for gt less get all the left part
-			//    if trigger_func == vec!(103, 116) {
+			    let sort_task_index = Self::get_sorted_tasks_index(key);
+			    // Now for gt less get all the left part
+			    if vec!(103_u8, 116_u8) == *trigger_func  {
+                    // 
+			    } else {
 
-			//    } else {
-			//    }
-			//}
+			    }
+			}
 
 			// remove assets as necessary
 			//let current_time_slot = match Self::get_current_time_slot() {

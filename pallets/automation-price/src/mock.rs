@@ -46,6 +46,21 @@ pub type Balance = u128;
 pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
 
+
+
+pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
+pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
+pub const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
+
+// This is 1-0-3: {1: block idx}-{0: first extrinsic in block}-{3: the event index}
+pub const FIRST_TASK_ID: [u8; 5] = [49, 45, 48, 45, 51];
+pub const SECOND_TASK_ID: [u8; 5] = [49, 45, 48, 45, 54];
+
+pub const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
+
+pub const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
+
+
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
 pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
@@ -64,6 +79,16 @@ pub const MOONBASE_ASSET_LOCATION: MultiLocation =
 	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
 pub const UNKNOWN_SCHEDULE_FEE: MultiLocation =
 	MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
+
+pub const exchange1: &[u8] = "exchange1".as_bytes();
+pub const exchange2: &[u8] = "exchange2".as_bytes();
+
+pub const chain1: &[u8] = "KUSAMA".as_bytes();
+pub const chain2: &[u8] = "DOT".as_bytes();
+
+pub const asset1: &[u8] = "TUR".as_bytes();
+pub const asset2: &[u8] = "USDC".as_bytes();
+pub const asset3: &[u8] = "KSM".as_bytes();
 
 construct_runtime!(
 	pub enum Test where
@@ -518,4 +543,38 @@ pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 	} else {
 		None
 	}
+}
+
+pub fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
+	AutomationPrice::initialize_asset(
+		RawOrigin::Root.into(),
+		chain,
+		exchange1.to_vec(),
+		asset1.to_vec(),
+		asset2.to_vec(),
+		10,
+		vec![sender.clone()],
+	);
+}
+
+pub fn setup_prices(sender: &AccountId32) {
+	AutomationPrice::initialize_asset(
+		RawOrigin::Root.into(),
+		chain1.to_vec(),
+		exchange1.to_vec(),
+		asset1.to_vec(),
+		asset2.to_vec(),
+		10,
+		vec![sender.clone()],
+	);
+
+    AutomationPrice::initialize_asset(
+		RawOrigin::Root.into(),
+		chain2.to_vec(),
+		exchange1.to_vec(),
+		asset2.to_vec(),
+		asset3.to_vec(),
+		10,
+		vec![sender.clone()],
+	);
 }

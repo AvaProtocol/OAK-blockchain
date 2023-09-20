@@ -31,18 +31,6 @@ use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
 
-pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
-const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
-
-// This is 1-0-3: {1: block idx}-{0: first extrinsic in block}-{3: the event index}
-const FIRST_TASK_ID: [u8; 5] = [49, 45, 48, 45, 51];
-const SECOND_TASK_ID: [u8; 5] = [49, 45, 48, 45, 54];
-
-const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
-
-const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
-
 struct XcmpActionParams {
 	destination: MultiLocation,
 	schedule_fee: MultiLocation,
@@ -52,18 +40,6 @@ struct XcmpActionParams {
 	overall_weight: Weight,
 	schedule_as: Option<AccountId32>,
 	instruction_sequence: InstructionSequence,
-}
-
-fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
-	AutomationPrice::initialize_asset(
-		RawOrigin::Root.into(),
-		chain,
-		exchange1.to_vec(),
-		asset1.to_vec(),
-		asset2.to_vec(),
-		10,
-		vec![sender.clone()],
-	);
 }
 
 impl Default for XcmpActionParams {
@@ -161,11 +137,6 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 	true
 }
 
-const exchange1: &[u8] = "exchange1".as_bytes();
-const chain1: &[u8] = "KUSAMA".as_bytes();
-const chain2: &[u8] = "DOT".as_bytes();
-const asset1: &[u8] = "TUR".as_bytes();
-const asset2: &[u8] = "USDC".as_bytes();
 
 #[test]
 fn test_initialize_asset_works() {
