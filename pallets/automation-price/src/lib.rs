@@ -98,6 +98,7 @@ pub mod pallet {
 
 	type UnixTime = u64;
 	pub type TaskId = Vec<u8>;
+    pub type TaskIdInsertedOrderList = Vec<TaskId>;
 
 	// TODO: Cleanup before merge
 	type ChainName = Vec<u8>;
@@ -279,6 +280,11 @@ pub mod pallet {
 		PriceData,
 	>;
 
+    // SortedTasksIndex is our sorted by price task shard
+    // Each task for a given asset is organized into a BTreeMap
+    // https://doc.rust-lang.org/std/collections/struct.BTreeMap.html#method.insert
+    // - key: Trigger Price
+    // - value: vector of task id
 	// TODO: move these to a trigger model
 	// TODO: handle task expiration
 	#[pallet::storage]
@@ -291,7 +297,7 @@ pub mod pallet {
 			NMapKey<Twox64Concat, AssetPair>,
 			NMapKey<Twox64Concat, TriggerFunction>,
 		),
-		BTreeMap<TaskId, u128>,
+		BTreeMap<AssetPrice, TaskIdInsertedOrderList>,
 	>;
 
 	#[pallet::storage]
@@ -648,7 +654,7 @@ pub mod pallet {
 
 			    let sort_task_index = Self::get_sorted_tasks_index(key);
 			    // Now for gt less get all the left part
-			    if vec!(103_u8, 116_u8) == *trigger_func  {
+			    if vec!(103_u8, 116_u8) == *trigger_func {
                     // 
 			    } else {
 
@@ -868,17 +874,22 @@ pub mod pallet {
 
 			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
 				// TODO: remove hard code and take right param
-				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
+                if let Some(mut tasks_by_price) = sorted_task_index.get_mut(&(task.trigger_params[0])) {
+                    tasks_by_price.push(task.task_id.clone());
+                } else {
+                    sorted_task_index.insert(task.trigger_params[0], vec!(task.task_id.clone()));
+                }
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			} else {
-				let mut sorted_task_index = BTreeMap::<TaskId, u128>::new();
-				sorted_task_index.insert(task.task_id.clone(), task.trigger_params[0]);
+				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdInsertedOrderList>::new();
+				sorted_task_index.insert(task.trigger_params[0], vec!(task.task_id.clone()));
 
 				// TODO: sorted based on trigger_function comparison of the parameter
 				// then at the time of trigger we cut off all the left part of the tree
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			}
 
+            // TODO: Refactor and move actualy schedule logic to this
 			Self::schedule_task(&task)?;
 
 			// TODO: add back signature when insert new task work

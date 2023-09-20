@@ -15,7 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, AssetPayment, Config};
+use crate::{
+    mock::*, AssetPayment, Config,
+    TaskId, TaskIdInsertedOrderList
+};
 
 use pallet_xcmp_handler::InstructionSequence;
 
@@ -305,7 +308,7 @@ fn test_schedule_xcmp_task_ok() {
 			"gt".as_bytes().to_vec(),
 		))
 		.unwrap();
-		let task_ids: Vec<Vec<u8>> = sorted_task_index.into_keys().collect();
-		assert_eq!(task_ids, vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50)));
+		let task_ids: Vec<TaskIdInsertedOrderList> = sorted_task_index.into_values().collect();
+		assert_eq!(task_ids, vec!(vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50))));
 	})
 }
