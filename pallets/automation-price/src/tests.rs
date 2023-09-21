@@ -15,11 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{
-    mock::*, AssetPayment, Config,
-    TaskId, TaskIdList,
-    SortedTasksIndex,
-};
+use crate::{mock::*, AssetPayment, Config, SortedTasksIndex, TaskId, TaskIdList};
 
 use pallet_xcmp_handler::InstructionSequence;
 
@@ -34,7 +30,7 @@ use sp_runtime::AccountId32;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
-use sp_std::ops::Bound::{Included, Excluded};
+use sp_std::ops::Bound::{Excluded, Included};
 
 struct XcmpActionParams {
 	destination: MultiLocation,
@@ -141,7 +137,6 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 	// If all target events are found in order, return true
 	true
 }
-
 
 #[test]
 fn test_initialize_asset_works() {
@@ -326,7 +321,7 @@ fn test_shift_tasks() {
 
 		setup_prices(&creator);
 
-        assert_ok!(AutomationPrice::schedule_xcmp_task(
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
 			exchange1.to_vec(),
@@ -346,7 +341,7 @@ fn test_shift_tasks() {
 			Weight::from_ref_time(200_000)
 		));
 
-        assert_ok!(AutomationPrice::schedule_xcmp_task(
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
 			exchange1.to_vec(),
@@ -366,7 +361,7 @@ fn test_shift_tasks() {
 			Weight::from_ref_time(200_000)
 		));
 
-        assert_ok!(AutomationPrice::schedule_xcmp_task(
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
 			exchange1.to_vec(),
@@ -386,33 +381,32 @@ fn test_shift_tasks() {
 			Weight::from_ref_time(200_000)
 		));
 
-        AutomationPrice::update_asset_prices(
-                RuntimeOrigin::signed(creator.clone()),
-                vec!(chain1.to_vec(), chain2.to_vec(), chain2.to_vec()),
-                vec!(exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()),
-                vec!(asset1.to_vec(), asset2.to_vec(), asset1.to_vec()),
-                vec!(asset2.to_vec(), asset3.to_vec(), asset3.to_vec()),
-                vec!(1005_u128, 10_u128, 300_u128),
-                vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
-                vec!(1, 2, 3),
-        );
+		AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(creator.clone()),
+			vec![chain1.to_vec(), chain2.to_vec(), chain2.to_vec()],
+			vec![exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()],
+			vec![asset1.to_vec(), asset2.to_vec(), asset1.to_vec()],
+			vec![asset2.to_vec(), asset3.to_vec(), asset3.to_vec()],
+			vec![1005_u128, 10_u128, 300_u128],
+			vec![START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128],
+			vec![1, 2, 3],
+		);
 
-        assert_eq!(AutomationPrice::get_task_queue(), None);
-        AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		assert_eq!(AutomationPrice::get_task_queue(), None);
+		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
 
-        for key in SortedTasksIndex::<Test>::iter_keys() {
-		   let (chain, exchange, asset_pair, trigger_func) = key.clone();
-		
-           if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
-               println!("repeat automation tasks {:?} func {:?}", tasks, trigger_func);
+		for key in SortedTasksIndex::<Test>::iter_keys() {
+			let (chain, exchange, asset_pair, trigger_func) = key.clone();
 
-               for (price, task_ids) in tasks.iter() {
-                   println!("price {:?} {:?}", &price, &task_ids);
-               }
+			if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
+				println!("repeat automation tasks {:?} func {:?}", tasks, trigger_func);
 
-               //SortedTasksIndex::<Test>::remove(key.clone())
-           }
-        }
+				for (price, task_ids) in tasks.iter() {
+					println!("price {:?} {:?}", &price, &task_ids);
+				}
 
+				//SortedTasksIndex::<Test>::remove(key.clone())
+			}
+		}
 	})
 }

@@ -46,8 +46,6 @@ pub type Balance = u128;
 pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
 
-
-
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
 pub const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
@@ -59,7 +57,6 @@ pub const SECOND_TASK_ID: [u8; 5] = [49, 45, 48, 45, 54];
 pub const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
 
 pub const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
-
 
 pub const ALICE: [u8; 32] = [1u8; 32];
 pub const BOB: [u8; 32] = [2u8; 32];
@@ -568,7 +565,7 @@ pub fn setup_prices(sender: &AccountId32) {
 		vec![sender.clone()],
 	);
 
-    AutomationPrice::initialize_asset(
+	AutomationPrice::initialize_asset(
 		RawOrigin::Root.into(),
 		chain2.to_vec(),
 		exchange1.to_vec(),
