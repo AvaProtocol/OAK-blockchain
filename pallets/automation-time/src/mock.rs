@@ -57,6 +57,9 @@ pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior:
 pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
+pub const AUTOMATION_TIME_SLOT_PERIOD: u64 = 600;
+pub const AUTOMATION_TIME_MAX_SCHEDULE_SECONDS: u64 = 1 * 24 * 60 * 60;
+
 const DOLLAR: u128 = 10_000_000_000;
 
 pub const MOONBASE_ASSET_LOCATION: MultiLocation =
@@ -289,7 +292,7 @@ parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
 	#[derive(Debug)]
 	pub const MaxExecutionTimes: u32 = 3;
-	pub const MaxScheduleSeconds: u64 = 1 * 24 * 60 * 60;
+	pub const MaxScheduleSeconds: u64 = AUTOMATION_TIME_MAX_SCHEDULE_SECONDS;
 	pub const MaxBlockWeight: u64 = 20_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
@@ -513,7 +516,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type MaxWeightPerSlot = MaxWeightPerSlot;
-	type SlotPeriod = ConstU64<600>;
+	type SlotPeriod = ConstU64<AUTOMATION_TIME_SLOT_PERIOD>;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = CurrencyId;
