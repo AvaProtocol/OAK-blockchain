@@ -73,6 +73,7 @@ use sp_runtime::{
 	Perbill,
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
+use sp_std::ops::Bound::{Included, Excluded};
 
 pub use pallet_xcmp_handler::InstructionSequence;
 pub use weights::WeightInfo;
@@ -98,7 +99,7 @@ pub mod pallet {
 
 	type UnixTime = u64;
 	pub type TaskId = Vec<u8>;
-    pub type TaskIdInsertedOrderList = Vec<TaskId>;
+    pub type TaskIdList = Vec<TaskId>;
 
 	// TODO: Cleanup before merge
 	type ChainName = Vec<u8>;
@@ -297,7 +298,7 @@ pub mod pallet {
 			NMapKey<Twox64Concat, AssetPair>,
 			NMapKey<Twox64Concat, TriggerFunction>,
 		),
-		BTreeMap<AssetPrice, TaskIdInsertedOrderList>,
+		BTreeMap<AssetPrice, TaskIdList>,
 	>;
 
 	#[pallet::storage]
@@ -313,18 +314,19 @@ pub mod pallet {
 	pub type ScheduledAssetDeletion<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
 
-	// Tasks hold all active task, look up through (Owner, TaskId)
+	// Tasks hold all active task, look up through (TaskId)
 	#[pallet::storage]
 	#[pallet::getter(fn get_task)]
 	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId, Task<T>>;
 
+	// All active tasks, but organized by account
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task)]
 	pub type AccountTasks<T: Config> = StorageMap<_, Twox64Concat, AccountOf<T>, Vec<TaskId>>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<(AssetName, T::Hash)>, ValueQuery>;
+	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn is_shutdown)]
@@ -634,6 +636,81 @@ pub mod pallet {
 				.to_vec()
 		}
 
+        // Move task from the SortedTasksIndex into TaskQueue that are ready to be process
+        pub fn shift_tasks(max_weight: Weight) -> Weight {
+            let mut weight_left: Weight = max_weight;
+
+            // TODO: Look into asset that has price move instead
+            let mut task_to_process: TaskIdList = Vec::new();
+
+            for key in SortedTasksIndex::<T>::iter_keys() {
+               let (chain, exchange, asset_pair, trigger_func) = key.clone();
+            
+                // TODO: Swap asset to check pair
+			    let current_price_wrap = Self::get_asset_price_data((&chain, &exchange, &asset_pair));
+                if !current_price_wrap.is_some() {
+                    continue
+                }
+
+                // Example: sell orders
+                // 
+                // In the list we had tasks such as
+                //  - task1: sell when price > 10
+                //  - task2: sell when price > 20
+                //  - task3: sell when price > 30
+                //  If price used to be 5, and now it's 15, task1 got run
+                //  If price used to be 5, and now it's 25, task1 and task2 got run
+                //  If price used to be 5, and now it's 35, all tasks are run
+                //
+                // Example: buy orders
+                // 
+                // In the list we had tasks such as
+                //  - task1: buy when price < 10
+                //  - task2: buy when price < 20
+                //  - task3: buy when price < 30
+                //  If price used to be 500, and now it's 25, task3 got run
+                //  If price used to be 500, and now it's 15, task2 and task3 got run
+                //  If price used to be 500, and now it's 5,  all tasks are run
+                //
+                //  TODO: handle atomic and transaction
+               if let Some(mut tasks) = Self::get_sorted_tasks_index(&key) {
+                   let current_price = current_price_wrap.unwrap();
+
+                   //Eg sell order, sell when price >
+                   let range = if trigger_func ==  vec!(103_u8, 116_u8) {
+                       (Excluded(&u128::MIN), Included(&current_price))
+                   } else {
+                        // Eg buy order, buy when price <
+                        (Included(&current_price), Excluded(&u128::MAX))
+                   };
+
+                   for (&price, task_ids) in (tasks.clone()).range(range) {
+                       // Remove because we map this into task queue
+                       tasks.remove(&price);
+                       //task_to_process.append(task_ids);
+                   };
+
+                   // all tasks are moved to process, delete the queue
+                    if tasks.is_empty() {
+                        SortedTasksIndex::<T>::remove(&key);
+                    } else {
+                        SortedTasksIndex::<T>::insert(&key, tasks);
+                    }
+               }
+            }
+        
+            if !task_to_process.is_empty() {
+                if let Ok(mut old_task) = TaskQueue::<T>::try_get() {
+                    old_task.append(&mut task_to_process);
+                    TaskQueue::<T>::put(old_task);
+                } else {
+                    TaskQueue::<T>::put(task_to_process);
+                };
+            }
+
+            return weight_left
+        }
+
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
@@ -644,22 +721,50 @@ pub mod pallet {
 				return weight_left
 			}
 
-			// Iterate over sorted task index
-			// TODO: Capture and only take the one whether price move fast enough
 			for key in SortedTasksIndex::<T>::iter_keys() {
 			    let (chain, exchange, asset_pair, trigger_func) = key.clone();
 
                 // TODO: Swap asset to check pair
-			    let current_price = Self::get_asset_price_data((&chain, &exchange, &asset_pair));
+			    let current_price_wrap = Self::get_asset_price_data((&chain, &exchange, &asset_pair));
+			    let sorted_task_index_wrap = Self::get_sorted_tasks_index(key);
 
-			    let sort_task_index = Self::get_sorted_tasks_index(key);
-			    // Now for gt less get all the left part
+                if sorted_task_index_wrap.is_none() || current_price_wrap.is_none() {
+                    continue
+                }
+
+                let sorted_task_index = sorted_task_index_wrap.unwrap();
+                let current_price = current_price_wrap.unwrap();
+                let mut task_ids = Vec::<TaskIdList>::new();
+
+                // TODO: add weight for those instruction to weightleft
 			    if vec!(103_u8, 116_u8) == *trigger_func {
-                    // 
-			    } else {
+                    let mut key_to_remove: Vec<u128> = vec!();
 
+                    // We will move task into the queue to be excuted later on
+                    // We will delete them from here
+                    //for (&key, &value) in sorted_task_index.range((Included(&0), Included(&current_price.amount))) {
+                        //task_ids = task_ids.append(&mut(value.clone()));
+                    //}
+
+                    //for key in key_to_remove.iter() {
+                    //    sorted_task_index.remove_key(key);
+                    //}
+			    } else {
+                    //for (&key, &value) in sorted_task_index.range((Included(&current_price.amount), Excluded(u128::MAX))) {
+                        //task_ids = task_ids.append(&value);
+                    //}
 			    }
+
+                // Put the new tasks at the end, the task already in the queue has higher priority
+                // to process first
+                //TaskQueue::<T>::mutate_extant(vec!(), |old_task| old_task.append(task_ids));
 			}
+
+            // Now we can run those tasks
+            // TODO: We need to calculate enough weight and balance the tasks so we won't be skew
+            // by a particular kind of task asset
+            //
+            // Now we run as much task as possible
 
 			// remove assets as necessary
 			//let current_time_slot = match Self::get_current_time_slot() {
@@ -693,17 +798,20 @@ pub mod pallet {
 			//	weight_left = weight_left - asset_reset_weight;
 			//}
 
-			//// run as many scheduled tasks as we can
-			//let task_queue = Self::get_task_queue();
-			//weight_left = weight_left
-			//	.saturating_sub(T::DbWeight::get().reads(1u64))
-			//	// For measuring the TaskQueue::<T>::put(tasks_left);
-			//	.saturating_sub(T::DbWeight::get().writes(1u64));
-			//if task_queue.len() > 0 {
-			//	let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
-			//	weight_left = new_weight_left;
-			//	TaskQueue::<T>::put(tasks_left);
-			//}
+			// run as many scheduled tasks as we can
+			let task_queue = Self::get_task_queue();
+            
+			weight_left = weight_left
+                // for above read
+				.saturating_sub(T::DbWeight::get().reads(1u64))
+			// For measuring the TaskQueue::<T>::put(tasks_left);
+				.saturating_sub(T::DbWeight::get().writes(1u64));
+			if task_queue.len() > 0 {
+				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
+			    weight_left = new_weight_left;
+				TaskQueue::<T>::put(tasks_left);
+            }
+
 			weight_left
 		}
 
@@ -744,20 +852,6 @@ pub mod pallet {
 			Ok(now.saturating_sub(diff_to_min))
 		}
 
-		pub fn delete_asset_tasks(asset: AssetName) {
-			// delete scheduled tasks
-			let _ = ScheduledTasks::<T>::clear_prefix((asset.clone(),), u32::MAX, None);
-			// delete tasks from task queue
-			let existing_task_queue: Vec<(AssetName, T::Hash)> = Self::get_task_queue();
-			let mut updated_task_queue: Vec<(AssetName, T::Hash)> = vec![];
-			for task in existing_task_queue {
-				if task.0 != asset {
-					updated_task_queue.push(task);
-				}
-			}
-			TaskQueue::<T>::put(updated_task_queue);
-		}
-
 		pub fn run_native_transfer_task(
 			sender: T::AccountId,
 			recipient: T::AccountId,
@@ -776,6 +870,10 @@ pub mod pallet {
 
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
+
+        pub fn run_xcmp_task(task: Task<T>) -> Weight {
+            Weight::from_ref_time(1_000_000u64)
+        }
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
@@ -798,7 +896,7 @@ pub mod pallet {
 						let task_action_weight = match task.action.clone() {
 							// TODO: Run actual task later to return weight
 							// not just return weight for test to pass
-							Action::XCMP { .. } => Weight::from_ref_time(1_000_000u64),
+							Action::XCMP { .. } => Self::run_xcmp_task(task.clone()),
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
 									sender,
@@ -830,6 +928,7 @@ pub mod pallet {
 				(task_ids.split_off(consumed_task_index), weight_left)
 			}
 		}
+
 
 		/// Schedule task and return it's task_id.
 		/// With transaction will protect against a partial success where N of M execution times might be full,
@@ -881,7 +980,7 @@ pub mod pallet {
                 }
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			} else {
-				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdInsertedOrderList>::new();
+				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList>::new();
 				sorted_task_index.insert(task.trigger_params[0], vec!(task.task_id.clone()));
 
 				// TODO: sorted based on trigger_function comparison of the parameter

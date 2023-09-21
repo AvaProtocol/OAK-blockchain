@@ -17,7 +17,8 @@
 
 use crate::{
     mock::*, AssetPayment, Config,
-    TaskId, TaskIdInsertedOrderList
+    TaskId, TaskIdList,
+    SortedTasksIndex,
 };
 
 use pallet_xcmp_handler::InstructionSequence;
@@ -33,6 +34,7 @@ use sp_runtime::AccountId32;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
+use sp_std::ops::Bound::{Included, Excluded};
 
 struct XcmpActionParams {
 	destination: MultiLocation,
@@ -308,7 +310,109 @@ fn test_schedule_xcmp_task_ok() {
 			"gt".as_bytes().to_vec(),
 		))
 		.unwrap();
-		let task_ids: Vec<TaskIdInsertedOrderList> = sorted_task_index.into_values().collect();
+		let task_ids: Vec<TaskIdList> = sorted_task_index.into_values().collect();
 		assert_eq!(task_ids, vec!(vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50))));
+	})
+}
+
+#[test]
+fn test_shift_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		// TODO: Setup fund once we add fund check and weight
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_prices(&creator);
+
+        assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			1000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+        assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			asset2.to_vec(),
+			asset3.to_vec(),
+			3000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(900),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+        assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset3.to_vec(),
+			6000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(2000),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+        AutomationPrice::update_asset_prices(
+                RuntimeOrigin::signed(creator.clone()),
+                vec!(chain1.to_vec(), chain2.to_vec(), chain2.to_vec()),
+                vec!(exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()),
+                vec!(asset1.to_vec(), asset2.to_vec(), asset1.to_vec()),
+                vec!(asset2.to_vec(), asset3.to_vec(), asset3.to_vec()),
+                vec!(1005_u128, 10_u128, 300_u128),
+                vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
+                vec!(1, 2, 3),
+        );
+
+        assert_eq!(AutomationPrice::get_task_queue(), None);
+        AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+
+        for key in SortedTasksIndex::<Test>::iter_keys() {
+		   let (chain, exchange, asset_pair, trigger_func) = key.clone();
+		
+           if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
+               println!("repeat automation tasks {:?} func {:?}", tasks, trigger_func);
+
+               for (price, task_ids) in tasks.iter() {
+                   println!("price {:?} {:?}", &price, &task_ids);
+               }
+
+               //SortedTasksIndex::<Test>::remove(key.clone())
+           }
+        }
+
 	})
 }
