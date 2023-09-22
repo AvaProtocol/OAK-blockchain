@@ -646,7 +646,7 @@ pub mod pallet {
 			let mut weight_left: Weight = max_weight;
 
 			// TODO: Look into asset that has price move instead
-			let mut task_to_process: TaskIdList = Vec::new();
+			let ref mut task_to_process: TaskIdList = Vec::new();
 
 			for key in SortedTasksIndex::<T>::iter_keys() {
 				let (chain, exchange, asset_pair, trigger_func) = key.clone();
@@ -654,10 +654,10 @@ pub mod pallet {
 				// TODO: Swap asset to check pair
 				let current_price_wrap =
 					Self::get_asset_price_data((&chain, &exchange, &asset_pair));
-				if !current_price_wrap.is_some() {
-					continue
-				}
 
+				if current_price_wrap.is_none() {
+					continue
+				};
 				// Example: sell orders
 				//
 				// In the list we had tasks such as
@@ -683,17 +683,19 @@ pub mod pallet {
 					let current_price = current_price_wrap.unwrap();
 
 					//Eg sell order, sell when price >
-					let range = if trigger_func == vec![103_u8, 116_u8] {
-						(Excluded(&u128::MIN), Included(&current_price))
+					let mut range;
+					if trigger_func == vec![103_u8, 116_u8] {
+						range = (Excluded(&u128::MIN), Included(&current_price.amount))
 					} else {
 						// Eg buy order, buy when price <
-						(Included(&current_price), Excluded(&u128::MAX))
+						range = (Included(&current_price.amount), Excluded(&u128::MAX))
 					};
 
 					for (&price, task_ids) in (tasks.clone()).range(range) {
 						// Remove because we map this into task queue
 						tasks.remove(&price);
-						//task_to_process.append(task_ids);
+						let ref mut t = &mut (task_ids.clone());
+						task_to_process.append(t);
 					}
 
 					// all tasks are moved to process, delete the queue
@@ -706,8 +708,9 @@ pub mod pallet {
 			}
 
 			if !task_to_process.is_empty() {
-				if let Ok(mut old_task) = TaskQueue::<T>::try_get() {
-					old_task.append(&mut task_to_process);
+				if TaskQueue::<T>::exists() {
+					let mut old_task = TaskQueue::<T>::get();
+					old_task.append(task_to_process);
 					TaskQueue::<T>::put(old_task);
 				} else {
 					TaskQueue::<T>::put(task_to_process);
@@ -727,85 +730,15 @@ pub mod pallet {
 				return weight_left
 			}
 
-			for key in SortedTasksIndex::<T>::iter_keys() {
-				let (chain, exchange, asset_pair, trigger_func) = key.clone();
-
-				// TODO: Swap asset to check pair
-				let current_price_wrap =
-					Self::get_asset_price_data((&chain, &exchange, &asset_pair));
-				let sorted_task_index_wrap = Self::get_sorted_tasks_index(key);
-
-				if sorted_task_index_wrap.is_none() || current_price_wrap.is_none() {
-					continue
-				}
-
-				let sorted_task_index = sorted_task_index_wrap.unwrap();
-				let current_price = current_price_wrap.unwrap();
-				let mut task_ids = Vec::<TaskIdList>::new();
-
-				// TODO: add weight for those instruction to weightleft
-				if vec![103_u8, 116_u8] == *trigger_func {
-					let mut key_to_remove: Vec<u128> = vec![];
-
-					// We will move task into the queue to be excuted later on
-					// We will delete them from here
-					//for (&key, &value) in sorted_task_index.range((Included(&0), Included(&current_price.amount))) {
-					//task_ids = task_ids.append(&mut(value.clone()));
-					//}
-
-					//for key in key_to_remove.iter() {
-					//    sorted_task_index.remove_key(key);
-					//}
-				} else {
-					//for (&key, &value) in sorted_task_index.range((Included(&current_price.amount), Excluded(u128::MAX))) {
-					//task_ids = task_ids.append(&value);
-					//}
-				}
-
-				// Put the new tasks at the end, the task already in the queue has higher priority
-				// to process first
-				//TaskQueue::<T>::mutate_extant(vec!(), |old_task| old_task.append(task_ids));
-			}
+			Self::shift_tasks(weight_left);
 
 			// Now we can run those tasks
 			// TODO: We need to calculate enough weight and balance the tasks so we won't be skew
 			// by a particular kind of task asset
 			//
 			// Now we run as much task as possible
-
-			// remove assets as necessary
-			//let current_time_slot = match Self::get_current_time_slot() {
-			//	Ok(time_slot) => time_slot,
-			//	Err(_) => return weight_left,
-			//};
-			//if let Some(scheduled_deletion_assets) =
-			//	Self::get_scheduled_asset_period_reset(current_time_slot)
-			//{
-			//	// delete assets' tasks
-			//	let asset_reset_weight = <T as Config>::WeightInfo::reset_asset(
-			//		scheduled_deletion_assets.len().saturated_into(),
-			//	);
-			//	if weight_left.ref_time() < asset_reset_weight.ref_time() {
-			//		return weight_left
-			//	}
-			//	// TODO: this assumes that all assets that need to be reset in a period can all be done successfully in a block.
-			//	// 			 in the future, we need to make sure to be able to break out of for loop if out of weight and continue
-			//	//       in the next block. Right now, we will not run out of weight - we will simply not execute anything if
-			//	//       not all of the asset resets can be run at once. this may cause the asset reset triggers to not go off,
-			//	//       but at least it should not brick the chain.
-			//	for asset in scheduled_deletion_assets {
-			//		if let Some(last_asset_price) = Self::get_asset_price(asset.clone()) {
-			//			AssetBaselinePrices::<T>::insert(asset.clone(), last_asset_price);
-			//			Self::delete_asset_tasks(asset.clone());
-			//			Self::update_asset_reset(asset.clone(), current_time_slot);
-			//			Self::deposit_event(Event::AssetPeriodReset { asset });
-			//		};
-			//	}
-			//	ScheduledAssetDeletion::<T>::remove(current_time_slot);
-			//	weight_left = weight_left - asset_reset_weight;
-			//}
-
-			// run as many scheduled tasks as we can
+			// If weight is over, task will be picked up next time
+			// If the price is no longer matched, they will be put back into the TaskRegistry
 			let task_queue = Self::get_task_queue();
 
 			weight_left = weight_left

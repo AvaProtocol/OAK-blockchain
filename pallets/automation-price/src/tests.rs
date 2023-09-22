@@ -310,6 +310,7 @@ fn test_schedule_xcmp_task_ok() {
 	})
 }
 
+// Test when price moves, the TaskQueue will be populated with the right task id
 #[test]
 fn test_shift_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -320,86 +321,80 @@ fn test_shift_tasks() {
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
 		setup_prices(&creator);
+		setup_sample_tasks(&creator);
 
-		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator.clone()),
-			chain1.to_vec(),
-			exchange1.to_vec(),
-			asset1.to_vec(),
-			asset2.to_vec(),
-			1000u128,
-			"gt".as_bytes().to_vec(),
-			vec!(100),
-			Box::new(destination.into()),
-			Box::new(NATIVE_LOCATION.into()),
-			Box::new(AssetPayment {
-				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
-			}),
-			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
-		));
+		// at this moment our task queue is empty
+		// There is no tasks at this moment
+		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
 
-		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator.clone()),
-			chain2.to_vec(),
-			exchange1.to_vec(),
-			asset2.to_vec(),
-			asset3.to_vec(),
-			3000u128,
-			"gt".as_bytes().to_vec(),
-			vec!(900),
-			Box::new(destination.into()),
-			Box::new(NATIVE_LOCATION.into()),
-			Box::new(AssetPayment {
-				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
-			}),
-			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
-		));
-
-		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator.clone()),
-			chain2.to_vec(),
-			exchange1.to_vec(),
-			asset1.to_vec(),
-			asset3.to_vec(),
-			6000u128,
-			"gt".as_bytes().to_vec(),
-			vec!(2000),
-			Box::new(destination.into()),
-			Box::new(NATIVE_LOCATION.into()),
-			Box::new(AssetPayment {
-				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
-			}),
-			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
-		));
-
-		AutomationPrice::update_asset_prices(
-			RuntimeOrigin::signed(creator.clone()),
-			vec![chain1.to_vec(), chain2.to_vec(), chain2.to_vec()],
-			vec![exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()],
-			vec![asset1.to_vec(), asset2.to_vec(), asset1.to_vec()],
-			vec![asset2.to_vec(), asset3.to_vec(), asset3.to_vec()],
-			vec![1005_u128, 10_u128, 300_u128],
-			vec![START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128],
-			vec![1, 2, 3],
-		);
-
-		assert_eq!(AutomationPrice::get_task_queue(), None);
+		// shift_tasks move task from registry to the queue
+		// there is no price yet, so task won't move
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
 
 		for key in SortedTasksIndex::<Test>::iter_keys() {
 			let (chain, exchange, asset_pair, trigger_func) = key.clone();
 
 			if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
-				println!("repeat automation tasks {:?} func {:?}", tasks, trigger_func);
+				println!("repeat1 automation tasks {:?} func {:?}", tasks, trigger_func);
+
+				for (price, task_ids) in tasks.iter() {
+					println!("price {:?} {:?}", &price, &task_ids);
+				}
+				//SortedTasksIndex::<Test>::remove(key.clone())
+			}
+		}
+
+		// The price is too low so there is no change in our tasks
+		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+			"gt".as_bytes().to_vec(),
+		));
+		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 1);
+
+		// now we update, at least once task is move
+		assert_ok!(AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(creator.clone()),
+			vec!(chain1.to_vec(), chain2.to_vec(), chain2.to_vec()),
+			vec!(exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()),
+			vec!(asset1.to_vec(), asset2.to_vec(), asset1.to_vec()),
+			vec!(asset2.to_vec(), asset3.to_vec(), asset3.to_vec()),
+			vec!(1005_u128, 10_u128, 300_u128),
+			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
+			vec!(1, 2, 3),
+		));
+
+		// The price is too low so there is no change in our tasks
+		//assert_eq!(AutomationPrice::get_task_queue().first(), true);
+		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+			"gt".as_bytes().to_vec(),
+		));
+
+		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 2);
+
+		// Now when price meet trigger condition
+		AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(creator.clone()),
+			vec![chain1.to_vec(), chain2.to_vec(), chain2.to_vec()],
+			vec![exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()],
+			vec![asset1.to_vec(), asset2.to_vec(), asset1.to_vec()],
+			vec![asset2.to_vec(), asset3.to_vec(), asset3.to_vec()],
+			vec![2005_u128, 10_u128, 300_u128],
+			vec![START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128],
+			vec![1, 2, 3],
+		);
+		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+
+		for key in SortedTasksIndex::<Test>::iter_keys() {
+			let (chain, exchange, asset_pair, trigger_func) = key.clone();
+
+			if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
+				println!("repeat2 automation tasks {:?} func {:?}", tasks, trigger_func);
 
 				for (price, task_ids) in tasks.iter() {
 					println!("price {:?} {:?}", &price, &task_ids);

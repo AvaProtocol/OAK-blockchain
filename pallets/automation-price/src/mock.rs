@@ -574,4 +574,77 @@ pub fn setup_prices(sender: &AccountId32) {
 		10,
 		vec![sender.clone()],
 	);
+
+	AutomationPrice::initialize_asset(
+		RawOrigin::Root.into(),
+		chain2.to_vec(),
+		exchange1.to_vec(),
+		asset1.to_vec(),
+		asset3.to_vec(),
+		10,
+		vec![sender.clone()],
+	);
+}
+
+pub fn setup_sample_tasks(sender: &AccountId32) {
+	// Lets setup 3 tasks
+	assert_ok!(AutomationPrice::schedule_xcmp_task(
+		RuntimeOrigin::signed(creator.clone()),
+		chain1.to_vec(),
+		exchange1.to_vec(),
+		asset1.to_vec(),
+		asset2.to_vec(),
+		1000u128,
+		"gt".as_bytes().to_vec(),
+		vec!(100),
+		Box::new(destination.into()),
+		Box::new(NATIVE_LOCATION.into()),
+		Box::new(AssetPayment {
+			asset_location: MultiLocation::new(0, Here).into(),
+			amount: 10000000000000
+		}),
+		call.clone(),
+		Weight::from_ref_time(100_000),
+		Weight::from_ref_time(200_000)
+	));
+
+	assert_ok!(AutomationPrice::schedule_xcmp_task(
+		RuntimeOrigin::signed(creator.clone()),
+		chain2.to_vec(),
+		exchange1.to_vec(),
+		asset2.to_vec(),
+		asset3.to_vec(),
+		3000u128,
+		"gt".as_bytes().to_vec(),
+		vec!(900),
+		Box::new(destination.into()),
+		Box::new(NATIVE_LOCATION.into()),
+		Box::new(AssetPayment {
+			asset_location: MultiLocation::new(0, Here).into(),
+			amount: 10000000000000
+		}),
+		call.clone(),
+		Weight::from_ref_time(100_000),
+		Weight::from_ref_time(200_000)
+	));
+
+	assert_ok!(AutomationPrice::schedule_xcmp_task(
+		RuntimeOrigin::signed(creator.clone()),
+		chain2.to_vec(),
+		exchange1.to_vec(),
+		asset1.to_vec(),
+		asset3.to_vec(),
+		6000u128,
+		"gt".as_bytes().to_vec(),
+		vec!(2000),
+		Box::new(destination.into()),
+		Box::new(NATIVE_LOCATION.into()),
+		Box::new(AssetPayment {
+			asset_location: MultiLocation::new(0, Here).into(),
+			amount: 10000000000000
+		}),
+		call.clone(),
+		Weight::from_ref_time(100_000),
+		Weight::from_ref_time(200_000)
+	));
 }
