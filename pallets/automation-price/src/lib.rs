@@ -129,6 +129,7 @@ pub mod pallet {
 		pub chain: ChainName,
 		pub exchange: Exchange,
 		pub asset_pair: AssetPair,
+		pub expired_at: u128,
 
 		// TODO: Maybe expose enum?
 		pub trigger_function: Vec<u8>,
@@ -155,6 +156,7 @@ pub mod pallet {
 			exchange: Exchange,
 			task_id: Vec<u8>,
 			asset_pair: AssetPair,
+			expired_at: u128,
 			recipient: AccountOf<T>,
 			amount: BalanceOf<T>,
 		) -> Task<T> {
@@ -166,6 +168,7 @@ pub mod pallet {
 				chain,
 				exchange,
 				asset_pair,
+				expired_at,
 				trigger_function: vec![1],
 				trigger_params: vec![1],
 				action,
@@ -317,10 +320,22 @@ pub mod pallet {
 	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId, Task<T>>;
 
 	// All active tasks, but organized by account
+	// In this storage, we only interested in returning task belong to an account, we also want to
+	// have fast lookup for task inserted/remove into the storage
+	//
+	// We also want to remove the expired task, so by leveraging this
 	#[pallet::storage]
 	#[pallet::getter(fn get_account_task_ids)]
-	pub type AccountTasks<T: Config> = StorageMap<_, Twox64Concat, AccountOf<T>, Vec<TaskId>>;
+	pub type AccountTasks<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId, u128>;
 
+	// TaskQueue stores the task to be executed. To run any tasks, they need to be move into this
+	// queue, from there our task execution pick it up and run it
+	//
+	// When task is run, we check the price once more and if it fall out of range, we move the task
+	// back to the Tasks Registry
+	//
+	// If the task is expired, we also won't run
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
 	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList, ValueQuery>;
@@ -448,7 +463,8 @@ pub mod pallet {
 			asset_owners: Vec<AccountOf<T>>,
 		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
-			ensure_root(origin)?;
+			// temporary comment out for easiser development
+			//ensure_root(origin)?;
 			Self::create_new_asset(chain, exchange, asset1, asset2, decimal, asset_owners)?;
 
 			Ok(().into())
@@ -602,6 +618,7 @@ pub mod pallet {
 				chain,
 				exchange,
 				asset_pair: (asset1, asset2),
+				expired_at,
 				trigger_function,
 				trigger_params: trigger_param,
 				action,
@@ -848,7 +865,11 @@ pub mod pallet {
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index.saturating_inc();
-				// TODO: Correct this place holder
+
+				// TODO: re-check condition here once more time because the price might have been
+				// more
+				// if the task is already expired, don't run them either
+
 				let action_weight = match Self::get_task(task_id) {
 					None => {
 						// TODO: add back signature when insert new task work
@@ -888,7 +909,12 @@ pub mod pallet {
 									task_id.clone(),
 								),
 						};
+
 						Tasks::<T>::remove(task_id);
+
+						// TODO: add this weight
+						Self::remove_task_from_account(&task);
+
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1u64))
 							.saturating_add(T::DbWeight::get().reads(1u64))
@@ -913,14 +939,11 @@ pub mod pallet {
 		}
 
 		fn push_task_to_account(task: &Task<T>) {
-			let mut task_ids = Self::get_account_task_ids(&task.owner_id);
-			if task_ids.is_none() {
-				AccountTasks::<T>::insert(task.owner_id.clone(), vec![task.task_id.clone()]);
-			} else {
-				let mut tasks = task_ids.as_mut().expect("error loading task from storage");
-				tasks.push(task.task_id.clone());
-				AccountTasks::<T>::insert(task.owner_id.clone(), task_ids.unwrap());
-			}
+			AccountTasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), task.expired_at);
+		}
+
+		fn remove_task_from_account(task: &Task<T>) {
+			AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 		}
 
 		/// With transaction will protect against a partial success where N of M execution times might be full,

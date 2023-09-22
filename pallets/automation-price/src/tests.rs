@@ -272,11 +272,9 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
 		assert_eq!(
-			AutomationPrice::get_account_task_ids(&creator)
-				.expect("account task is missing")
-				.first()
-				.unwrap(),
-			task_id
+			AutomationPrice::get_account_task_ids(&creator, task_id)
+				.expect("account task is missing"),
+			task.expired_at
 		);
 
 		// Ensure task is inserted into the right SortedIndex
