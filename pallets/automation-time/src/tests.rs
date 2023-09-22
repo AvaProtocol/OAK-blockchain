@@ -41,7 +41,9 @@ use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 use pallet_valve::Shutdown;
 
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + AUTOMATION_TIME_SLOT_PERIOD * 2;
+const MAX_SCHEDULE_SECONDS: u64 = <Test as Config>::MaxScheduleSeconds::get();
+pub const SLOT_SIZE_SECONDS: u64 = <Test as Config>::SlotSizeSeconds::get();
+pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + SLOT_SIZE_SECONDS * 2;
 const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
 
 // This is 1-0-3: {1: block idx}-{0: first extrinsic in block}-{3: the event index}
@@ -211,8 +213,8 @@ fn schedule_invalid_time_recurring_schedule() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for (next_run, frequency) in vec![
 			(SCHEDULED_TIME + 10, 10_u64),
-			(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD, 100_u64),
-			(SCHEDULED_TIME + 10, AUTOMATION_TIME_SLOT_PERIOD),
+			(SCHEDULED_TIME + SLOT_SIZE_SECONDS, 100_u64),
+			(SCHEDULED_TIME + 10, SLOT_SIZE_SECONDS),
 		]
 		.iter()
 		{
@@ -237,7 +239,7 @@ fn schedule_invalid_time_recurring_schedule() {
 // past an error is return and the tasks won't be scheduled
 #[test]
 fn schedule_past_time() {
-	new_test_ext(START_BLOCK_TIME + 1_000 * AUTOMATION_TIME_SLOT_PERIOD * 3).execute_with(|| {
+	new_test_ext(START_BLOCK_TIME + 1_000 * SLOT_SIZE_SECONDS * 3).execute_with(|| {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
@@ -250,9 +252,7 @@ fn schedule_past_time() {
 		assert_noop!(
 			AutomationTime::schedule_dynamic_dispatch_task(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				ScheduleParam::Fixed {
-					execution_times: vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD]
-				},
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS] },
 				Box::new(frame_system::Call::remark { remark: vec![12] }.into())
 			),
 			Error::<Test>::PastTime,
@@ -264,10 +264,10 @@ fn schedule_past_time() {
 // an error is return and the tasks won't be scheduled
 #[test]
 fn schedule_past_time_recurring() {
-	new_test_ext(START_BLOCK_TIME + 1_000 * AUTOMATION_TIME_SLOT_PERIOD * 3).execute_with(|| {
+	new_test_ext(START_BLOCK_TIME + 1_000 * SLOT_SIZE_SECONDS * 3).execute_with(|| {
 		for (next_run, frequency) in vec![
-			(SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD, AUTOMATION_TIME_SLOT_PERIOD * 2),
-			(SCHEDULED_TIME, AUTOMATION_TIME_SLOT_PERIOD * 2),
+			(SCHEDULED_TIME - SLOT_SIZE_SECONDS, SLOT_SIZE_SECONDS * 2),
+			(SCHEDULED_TIME, SLOT_SIZE_SECONDS * 2),
 		]
 		.iter()
 		{
@@ -300,26 +300,21 @@ fn schedule_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for task_far_schedule in vec![
 			// only one time slot that is far
-			ScheduleParam::Fixed {
-				execution_times: vec![SCHEDULED_TIME + AUTOMATION_TIME_MAX_SCHEDULE_SECONDS],
-			},
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME + MAX_SCHEDULE_SECONDS] },
 			// the first time slot is close, but the rest are too far
 			ScheduleParam::Fixed {
-				execution_times: vec![
-					SCHEDULED_TIME,
-					SCHEDULED_TIME + AUTOMATION_TIME_MAX_SCHEDULE_SECONDS,
-				],
+				execution_times: vec![SCHEDULED_TIME, SCHEDULED_TIME + MAX_SCHEDULE_SECONDS],
 			},
 			// the next_execution_time is too far
 			ScheduleParam::Recurring {
-				next_execution_time: SCHEDULED_TIME + AUTOMATION_TIME_MAX_SCHEDULE_SECONDS,
-				frequency: AUTOMATION_TIME_SLOT_PERIOD,
+				next_execution_time: SCHEDULED_TIME + MAX_SCHEDULE_SECONDS,
+				frequency: SLOT_SIZE_SECONDS,
 			},
 			// the next_execution_time is closed, but frequency is too big, make it further to
 			// future
 			ScheduleParam::Recurring {
 				next_execution_time: SCHEDULED_TIME,
-				frequency: 7 * AUTOMATION_TIME_MAX_SCHEDULE_SECONDS,
+				frequency: 7 * MAX_SCHEDULE_SECONDS,
 			},
 		]
 		.iter()
@@ -413,7 +408,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 #[test]
 fn will_emit_task_completed_event_when_task_completed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
 		let account_id = AccountId32::new(ALICE);
 		let _task_id = FIRST_TASK_ID.to_vec();
 
@@ -423,7 +417,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 
 		// Schedule a task to be executed at SCHEDULED_TIME and SCHEDULED_TIME + frequency.
-		let next_execution_time = SCHEDULED_TIME + frequency;
+		let next_execution_time = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
@@ -463,7 +457,6 @@ fn will_emit_task_completed_event_when_task_completed() {
 #[test]
 fn will_not_emit_task_completed_event_when_task_canceled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
 		let account_id = AccountId32::new(ALICE);
 		let task_id = FIRST_TASK_ID.to_vec();
 
@@ -473,7 +466,7 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 
 		// Schedule a task to be executed at SCHEDULED_TIME and SCHEDULED_TIME + frequency.
-		let next_execution_time = SCHEDULED_TIME + frequency;
+		let next_execution_time = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
@@ -518,7 +511,6 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 #[test]
 fn will_emit_task_completed_event_when_task_failed() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
 		let account_id = AccountId32::new(ALICE);
 		let task_id = FIRST_TASK_ID.to_vec();
 
@@ -533,7 +525,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		.into();
 
 		// Schedule a task to be executed at SCHEDULED_TIME and SCHEDULED_TIME + frequency.
-		let next_execution_time = SCHEDULED_TIME + frequency;
+		let next_execution_time = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
@@ -962,7 +954,7 @@ fn schedule_auto_compound_delegated_stake() {
 		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
 			RuntimeOrigin::signed(alice.clone()),
 			SCHEDULED_TIME,
-			AUTOMATION_TIME_SLOT_PERIOD,
+			SLOT_SIZE_SECONDS,
 			bob.clone(),
 			1_000_000_000,
 		));
@@ -976,7 +968,7 @@ fn schedule_auto_compound_delegated_stake() {
 				alice.clone(),
 				FIRST_TASK_ID.to_vec(),
 				SCHEDULED_TIME,
-				AUTOMATION_TIME_SLOT_PERIOD,
+				SLOT_SIZE_SECONDS,
 				bob,
 				1_000_000_000,
 				vec![],
@@ -989,7 +981,7 @@ fn schedule_auto_compound_delegated_stake() {
 // Auto compounding use Recurring schedule to perform tasks.
 // Thus the next_execution_time and frequency needs to follow the rule such as
 // next_execution_time needs to fall into beginning of a hour block, and
-// frequency must be a multiplier of AUTOMATION_TIME_SLOT_PERIOD
+// frequency must be a multiplier of SLOT_SIZE_SECONDS
 #[test]
 fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -998,7 +990,7 @@ fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 			(SCHEDULED_TIME, 4_000),
 			(SCHEDULED_TIME, 0),
 			// execute_with is invalid, frequency is  valid
-			(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD / 2, AUTOMATION_TIME_SLOT_PERIOD),
+			(SCHEDULED_TIME + SLOT_SIZE_SECONDS / 2, SLOT_SIZE_SECONDS),
 		]
 		.iter()
 		{
@@ -1022,11 +1014,8 @@ fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 fn schedule_auto_compound_with_high_frequency() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for (execution_time, frequency) in vec![
-			(
-				SCHEDULED_TIME,
-				<Test as Config>::MaxScheduleSeconds::get() + AUTOMATION_TIME_SLOT_PERIOD,
-			),
-			(SCHEDULED_TIME + 7 * 24 * AUTOMATION_TIME_SLOT_PERIOD, AUTOMATION_TIME_SLOT_PERIOD),
+			(SCHEDULED_TIME, <Test as Config>::MaxScheduleSeconds::get() + SLOT_SIZE_SECONDS),
+			(SCHEDULED_TIME + 7 * 24 * SLOT_SIZE_SECONDS, SLOT_SIZE_SECONDS),
 		]
 		.iter()
 		{
@@ -1054,7 +1043,7 @@ fn get_auto_compound_delegated_stake_task_ids_return_only_auto_compount_task_id(
 		assert_ok!(AutomationTime::schedule_auto_compound_delegated_stake_task(
 			RuntimeOrigin::signed(owner.clone()),
 			SCHEDULED_TIME,
-			AUTOMATION_TIME_SLOT_PERIOD,
+			SLOT_SIZE_SECONDS,
 			delegator.clone(),
 			1_000_000_000,
 		));
@@ -1126,9 +1115,9 @@ fn schedule_max_execution_times_errors() {
 				ScheduleParam::Fixed {
 					execution_times: vec![
 						SCHEDULED_TIME,
-						SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-						SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
-						SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 3
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3
 					]
 				},
 				Box::new(frame_system::Call::remark { remark: vec![2, 4, 5] }.into())
@@ -1145,6 +1134,7 @@ fn schedule_max_execution_times_errors() {
 fn schedule_execution_times_removes_dupes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
+
 		get_funds(owner.clone());
 		let task_id1 = schedule_task(
 			ALICE,
@@ -1153,7 +1143,7 @@ fn schedule_execution_times_removes_dupes() {
 				SCHEDULED_TIME,
 				SCHEDULED_TIME,
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 3,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3,
 			],
 			vec![2, 4],
 		);
@@ -1166,7 +1156,7 @@ fn schedule_execution_times_removes_dupes() {
 				let expected_task = TaskOf::<Test>::create_event_task::<Test>(
 					AccountId32::new(ALICE),
 					vec![49, 45, 48, 45, 52],
-					vec![SCHEDULED_TIME, SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 3],
+					vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3],
 					vec![2, 4],
 					vec![],
 				)
@@ -1239,19 +1229,13 @@ fn schedule_time_slot_full_rolls_back() {
 		let call1: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4, 5] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
 
-		let task_id1 = schedule_task(
-			ALICE,
-			vec![SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2],
-			vec![2, 4, 5],
-		);
+		let task_id1 =
+			schedule_task(ALICE, vec![SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2], vec![2, 4, 5]);
 
 		let _call2: RuntimeCall = frame_system::Call::remark { remark: vec![2, 4] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call1.encode()));
-		let task_id2 = schedule_task(
-			ALICE,
-			vec![SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2],
-			vec![2, 4],
-		);
+		let task_id2 =
+			schedule_task(ALICE, vec![SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2], vec![2, 4]);
 
 		let call: RuntimeCall = frame_system::Call::remark { remark: vec![2] }.into();
 		assert_ok!(fund_account_dynamic_dispatch(&AccountId32::new(ALICE), 1, call.encode()));
@@ -1261,8 +1245,8 @@ fn schedule_time_slot_full_rolls_back() {
 				ScheduleParam::Fixed {
 					execution_times: vec![
 						SCHEDULED_TIME,
-						SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-						SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2
 					]
 				},
 				Box::new(call)
@@ -1273,13 +1257,10 @@ fn schedule_time_slot_full_rolls_back() {
 		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME).is_some() {
 			panic!("Tasks scheduled for the time it should have been rolled back")
 		}
-		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD)
-			.is_some()
-		{
+		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS).is_some() {
 			panic!("Tasks scheduled for the time it should have been rolled back")
 		}
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2)
-		{
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2) {
 			None => {
 				panic!("A task should be scheduled")
 			},
@@ -1300,8 +1281,8 @@ fn taskid_changed_per_block() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
@@ -1311,14 +1292,14 @@ fn taskid_changed_per_block() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
@@ -1335,8 +1316,8 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
@@ -1349,14 +1330,14 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 			BOB,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 		));
 
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
@@ -1386,8 +1367,8 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
@@ -1399,8 +1380,8 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
@@ -1433,8 +1414,8 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
@@ -1443,14 +1424,14 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 		));
 
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
@@ -1473,8 +1454,8 @@ fn cancel_works_for_fixed_scheduled() {
 		let task_id1 = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		let task_id2 = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4]);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 		System::reset_events();
 
@@ -1517,14 +1498,14 @@ fn cancel_works_for_multiple_executions_scheduled() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 		));
 		System::reset_events();
 
@@ -1537,14 +1518,10 @@ fn cancel_works_for_multiple_executions_scheduled() {
 		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME).is_some() {
 			panic!("Tasks scheduled for the time it should have been deleted")
 		}
-		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD)
-			.is_some()
-		{
+		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS).is_some() {
 			panic!("Tasks scheduled for the time it should have been deleted")
 		}
-		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2)
-			.is_some()
-		{
+		if AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2).is_some() {
 			panic!("Tasks scheduled for the time it should have been deleted")
 		}
 		assert_eq!(
@@ -1561,18 +1538,14 @@ fn cancel_works_for_multiple_executions_scheduled() {
 #[test]
 fn cancel_works_for_recurring_scheduled() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		let task_id1 = schedule_recurring_task(
-			ALICE,
-			SCHEDULED_TIME,
-			AUTOMATION_TIME_SLOT_PERIOD,
-			vec![2, 4, 5],
-		);
+		let task_id1 =
+			schedule_recurring_task(ALICE, SCHEDULED_TIME, SLOT_SIZE_SECONDS, vec![2, 4, 5]);
 		let task_id2 =
-			schedule_recurring_task(ALICE, SCHEDULED_TIME, AUTOMATION_TIME_SLOT_PERIOD, vec![2, 4]);
+			schedule_recurring_task(ALICE, SCHEDULED_TIME, SLOT_SIZE_SECONDS, vec![2, 4]);
 
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 		System::reset_events();
 
@@ -1614,13 +1587,13 @@ fn cancel_works_for_an_executed_task() {
 		let call: RuntimeCall = frame_system::Call::remark_with_event { remark: vec![50] }.into();
 		let task_id1 = schedule_dynamic_dispatch_task(
 			ALICE,
-			vec![SCHEDULED_TIME, SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS],
 			call.clone(),
 		);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
 		));
 		System::reset_events();
 
@@ -1642,7 +1615,7 @@ fn cancel_works_for_an_executed_task() {
 				assert_eq!(task_ids[0].1, task_id1);
 			},
 		}
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD) {
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS) {
 			None => {
 				panic!("A task should be scheduled")
 			},
@@ -1687,7 +1660,7 @@ fn cancel_works_for_an_executed_task() {
 		}
 
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD) {
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS) {
 			None => {
 				panic!("A task should be scheduled")
 			},
@@ -1703,10 +1676,7 @@ fn cancel_works_for_an_executed_task() {
 		));
 
 		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME), None);
-		assert_eq!(
-			AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD),
-			None
-		);
+		assert_eq!(AutomationTime::get_scheduled_tasks(SCHEDULED_TIME + SLOT_SIZE_SECONDS), None);
 
 		assert_eq!(AutomationTime::get_account_task(owner.clone(), task_id1.clone()), None);
 		assert_eq!(
@@ -1821,14 +1791,14 @@ fn cancel_task_fail_non_owner() {
 			ALICE,
 			vec![
 				SCHEDULED_TIME,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD,
-				SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD * 2,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 		));
 
 		System::reset_events();
@@ -1853,8 +1823,8 @@ fn force_cancel_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![2, 4, 5]);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 		System::reset_events();
 
@@ -2012,21 +1982,21 @@ fn trigger_tasks_updates_queues() {
 		let missed_task_id = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS],
 			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
 		);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
 		));
 		System::reset_events();
 
@@ -2064,11 +2034,11 @@ fn trigger_tasks_handles_missed_slots() {
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
 		let missed_task_id =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS], vec![50]);
 		let missed_task = MissedTaskV2Of::<Test>::new(
 			AccountId32::new(ALICE),
 			missed_task_id,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS,
 		);
 
 		let remark_message = vec![50];
@@ -2080,8 +2050,8 @@ fn trigger_tasks_handles_missed_slots() {
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 2,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 2,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2,
 		));
 		System::reset_events();
 
@@ -2156,16 +2126,16 @@ fn trigger_tasks_limits_missed_slots() {
 
 		Timestamp::set_timestamp((SCHEDULED_TIME - 25200) * 1_000);
 		let missing_task_id1 =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS], vec![50]);
 
 		let missing_task_id2 =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 2], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2], vec![50]);
 		let missing_task_id3 =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3], vec![50]);
 		let missing_task_id4 =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4], vec![50]);
 		let missing_task_id5 =
-			schedule_task(ALICE, vec![SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 5], vec![50]);
+			schedule_task(ALICE, vec![SCHEDULED_TIME - SLOT_SIZE_SECONDS * 5], vec![50]);
 
 		let remark_message = vec![50];
 		let call: <Test as frame_system::Config>::RuntimeCall =
@@ -2174,8 +2144,8 @@ fn trigger_tasks_limits_missed_slots() {
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 7,
-			SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 7,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 7,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 7,
 		));
 		System::reset_events();
 
@@ -2189,7 +2159,7 @@ fn trigger_tasks_limits_missed_slots() {
 			AutomationTime::get_last_slot()
 		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
-			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3);
+			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3);
 
 			let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 			condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2222,7 +2192,7 @@ fn trigger_tasks_limits_missed_slots() {
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id0.clone(),
-						execution_time: SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 7,
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 7,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
@@ -2232,7 +2202,7 @@ fn trigger_tasks_limits_missed_slots() {
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id5.clone(),
-						execution_time: SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 5,
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 5,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
@@ -2242,7 +2212,7 @@ fn trigger_tasks_limits_missed_slots() {
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id4.clone(),
-						execution_time: SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 4,
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner.clone(),
@@ -2252,7 +2222,7 @@ fn trigger_tasks_limits_missed_slots() {
 					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
 						who: owner.clone(),
 						task_id: missing_task_id3.clone(),
-						execution_time: SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 3,
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 						who: owner,
@@ -2264,8 +2234,7 @@ fn trigger_tasks_limits_missed_slots() {
 			panic!("trigger_tasks_limits_missed_slots test did not have LastTimeSlot updated")
 		}
 
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD * 2)
-		{
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2) {
 			None => {
 				panic!("A task should be scheduled")
 			},
@@ -2275,7 +2244,7 @@ fn trigger_tasks_limits_missed_slots() {
 			},
 		}
 
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD) {
+		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS) {
 			None => {
 				panic!("A task should be scheduled")
 			},
@@ -2503,14 +2472,14 @@ fn missed_tasks_updates_executions_left() {
 		let task_id1 = add_task_to_missed_queue(
 			ALICE,
 			vec![40],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS],
 			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
 		let task_id2 = add_task_to_missed_queue(
 			ALICE,
 			vec![50],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS],
 			create_dynamic_dispatch_remark_action(vec![40]),
 			vec![],
 		);
@@ -2579,7 +2548,7 @@ fn missed_tasks_removes_completed_tasks() {
 		let task_id01 = add_task_to_missed_queue(
 			ALICE,
 			vec![40],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME - AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME - SLOT_SIZE_SECONDS],
 			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
@@ -2715,7 +2684,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 			DELEGATOR_ACCOUNT,
 			task_id.clone(),
 			SCHEDULED_TIME,
-			AUTOMATION_TIME_SLOT_PERIOD,
+			SLOT_SIZE_SECONDS,
 			action.clone(),
 			vec![],
 		);
@@ -2785,7 +2754,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is half of the user's wallet balance
 		let account_minimum = before_balance / 2;
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
+		let frequency = SLOT_SIZE_SECONDS;
 
 		let task_id = add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
@@ -2863,7 +2832,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is twice of the user's wallet balance
 		let account_minimum = before_balance * 2;
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
+		let frequency = SLOT_SIZE_SECONDS;
 
 		let task_id = add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
@@ -2926,7 +2895,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is half of the user's wallet balance
 		let account_minimum = before_balance / 2;
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
+		let frequency = SLOT_SIZE_SECONDS;
 
 		let task_id = add_recurring_task_to_task_queue(
 			ALICE,
@@ -3000,7 +2969,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is half of the user's wallet balance
 		let account_minimum = before_balance / 2;
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
+		let frequency = SLOT_SIZE_SECONDS;
 
 		let task_id = add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
@@ -3075,7 +3044,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 		let before_balance = Balances::free_balance(delegator.clone());
 		// Minimum balance is twice of the user's wallet balance
 		let account_minimum = before_balance * 2;
-		let frequency = AUTOMATION_TIME_SLOT_PERIOD;
+		let frequency = SLOT_SIZE_SECONDS;
 
 		let task_id = add_recurring_task_to_task_queue(
 			DELEGATOR_ACCOUNT,
@@ -3142,7 +3111,7 @@ fn trigger_tasks_updates_executions_left() {
 		let task_id01 = add_task_to_task_queue(
 			ALICE,
 			vec![40],
-			vec![SCHEDULED_TIME, SCHEDULED_TIME + AUTOMATION_TIME_SLOT_PERIOD],
+			vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS],
 			create_dynamic_dispatch_remark_action(message_one.clone()),
 			vec![],
 		);
@@ -3337,7 +3306,7 @@ fn on_init_runs_tasks() {
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
-		Timestamp::set_timestamp(START_BLOCK_TIME + (AUTOMATION_TIME_SLOT_PERIOD * 1_000));
+		Timestamp::set_timestamp(START_BLOCK_TIME + (SLOT_SIZE_SECONDS * 1_000));
 		AutomationTime::on_initialize(2);
 		assert_eq!(
 			events(),
@@ -3365,10 +3334,7 @@ fn on_init_runs_tasks() {
 #[test]
 fn on_init_check_task_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		LastTimeSlot::<Test>::put((
-			LAST_BLOCK_TIME,
-			LAST_BLOCK_TIME - AUTOMATION_TIME_SLOT_PERIOD * 2,
-		));
+		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME - SLOT_SIZE_SECONDS * 2));
 		let mut tasks = vec![];
 
 		for i in 0..5 {
@@ -3480,7 +3446,7 @@ fn on_init_check_task_queue() {
 		assert_eq!(AutomationTime::get_task_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
 
-		Timestamp::set_timestamp(START_BLOCK_TIME + (AUTOMATION_TIME_SLOT_PERIOD * 1000));
+		Timestamp::set_timestamp(START_BLOCK_TIME + (SLOT_SIZE_SECONDS * 1000));
 		AutomationTime::on_initialize(3);
 		assert_eq!(
 			events(),
@@ -3534,7 +3500,7 @@ fn on_init_shutdown() {
 
 		AutomationTime::on_initialize(1);
 		assert_eq!(events(), []);
-		Timestamp::set_timestamp(START_BLOCK_TIME + (AUTOMATION_TIME_SLOT_PERIOD * 1_000));
+		Timestamp::set_timestamp(START_BLOCK_TIME + (SLOT_SIZE_SECONDS * 1_000));
 		AutomationTime::on_initialize(2);
 		assert_eq!(events(), [],);
 		assert_ne!(AutomationTime::get_account_task(owner.clone(), task_id1), None);

@@ -22,7 +22,7 @@ use crate::TaskIdV2;
 use frame_benchmarking::frame_support::assert_ok;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU128, ConstU32, ConstU64, Everything},
+	traits::{ConstU128, ConstU32, Everything},
 	weights::Weight,
 	PalletId,
 };
@@ -56,9 +56,6 @@ pub const NATIVE: CurrencyId = 0;
 pub const NATIVE_LOCATION: MultiLocation = MultiLocation { parents: 0, interior: Here };
 pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
-
-pub const AUTOMATION_TIME_SLOT_PERIOD: u64 = 600;
-pub const AUTOMATION_TIME_MAX_SCHEDULE_SECONDS: u64 = 1 * 24 * 60 * 60;
 
 const DOLLAR: u128 = 10_000_000_000;
 
@@ -288,34 +285,6 @@ impl<
 	}
 }
 
-parameter_types! {
-	pub const MaxTasksPerSlot: u32 = 2;
-	#[derive(Debug)]
-	pub const MaxExecutionTimes: u32 = 3;
-	pub const MaxScheduleSeconds: u64 = AUTOMATION_TIME_MAX_SCHEDULE_SECONDS;
-	pub const MaxBlockWeight: u64 = 20_000_000;
-	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
-	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
-	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
-
-	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
-	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
-	// what you don't own
-	// One of test we do is Balances::transfer call, which has its weight define here:
-	// https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
-	// When logging the final calculated amount, its value is 73_314_000.
-	//
-	// in our unit test, we test a few transfers with dynamic dispatch. On top
-	// of that, there is also weight of our call such as fetching the tasks,
-	// move from schedule slot to tasks queue,.. so the weight of a schedule
-	// transfer with dynamic dispatch is even higher.
-	//
-	// and because we test run a few of them so I set it to ~10x value of 73_314_000
-	pub const MaxWeightPerSlot: u128 = 700_000_000;
-	pub const XmpFee: u128 = 1_000_000;
-	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
-}
-
 pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
 	fn transfer() -> Weight {
@@ -499,6 +468,32 @@ impl TransferCallCreator<MultiAddress<AccountId, ()>, Balance, RuntimeCall>
 }
 
 parameter_types! {
+	pub const MaxTasksPerSlot: u32 = 2;
+	#[derive(Debug)]
+	pub const MaxExecutionTimes: u32 = 3;
+	pub const MaxScheduleSeconds: u64 = 86_400;	// 24 hours in seconds
+	pub const SlotSizeSeconds: u64 = 600;		// 10 minutes in seconds;
+	pub const MaxBlockWeight: u64 = 20_000_000;
+	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
+	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
+	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
+
+	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
+	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
+	// what you don't own
+	// One of test we do is Balances::transfer call, which has its weight define here:
+	// https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
+	// When logging the final calculated amount, its value is 73_314_000.
+	//
+	// in our unit test, we test a few transfers with dynamic dispatch. On top
+	// of that, there is also weight of our call such as fetching the tasks,
+	// move from schedule slot to tasks queue,.. so the weight of a schedule
+	// transfer with dynamic dispatch is even higher.
+	//
+	// and because we test run a few of them so I set it to ~10x value of 73_314_000
+	pub const MaxWeightPerSlot: u128 = 700_000_000;
+	pub const XmpFee: u128 = 1_000_000;
+	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
 	// The universal location within the global consensus system
 	pub UniversalLocation: InteriorMultiLocation =
@@ -516,7 +511,7 @@ impl pallet_automation_time::Config for Test {
 	type WeightInfo = MockWeight<Test>;
 	type ExecutionWeightFee = ExecutionWeightFee;
 	type MaxWeightPerSlot = MaxWeightPerSlot;
-	type SlotPeriod = ConstU64<AUTOMATION_TIME_SLOT_PERIOD>;
+	type SlotSizeSeconds = SlotSizeSeconds;
 	type Currency = Balances;
 	type MultiCurrency = Currencies;
 	type CurrencyId = CurrencyId;
