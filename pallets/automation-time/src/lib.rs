@@ -17,11 +17,7 @@
 
 //! # Automation time pallet
 //!
-//! DISCLAIMER: This pallet is still in it's early stages. At this point
-//! we only support scheduling two tasks per hour, and sending an on-chain
-//! with a custom message.
-//!
-//! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole hour in the future.
+//! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole SlotSizeSeconds in the future.
 //! In order to run tasks this pallet consumes up to a certain amount of weight during `on_initialize`.
 //!
 //! The pallet supports the following tasks:
@@ -133,6 +129,10 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxWeightPerSlot: Get<u128>;
 
+		/// The minimum time interval tasks could schedule for. For example, if the value is 600, then only inputs that are multiples of 600 are allowed. In other words, tasks can only be scheduled at 0, 10, 20 ... minutes of each hour.
+		#[pallet::constant]
+		type SlotSizeSeconds: Get<u64>;
+
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
 		type UpdateQueueRatio: Get<Perbill>;
@@ -236,7 +236,7 @@ pub mod pallet {
 	#[pallet::error]
 	#[derive(PartialEq)]
 	pub enum Error<T> {
-		/// Time must end in a whole hour.
+		/// Time in seconds must be a multiple of SlotSizeSeconds
 		InvalidTime,
 		/// Time must be in the future.
 		PastTime,
@@ -365,7 +365,7 @@ pub mod pallet {
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole hour.
+		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
@@ -422,7 +422,7 @@ pub mod pallet {
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole hour.
+		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
@@ -478,7 +478,7 @@ pub mod pallet {
 		/// * `account_minimum`: The minimum amount of funds that should be left in the wallet
 		///
 		/// # Errors
-		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `InvalidTime`: Execution time and frequency must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -520,7 +520,7 @@ pub mod pallet {
 		/// * `call`: The call that will be dispatched.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Execution time and frequency must end in a whole hour.
+		/// * `InvalidTime`: Execution time and frequency must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -594,7 +594,7 @@ pub mod pallet {
 		/// In order to do this we:
 		/// * Get the most recent timestamp from the block.
 		/// * Convert the ms unix timestamp to seconds.
-		/// * Bring the timestamp down to the last whole hour.
+		/// * Bring the timestamp down to the last whole SlotSizeSeconds.
 		pub fn get_current_time_slot() -> Result<UnixTime, DispatchError> {
 			let now = <timestamp::Pallet<T>>::get()
 				.checked_into::<UnixTime>()
@@ -605,14 +605,15 @@ pub mod pallet {
 			}
 
 			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
-			let diff_to_hour = now.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
-			Ok(now.checked_sub(diff_to_hour).ok_or(ArithmeticError::Overflow)?)
+			let diff_to_slot =
+				now.checked_rem(T::SlotSizeSeconds::get()).ok_or(ArithmeticError::Overflow)?;
+			Ok(now.checked_sub(diff_to_slot).ok_or(ArithmeticError::Overflow)?)
 		}
 
 		/// Checks to see if the scheduled time is valid.
 		///
 		/// In order for a time to be valid it must
-		/// - End in a whole hour
+		/// - A multiple of SlotSizeSeconds
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		pub fn is_valid_time(scheduled_time: UnixTime) -> DispatchResult {
@@ -621,7 +622,9 @@ pub mod pallet {
 				return Ok(())
 			}
 
-			let remainder = scheduled_time.checked_rem(3600).ok_or(ArithmeticError::Overflow)?;
+			let remainder = scheduled_time
+				.checked_rem(T::SlotSizeSeconds::get())
+				.ok_or(ArithmeticError::Overflow)?;
 			if remainder != 0 {
 				Err(<Error<T>>::InvalidTime)?;
 			}
@@ -791,8 +794,8 @@ pub mod pallet {
 					allotted_weight,
 				);
 
-				let last_missed_slot_tracker =
-					last_missed_slot.saturating_add(missed_slots_moved.saturating_mul(3600));
+				let last_missed_slot_tracker = last_missed_slot
+					.saturating_add(missed_slots_moved.saturating_mul(T::SlotSizeSeconds::get()));
 				let used_weight = append_weight;
 				(last_missed_slot_tracker, used_weight)
 			} else {
@@ -811,8 +814,9 @@ pub mod pallet {
 		) -> (Weight, u64) {
 			// will need to move task queue into missed queue
 			let mut missed_tasks = vec![];
-			let mut diff =
-				(current_time_slot.saturating_sub(last_missed_slot) / 3600).saturating_sub(1);
+			let mut diff = (current_time_slot.saturating_sub(last_missed_slot) /
+				T::SlotSizeSeconds::get())
+			.saturating_sub(1);
 			for i in 0..diff {
 				if allotted_weight.ref_time() <
 					<T as Config>::WeightInfo::shift_missed_tasks().ref_time()
@@ -843,7 +847,7 @@ pub mod pallet {
 			number_of_missed_slots: u64,
 		) -> Vec<MissedTaskV2Of<T>> {
 			let mut tasks = vec![];
-			let seconds_in_slot = 3600;
+			let seconds_in_slot = T::SlotSizeSeconds::get();
 			let shift = seconds_in_slot.saturating_mul(number_of_missed_slots + 1);
 			let new_time_slot = last_missed_slot.saturating_add(shift);
 			if let Some(ScheduledTasksOf::<T> { tasks: account_task_ids, .. }) =

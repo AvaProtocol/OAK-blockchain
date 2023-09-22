@@ -835,7 +835,8 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxScheduleSeconds: u64 = 7 * 24 * 60 * 60;
+	pub const MaxScheduleSeconds: u64 = 7 * 24 * 60 * 60;	// 7 days in seconds
+	pub const SlotSizeSeconds: u64 = 600; // 10 minutes in seconds
 	pub const MaxBlockWeight: u64 = MAXIMUM_BLOCK_WEIGHT.ref_time();
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
@@ -891,6 +892,7 @@ impl pallet_automation_time::Config for Runtime {
 	// Roughly .125% of parachain block weight per hour
 	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .00125
 	type MaxWeightPerSlot = ConstU128<150_000_000_000>;
+	type SlotSizeSeconds = SlotSizeSeconds;
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
