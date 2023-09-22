@@ -271,6 +271,14 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(task.chain, chain1.to_vec(), "created task has different chain id");
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
+		assert_eq!(
+			AutomationPrice::get_account_task_ids(&creator)
+				.expect("account task is missing")
+				.first()
+				.unwrap(),
+			task_id
+		);
+
 		// Ensure task is inserted into the right SortedIndex
 
 		// Create  second task, and make sure both are recorded
@@ -403,18 +411,6 @@ fn test_shift_tasks_movement_through_price_changes() {
 			"gt".as_bytes().to_vec(),
 		));
 		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 1);
-		for key in SortedTasksIndex::<Test>::iter_keys() {
-			let (chain, exchange, asset_pair, trigger_func) = key.clone();
-
-			if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
-				println!("repeat1 automation tasks {:?} func {:?}", tasks, trigger_func);
-
-				for (price, task_ids) in tasks.iter() {
-					println!("price {:?} {:?}", &price, &task_ids);
-				}
-				//SortedTasksIndex::<Test>::remove(key.clone())
-			}
-		}
 
 		//
 		// now we update price, one task moved to the  queue

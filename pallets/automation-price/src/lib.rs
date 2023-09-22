@@ -307,14 +307,6 @@ pub mod pallet {
 	>;
 
 	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks<T: Config> = StorageNMap<
-		_,
-		(NMapKey<Twox64Concat, AssetName>, NMapKey<Twox64Concat, Vec<u8>>),
-		BoundedVec<T::Hash, T::MaxTasksPerSlot>,
-	>;
-
-	#[pallet::storage]
 	#[pallet::getter(fn get_scheduled_asset_period_reset)]
 	pub type ScheduledAssetDeletion<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
@@ -326,7 +318,7 @@ pub mod pallet {
 
 	// All active tasks, but organized by account
 	#[pallet::storage]
-	#[pallet::getter(fn get_account_task)]
+	#[pallet::getter(fn get_account_task_ids)]
 	pub type AccountTasks<T: Config> = StorageMap<_, Twox64Concat, AccountOf<T>, Vec<TaskId>>;
 
 	#[pallet::storage]
@@ -685,6 +677,7 @@ pub mod pallet {
 
 					//Eg sell order, sell when price >
 					let mut range;
+					// TODO: move magic number into a trigger.rs module
 					if trigger_func == vec![103_u8, 116_u8] {
 						range = (Excluded(&u128::MIN), Included(&current_price.amount))
 					} else {
@@ -812,8 +805,37 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
-		pub fn run_xcmp_task(task: Task<T>) -> Weight {
-			Weight::from_ref_time(1_000_000u64)
+		pub fn run_xcmp_task(
+			destination: MultiLocation,
+			caller: T::AccountId,
+			fee: AssetPayment,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			overall_weight: Weight,
+			flow: InstructionSequence,
+		) -> (Weight, Option<DispatchError>) {
+			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
+			if fee_asset_location.is_err() {
+				return (
+					<T as Config>::WeightInfo::run_xcmp_task(),
+					Some(Error::<T>::BadVersion.into()),
+				)
+			}
+			let fee_asset_location = fee_asset_location.unwrap();
+
+			match T::XcmpTransactor::transact_xcm(
+				destination,
+				fee_asset_location,
+				fee.amount,
+				caller,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				flow,
+			) {
+				Ok(()) => (<T as Config>::WeightInfo::run_xcmp_task(), None),
+				Err(e) => (<T as Config>::WeightInfo::run_xcmp_task(), Some(e)),
+			}
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
@@ -837,7 +859,27 @@ pub mod pallet {
 						let task_action_weight = match task.action.clone() {
 							// TODO: Run actual task later to return weight
 							// not just return weight for test to pass
-							Action::XCMP { .. } => Self::run_xcmp_task(task.clone()),
+							Action::XCMP {
+								destination,
+								execution_fee,
+								schedule_as,
+								encoded_call,
+								encoded_call_weight,
+								overall_weight,
+								instruction_sequence,
+								..
+							} => {
+								let (w, err) = Self::run_xcmp_task(
+									destination,
+									schedule_as.unwrap_or(task.owner_id.clone()),
+									execution_fee,
+									encoded_call,
+									encoded_call_weight,
+									overall_weight,
+									instruction_sequence,
+								);
+								w
+							},
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
 									sender,
@@ -870,34 +912,19 @@ pub mod pallet {
 			}
 		}
 
-		/// Schedule task and return it's task_id.
-		/// With transaction will protect against a partial success where N of M execution times might be full,
-		/// rolling back any successful insertions into the schedule task table.
-		pub fn schedule_task(task: &Task<T>) -> Result<TaskId, Error<T>> {
-			// TODO: Rewrite this function
-			//if let Some(_) = Self::get_task((asset.clone(), task_id.clone())) {
-			//	Err(Error::<T>::DuplicateTask)?
-			//}
-			//if let Some(mut asset_tasks) = Self::get_scheduled_tasks((
-			//	asset.clone(),
-			//	direction.clone(),
-			//	trigger_percentage.clone(),
-			//)) {
-			//	if let Err(_) = asset_tasks.try_push(task_id.clone()) {
-			//		Err(Error::<T>::MaxTasksReached)?
-			//	}
-			//	<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
-			//} else {
-			//	let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-			//		vec![task_id.clone()].try_into().unwrap();
-			//	<ScheduledTasks<T>>::insert(
-			//		(asset, direction, trigger_percentage),
-			//		scheduled_tasks,
-			//	);
-			//}
-			Ok(task.task_id.clone())
+		fn push_task_to_account(task: &Task<T>) {
+			let mut task_ids = Self::get_account_task_ids(&task.owner_id);
+			if task_ids.is_none() {
+				AccountTasks::<T>::insert(task.owner_id.clone(), vec![task.task_id.clone()]);
+			} else {
+				let mut tasks = task_ids.as_mut().expect("error loading task from storage");
+				tasks.push(task.task_id.clone());
+				AccountTasks::<T>::insert(task.owner_id.clone(), task_ids.unwrap());
+			}
 		}
 
+		/// With transaction will protect against a partial success where N of M execution times might be full,
+		/// rolling back any successful insertions into the schedule task table.
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
 		/// TODO: double check atomic
@@ -906,8 +933,8 @@ pub mod pallet {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
 
-			// TODO: correct TaskRegistry to new format
 			<Tasks<T>>::insert(task.task_id.clone(), &task);
+			Self::push_task_to_account(&task);
 
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 
@@ -929,9 +956,6 @@ pub mod pallet {
 				// then at the time of trigger we cut off all the left part of the tree
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			}
-
-			// TODO: Refactor and move actualy schedule logic to this
-			Self::schedule_task(&task)?;
 
 			// TODO: add back signature when insert new task work
 			Self::deposit_event(Event::TaskScheduled {
