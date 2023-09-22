@@ -311,7 +311,7 @@ fn test_schedule_xcmp_task_ok() {
 
 // Test when price moves, the TaskQueue will be populated with the right task id
 #[test]
-fn test_shift_tasks() {
+fn test_shift_tasks_movement_through_price_changes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		// TODO: Setup fund once we add fund check and weight
 		let para_id: u32 = 1000;
@@ -320,6 +320,7 @@ fn test_shift_tasks() {
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
 		setup_prices(&creator);
+
 		// Lets setup 3 tasks
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
@@ -381,14 +382,27 @@ fn test_shift_tasks() {
 			Weight::from_ref_time(200_000)
 		));
 
+		let task_ids = get_task_ids_from_events();
+		let task_id1 = task_ids.get(task_ids.len().wrapping_sub(3)).unwrap();
+		let task_id2 = task_ids.get(task_ids.len().wrapping_sub(2)).unwrap();
+		let task_id3 = task_ids.get(task_ids.len().wrapping_sub(1)).unwrap();
+
 		// at this moment our task queue is empty
-		// There is no tasks at this moment
+		// There is schedule tasks, but no tasks in the queue at this moment
 		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
 
 		// shift_tasks move task from registry to the queue
 		// there is no price yet, so task won't move
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
-
+		// The price is too low so there is no change in our tasks
+		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+			"gt".as_bytes().to_vec(),
+		));
+		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 1);
 		for key in SortedTasksIndex::<Test>::iter_keys() {
 			let (chain, exchange, asset_pair, trigger_func) = key.clone();
 
@@ -402,17 +416,10 @@ fn test_shift_tasks() {
 			}
 		}
 
-		// The price is too low so there is no change in our tasks
-		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
-		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
-			chain1.to_vec(),
-			exchange1.to_vec(),
-			(asset1.to_vec(), asset2.to_vec()),
-			"gt".as_bytes().to_vec(),
-		));
-		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 1);
-
-		// now we update, at least once task is move
+		//
+		// now we update price, one task moved to the  queue
+		// The target price for those respectively tasks are 100, 900, 2000 in their pair
+		// Therefore after running this price update, first task are moved
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
 			vec!(chain1.to_vec(), chain2.to_vec(), chain2.to_vec()),
@@ -423,43 +430,101 @@ fn test_shift_tasks() {
 			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
 			vec!(1, 2, 3),
 		));
-
-		// The price is too low so there is no change in our tasks
-		//assert_eq!(AutomationPrice::get_task_queue().first(), true);
-		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
-			chain1.to_vec(),
-			exchange1.to_vec(),
-			(asset1.to_vec(), asset2.to_vec()),
-			"gt".as_bytes().to_vec(),
-		));
-
-		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 2);
+		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		assert_eq!(AutomationPrice::get_task_queue(), vec!(task_id1.clone()));
+		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
+		// decrease to 0
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.map_or_else(|| 0, |x| x.len()),
+			0
+		);
 
 		// Now when price meet trigger condition
 		AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
-			vec![chain1.to_vec(), chain2.to_vec(), chain2.to_vec()],
-			vec![exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()],
-			vec![asset1.to_vec(), asset2.to_vec(), asset1.to_vec()],
-			vec![asset2.to_vec(), asset3.to_vec(), asset3.to_vec()],
-			vec![2005_u128, 10_u128, 300_u128],
-			vec![START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128],
-			vec![1, 2, 3],
+			vec![chain2.to_vec()],
+			vec![exchange1.to_vec()],
+			vec![asset1.to_vec()],
+			vec![asset3.to_vec()],
+			vec![9000_u128],
+			vec![START_BLOCK_TIME as u128],
+			vec![4],
 		);
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		assert_eq!(AutomationPrice::get_task_queue(), vec!(task_id1.clone(), task_id3.clone()));
+		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
+		// decrease to 0
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_index((
+				chain2.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset3.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.map_or_else(|| 0, |x| x.len()),
+			0
+		);
 
-		for key in SortedTasksIndex::<Test>::iter_keys() {
-			let (chain, exchange, asset_pair, trigger_func) = key.clone();
+		//
+		// Now if a task come with <, they can
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			asset2.to_vec(),
+			asset3.to_vec(),
+			3000u128,
+			"lt".as_bytes().to_vec(),
+			// price for this asset is 10 in our last update
+			vec!(20),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+		// The task is now on the SortedTasksIndex
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_index((
+				chain2.to_vec(),
+				exchange1.to_vec(),
+				(asset2.to_vec(), asset3.to_vec()),
+				"lt".as_bytes().to_vec(),
+			))
+			.map_or_else(|| 0, |x| x.len()),
+			1
+		);
 
-			if let Some(tasks) = AutomationPrice::get_sorted_tasks_index(&key) {
-				println!("repeat2 automation tasks {:?} func {:?}", tasks, trigger_func);
+		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		let task_id4 = {
+			let task_ids = get_task_ids_from_events();
+			task_ids.last().unwrap().clone()
+		};
 
-				for (price, task_ids) in tasks.iter() {
-					println!("price {:?} {:?}", &price, &task_ids);
-				}
-
-				//SortedTasksIndex::<Test>::remove(key.clone())
-			}
-		}
+		// Now the task is again, moved into the queue and be removed from SortedTasksIndex
+		assert_eq!(
+			AutomationPrice::get_task_queue(),
+			vec!(task_id1.clone(), task_id3.clone(), task_id4.clone())
+		);
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_index((
+				chain2.to_vec(),
+				exchange1.to_vec(),
+				(asset2.to_vec(), asset3.to_vec()),
+				"lt".as_bytes().to_vec(),
+			))
+			.map_or_else(|| 0, |x| x.len()),
+			0
+		);
 	})
 }
