@@ -236,7 +236,7 @@ pub mod pallet {
 	#[pallet::error]
 	#[derive(PartialEq)]
 	pub enum Error<T> {
-		/// Time must end in a whole SlotSizeSeconds.
+		/// Time in seconds must be a multiple of SlotSizeSeconds
 		InvalidTime,
 		/// Time must be in the future.
 		PastTime,
@@ -365,7 +365,7 @@ pub mod pallet {
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole SlotSizeSeconds.
+		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
@@ -422,7 +422,7 @@ pub mod pallet {
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Time must end in a whole SlotSizeSeconds.
+		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
@@ -478,7 +478,7 @@ pub mod pallet {
 		/// * `account_minimum`: The minimum amount of funds that should be left in the wallet
 		///
 		/// # Errors
-		/// * `InvalidTime`: Execution time and frequency must end in a whole SlotSizeSeconds.
+		/// * `InvalidTime`: Execution time and frequency must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -520,7 +520,7 @@ pub mod pallet {
 		/// * `call`: The call that will be dispatched.
 		///
 		/// # Errors
-		/// * `InvalidTime`: Execution time and frequency must end in a whole SlotSizeSeconds.
+		/// * `InvalidTime`: Execution time and frequency must be a multiple of SlotSizeSeconds.
 		/// * `PastTime`: Time must be in the future.
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
@@ -613,7 +613,7 @@ pub mod pallet {
 		/// Checks to see if the scheduled time is valid.
 		///
 		/// In order for a time to be valid it must
-		/// - End in a whole SlotSizeSeconds
+		/// - A multiple of SlotSizeSeconds
 		/// - Be in the future
 		/// - Not be more than MaxScheduleSeconds out
 		pub fn is_valid_time(scheduled_time: UnixTime) -> DispatchResult {

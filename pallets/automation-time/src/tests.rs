@@ -1011,11 +1011,11 @@ fn schedule_auto_compound_with_bad_frequency_or_execution_time() {
 // when schedule auto compound task, if the schedule time falls too far in the
 // future, return TimeTooFarOut error
 #[test]
-fn schedule_auto_compound_with_high_frequency() {
+fn schedule_auto_compound_with_time_too_far_out() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		for (execution_time, frequency) in vec![
-			(SCHEDULED_TIME, <Test as Config>::MaxScheduleSeconds::get() + SLOT_SIZE_SECONDS),
-			(SCHEDULED_TIME + 7 * 24 * SLOT_SIZE_SECONDS, SLOT_SIZE_SECONDS),
+			(SCHEDULED_TIME, MAX_SCHEDULE_SECONDS + SLOT_SIZE_SECONDS),
+			(SCHEDULED_TIME + MAX_SCHEDULE_SECONDS + SLOT_SIZE_SECONDS, SLOT_SIZE_SECONDS),
 		]
 		.iter()
 		{
@@ -1336,8 +1336,8 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
@@ -1430,8 +1430,8 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
@@ -1504,8 +1504,8 @@ fn cancel_works_for_multiple_executions_scheduled() {
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 		System::reset_events();
 
@@ -1797,8 +1797,8 @@ fn cancel_task_fail_non_owner() {
 			vec![2, 4, 5],
 		);
 		LastTimeSlot::<Test>::put((
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
-			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
+			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
 		));
 
 		System::reset_events();
