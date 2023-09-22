@@ -216,6 +216,8 @@ impl pallet_automation_price::Config for Test {
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Test>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
+
+	type EnsureProxy = MockEnsureProxy;
 }
 
 parameter_types! {
@@ -300,6 +302,14 @@ impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWei
 		Weight::from_ref_time(200_000_000_u64)
 	}
 
+	fn schedule_xcmp_task() -> Weight {
+		Weight::from_ref_time(200_000_000_u64)
+	}
+
+	fn schedule_xcmp_task_through_proxy() -> Weight {
+		Weight::from_ref_time(200_000_000_u64)
+	}
+
 	fn run_xcmp_task() -> Weight {
 		Weight::from_ref_time(200_000_000_u64)
 	}
@@ -373,6 +383,7 @@ impl Convert<MultiLocation, Option<CurrencyId>> for MockTokenIdConvert {
 	}
 }
 
+// TODO: We should extract this and share code with automation-time
 pub struct MockEnsureProxy;
 impl EnsureProxy<AccountId> for MockEnsureProxy {
 	fn ensure_ok(_delegator: AccountId, _delegatee: AccountId) -> Result<(), &'static str> {

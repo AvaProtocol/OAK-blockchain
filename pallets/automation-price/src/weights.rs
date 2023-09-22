@@ -29,6 +29,8 @@ pub trait WeightInfo {
 	fn asset_price_update_extrinsic() -> Weight;
 	fn initialize_asset_extrinsic() -> Weight;
 	fn schedule_transfer_task_extrinsic() -> Weight;
+	fn schedule_xcmp_task() -> Weight;
+	fn schedule_xcmp_task_through_proxy() -> Weight;
     fn run_xcmp_task() -> Weight;
 }
 
@@ -83,6 +85,19 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(RocksDbWeight::get().reads(6_u64))
 			.saturating_add(RocksDbWeight::get().writes(4_u64))
 	}
+
+	fn schedule_xcmp_task() -> Weight{
+		Weight::from_ref_time(200_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	}
+
+	fn schedule_xcmp_task_through_proxy() -> Weight{
+		Weight::from_ref_time(200_000_000_u64)
+			.saturating_add(RocksDbWeight::get().reads(6_u64))
+			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	}
+
 
     // TODO: Re-generate
 	fn run_xcmp_task() -> Weight{

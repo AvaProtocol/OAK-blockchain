@@ -81,6 +81,7 @@ use sp_std::{
 };
 
 pub use pallet_xcmp_handler::InstructionSequence;
+use primitives::EnsureProxy;
 pub use weights::WeightInfo;
 
 use pallet_xcmp_handler::XcmpTransactor;
@@ -237,6 +238,9 @@ pub mod pallet {
 
 		/// Utility for sending XCM messages
 		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// Ensure proxy
+		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -567,7 +571,7 @@ pub mod pallet {
 
 		// TODO: correct weight
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task())]
 		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
@@ -627,6 +631,66 @@ pub mod pallet {
 			Self::validate_and_schedule_task(task)?;
 			// TODO withdraw fee
 			//T::FeeHandler::withdraw_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
+			Ok(())
+		}
+
+		// TODO: correct weight to use schedule_xcmp_task
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_through_proxy())]
+		#[transactional]
+		pub fn schedule_xcmp_task_through_proxy(
+			origin: OriginFor<T>,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			expired_at: u128,
+			trigger_function: Vec<u8>,
+			trigger_param: Vec<u128>,
+
+			destination: Box<VersionedMultiLocation>,
+			schedule_fee: Box<VersionedMultiLocation>,
+			execution_fee: Box<AssetPayment>,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			overall_weight: Weight,
+			schedule_as: T::AccountId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// Make sure the owner is the proxy account of the user account.
+			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
+
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee: *execution_fee,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: Some(schedule_as),
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			};
+
+			let task_id = Self::generate_task_id();
+			let task: Task<T> = Task::<T> {
+				owner_id: who.clone(),
+				task_id: task_id.clone(),
+				chain,
+				exchange,
+				asset_pair: (asset1, asset2),
+				expired_at,
+				trigger_function,
+				trigger_params: trigger_param,
+				action,
+			};
+
+			Self::validate_and_schedule_task(task)?;
 			Ok(())
 		}
 	}

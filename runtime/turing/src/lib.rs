@@ -940,6 +940,7 @@ impl pallet_automation_price::Config for Runtime {
 	type MultiCurrency = Currencies;
 	type CurrencyId = TokenId;
 	type XcmpTransactor = XcmpHandler;
+	type EnsureProxy = AutomationEnsureProxy;
 	type CurrencyIdConvert = TokenIdConvert;
 	type FeeConversionRateProvider = FeePerSecondProvider;
 	type FeeHandler = pallet_automation_price::FeeHandler<Runtime, ToTreasury>;

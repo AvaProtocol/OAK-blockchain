@@ -926,6 +926,7 @@ impl pallet_automation_price::Config for Runtime {
 	type FeeHandler = pallet_automation_price::FeeHandler<Runtime, ToTreasury>;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
+	type EnsureProxy = AutomationEnsureProxy;
 }
 
 pub struct ClosedCallFilter;
