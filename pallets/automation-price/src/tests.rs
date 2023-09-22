@@ -16,7 +16,6 @@
 // limitations under the License.
 
 use crate::{mock::*, AssetPayment, Config, SortedTasksIndex, TaskId, TaskIdList};
-
 use pallet_xcmp_handler::InstructionSequence;
 
 use frame_support::{
@@ -321,7 +320,66 @@ fn test_shift_tasks() {
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
 		setup_prices(&creator);
-		setup_sample_tasks(&creator);
+		// Lets setup 3 tasks
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			1000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			asset2.to_vec(),
+			asset3.to_vec(),
+			3000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(900),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain2.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset3.to_vec(),
+			6000u128,
+			"gt".as_bytes().to_vec(),
+			vec!(2000),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
 
 		// at this moment our task queue is empty
 		// There is no tasks at this moment
