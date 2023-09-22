@@ -542,7 +542,8 @@ pub mod pallet {
 			asset2: AssetName,
 		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
-			ensure_root(origin)?;
+			// TODO: add a feature flag so we can toggle in dev build without sudo
+			//ensure_root(origin)?;
 
 			let key = (chain, exchange, (&asset1, &asset2));
 
