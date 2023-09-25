@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, AssetPayment, Config, SortedTasksIndex, TaskId, TaskIdList};
+use crate::{mock::*, AssetPayment, Config, TaskIdList};
 use pallet_xcmp_handler::InstructionSequence;
 
 use frame_support::{
@@ -29,7 +29,6 @@ use sp_runtime::AccountId32;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
-use sp_std::ops::Bound::{Excluded, Included};
 
 struct XcmpActionParams {
 	destination: MultiLocation,
@@ -417,7 +416,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		let task_ids = get_task_ids_from_events();
 		let task_id1 = task_ids.get(task_ids.len().wrapping_sub(3)).unwrap();
-		let task_id2 = task_ids.get(task_ids.len().wrapping_sub(2)).unwrap();
+		let _task_id2 = task_ids.get(task_ids.len().wrapping_sub(2)).unwrap();
 		let task_id3 = task_ids.get(task_ids.len().wrapping_sub(1)).unwrap();
 
 		// at this moment our task queue is empty

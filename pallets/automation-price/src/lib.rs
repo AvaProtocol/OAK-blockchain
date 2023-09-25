@@ -55,7 +55,7 @@ use frame_support::{
 	traits::{Contains, Currency, ExistenceRequirement},
 	transactional,
 };
-use frame_system::{pallet_prelude::*, Config as SystemConfig};
+use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
 use scale_info::{prelude::format, TypeInfo};
@@ -227,6 +227,7 @@ pub mod pallet {
 	#[scale_info(skip_type_params(T))]
 	pub struct PriceData {
 		pub round: u128,
+		pub nonce: u128,
 		pub amount: u128,
 	}
 
@@ -432,7 +433,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic())]
 		#[transactional]
 		pub fn initialize_asset(
-			origin: OriginFor<T>,
+			_origin: OriginFor<T>,
 			chain: Vec<u8>,
 			exchange: Vec<u8>,
 			asset1: AssetName,
@@ -516,7 +517,7 @@ pub mod pallet {
 					}
 
 					// TODO: Add round and nonce check logic
-					PriceRegistry::<T>::insert(&key, PriceData { round, amount: *price });
+					PriceRegistry::<T>::insert(&key, PriceData { round, nonce: 1, amount: *price });
 
 					Self::deposit_event(Event::AssetUpdated {
 						who: who.clone(),
@@ -542,7 +543,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
 		pub fn delete_asset(
-			origin: OriginFor<T>,
+			_origin: OriginFor<T>,
 			chain: ChainName,
 			exchange: Exchange,
 			asset1: AssetName,
@@ -756,7 +757,7 @@ pub mod pallet {
 
 		// Move task from the SortedTasksIndex into TaskQueue that are ready to be process
 		pub fn shift_tasks(max_weight: Weight) -> Weight {
-			let mut weight_left: Weight = max_weight;
+			let weight_left: Weight = max_weight;
 
 			// TODO: Look into asset that has price move instead
 			let ref mut task_to_process: TaskIdList = Vec::new();
@@ -796,7 +797,7 @@ pub mod pallet {
 					let current_price = current_price_wrap.unwrap();
 
 					//Eg sell order, sell when price >
-					let mut range;
+					let range;
 					// TODO: move magic number into a trigger.rs module
 					if trigger_func == vec![103_u8, 116_u8] {
 						range = (Excluded(&u128::MIN), Included(&current_price.amount))
@@ -993,7 +994,7 @@ pub mod pallet {
 								instruction_sequence,
 								..
 							} => {
-								let (w, err) = Self::run_xcmp_task(
+								let (w, _err) = Self::run_xcmp_task(
 									destination,
 									schedule_as.unwrap_or(task.owner_id.clone()),
 									execution_fee,
@@ -1066,9 +1067,7 @@ pub mod pallet {
 
 			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
 				// TODO: remove hard code and take right param
-				if let Some(mut tasks_by_price) =
-					sorted_task_index.get_mut(&(task.trigger_params[0]))
-				{
+				if let Some(tasks_by_price) = sorted_task_index.get_mut(&(task.trigger_params[0])) {
 					tasks_by_price.push(task.task_id.clone());
 				} else {
 					sorted_task_index.insert(task.trigger_params[0], vec![task.task_id.clone()]);

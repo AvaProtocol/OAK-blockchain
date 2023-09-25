@@ -94,7 +94,7 @@ use common_runtime::{
 			SCHEDULED_TASKS_INITIALIZE_RATIO,
 		},
 	},
-	fees::{DealWithExecutionFees, DealWithInclusionFees},
+	fees::DealWithInclusionFees,
 	CurrencyHooks,
 };
 use primitives::{
