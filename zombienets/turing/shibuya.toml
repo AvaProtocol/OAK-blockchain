@@ -35,6 +35,7 @@ chain = "shibuya-dev"
     [parachains.collator]
     name = "shibuya-col-1"
     command = "../Astar/target/release/astar-collator"
+    args = ["--enable-evm-rpc"]    # EVM RPC for Metamsk: http://localhost:9948 and Shibuya Chain Id: 81
     ws_port = 9948
     rpc_port = 8867
 
@@ -42,10 +43,10 @@ chain = "shibuya-dev"
 sender = 2114
 recipient = 2000
 max_capacity = 8
-max_message_size = 512
+max_message_size = 102400
 
 [[hrmp_channels]]
 sender = 2000
 recipient = 2114
 max_capacity = 8
-max_message_size = 512
+max_message_size = 102400
