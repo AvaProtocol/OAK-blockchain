@@ -457,15 +457,27 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Post asset update
+		/// Update prices of multiple asset pairs at the same time
 		///
-		/// Update the asset price
+		/// Only authorized origin can update the price. The authorized origin is set when
+		/// initializing an asset.
+		///
+		/// An asset is identified by this tuple: (chain, exchange, (asset1, asset2)).
+		///
+		/// To support updating multiple pairs, each element of the tuple become a separate
+		/// argument to this function, where as each of these argument is a vector.
+		///
+		/// Every element of each vector arguments, in the same position in the vector form the
+		/// above tuple.
 		///
 		/// # Parameters
-		/// * `asset`: asset type
-		/// * `value`: value of asset
-		///
-		/// # Errors
+		/// * `chains`: a vector of chain names
+		/// * `exchange`: a vector of  exchange name
+		/// * `asset1`: a vector of asset1 name
+		/// * `asset2`: a vector of asset2 name
+		/// * `prices`: a vector of price of asset1, re-present in asset2
+		/// * `submitted_at`: a vector of epoch. This epoch is the time when the price is recognized from the oracle provider
+		/// * `rounds`: a number to re-present which round of the asset price we're updating.  Unused internally
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic())]
 		#[transactional]
@@ -626,7 +638,26 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// TODO: correct weight to use schedule_xcmp_task
+		/// TODO: correct weight to use schedule_xcmp_task
+		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The asset pair is already initialized
+		///
+		/// # Parameters
+		/// * `chain`: The chain name where we will send the task over
+		/// * `exchange`: the exchange name where we
+		/// * `asset1`: The payment asset location required for scheduling automation task.
+		/// * `asset2`: The fee will be paid for XCMP execution.
+		/// * `expired_at`: the epoch when after that time we will remove the task if it has not been executed yet
+		/// * `trigger_function`: currently only support `gt` or `lt`. Essentially mean greater than or less than.
+		/// * `trigger_params`: a list of parameter to feed into `trigger_function`. with `gt` and `lt` we only need to pass the target price as a single element vector
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_through_proxy())]
 		#[transactional]
@@ -638,7 +669,7 @@ pub mod pallet {
 			asset2: AssetName,
 			expired_at: u128,
 			trigger_function: Vec<u8>,
-			trigger_param: Vec<u128>,
+			trigger_params: Vec<u128>,
 
 			destination: Box<VersionedMultiLocation>,
 			schedule_fee: Box<VersionedMultiLocation>,
@@ -678,7 +709,7 @@ pub mod pallet {
 				asset_pair: (asset1, asset2),
 				expired_at,
 				trigger_function,
-				trigger_params: trigger_param,
+				trigger_params,
 				action,
 			};
 
