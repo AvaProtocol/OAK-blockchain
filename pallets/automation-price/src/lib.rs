@@ -52,7 +52,7 @@ use cumulus_primitives_core::InteriorMultiLocation;
 use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
-	traits::{Contains, Currency, ExistenceRequirement},
+	traits::{Currency, ExistenceRequirement},
 	transactional,
 };
 use frame_system::pallet_prelude::*;

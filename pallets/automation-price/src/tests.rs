@@ -416,7 +416,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		let task_ids = get_task_ids_from_events();
 		let task_id1 = task_ids.get(task_ids.len().wrapping_sub(3)).unwrap();
-		let _task_id2 = task_ids.get(task_ids.len().wrapping_sub(2)).unwrap();
+		// let _task_id2 = task_ids.get(task_ids.len().wrapping_sub(2)).unwrap();
 		let task_id3 = task_ids.get(task_ids.len().wrapping_sub(1)).unwrap();
 
 		// at this moment our task queue is empty

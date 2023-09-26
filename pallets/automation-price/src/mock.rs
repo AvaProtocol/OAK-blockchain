@@ -21,7 +21,7 @@ use crate::TaskId;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{ConstU32, Everything},
+	traits::{Contains, ConstU32, Everything},
 	weights::Weight,
 	PalletId,
 };
@@ -47,22 +47,12 @@ pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
 
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-pub const SCHEDULED_TIME: u64 = START_BLOCK_TIME / 1_000 + 7200;
-pub const LAST_BLOCK_TIME: u64 = START_BLOCK_TIME / 1_000;
-
-// This is 1-0-3: {1: block idx}-{0: first extrinsic in block}-{3: the event index}
-pub const FIRST_TASK_ID: [u8; 5] = [49, 45, 48, 45, 51];
-pub const SECOND_TASK_ID: [u8; 5] = [49, 45, 48, 45, 54];
-
-pub const EXPECT_CALCULATE_SCHEDULE_FEE_AMOUNT: &str = "Calculate schedule fee amount should work";
 
 pub const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
 
 pub const ALICE: [u8; 32] = [1u8; 32];
-pub const BOB: [u8; 32] = [2u8; 32];
 pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
 pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
-pub const COLLATOR_ACCOUNT: [u8; 32] = [5u8; 32];
 
 pub const PARA_ID: u32 = 2000;
 pub const NATIVE: CurrencyId = 0;
@@ -74,8 +64,6 @@ const DOLLAR: u128 = 10_000_000_000;
 
 pub const MOONBASE_ASSET_LOCATION: MultiLocation =
 	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
-pub const UNKNOWN_SCHEDULE_FEE: MultiLocation =
-	MultiLocation { parents: 1, interior: X1(Parachain(4000)) };
 
 pub const exchange1: &[u8] = "exchange1".as_bytes();
 pub const exchange2: &[u8] = "exchange2".as_bytes();
@@ -440,19 +428,6 @@ pub fn events() -> Vec<RuntimeEvent> {
 	evt
 }
 
-pub fn last_event() -> RuntimeEvent {
-	events().pop().unwrap()
-}
-
-// A utility test function to simplify the process of getting a task id that we just scheduled in the
-// test by looking at the last id and pluck it
-pub fn last_task_id() -> TaskId {
-	get_task_ids_from_events()
-		.last()
-		.expect("Unable to find a task_id from the existing TaskScheduled events")
-		.clone()
-}
-
 // A utility test function to pluck out the task id from events, useful when dealing with multiple
 // task scheduling
 pub fn get_task_ids_from_events() -> Vec<TaskId> {
@@ -487,19 +462,6 @@ pub fn get_xcmp_funds(account: AccountId) {
 	let max_execution_fee = action_fee * u128::from(1u32);
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
 	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
-}
-
-// TODO: swap above to this pattern
-pub fn fund_account_dynamic_dispatch(
-	account: &AccountId,
-	execution_count: usize,
-	_encoded_call: Vec<u8>,
-) -> Result<(), DispatchError> {
-	//let action: ActionOf<Test> = Action::DynamicDispatch { encoded_call };
-	//let action_weight = action.execution_weight::<Test>()?;
-	let _action_weight: u64 = 1_000_000;
-	fund_account(account, 1_000_000, execution_count, None);
-	Ok(())
 }
 
 pub fn fund_account(
