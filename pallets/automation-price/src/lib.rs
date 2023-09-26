@@ -33,27 +33,50 @@ pub use pallet::*;
 
 pub mod weights;
 
+pub mod types;
+pub use types::*;
+
 mod fees;
+
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use fees::*;
 
-use core::convert::TryInto;
-use cumulus_pallet_xcm::Origin as CumulusOrigin;
+use codec::Decode;
+use core::convert::{TryFrom, TryInto};
+use cumulus_primitives_core::InteriorMultiLocation;
+
+use cumulus_primitives_core::ParaId;
 use frame_support::{
 	pallet_prelude::*,
-	sp_runtime::traits::Hash,
 	traits::{Currency, ExistenceRequirement},
-	transactional, BoundedVec,
+	transactional,
 };
-use frame_system::{pallet_prelude::*, Config as SystemConfig};
+use frame_system::pallet_prelude::*;
+use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
-use scale_info::TypeInfo;
+use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
-	traits::{SaturatedConversion, Saturating},
+	traits::{Convert, SaturatedConversion, Saturating},
 	Perbill,
 };
-use sp_std::{vec, vec::Vec};
+use sp_std::{
+	boxed::Box,
+	collections::btree_map::BTreeMap,
+	ops::Bound::{Excluded, Included},
+	vec,
+	vec::Vec,
+};
 
+pub use pallet_xcmp_handler::InstructionSequence;
+use primitives::EnsureProxy;
 pub use weights::WeightInfo;
+
+use pallet_xcmp_handler::XcmpTransactor;
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -62,83 +85,60 @@ pub mod pallet {
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;
 	pub type BalanceOf<T> =
 		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type MultiBalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::Balance;
+	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>>;
+
+	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
+
 	type UnixTime = u64;
+	pub type TaskId = Vec<u8>;
+	pub type TaskIdList = Vec<TaskId>;
+
+	// TODO: Cleanup before merge
+	type ChainName = Vec<u8>;
+	type Exchange = Vec<u8>;
+
 	type AssetName = Vec<u8>;
-	type AssetDirection = Direction;
+	type AssetPair = (AssetName, AssetName);
 	type AssetPrice = u128;
-	type AssetPercentage = u128;
-
-	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	pub enum Direction {
-		Up,
-		Down,
-	}
-
-	/// The enum that stores all action specific data.
-	#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub enum Action<T: Config> {
-		NativeTransfer { sender: AccountOf<T>, recipient: AccountOf<T>, amount: BalanceOf<T> },
-	}
+	type TriggerFunction = Vec<u8>;
 
 	/// The struct that stores all information needed for a task.
-	#[derive(Debug, Eq, Encode, Decode, TypeInfo)]
+	#[derive(Debug, Eq, Encode, Decode, TypeInfo, Clone)]
 	#[scale_info(skip_type_params(T))]
 	pub struct Task<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
-		asset: AssetName,
-		direction: AssetDirection,
-		trigger_percentage: AssetPercentage,
-		action: Action<T>,
+		// origin data from the account schedule the tasks
+		pub owner_id: AccountOf<T>,
+
+		// generated data
+		pub task_id: TaskId,
+
+		// user input data
+		pub chain: ChainName,
+		pub exchange: Exchange,
+		pub asset_pair: AssetPair,
+		pub expired_at: u128,
+
+		// TODO: Maybe expose enum?
+		pub trigger_function: Vec<u8>,
+		pub trigger_params: Vec<u128>,
+		pub action: ActionOf<T>,
 	}
 
 	/// Needed for assert_eq to compare Tasks in tests due to BoundedVec.
 	impl<T: Config> PartialEq for Task<T> {
 		fn eq(&self, other: &Self) -> bool {
+			// TODO: correct this
 			self.owner_id == other.owner_id &&
-				self.provided_id == other.provided_id &&
-				self.asset == other.asset &&
-				self.direction == other.direction &&
-				self.trigger_percentage == other.trigger_percentage
+				self.task_id == other.task_id &&
+				self.asset_pair == other.asset_pair &&
+				self.trigger_function == other.trigger_function &&
+				self.trigger_params == other.trigger_params
 		}
-	}
-
-	impl<T: Config> Task<T> {
-		pub fn create_event_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			asset: AssetName,
-			direction: AssetDirection,
-			trigger_percentage: AssetPercentage,
-			recipient: AccountOf<T>,
-			amount: BalanceOf<T>,
-		) -> Task<T> {
-			let action = Action::NativeTransfer { sender: owner_id.clone(), recipient, amount };
-			Task::<T> { owner_id, provided_id, asset, direction, trigger_percentage, action }
-		}
-	}
-
-	#[derive(Debug, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct TaskHashInput<T: Config> {
-		owner_id: AccountOf<T>,
-		provided_id: Vec<u8>,
-	}
-
-	impl<T: Config> TaskHashInput<T> {
-		pub fn create_hash_input(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> TaskHashInput<T> {
-			TaskHashInput::<T> { owner_id, provided_id }
-		}
-	}
-
-	#[derive(Debug, Encode, Decode, TypeInfo)]
-	#[scale_info(skip_type_params(T))]
-	pub struct AssetMetadatum<T: Config> {
-		upper_bound: u16,
-		lower_bound: u8,
-		expiration_period: UnixTime,
-		asset_sudo: AccountOf<T>,
 	}
 
 	#[pallet::config]
@@ -166,11 +166,45 @@ pub mod pallet {
 		/// The Currency type for interacting with balances
 		type Currency: Currency<Self::AccountId>;
 
+		/// The MultiCurrency type for interacting with balances
+		type MultiCurrency: MultiCurrency<Self::AccountId>;
+
+		/// The currencyIds that our chain supports.
+		type CurrencyId: Parameter
+			+ Member
+			+ Copy
+			+ MaybeSerializeDeserialize
+			+ Ord
+			+ TypeInfo
+			+ MaxEncodedLen
+			+ From<MultiCurrencyId<Self>>
+			+ Into<MultiCurrencyId<Self>>
+			+ From<u32>;
+
+		/// Converts CurrencyId to Multiloc
+		type CurrencyIdConvert: Convert<Self::CurrencyId, Option<MultiLocation>>
+			+ Convert<MultiLocation, Option<Self::CurrencyId>>;
+
 		/// Handler for fees
 		type FeeHandler: HandleFees<Self>;
 
-		type Origin: From<<Self as SystemConfig>::RuntimeOrigin>
-			+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
+		//type Origin: From<<Self as SystemConfig>::RuntimeOrigin>
+		//	+ Into<Result<CumulusOrigin, <Self as Config>::Origin>>;
+
+		/// Converts between comparable currencies
+		type FeeConversionRateProvider: FixedConversionRateProvider;
+
+		/// This chain's Universal Location.
+		type UniversalLocation: Get<InteriorMultiLocation>;
+
+		//The paraId of this chain.
+		type SelfParaId: Get<ParaId>;
+
+		/// Utility for sending XCM messages
+		type XcmpTransactor: XcmpTransactor<Self::AccountId, Self::CurrencyId>;
+
+		/// Ensure proxy
+		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -178,16 +212,69 @@ pub mod pallet {
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
+	// TODO: Cleanup before merge
+	#[derive(Debug, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct RegistryInfo<T: Config> {
+		round: u128,
+		decimal: u8,
+		last_update: u64,
+		oracle_providers: Vec<AccountOf<T>>,
+	}
+
+	// TODO: Use a ring buffer to also store last n history data effectively
+	#[derive(Debug, Encode, Decode, TypeInfo)]
+	#[scale_info(skip_type_params(T))]
+	pub struct PriceData {
+		pub round: u128,
+		pub nonce: u128,
+		pub amount: u128,
+	}
+
+	// AssetRegistry holds information and metadata about the asset we support
 	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_tasks)]
-	pub type ScheduledTasks<T: Config> = StorageNMap<
+	#[pallet::getter(fn get_asset_registry_info)]
+	pub type AssetRegistry<T: Config> = StorageNMap<
 		_,
 		(
-			NMapKey<Twox64Concat, AssetName>,
-			NMapKey<Twox64Concat, AssetDirection>,
-			NMapKey<Twox64Concat, AssetPercentage>,
+			NMapKey<Twox64Concat, ChainName>,
+			NMapKey<Twox64Concat, Exchange>,
+			NMapKey<Twox64Concat, AssetPair>,
 		),
-		BoundedVec<T::Hash, T::MaxTasksPerSlot>,
+		RegistryInfo<T>,
+	>;
+
+	// PriceRegistry holds price only information for the asset we support
+	#[pallet::storage]
+	#[pallet::getter(fn get_asset_price_data)]
+	pub type PriceRegistry<T> = StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, ChainName>,
+			NMapKey<Twox64Concat, Exchange>,
+			NMapKey<Twox64Concat, AssetPair>,
+		),
+		PriceData,
+	>;
+
+	// SortedTasksIndex is our sorted by price task shard
+	// Each task for a given asset is organized into a BTreeMap
+	// https://doc.rust-lang.org/std/collections/struct.BTreeMap.html#method.insert
+	// - key: Trigger Price
+	// - value: vector of task id
+	// TODO: move these to a trigger model
+	// TODO: handle task expiration
+	#[pallet::storage]
+	#[pallet::getter(fn get_sorted_tasks_index)]
+	pub type SortedTasksIndex<T> = StorageNMap<
+		_,
+		(
+			NMapKey<Twox64Concat, ChainName>,
+			NMapKey<Twox64Concat, Exchange>,
+			NMapKey<Twox64Concat, AssetPair>,
+			NMapKey<Twox64Concat, TriggerFunction>,
+		),
+		BTreeMap<AssetPrice, TaskIdList>,
 	>;
 
 	#[pallet::storage]
@@ -195,40 +282,35 @@ pub mod pallet {
 	pub type ScheduledAssetDeletion<T: Config> =
 		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
 
-	#[pallet::storage]
-	#[pallet::getter(fn get_asset_baseline_price)]
-	pub type AssetBaselinePrices<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetPrice>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_asset_price)]
-	pub type AssetPrices<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetPrice>;
-
+	// Tasks hold all active task, look up through (TaskId)
 	#[pallet::storage]
 	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageNMap<
-		_,
-		(
-			NMapKey<Twox64Concat, AssetName>, // asset name
-			NMapKey<Twox64Concat, T::Hash>,   // task ID
-		),
-		Task<T>,
-	>;
+	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId, Task<T>>;
 
+	// All active tasks, but organized by account
+	// In this storage, we only interested in returning task belong to an account, we also want to
+	// have fast lookup for task inserted/remove into the storage
+	//
+	// We also want to remove the expired task, so by leveraging this
+	#[pallet::storage]
+	#[pallet::getter(fn get_account_task_ids)]
+	pub type AccountTasks<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId, u128>;
+
+	// TaskQueue stores the task to be executed. To run any tasks, they need to be move into this
+	// queue, from there our task execution pick it up and run it
+	//
+	// When task is run, we check the price once more and if it fall out of range, we move the task
+	// back to the Tasks Registry
+	//
+	// If the task is expired, we also won't run
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, Vec<(AssetName, T::Hash)>, ValueQuery>;
+	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn is_shutdown)]
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_asset_metadata)]
-	pub type AssetMetadata<T: Config> = StorageMap<_, Twox64Concat, AssetName, AssetMetadatum<T>>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_number_of_assets)]
-	pub type NumberOfAssets<T: Config> = StorageValue<_, u8>;
 
 	#[pallet::error]
 	pub enum Error<T> {
@@ -240,12 +322,16 @@ pub mod pallet {
 		DuplicateTask,
 		/// Non existent asset
 		AssetNotSupported,
+		AssetNotInitialized,
 		/// Asset already supported
 		AssetAlreadySupported,
+		AssetAlreadyInitialized,
 		/// Asset cannot be updated by this account
 		InvalidAssetSudo,
+		OracleNotAuthorized,
 		/// Asset must be in triggerable range.
 		AssetNotInTriggerableRange,
+		AssetUpdatePayloadMalform,
 		/// Block Time not set
 		BlockTimeNotSet,
 		/// Invalid Expiration Window for new asset
@@ -254,14 +340,18 @@ pub mod pallet {
 		MaxTasksReached,
 		/// Failed to insert task
 		TaskInsertionFailure,
+		/// Failed to remove task
+		TaskRemoveFailure,
 		/// Insufficient Balance
 		InsufficientBalance,
 		/// Restrictions on Liquidity in Account
 		LiquidityRestrictions,
 		/// Too Many Assets Created
 		AssetLimitReached,
-		/// Direction Not Supported
-		DirectionNotSupported,
+
+		/// The version of the `VersionedMultiLocation` value used is not able
+		/// to be interpreted.
+		BadVersion,
 	}
 
 	#[pallet::event]
@@ -270,19 +360,28 @@ pub mod pallet {
 		/// Schedule task success.
 		TaskScheduled {
 			who: AccountOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId,
 		},
 		Notify {
 			message: Vec<u8>,
 		},
 		TaskNotFound {
-			task_id: T::Hash,
+			task_id: TaskId,
 		},
 		AssetCreated {
-			asset: AssetName,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			decimal: u8,
 		},
 		AssetUpdated {
-			asset: AssetName,
+			who: AccountOf<T>,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			price: u128,
 		},
 		AssetDeleted {
 			asset: AssetName,
@@ -292,11 +391,11 @@ pub mod pallet {
 		},
 		/// Successfully transferred funds
 		SuccessfullyTransferredFunds {
-			task_id: T::Hash,
+			task_id: TaskId,
 		},
 		/// Transfer Failed
 		TransferFailed {
-			task_id: T::Hash,
+			task_id: TaskId,
 			error: DispatchError,
 		},
 	}
@@ -317,48 +416,6 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// Schedule a task to fire an event with a custom message.
-		///
-		/// Schedule a transfer task for price triggers
-		///
-		/// # Parameters
-		/// * `provided_id`: An id provided by the user. This id must be unique for the user.
-		/// * `asset`: asset type
-		/// * `direction`: direction of trigger movement
-		/// * `trigger_percentage`: what percentage task should be triggered at
-		/// * `recipient`: person to transfer money to
-		/// * `amount`: amount to transfer
-		///
-		/// # Errors
-		#[pallet::call_index(0)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_transfer_task_extrinsic())]
-		#[transactional]
-		pub fn schedule_transfer_task(
-			origin: OriginFor<T>,
-			provided_id: Vec<u8>,
-			asset: AssetName,
-			direction: AssetDirection,
-			trigger_percentage: AssetPercentage,
-			recipient: T::AccountId,
-			#[pallet::compact] amount: BalanceOf<T>,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
-			T::FeeHandler::can_pay_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
-			Self::validate_and_schedule_task(
-				who.clone(),
-				provided_id,
-				asset,
-				direction,
-				trigger_percentage,
-				recipient,
-				amount,
-			)?;
-			T::FeeHandler::withdraw_fee(&who, fee)
-				.map_err(|_| Error::<T>::LiquidityRestrictions)?;
-			Ok(())
-		}
-
 		/// Initialize an asset
 		///
 		/// Add a new asset
@@ -373,121 +430,106 @@ pub mod pallet {
 		///
 		/// # Errors
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::add_asset_extrinsic())]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic())]
 		#[transactional]
-		pub fn add_asset(
-			origin: OriginFor<T>,
-			asset: AssetName,
-			target_price: AssetPrice,
-			upper_bound: u16,
-			lower_bound: u8,
-			asset_owner: AccountOf<T>,
-			expiration_period: UnixTime,
+		pub fn initialize_asset(
+			_origin: OriginFor<T>,
+			chain: Vec<u8>,
+			exchange: Vec<u8>,
+			asset1: AssetName,
+			asset2: AssetName,
+			decimal: u8,
+			asset_owners: Vec<AccountOf<T>>,
 		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
-			ensure_root(origin)?;
-			if expiration_period % 86400 != 0 {
-				Err(Error::<T>::InvalidAssetExpirationWindow)?
-			}
-			if let Some(_asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
-				Err(Error::<T>::AssetAlreadySupported)?
-			}
-			if let Some(number_of_assets) = Self::get_number_of_assets() {
-				// TODO: remove hardcoded 2 asset limit
-				if number_of_assets >= 2 {
-					Err(Error::<T>::AssetLimitReached)?
-				} else {
-					Self::create_new_asset(
-						asset,
-						target_price,
-						upper_bound,
-						lower_bound,
-						asset_owner,
-						expiration_period,
-						number_of_assets,
-					)?;
-				}
-			} else {
-				Self::create_new_asset(
-					asset,
-					target_price,
-					upper_bound,
-					lower_bound,
-					asset_owner,
-					expiration_period,
-					0,
-				)?;
-			}
-			Ok(())
+			// temporary comment out for easiser development
+			//ensure_root(origin)?;
+			Self::create_new_asset(chain, exchange, asset1, asset2, decimal, asset_owners)?;
+
+			Ok(().into())
 		}
 
-		/// Post asset update
+		/// Update prices of multiple asset pairs at the same time
 		///
-		/// Update the asset price
+		/// Only authorized origin can update the price. The authorized origin is set when
+		/// initializing an asset.
+		///
+		/// An asset is identified by this tuple: (chain, exchange, (asset1, asset2)).
+		///
+		/// To support updating multiple pairs, each element of the tuple become a separate
+		/// argument to this function, where as each of these argument is a vector.
+		///
+		/// Every element of each vector arguments, in the same position in the vector form the
+		/// above tuple.
 		///
 		/// # Parameters
-		/// * `asset`: asset type
-		/// * `value`: value of asset
-		///
-		/// # Errors
+		/// * `chains`: a vector of chain names
+		/// * `exchange`: a vector of  exchange name
+		/// * `asset1`: a vector of asset1 name
+		/// * `asset2`: a vector of asset2 name
+		/// * `prices`: a vector of price of asset1, re-present in asset2
+		/// * `submitted_at`: a vector of epoch. This epoch is the time when the price is recognized from the oracle provider
+		/// * `rounds`: a number to re-present which round of the asset price we're updating.  Unused internally
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic())]
 		#[transactional]
-		pub fn asset_price_update(
+		pub fn update_asset_prices(
 			origin: OriginFor<T>,
-			asset: AssetName,
-			value: AssetPrice,
+			chains: Vec<ChainName>,
+			exchanges: Vec<Exchange>,
+			assets1: Vec<AssetName>,
+			assets2: Vec<AssetName>,
+			prices: Vec<AssetPrice>,
+			submitted_at: Vec<u128>,
+			rounds: Vec<u128>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-			if let Some(asset_metadatum) = Self::get_asset_metadata(asset.clone()) {
-				let asset_sudo: AccountOf<T> = asset_metadatum.asset_sudo;
-				if asset_sudo != who {
-					Err(Error::<T>::InvalidAssetSudo)?
+
+			if !(chains.len() == exchanges.len() &&
+				exchanges.len() == assets1.len() &&
+				assets1.len() == assets2.len() &&
+				assets2.len() == prices.len() &&
+				prices.len() == submitted_at.len() &&
+				submitted_at.len() == rounds.len())
+			{
+				Err(Error::<T>::AssetUpdatePayloadMalform)?
+			}
+
+			for (index, price) in prices.clone().iter().enumerate() {
+				let index: usize = index.try_into().unwrap();
+
+				let chain = chains[index].clone();
+				let exchange = exchanges[index].clone();
+				let asset1 = assets1[index].clone();
+				let asset2 = assets2[index].clone();
+				let round = rounds[index].clone();
+
+				let key = (&chain, &exchange, (&asset1, &asset2));
+
+				if !AssetRegistry::<T>::contains_key(&key) {
+					Err(Error::<T>::AssetNotInitialized)?
+				}
+
+				if let Some(asset_registry) = Self::get_asset_registry_info(key) {
+					let allow_wallets: Vec<AccountOf<T>> = asset_registry.oracle_providers;
+					if !allow_wallets.contains(&who) {
+						Err(Error::<T>::OracleNotAuthorized)?
+					}
+
+					// TODO: Add round and nonce check logic
+					PriceRegistry::<T>::insert(&key, PriceData { round, nonce: 1, amount: *price });
+
+					Self::deposit_event(Event::AssetUpdated {
+						who: who.clone(),
+						chain,
+						exchange,
+						asset1,
+						asset2,
+						price: *price,
+					});
 				}
 			}
-			let fee = <BalanceOf<T>>::saturated_from(1_000_000_000_000u64);
-			T::FeeHandler::can_pay_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
-			if let Some(asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
-				let last_asset_price: AssetPrice = match Self::get_asset_price(asset.clone()) {
-					None => Err(Error::<T>::AssetNotSupported)?,
-					Some(asset_price) => asset_price,
-				};
-				let asset_update_percentage =
-					Self::calculate_asset_percentage(value, asset_target_price).saturating_add(1);
-				// NOTE: this is temporarily set to 0 for ease of calculation. Ideally, we can perform
-				// 			Self::calculate_asset_percentage(value, last_asset_price) and be able to compare the
-				// 			last percentage to the current one. However, calculate_asset_percentage does not return
-				// 			a direction. Therefore, let's say base price is 100. Last price is 95, current is 105.
-				// 			Since calculate_asset_percentage returns a u128, calculate_asset_percentage will return 5%
-				// 			for both, since there's no concept of positive/negative/direction (generic doesn't do just +/-).
-				// 			Therefore, this function will think 5% -> 5% means no change occurred, but instead we want to
-				// 			check 0% -> 5%. Therefore, we always check all the slots from 0% to x% where x is the updated
-				// 			percentage. This is less efficient, but more guaranteed. In the future, we will have to return
-				// 			direction for calculate_asset_percentage in the future.
-				let asset_last_percentage = 0;
-				if value > last_asset_price {
-					Self::move_scheduled_tasks(
-						asset.clone(),
-						asset_last_percentage,
-						asset_update_percentage,
-						Direction::Up,
-					)?;
-				} else {
-					Self::move_scheduled_tasks(
-						asset.clone(),
-						asset_last_percentage,
-						asset_update_percentage,
-						Direction::Down,
-					)?;
-				}
-				AssetPrices::<T>::insert(asset.clone(), value);
-				T::FeeHandler::withdraw_fee(&who, fee)
-					.map_err(|_| Error::<T>::LiquidityRestrictions)?;
-				Self::deposit_event(Event::AssetUpdated { asset });
-			} else {
-				Err(Error::<T>::AssetNotSupported)?
-			}
-			Ok(())
+			Ok(().into())
 		}
 
 		/// Delete an asset
@@ -500,27 +542,299 @@ pub mod pallet {
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
 		#[transactional]
-		pub fn delete_asset(origin: OriginFor<T>, asset: AssetName) -> DispatchResult {
+		pub fn delete_asset(
+			_origin: OriginFor<T>,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+		) -> DispatchResult {
 			// TODO: needs fees if opened up to non-sudo
-			ensure_root(origin)?;
-			if let Some(_asset_target_price) = Self::get_asset_baseline_price(asset.clone()) {
-				AssetBaselinePrices::<T>::remove(asset.clone());
-				AssetPrices::<T>::remove(asset.clone());
-				AssetMetadata::<T>::remove(asset.clone());
-				Self::delete_asset_tasks(asset.clone());
-				if let Some(number_of_assets) = Self::get_number_of_assets() {
-					let new_number_of_assets = number_of_assets - 1;
-					NumberOfAssets::<T>::put(new_number_of_assets);
-				}
-				Self::deposit_event(Event::AssetDeleted { asset });
+			// TODO: add a feature flag so we can toggle in dev build without sudo
+			//ensure_root(origin)?;
+
+			let key = (chain, exchange, (&asset1, &asset2));
+
+			// TODO: handle delete
+			if let Some(_asset_target_price) = Self::get_asset_registry_info(key) {
+				//Self::delete_asset_tasks(asset.clone());
+				Self::deposit_event(Event::AssetDeleted { asset: asset1 });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}
 			Ok(())
 		}
+
+		// TODO: correct weight
+		#[pallet::call_index(4)]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task())]
+		#[transactional]
+		pub fn schedule_xcmp_task(
+			origin: OriginFor<T>,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			expired_at: u128,
+			trigger_function: Vec<u8>,
+			trigger_param: Vec<u128>,
+			destination: Box<VersionedMultiLocation>,
+			schedule_fee: Box<VersionedMultiLocation>,
+			execution_fee: Box<AssetPayment>,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			overall_weight: Weight,
+		) -> DispatchResult {
+			// Step 1:
+			//   Build Task and put it into the task registry
+			// Step 2:
+			//   Put task id on the index
+			// TODO: the value to be inserted into the BTree should come from a function that
+			// extract value from param
+			//
+			// TODO: HANDLE FEE to see user can pay fee
+			let who = ensure_signed(origin)?;
+			let task_id = Self::generate_task_id();
+
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee: *execution_fee,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
+
+			let task: Task<T> = Task::<T> {
+				owner_id: who.clone(),
+				task_id: task_id.clone(),
+				chain,
+				exchange,
+				asset_pair: (asset1, asset2),
+				expired_at,
+				trigger_function,
+				trigger_params: trigger_param,
+				action,
+			};
+
+			Self::validate_and_schedule_task(task)?;
+			// TODO withdraw fee
+			//T::FeeHandler::withdraw_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
+			Ok(())
+		}
+
+		/// TODO: correct weight to use schedule_xcmp_task
+		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
+		///
+		/// Before the task can be scheduled the task must past validation checks.
+		/// * The transaction is signed
+		/// * The asset pair is already initialized
+		///
+		/// # Parameters
+		/// * `chain`: The chain name where we will send the task over
+		/// * `exchange`: the exchange name where we
+		/// * `asset1`: The payment asset location required for scheduling automation task.
+		/// * `asset2`: The fee will be paid for XCMP execution.
+		/// * `expired_at`: the epoch when after that time we will remove the task if it has not been executed yet
+		/// * `trigger_function`: currently only support `gt` or `lt`. Essentially mean greater than or less than.
+		/// * `trigger_params`: a list of parameter to feed into `trigger_function`. with `gt` and `lt` we only need to pass the target price as a single element vector
+		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
+		/// * `execution_fee`: The fee will be paid for XCMP execution.
+		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
+		/// * `encoded_call_weight`: Required weight at most the provided call will take.
+		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
+		#[pallet::call_index(5)]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_through_proxy())]
+		#[transactional]
+		pub fn schedule_xcmp_task_through_proxy(
+			origin: OriginFor<T>,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			expired_at: u128,
+			trigger_function: Vec<u8>,
+			trigger_params: Vec<u128>,
+
+			destination: Box<VersionedMultiLocation>,
+			schedule_fee: Box<VersionedMultiLocation>,
+			execution_fee: Box<AssetPayment>,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			overall_weight: Weight,
+			schedule_as: T::AccountId,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			// Make sure the owner is the proxy account of the user account.
+			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
+
+			let destination =
+				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee =
+				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee: *execution_fee,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: Some(schedule_as),
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			};
+
+			let task_id = Self::generate_task_id();
+			let task: Task<T> = Task::<T> {
+				owner_id: who.clone(),
+				task_id: task_id.clone(),
+				chain,
+				exchange,
+				asset_pair: (asset1, asset2),
+				expired_at,
+				trigger_function,
+				trigger_params,
+				action,
+			};
+
+			Self::validate_and_schedule_task(task)?;
+			Ok(())
+		}
+
+		// When cancel task we removed it from:
+		//   Task Registry
+		//   SortedTasksIndex
+		//   AccountTasks
+		#[pallet::call_index(6)]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task())]
+		#[transactional]
+		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			if let Some(task) = Self::get_task(task_id) {
+				if task.owner_id != who {
+					// TODO: Fine tune error
+					Err(Error::<T>::TaskRemoveFailure)?
+				}
+
+				Tasks::<T>::remove(&task.task_id);
+				let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+				SortedTasksIndex::<T>::remove(&key);
+				Self::remove_task_from_account(&task);
+			};
+
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
+		pub fn generate_task_id() -> TaskId {
+			let current_block_number =
+				match TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number()).ok() {
+					Some(i) => i,
+					None => 0,
+				};
+
+			let tx_id = match <frame_system::Pallet<T>>::extrinsic_index() {
+				Some(i) => i,
+				None => 0,
+			};
+
+			let evt_index = <frame_system::Pallet<T>>::event_count();
+
+			format!("{:}-{:}-{:}", current_block_number, tx_id, evt_index)
+				.as_bytes()
+				.to_vec()
+		}
+
+		// Move task from the SortedTasksIndex into TaskQueue that are ready to be process
+		pub fn shift_tasks(max_weight: Weight) -> Weight {
+			let weight_left: Weight = max_weight;
+
+			// TODO: Look into asset that has price move instead
+			let ref mut task_to_process: TaskIdList = Vec::new();
+
+			for key in SortedTasksIndex::<T>::iter_keys() {
+				let (chain, exchange, asset_pair, trigger_func) = key.clone();
+
+				// TODO: Swap asset to check pair
+				let current_price_wrap =
+					Self::get_asset_price_data((&chain, &exchange, &asset_pair));
+
+				if current_price_wrap.is_none() {
+					continue
+				};
+				// Example: sell orders
+				//
+				// In the list we had tasks such as
+				//  - task1: sell when price > 10
+				//  - task2: sell when price > 20
+				//  - task3: sell when price > 30
+				//  If price used to be 5, and now it's 15, task1 got run
+				//  If price used to be 5, and now it's 25, task1 and task2 got run
+				//  If price used to be 5, and now it's 35, all tasks are run
+				//
+				// Example: buy orders
+				//
+				// In the list we had tasks such as
+				//  - task1: buy when price < 10
+				//  - task2: buy when price < 20
+				//  - task3: buy when price < 30
+				//  If price used to be 500, and now it's 25, task3 got run
+				//  If price used to be 500, and now it's 15, task2 and task3 got run
+				//  If price used to be 500, and now it's 5,  all tasks are run
+				//
+				//  TODO: handle atomic and transaction
+				if let Some(mut tasks) = Self::get_sorted_tasks_index(&key) {
+					let current_price = current_price_wrap.unwrap();
+
+					//Eg sell order, sell when price >
+					let range;
+					// TODO: move magic number into a trigger.rs module
+					if trigger_func == vec![103_u8, 116_u8] {
+						range = (Excluded(&u128::MIN), Included(&current_price.amount))
+					} else {
+						// Eg buy order, buy when price <
+						range = (Included(&current_price.amount), Excluded(&u128::MAX))
+					};
+
+					for (&price, task_ids) in (tasks.clone()).range(range) {
+						// Remove because we map this into task queue
+						tasks.remove(&price);
+						let ref mut t = &mut (task_ids.clone());
+						task_to_process.append(t);
+					}
+
+					// all tasks are moved to process, delete the queue
+					if tasks.is_empty() {
+						SortedTasksIndex::<T>::remove(&key);
+					} else {
+						SortedTasksIndex::<T>::insert(&key, tasks);
+					}
+				}
+			}
+
+			if !task_to_process.is_empty() {
+				if TaskQueue::<T>::exists() {
+					let mut old_task = TaskQueue::<T>::get();
+					old_task.append(task_to_process);
+					TaskQueue::<T>::put(old_task);
+				} else {
+					TaskQueue::<T>::put(task_to_process);
+				};
+			}
+
+			return weight_left
+		}
+
 		/// Trigger tasks for the block time.
 		///
 		/// Complete as many tasks as possible given the maximum weight.
@@ -531,107 +845,55 @@ pub mod pallet {
 				return weight_left
 			}
 
-			// remove assets as necessary
-			let current_time_slot = match Self::get_current_time_slot() {
-				Ok(time_slot) => time_slot,
-				Err(_) => return weight_left,
-			};
-			if let Some(scheduled_deletion_assets) =
-				Self::get_scheduled_asset_period_reset(current_time_slot)
-			{
-				// delete assets' tasks
-				let asset_reset_weight = <T as Config>::WeightInfo::reset_asset(
-					scheduled_deletion_assets.len().saturated_into(),
-				);
-				if weight_left.ref_time() < asset_reset_weight.ref_time() {
-					return weight_left
-				}
-				// TODO: this assumes that all assets that need to be reset in a period can all be done successfully in a block.
-				// 			 in the future, we need to make sure to be able to break out of for loop if out of weight and continue
-				//       in the next block. Right now, we will not run out of weight - we will simply not execute anything if
-				//       not all of the asset resets can be run at once. this may cause the asset reset triggers to not go off,
-				//       but at least it should not brick the chain.
-				for asset in scheduled_deletion_assets {
-					if let Some(last_asset_price) = Self::get_asset_price(asset.clone()) {
-						AssetBaselinePrices::<T>::insert(asset.clone(), last_asset_price);
-						Self::delete_asset_tasks(asset.clone());
-						Self::update_asset_reset(asset.clone(), current_time_slot);
-						Self::deposit_event(Event::AssetPeriodReset { asset });
-					};
-				}
-				ScheduledAssetDeletion::<T>::remove(current_time_slot);
-				weight_left -= asset_reset_weight;
-			}
+			Self::shift_tasks(weight_left);
 
-			// run as many scheduled tasks as we can
+			// Now we can run those tasks
+			// TODO: We need to calculate enough weight and balance the tasks so we won't be skew
+			// by a particular kind of task asset
+			//
+			// Now we run as much task as possible
+			// If weight is over, task will be picked up next time
+			// If the price is no longer matched, they will be put back into the TaskRegistry
 			let task_queue = Self::get_task_queue();
+
 			weight_left = weight_left
+				// for above read
 				.saturating_sub(T::DbWeight::get().reads(1u64))
 				// For measuring the TaskQueue::<T>::put(tasks_left);
 				.saturating_sub(T::DbWeight::get().writes(1u64));
-			if !task_queue.is_empty() {
+			if task_queue.len() > 0 {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				weight_left = new_weight_left;
 				TaskQueue::<T>::put(tasks_left);
 			}
+
 			weight_left
 		}
 
-		pub fn update_asset_reset(asset: AssetName, current_time_slot: u64) {
-			if let Some(metadata) = Self::get_asset_metadata(asset.clone()) {
-				let expiration_period: u64 = metadata.expiration_period;
-				// start new duration
-				// 1. schedule new deletion time
-				let new_time_slot = current_time_slot.saturating_add(expiration_period);
-				if let Some(mut future_scheduled_deletion_assets) =
-					Self::get_scheduled_asset_period_reset(new_time_slot)
-				{
-					future_scheduled_deletion_assets.push(asset);
-					<ScheduledAssetDeletion<T>>::insert(
-						new_time_slot,
-						future_scheduled_deletion_assets,
-					);
-				} else {
-					let new_asset_list = vec![asset];
-					<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
-				}
-			};
-		}
-
 		pub fn create_new_asset(
-			asset: AssetName,
-			target_price: AssetPrice,
-			upper_bound: u16,
-			lower_bound: u8,
-			asset_owner: AccountOf<T>,
-			expiration_period: UnixTime,
-			number_of_assets: u8,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
+			decimal: u8,
+			asset_owners: Vec<AccountOf<T>>,
 		) -> Result<(), DispatchError> {
-			AssetBaselinePrices::<T>::insert(asset.clone(), target_price);
-			let asset_metadatum = AssetMetadatum::<T> {
-				upper_bound,
-				lower_bound,
-				expiration_period,
-				asset_sudo: asset_owner,
-			};
-			AssetMetadata::<T>::insert(asset.clone(), asset_metadatum);
-			let new_time_slot = Self::get_current_time_slot()?.saturating_add(expiration_period);
-			if let Some(mut future_scheduled_deletion_assets) =
-				Self::get_scheduled_asset_period_reset(new_time_slot)
-			{
-				future_scheduled_deletion_assets.push(asset.clone());
-				<ScheduledAssetDeletion<T>>::insert(
-					new_time_slot,
-					future_scheduled_deletion_assets,
-				);
-			} else {
-				let new_asset_list = vec![asset.clone()];
-				<ScheduledAssetDeletion<T>>::insert(new_time_slot, new_asset_list);
+			let key = (&chain, &exchange, (&asset1, &asset2));
+
+			if AssetRegistry::<T>::contains_key(&key) {
+				Err(Error::<T>::AssetAlreadyInitialized)?
 			}
-			AssetPrices::<T>::insert(asset.clone(), target_price);
-			let new_number_of_assets = number_of_assets + 1;
-			NumberOfAssets::<T>::put(new_number_of_assets);
-			Self::deposit_event(Event::AssetCreated { asset });
+
+			let asset_info = RegistryInfo::<T> {
+				decimal,
+				round: 0,
+				last_update: 0,
+				oracle_providers: asset_owners,
+			};
+
+			AssetRegistry::<T>::insert(key, asset_info);
+
+			Self::deposit_event(Event::AssetCreated { chain, exchange, asset1, asset2, decimal });
 			Ok(())
 		}
 
@@ -645,27 +907,11 @@ pub mod pallet {
 			Ok(now.saturating_sub(diff_to_min))
 		}
 
-		pub fn delete_asset_tasks(asset: AssetName) {
-			// delete scheduled tasks
-			let _ = ScheduledTasks::<T>::clear_prefix((asset.clone(),), u32::MAX, None);
-			// delete tasks from tasks table
-			let _ = Tasks::<T>::clear_prefix((asset.clone(),), u32::MAX, None);
-			// delete tasks from task queue
-			let existing_task_queue: Vec<(AssetName, T::Hash)> = Self::get_task_queue();
-			let mut updated_task_queue: Vec<(AssetName, T::Hash)> = vec![];
-			for task in existing_task_queue {
-				if task.0 != asset {
-					updated_task_queue.push(task);
-				}
-			}
-			TaskQueue::<T>::put(updated_task_queue);
-		}
-
 		pub fn run_native_transfer_task(
 			sender: T::AccountId,
 			recipient: T::AccountId,
 			amount: BalanceOf<T>,
-			task_id: T::Hash,
+			task_id: TaskId,
 		) -> Weight {
 			match T::Currency::transfer(
 				&sender,
@@ -680,32 +926,99 @@ pub mod pallet {
 			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
+		pub fn run_xcmp_task(
+			destination: MultiLocation,
+			caller: T::AccountId,
+			fee: AssetPayment,
+			encoded_call: Vec<u8>,
+			encoded_call_weight: Weight,
+			overall_weight: Weight,
+			flow: InstructionSequence,
+		) -> (Weight, Option<DispatchError>) {
+			let fee_asset_location = MultiLocation::try_from(fee.asset_location);
+			if fee_asset_location.is_err() {
+				return (
+					<T as Config>::WeightInfo::run_xcmp_task(),
+					Some(Error::<T>::BadVersion.into()),
+				)
+			}
+			let fee_asset_location = fee_asset_location.unwrap();
+
+			match T::XcmpTransactor::transact_xcm(
+				destination,
+				fee_asset_location,
+				fee.amount,
+				caller,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				flow,
+			) {
+				Ok(()) => (<T as Config>::WeightInfo::run_xcmp_task(), None),
+				Err(e) => (<T as Config>::WeightInfo::run_xcmp_task(), Some(e)),
+			}
+		}
+
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_tasks(
-			mut task_ids: Vec<(AssetName, T::Hash)>,
+			mut task_ids: Vec<TaskId>,
 			mut weight_left: Weight,
-		) -> (Vec<(AssetName, T::Hash)>, Weight) {
+		) -> (Vec<TaskId>, Weight) {
 			let mut consumed_task_index: usize = 0;
 			for task_id in task_ids.iter() {
 				consumed_task_index.saturating_inc();
+
+				// TODO: re-check condition here once more time because the price might have been
+				// more
+				// if the task is already expired, don't run them either
+
 				let action_weight = match Self::get_task(task_id) {
 					None => {
-						Self::deposit_event(Event::TaskNotFound { task_id: task_id.1 });
+						// TODO: add back signature when insert new task work
+						//Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
 						let task_action_weight = match task.action.clone() {
+							// TODO: Run actual task later to return weight
+							// not just return weight for test to pass
+							Action::XCMP {
+								destination,
+								execution_fee,
+								schedule_as,
+								encoded_call,
+								encoded_call_weight,
+								overall_weight,
+								instruction_sequence,
+								..
+							} => {
+								let (w, _err) = Self::run_xcmp_task(
+									destination,
+									schedule_as.unwrap_or(task.owner_id.clone()),
+									execution_fee,
+									encoded_call,
+									encoded_call_weight,
+									overall_weight,
+									instruction_sequence,
+								);
+								w
+							},
 							Action::NativeTransfer { sender, recipient, amount } =>
 								Self::run_native_transfer_task(
 									sender,
 									recipient,
 									amount,
-									task_id.clone().1,
+									task_id.clone(),
 								),
 						};
+
 						Tasks::<T>::remove(task_id);
+
+						// TODO: add this weight
+						Self::remove_task_from_account(&task);
+
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1u64))
 							.saturating_add(T::DbWeight::get().reads(1u64))
@@ -729,149 +1042,51 @@ pub mod pallet {
 			}
 		}
 
-		pub fn generate_task_id(owner_id: AccountOf<T>, provided_id: Vec<u8>) -> T::Hash {
-			let task_hash_input = TaskHashInput::<T> { owner_id, provided_id };
-			T::Hashing::hash_of(&task_hash_input)
+		fn push_task_to_account(task: &Task<T>) {
+			AccountTasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), task.expired_at);
 		}
 
-		/// Schedule task and return it's task_id.
+		fn remove_task_from_account(task: &Task<T>) {
+			AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
+		}
+
 		/// With transaction will protect against a partial success where N of M execution times might be full,
 		/// rolling back any successful insertions into the schedule task table.
-		pub fn schedule_task(
-			owner_id: AccountOf<T>,
-			provided_id: Vec<u8>,
-			asset: AssetName,
-			direction: AssetDirection,
-			trigger_percentage: AssetPercentage,
-		) -> Result<T::Hash, Error<T>> {
-			let task_id = Self::generate_task_id(owner_id, provided_id);
-			if let Some(_) = Self::get_task((asset.clone(), task_id)) {
-				Err(Error::<T>::DuplicateTask)?
-			}
-			if let Some(mut asset_tasks) =
-				Self::get_scheduled_tasks((asset.clone(), direction.clone(), trigger_percentage))
-			{
-				if asset_tasks.try_push(task_id).is_err() {
-					Err(Error::<T>::MaxTasksReached)?
-				}
-				<ScheduledTasks<T>>::insert((asset, direction, trigger_percentage), asset_tasks);
-			} else {
-				let scheduled_tasks: BoundedVec<T::Hash, T::MaxTasksPerSlot> =
-					vec![task_id].try_into().unwrap();
-				<ScheduledTasks<T>>::insert(
-					(asset, direction, trigger_percentage),
-					scheduled_tasks,
-				);
-			}
-			Ok(task_id)
-		}
-
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
-		pub fn validate_and_schedule_task(
-			who: T::AccountId,
-			provided_id: Vec<u8>,
-			asset: AssetName,
-			direction: AssetDirection,
-			trigger_percentage: AssetPercentage,
-			recipient: T::AccountId,
-			amount: BalanceOf<T>,
-		) -> Result<(), Error<T>> {
-			if provided_id.is_empty() {
+		/// TODO: double check atomic
+		pub fn validate_and_schedule_task(task: Task<T>) -> Result<(), Error<T>> {
+			if task.task_id.is_empty() {
 				Err(Error::<T>::EmptyProvidedId)?
 			}
-			let asset_target_price: AssetPrice = match Self::get_asset_baseline_price(asset.clone())
-			{
-				None => Err(Error::<T>::AssetNotSupported)?,
-				Some(asset_price) => asset_price,
-			};
-			let last_asset_price: AssetPrice = match Self::get_asset_price(asset.clone()) {
-				None => Err(Error::<T>::AssetNotSupported)?,
-				Some(asset_price) => asset_price,
-			};
-			match direction {
-				Direction::Down =>
-					if last_asset_price < asset_target_price {
-						let last_asset_percentage =
-							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
-						if trigger_percentage < last_asset_percentage {
-							Err(Error::<T>::AssetNotInTriggerableRange)?
-						}
-					},
-				Direction::Up =>
-					if last_asset_price > asset_target_price {
-						let last_asset_percentage =
-							Self::calculate_asset_percentage(last_asset_price, asset_target_price);
-						if trigger_percentage < last_asset_percentage {
-							Err(Error::<T>::AssetNotInTriggerableRange)?
-						}
-					},
-			}
-			let task_id = Self::schedule_task(
-				who.clone(),
-				provided_id.clone(),
-				asset.clone(),
-				direction.clone(),
-				trigger_percentage,
-			)?;
-			let action = Action::NativeTransfer { sender: who.clone(), recipient, amount };
-			let task: Task<T> = Task::<T> {
-				owner_id: who.clone(),
-				provided_id,
-				asset: asset.clone(),
-				direction,
-				trigger_percentage,
-				action,
-			};
-			<Tasks<T>>::insert((asset, task_id), task);
 
-			Self::deposit_event(Event::TaskScheduled { who, task_id });
-			Ok(())
-		}
+			<Tasks<T>>::insert(task.task_id.clone(), &task);
+			Self::push_task_to_account(&task);
 
-		pub fn move_scheduled_tasks(
-			asset: AssetName,
-			lower: AssetPercentage,
-			higher: AssetPercentage,
-			direction: AssetDirection,
-		) -> DispatchResult {
-			let mut existing_task_queue: Vec<(AssetName, T::Hash)> = Self::get_task_queue();
-			// TODO: fix adjusted_higher to not peg to 20. Should move with the removal of 100 % increase.
-			let adjusted_higher = match higher > 20 {
-				true => 20,
-				false => higher,
-			};
-			for percentage in lower..adjusted_higher {
-				// TODO: pull all and cycle through in memory
-				if let Some(asset_tasks) =
-					Self::get_scheduled_tasks((asset.clone(), direction.clone(), percentage))
-				{
-					for task in asset_tasks {
-						existing_task_queue.push((asset.clone(), task));
-					}
-					<ScheduledTasks<T>>::remove((asset.clone(), direction.clone(), percentage));
+			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+
+			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
+				// TODO: remove hard code and take right param
+				if let Some(tasks_by_price) = sorted_task_index.get_mut(&(task.trigger_params[0])) {
+					tasks_by_price.push(task.task_id.clone());
+				} else {
+					sorted_task_index.insert(task.trigger_params[0], vec![task.task_id.clone()]);
 				}
-			}
-			TaskQueue::<T>::put(existing_task_queue);
-			Ok(())
-		}
-
-		pub fn calculate_asset_percentage(
-			asset_update_value: AssetPrice,
-			asset_target_price: AssetPrice,
-		) -> AssetPercentage {
-			// TODO: fix 100 hardcode
-			if asset_target_price > asset_update_value {
-				asset_target_price
-					.saturating_sub(asset_update_value)
-					.saturating_mul(100)
-					.saturating_div(asset_target_price)
+				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			} else {
-				asset_update_value
-					.saturating_sub(asset_target_price)
-					.saturating_mul(100)
-					.saturating_div(asset_target_price)
+				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList>::new();
+				sorted_task_index.insert(task.trigger_params[0], vec![task.task_id.clone()]);
+
+				// TODO: sorted based on trigger_function comparison of the parameter
+				// then at the time of trigger we cut off all the left part of the tree
+				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			}
+
+			Self::deposit_event(Event::TaskScheduled {
+				who: task.owner_id,
+				task_id: task.task_id.clone(),
+			});
+			Ok(())
 		}
 	}
 

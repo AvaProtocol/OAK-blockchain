@@ -16,68 +16,147 @@
 // limitations under the License.
 
 /// ! Traits and default implementation for paying execution fees.
-use crate::{BalanceOf, Config};
+use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf};
 
+use orml_traits::MultiCurrency;
+use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
 use sp_runtime::{
-	traits::{CheckedSub, Zero},
-	DispatchError,
+	traits::{CheckedSub, Convert, Saturating, Zero},
+	DispatchError, DispatchResult, SaturatedConversion,
 	TokenError::BelowMinimum,
 };
 use sp_std::marker::PhantomData;
+use xcm::latest::prelude::*;
+use xcm_builder::TakeRevenue;
 
-use frame_support::traits::{Currency, ExistenceRequirement, OnUnbalanced, WithdrawReasons};
-
-type NegativeImbalanceOf<T> = <<T as Config>::Currency as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
-
-/// Handle withdrawing, refunding and depositing of transaction fees.
+/// Handle execution fee payments in the context of automation actions
 pub trait HandleFees<T: Config> {
-	/// Ensure the fee can be paid.
-	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError>;
-
-	/// Once the task has been scheduled we need to charge for the execution cost.
-	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError>;
+	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
+		owner: &AccountOf<T>,
+		action: &ActionOf<T>,
+		executions: u32,
+		prereq: F,
+	) -> Result<R, DispatchError>;
+}
+pub struct FeeHandler<T: Config, TR> {
+	owner: T::AccountId,
+	pub schedule_fee_location: MultiLocation,
+	pub schedule_fee_amount: MultiBalanceOf<T>,
+	pub execution_fee_amount: MultiBalanceOf<T>,
+	_phantom_data: PhantomData<TR>,
 }
 
-pub struct FeeHandler<OU>(PhantomData<OU>);
-
-/// Implements the transaction payment for a pallet implementing the `Currency`
-/// trait (eg. the pallet_balances) using an unbalance handler (implementing
-/// `OnUnbalanced`).
-impl<T, OU> HandleFees<T> for FeeHandler<OU>
+impl<T, TR> HandleFees<T> for FeeHandler<T, TR>
 where
 	T: Config,
-	OU: OnUnbalanced<NegativeImbalanceOf<T>>,
+	TR: TakeRevenue,
 {
-	// Ensure the fee can be paid.
-	fn can_pay_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
+		owner: &AccountOf<T>,
+		action: &ActionOf<T>,
+		executions: u32,
+		prereq: F,
+	) -> Result<R, DispatchError> {
+		let fee_handler = Self::new(owner, action, executions)?;
+		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
+		let outcome = prereq()?;
+		fee_handler.pay_fees()?;
+		Ok(outcome)
+	}
+}
+
+impl<T, TR> FeeHandler<T, TR>
+where
+	T: Config,
+	TR: TakeRevenue,
+{
+	/// Ensure the fee can be paid.
+	fn can_pay_fee(&self) -> Result<(), DispatchError> {
+		let fee = self.schedule_fee_amount.saturating_add(self.execution_fee_amount);
+
 		if fee.is_zero() {
 			return Ok(())
 		}
 
-		let free_balance = T::Currency::free_balance(who);
-		let new_amount =
-			free_balance.checked_sub(&fee).ok_or(DispatchError::Token(BelowMinimum))?;
-		T::Currency::ensure_can_withdraw(who, fee, WithdrawReasons::FEE, new_amount)?;
+		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
+		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
+			.ok_or("IncoveribleMultilocation")?;
+		let currency_id = currency_id.into();
+		let free_balance = T::MultiCurrency::free_balance(currency_id, &self.owner);
 
+		free_balance
+			.checked_sub(&fee)
+			.ok_or(DispatchError::Token(BelowMinimum))?
+			.checked_sub(&T::MultiCurrency::minimum_balance(currency_id))
+			.ok_or(DispatchError::Token(BelowMinimum))?;
+		T::MultiCurrency::ensure_can_withdraw(currency_id, &self.owner, fee)?;
 		Ok(())
 	}
 
 	/// Withdraw the fee.
-	fn withdraw_fee(who: &T::AccountId, fee: BalanceOf<T>) -> Result<(), DispatchError> {
+	fn withdraw_fee(&self) -> Result<(), DispatchError> {
+		let fee = self.schedule_fee_amount.saturating_add(self.execution_fee_amount);
+
 		if fee.is_zero() {
 			return Ok(())
 		}
 
-		let withdraw_reason = WithdrawReasons::FEE;
+		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
+			.ok_or("IncoveribleMultilocation")?;
+		let currency_id = currency_id.into();
 
-		match T::Currency::withdraw(who, fee, withdraw_reason, ExistenceRequirement::KeepAlive) {
-			Ok(imbalance) => {
-				OU::on_unbalanceds(Some(imbalance).into_iter());
+		match T::MultiCurrency::withdraw(currency_id, &self.owner, fee) {
+			Ok(_) => {
+				TR::take_revenue(MultiAsset {
+					id: AssetId::Concrete(self.schedule_fee_location),
+					fun: Fungibility::Fungible(self.schedule_fee_amount.saturated_into()),
+				});
+
+				if self.execution_fee_amount > MultiBalanceOf::<T>::zero() {
+					T::XcmpTransactor::pay_xcm_fee(
+						self.owner.clone(),
+						self.execution_fee_amount.saturated_into(),
+					)?;
+				}
+
 				Ok(())
 			},
 			Err(_) => Err(DispatchError::Token(BelowMinimum)),
 		}
+	}
+
+	/// Builds an instance of the struct
+	pub fn new(
+		owner: &AccountOf<T>,
+		action: &ActionOf<T>,
+		executions: u32,
+	) -> Result<Self, DispatchError> {
+		let schedule_fee_location = action.schedule_fee_location::<T>();
+
+		// TODO: FIX THIS BEFORE MERGE
+		let schedule_fee_amount: u128 = 1_000;
+		//Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
+
+		let execution_fee_amount = match action.clone() {
+			Action::XCMP { execution_fee, instruction_sequence, .. }
+				if instruction_sequence == InstructionSequence::PayThroughSovereignAccount =>
+				execution_fee.amount.saturating_mul(executions.into()).saturated_into(),
+			_ => 0u32.saturated_into(),
+		};
+
+		Ok(Self {
+			owner: owner.clone(),
+			schedule_fee_location,
+			schedule_fee_amount: schedule_fee_amount.saturated_into(),
+			execution_fee_amount,
+			_phantom_data: Default::default(),
+		})
+	}
+
+	/// Executes the fee handler
+	fn pay_fees(self) -> DispatchResult {
+		// This should never error if can_pay_fee passed.
+		self.withdraw_fee().map_err(|_| Error::<T>::LiquidityRestrictions)?;
+		Ok(())
 	}
 }
