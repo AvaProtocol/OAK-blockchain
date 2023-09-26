@@ -21,7 +21,7 @@ use crate::TaskId;
 
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Contains, ConstU32, Everything},
+	traits::{ConstU32, Contains, Everything},
 	weights::Weight,
 	PalletId,
 };
