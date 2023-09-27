@@ -43,6 +43,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+mod benchmarking;
+
 pub use fees::*;
 
 use codec::Decode;
@@ -88,7 +90,7 @@ pub mod pallet {
 	pub type MultiBalanceOf<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
 	>>::Balance;
-	pub type ActionOf<T> = Action<AccountOf<T>, BalanceOf<T>>;
+	pub type ActionOf<T> = Action<AccountOf<T>>;
 
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
@@ -159,6 +161,14 @@ pub mod pallet {
 		/// The maximum percentage of weight per block used for scheduled tasks.
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
+
+		/// The maximum number of times that a task can be scheduled for.
+		#[pallet::constant]
+		type MaxAuthorizedOracleWallet: Get<u32>;
+
+		/// The maximum element of prices vector in price update extrinsics
+		#[pallet::constant]
+		type MaxBatchPriceUpdate: Get<u32>;
 
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
@@ -314,12 +324,10 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The provided_id cannot be empty
 		EmptyProvidedId,
-		/// Time must end in a whole hour.
-		InvalidTime,
 		/// Duplicate task
 		DuplicateTask,
+
 		/// Non existent asset
 		AssetNotSupported,
 		AssetNotInitialized,
@@ -329,6 +337,7 @@ pub mod pallet {
 		/// Asset cannot be updated by this account
 		InvalidAssetSudo,
 		OracleNotAuthorized,
+		TooManyAuthorizedOracle,
 		/// Asset must be in triggerable range.
 		AssetNotInTriggerableRange,
 		AssetUpdatePayloadMalform,
@@ -389,15 +398,6 @@ pub mod pallet {
 		AssetPeriodReset {
 			asset: AssetName,
 		},
-		/// Successfully transferred funds
-		SuccessfullyTransferredFunds {
-			task_id: TaskId,
-		},
-		/// Transfer Failed
-		TransferFailed {
-			task_id: TaskId,
-			error: DispatchError,
-		},
 	}
 
 	#[pallet::hooks]
@@ -430,7 +430,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		#[pallet::call_index(1)]
-		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic())]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic(asset_owners.len() as u32))]
 		#[transactional]
 		pub fn initialize_asset(
 			_origin: OriginFor<T>,
@@ -446,7 +446,7 @@ pub mod pallet {
 			//ensure_root(origin)?;
 			Self::create_new_asset(chain, exchange, asset1, asset2, decimal, asset_owners)?;
 
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Update prices of multiple asset pairs at the same time
@@ -471,7 +471,7 @@ pub mod pallet {
 		/// * `submitted_at`: a vector of epoch. This epoch is the time when the price is recognized from the oracle provider
 		/// * `rounds`: a number to re-present which round of the asset price we're updating.  Unused internally
 		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic())]
+		#[pallet::weight(<T as Config>::WeightInfo::asset_price_update_extrinsic(assets1.len() as u32))]
 		#[transactional]
 		pub fn update_asset_prices(
 			origin: OriginFor<T>,
@@ -540,7 +540,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::delete_asset_extrinsic())]
+		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic(1))]
 		#[transactional]
 		pub fn delete_asset(
 			_origin: OriginFor<T>,
@@ -567,7 +567,7 @@ pub mod pallet {
 
 		// TODO: correct weight
 		#[pallet::call_index(4)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_extrinsic())]
 		#[transactional]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
@@ -651,7 +651,7 @@ pub mod pallet {
 		/// * `encoded_call_weight`: Required weight at most the provided call will take.
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
 		#[pallet::call_index(5)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_through_proxy())]
+		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_extrinsic().saturating_add(T::DbWeight::get().reads(1)))]
 		#[transactional]
 		pub fn schedule_xcmp_task_through_proxy(
 			origin: OriginFor<T>,
@@ -709,12 +709,12 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// When cancel task we removed it from:
+		// When cancel task we remove it from:
 		//   Task Registry
 		//   SortedTasksIndex
 		//   AccountTasks
 		#[pallet::call_index(6)]
-		#[pallet::weight(<T as Config>::WeightInfo::cancel_task())]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_extrinsic())]
 		#[transactional]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -880,6 +880,10 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let key = (&chain, &exchange, (&asset1, &asset2));
 
+			if T::MaxAuthorizedOracleWallet::get() < (asset_owners.len() as u32) {
+				Err(Error::<T>::TooManyAuthorizedOracle)?
+			}
+
 			if AssetRegistry::<T>::contains_key(&key) {
 				Err(Error::<T>::AssetAlreadyInitialized)?
 			}
@@ -905,25 +909,6 @@ pub mod pallet {
 			let now = now.saturating_div(1000);
 			let diff_to_min = now % 60;
 			Ok(now.saturating_sub(diff_to_min))
-		}
-
-		pub fn run_native_transfer_task(
-			sender: T::AccountId,
-			recipient: T::AccountId,
-			amount: BalanceOf<T>,
-			task_id: TaskId,
-		) -> Weight {
-			match T::Currency::transfer(
-				&sender,
-				&recipient,
-				amount,
-				ExistenceRequirement::KeepAlive,
-			) {
-				Ok(_number) => Self::deposit_event(Event::SuccessfullyTransferredFunds { task_id }),
-				Err(e) => Self::deposit_event(Event::TransferFailed { task_id, error: e }),
-			};
-
-			<T as Config>::WeightInfo::run_native_transfer_task()
 		}
 
 		pub fn run_xcmp_task(
@@ -1005,13 +990,6 @@ pub mod pallet {
 								);
 								w
 							},
-							Action::NativeTransfer { sender, recipient, amount } =>
-								Self::run_native_transfer_task(
-									sender,
-									recipient,
-									amount,
-									task_id.clone(),
-								),
 						};
 
 						Tasks::<T>::remove(task_id);

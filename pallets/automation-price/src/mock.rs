@@ -46,8 +46,6 @@ pub type Balance = u128;
 pub type AccountId = AccountId32;
 pub type CurrencyId = u32;
 
-pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
-
 pub const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
 
 pub const ALICE: [u8; 32] = [1u8; 32];
@@ -61,6 +59,7 @@ pub const NATIVE_EXECUTION_WEIGHT_FEE: u128 = 12;
 pub const FOREIGN_CURRENCY_ID: CurrencyId = 1;
 
 const DOLLAR: u128 = 10_000_000_000;
+const DECIMAL: u8 = 10;
 
 pub const MOONBASE_ASSET_LOCATION: MultiLocation =
 	MultiLocation { parents: 1, interior: X2(Parachain(1000), PalletInstance(3)) };
@@ -206,6 +205,8 @@ impl pallet_automation_price::Config for Test {
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 
 	type EnsureProxy = MockEnsureProxy;
+	type MaxAuthorizedOracleWallet = MaxAuthorizedOracleWallet;
+	type MaxBatchPriceUpdate = MaxBatchPriceUpdate;
 }
 
 parameter_types! {
@@ -215,6 +216,8 @@ parameter_types! {
 	pub const MaxBlockWeight: u64 = 20_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
+	pub const MaxAuthorizedOracleWallet: u32 = 5;
+	pub const MaxBatchPriceUpdate: u32 = 100;
 
 	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
 	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
@@ -265,40 +268,20 @@ impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWei
 	fn emit_event() -> Weight {
 		Weight::from_ref_time(20_000_000_u64)
 	}
-	fn run_native_transfer_task() -> Weight {
-		Weight::from_ref_time(230_000_000_u64)
+
+	fn asset_price_update_extrinsic(v: u32) -> Weight {
+		Weight::from_ref_time(220_000_000_u64 * v as u64)
 	}
-	fn reset_asset(_v: u32) -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
-	}
-	fn update_asset_reset() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
-	}
-	fn delete_asset_tasks() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
-	}
-	fn delete_asset_extrinsic() -> Weight {
+
+	fn initialize_asset_extrinsic(v: u32) -> Weight {
 		Weight::from_ref_time(220_000_000_u64)
 	}
-	fn asset_price_update_extrinsic() -> Weight {
-		Weight::from_ref_time(220_000_000_u64)
-	}
-	fn initialize_asset_extrinsic() -> Weight {
-		Weight::from_ref_time(220_000_000_u64)
-	}
-	fn schedule_transfer_task_extrinsic() -> Weight {
+
+	fn schedule_xcmp_task_extrinsic() -> Weight {
 		Weight::from_ref_time(200_000_000_u64)
 	}
 
-	fn schedule_xcmp_task() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
-	}
-
-	fn schedule_xcmp_task_through_proxy() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
-	}
-
-	fn cancel_task() -> Weight {
+	fn cancel_task_extrinsic() -> Weight {
 		Weight::from_ref_time(20_000_000_u64)
 	}
 
