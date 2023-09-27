@@ -46,6 +46,8 @@ const asset_tur: &[u8] = "TUR".as_bytes();
 const asset_usd: &[u8] = "USD".as_bytes();
 const decimal: u8 = 10_u8;
 
+// a helper function to prepare asset when setting up tasks or price because asset needs to be
+// defined before updating price
 fn setup_asset<T: Config>(authorized_wallets: Vec<T::AccountId>) {
 	AutomationPrice::<T>::initialize_asset(
 		RawOrigin::Root.into(),
@@ -58,6 +60,7 @@ fn setup_asset<T: Config>(authorized_wallets: Vec<T::AccountId>) {
 	);
 }
 
+// a helper method to schedule task with a set of default params to support benchmark easier
 fn schedule_xcmp_task<T: Config>(
 	para_id: u32,
 	owner: T::AccountId,
