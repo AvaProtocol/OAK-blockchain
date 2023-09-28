@@ -205,8 +205,6 @@ impl pallet_automation_price::Config for Test {
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
 
 	type EnsureProxy = MockEnsureProxy;
-	type MaxAuthorizedOracleWallet = MaxAuthorizedOracleWallet;
-	type MaxBatchPriceUpdate = MaxBatchPriceUpdate;
 }
 
 parameter_types! {
@@ -216,8 +214,6 @@ parameter_types! {
 	pub const MaxBlockWeight: u64 = 20_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
-	pub const MaxAuthorizedOracleWallet: u32 = 5;
-	pub const MaxBatchPriceUpdate: u32 = 100;
 
 	// When unit testing dynamic dispatch, we use the real weight value of the extrinsics call
 	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock

@@ -163,14 +163,19 @@ fn test_initialize_asset_works() {
 }
 
 #[test]
-fn test_initialize_asset_reject_too_many_authorized_oracle() {
+fn test_initialize_asset_reject_duplicate_asset() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let sender = AccountId32::new(ALICE);
-		// Currently our limit is 5
-		let mut authorized_oracles = Vec::with_capacity(10 as usize);
-		for i in 0..10 {
-			authorized_oracles.push(sender.clone());
-		}
+		AutomationPrice::initialize_asset(
+			RawOrigin::Root.into(),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			10,
+			vec![sender.clone()],
+		);
+
 		assert_noop!(
 			AutomationPrice::initialize_asset(
 				RawOrigin::Root.into(),
@@ -179,10 +184,9 @@ fn test_initialize_asset_reject_too_many_authorized_oracle() {
 				asset1.to_vec(),
 				asset2.to_vec(),
 				10,
-				// Currently our limit is 5
-				authorized_oracles
+				vec!(sender.clone())
 			),
-			Error::<Test>::TooManyAuthorizedOracle,
+			Error::<Test>::AssetAlreadyInitialized,
 		);
 	})
 }

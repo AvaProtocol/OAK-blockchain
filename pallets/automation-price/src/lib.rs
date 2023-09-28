@@ -162,14 +162,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
 
-		/// The maximum number of authorized wallet address to update price for an asset
-		#[pallet::constant]
-		type MaxAuthorizedOracleWallet: Get<u32>;
-
-		/// The maximum element of prices vector in price update extrinsics
-		#[pallet::constant]
-		type MaxBatchPriceUpdate: Get<u32>;
-
 		#[pallet::constant]
 		type ExecutionWeightFee: Get<BalanceOf<Self>>;
 
@@ -324,7 +316,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		EmptyProvidedId,
+		InvalidTaskId,
 		/// Duplicate task
 		DuplicateTask,
 
@@ -337,7 +329,6 @@ pub mod pallet {
 		/// Asset cannot be updated by this account
 		InvalidAssetSudo,
 		OracleNotAuthorized,
-		TooManyAuthorizedOracle,
 		/// Asset must be in triggerable range.
 		AssetNotInTriggerableRange,
 		AssetUpdatePayloadMalform,
@@ -884,10 +875,6 @@ pub mod pallet {
 		) -> Result<(), DispatchError> {
 			let key = (&chain, &exchange, (&asset1, &asset2));
 
-			if T::MaxAuthorizedOracleWallet::get() < (asset_owners.len() as u32) {
-				Err(Error::<T>::TooManyAuthorizedOracle)?
-			}
-
 			if AssetRegistry::<T>::contains_key(&key) {
 				Err(Error::<T>::AssetAlreadyInitialized)?
 			}
@@ -1039,7 +1026,7 @@ pub mod pallet {
 		/// TODO: double check atomic
 		pub fn validate_and_schedule_task(task: Task<T>) -> Result<(), Error<T>> {
 			if task.task_id.is_empty() {
-				Err(Error::<T>::EmptyProvidedId)?
+				Err(Error::<T>::InvalidTaskId)?
 			}
 
 			<Tasks<T>>::insert(task.task_id.clone(), &task);

@@ -929,11 +929,6 @@ impl pallet_automation_price::Config for Runtime {
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type EnsureProxy = AutomationEnsureProxy;
-
-	// how many oracle can be authorized to update price for a pair
-	type MaxAuthorizedOracleWallet = ConstU32<5>;
-	// How many item we can put into the same price update extrinsic
-	type MaxBatchPriceUpdate = ConstU32<100>;
 }
 
 pub struct ClosedCallFilter;

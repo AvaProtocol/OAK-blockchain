@@ -138,7 +138,7 @@ fn direct_task_schedule<T: Config>(
 
 benchmarks! {
 	initialize_asset_extrinsic {
-		let v in 1..T::MaxAuthorizedOracleWallet::get();
+		let v in 1..5;
 		let asset_pair = (asset_tur.to_vec(), asset_usd.to_vec());
 
 		let mut authorized_wallets: Vec<T::AccountId> = vec![];
@@ -153,7 +153,9 @@ benchmarks! {
 	}
 
 	asset_price_update_extrinsic {
-		let v in 1..T::MaxBatchPriceUpdate::get();
+		// Depend on the size of the input, the weight change, ideally scale linearly
+		// Therefore we can simulate v from 1..100 and substrate will agg those value
+		let v in 1..100;
 		let sender : T::AccountId = account("caller", 0, SEED);
 
 		setup_asset::<T>(vec![sender.clone()]);

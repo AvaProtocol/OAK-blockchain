@@ -948,12 +948,6 @@ impl pallet_automation_price::Config for Runtime {
 	type FeeHandler = pallet_automation_price::FeeHandler<Runtime, ToTreasury>;
 	type UniversalLocation = UniversalLocation;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
-
-	// Only authorized up to 36 oracle wallet when initialize asset
-	// This is just an arbitrary number for now, can be changed later on
-	type MaxAuthorizedOracleWallet = ConstU32<36>;
-	// How many item we can put into the same price update extrinsic
-	type MaxBatchPriceUpdate = ConstU32<100>;
 }
 
 pub struct ClosedCallFilter;
