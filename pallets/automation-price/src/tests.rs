@@ -15,11 +15,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, AssetPayment, Config, TaskIdList};
+use crate::{mock::*, AssetPayment, Config, Error, TaskIdList};
 use pallet_xcmp_handler::InstructionSequence;
 
 use frame_support::{
-	assert_ok,
+	assert_noop, assert_ok,
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
 use frame_system::{self, RawOrigin};
@@ -29,6 +29,8 @@ use sp_runtime::AccountId32;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
+
+pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 
 struct XcmpActionParams {
 	destination: MultiLocation,
@@ -139,6 +141,7 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 #[test]
 fn test_initialize_asset_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let sender = AccountId32::new(ALICE);
 		assert_ok!(AutomationPrice::initialize_asset(
 			RawOrigin::Root.into(),
 			chain1.to_vec(),
@@ -146,8 +149,45 @@ fn test_initialize_asset_works() {
 			asset1.to_vec(),
 			asset2.to_vec(),
 			10,
-			vec!(AccountId32::new(ALICE))
+			vec!(sender.clone())
 		));
+
+		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetCreated {
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset1: asset1.to_vec(),
+			asset2: asset2.to_vec(),
+			decimal: 10,
+		}));
+	})
+}
+
+#[test]
+fn test_initialize_asset_reject_duplicate_asset() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let sender = AccountId32::new(ALICE);
+		AutomationPrice::initialize_asset(
+			RawOrigin::Root.into(),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			10,
+			vec![sender.clone()],
+		);
+
+		assert_noop!(
+			AutomationPrice::initialize_asset(
+				RawOrigin::Root.into(),
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				asset1.to_vec(),
+				asset2.to_vec(),
+				10,
+				vec!(sender.clone())
+			),
+			Error::<Test>::AssetAlreadyInitialized,
+		);
 	})
 }
 

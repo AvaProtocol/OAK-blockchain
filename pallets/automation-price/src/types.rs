@@ -16,7 +16,7 @@ pub struct AssetPayment {
 /// The enum that stores all action specific data.
 #[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub enum Action<AccountId, BalanceOf> {
+pub enum Action<AccountId> {
 	XCMP {
 		destination: MultiLocation,
 		schedule_fee: MultiLocation,
@@ -27,20 +27,12 @@ pub enum Action<AccountId, BalanceOf> {
 		schedule_as: Option<AccountId>,
 		instruction_sequence: InstructionSequence,
 	},
-
-	NativeTransfer {
-		sender: AccountId,
-		recipient: AccountId,
-		amount: BalanceOf,
-	},
 }
 
-impl<AccountId, Balance> Action<AccountId, Balance> {
+impl<AccountId> Action<AccountId> {
 	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
-			// TODO: correct with the right run/task function later on
 			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
-			Action::NativeTransfer { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
 		};
 		Ok(weight.ref_time())
 	}

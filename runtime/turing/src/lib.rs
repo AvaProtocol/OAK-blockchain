@@ -410,7 +410,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Session(..))
 			},
 			ProxyType::Automation => {
-				matches!(c, RuntimeCall::AutomationTime(..))
+				matches!(c, RuntimeCall::AutomationTime(..) | RuntimeCall::AutomationPrice(..))
 			},
 		}
 	}
@@ -1308,6 +1308,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1315,6 +1316,7 @@ impl_runtime_apis! {
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
+			list_benchmark!(list, extra, pallet_automation_price, AutomationPrice::<Runtime>);
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
@@ -1331,6 +1333,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1352,6 +1355,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
+			add_benchmark!(params, batches, pallet_automation_price, AutomationPrice::<Runtime>);
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);
