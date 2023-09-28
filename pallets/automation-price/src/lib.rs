@@ -162,7 +162,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxWeightPercentage: Get<Perbill>;
 
-		/// The maximum number of times that a task can be scheduled for.
+		/// The maximum number of authorized wallet address to update price for an asset
 		#[pallet::constant]
 		type MaxAuthorizedOracleWallet: Get<u32>;
 
@@ -371,6 +371,12 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+        TaskCancelled {
+        		who: AccountOf<T>,
+			task_id: TaskId,
+
+        }
+
 		Notify {
 			message: Vec<u8>,
 		},
