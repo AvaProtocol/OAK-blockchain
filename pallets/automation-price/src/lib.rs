@@ -371,12 +371,10 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
-        TaskCancelled {
-        		who: AccountOf<T>,
+		TaskCancelled {
+			who: AccountOf<T>,
 			task_id: TaskId,
-
-        }
-
+		},
 		Notify {
 			message: Vec<u8>,
 		},
