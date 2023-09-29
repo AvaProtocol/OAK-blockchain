@@ -625,7 +625,9 @@ fn test_emit_event_when_execute_tasks() {
 			},
 		};
 
-		AutomationPrice::run_tasks(vec![task.task_id.clone()], 1_000_000_000.into());
+		AutomationPrice::validate_and_schedule_task(task.clone());
+
+		AutomationPrice::run_tasks(vec![task.task_id.clone()], 100_000_000_000.into());
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
@@ -675,6 +677,7 @@ fn test_cancel_task_works() {
 				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			},
 		};
+		AutomationPrice::validate_and_schedule_task(task.clone());
 
 		AutomationPrice::cancel_task(
 			RuntimeOrigin::signed(task.owner_id.clone()),
