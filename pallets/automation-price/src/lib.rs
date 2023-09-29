@@ -724,6 +724,8 @@ pub mod pallet {
 		//   Task Registry
 		//   SortedTasksIndex
 		//   AccountTasks
+		//   Task Queue: if the task is already on the queue but haven't got run yet,
+		//               we will attemppt to remove it
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_extrinsic())]
 		#[transactional]

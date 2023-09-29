@@ -498,6 +498,7 @@ pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 	}
 }
 
+// setup a sample default asset to support test
 pub fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
 	AutomationPrice::initialize_asset(
 		RawOrigin::Root.into(),
@@ -510,6 +511,7 @@ pub fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
 	);
 }
 
+// setup a few sample assets, initialize it with sane default vale and set a price to support test cases
 pub fn setup_prices(sender: &AccountId32) {
 	AutomationPrice::initialize_asset(
 		RawOrigin::Root.into(),
