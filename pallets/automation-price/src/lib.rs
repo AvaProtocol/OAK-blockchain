@@ -362,6 +362,27 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+		// an event when we're about to run the task
+		TaskTriggered {
+			who: AccountOf<T>,
+			task_id: TaskId,
+		},
+		// An event when the task ran succesfully
+		TaskExecuted {
+			who: AccountOf<T>,
+			task_id: TaskId,
+		},
+		// An event when the task is trigger, ran but result in an error
+		TaskExecutionFailed {
+			who: AccountOf<T>,
+			task_id: TaskId,
+			error: DispatchError,
+		},
+		// An event when the task is completed and removed from all of the queue
+		TaskCompleted {
+			who: AccountOf<T>,
+			task_id: TaskId,
+		},
 		TaskCancelled {
 			who: AccountOf<T>,
 			task_id: TaskId,
@@ -708,6 +729,8 @@ pub mod pallet {
 		//   Task Registry
 		//   SortedTasksIndex
 		//   AccountTasks
+		//   Task Queue: if the task is already on the queue but haven't got run yet,
+		//               we will attemppt to remove it
 		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_extrinsic())]
 		#[transactional]
@@ -724,6 +747,10 @@ pub mod pallet {
 				let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 				SortedTasksIndex::<T>::remove(&key);
 				Self::remove_task_from_account(&task);
+				Self::deposit_event(Event::TaskCancelled {
+					who: task.owner_id.clone(),
+					task_id: task.task_id.clone(),
+				});
 			};
 
 			Ok(())
@@ -957,7 +984,12 @@ pub mod pallet {
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
-						let task_action_weight = match task.action.clone() {
+						Self::deposit_event(Event::TaskTriggered {
+							who: task.owner_id.clone(),
+							task_id: task.task_id.clone(),
+						});
+
+						let (task_action_weight, task_dispatch_error) = match task.action.clone() {
 							// TODO: Run actual task later to return weight
 							// not just return weight for test to pass
 							Action::XCMP {
@@ -969,24 +1001,39 @@ pub mod pallet {
 								overall_weight,
 								instruction_sequence,
 								..
-							} => {
-								let (w, _err) = Self::run_xcmp_task(
-									destination,
-									schedule_as.unwrap_or(task.owner_id.clone()),
-									execution_fee,
-									encoded_call,
-									encoded_call_weight,
-									overall_weight,
-									instruction_sequence,
-								);
-								w
-							},
+							} => Self::run_xcmp_task(
+								destination,
+								schedule_as.unwrap_or(task.owner_id.clone()),
+								execution_fee,
+								encoded_call,
+								encoded_call_weight,
+								overall_weight,
+								instruction_sequence,
+							),
 						};
 
 						Tasks::<T>::remove(task_id);
 
+						if let Some(err) = task_dispatch_error {
+							Self::deposit_event(Event::<T>::TaskExecutionFailed {
+								who: task.owner_id.clone(),
+								task_id: task.task_id.clone(),
+								error: err,
+							});
+						} else {
+							Self::deposit_event(Event::<T>::TaskExecuted {
+								who: task.owner_id.clone(),
+								task_id: task.task_id.clone(),
+							});
+						}
+
 						// TODO: add this weight
 						Self::remove_task_from_account(&task);
+
+						Self::deposit_event(Event::<T>::TaskCompleted {
+							who: task.owner_id.clone(),
+							task_id: task.task_id.clone(),
+						});
 
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1u64))
