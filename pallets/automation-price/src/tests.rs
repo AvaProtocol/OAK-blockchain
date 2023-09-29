@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, AssetPayment, Config, Error, TaskIdList};
+use crate::{mock::*, Action, AssetPayment, Config, Error, Task, TaskIdList};
 use pallet_xcmp_handler::InstructionSequence;
 
 use frame_support::{
@@ -586,5 +586,57 @@ fn test_shift_tasks_movement_through_price_changes() {
 			.map_or_else(|| 0, |x| x.len()),
 			0
 		);
+	})
+}
+
+#[test]
+fn test_emit_event_when_execute_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		// TODO: Setup fund once we add fund check and weight
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let task: Task<Test> = Task::<Test> {
+			owner_id: creator.clone(),
+			task_id: "123-0-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: 123_u128,
+			trigger_function: "gt".as_bytes().to_vec(),
+			trigger_params: vec![123],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+		AutomationPrice::validate_and_schedule_task(task);
+
+		AutomationPrice::run_tasks(vec![task.task_id.clone()], 1_000_000_000.into());
+
+		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
+			who: creator.clone(),
+			task_id: &task.task_id,
+		}));
+
+		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
+			who: creator,
+			task_id: &task.task_id,
+		}));
 	})
 }
