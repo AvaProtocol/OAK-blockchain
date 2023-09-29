@@ -625,18 +625,18 @@ fn test_emit_event_when_execute_tasks() {
 				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			},
 		};
-		AutomationPrice::validate_and_schedule_task(task);
+		AutomationPrice::validate_and_schedule_task(task.clone());
 
 		AutomationPrice::run_tasks(vec![task.task_id.clone()], 1_000_000_000.into());
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: creator.clone(),
-			task_id: &task.task_id,
+			task_id: task.task_id.clone(),
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
 			who: creator,
-			task_id: &task.task_id,
+			task_id: task.task_id,
 		}));
 	})
 }
