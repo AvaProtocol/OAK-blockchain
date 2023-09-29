@@ -378,6 +378,11 @@ pub mod pallet {
 			task_id: TaskId,
 			error: DispatchError,
 		},
+		// An event when the task is completed and removed from all of the queue
+		TaskCompleted {
+			who: AccountOf<T>,
+			task_id: TaskId,
+		},
 		TaskCancelled {
 			who: AccountOf<T>,
 			task_id: TaskId,
@@ -1009,9 +1014,6 @@ pub mod pallet {
 
 						Tasks::<T>::remove(task_id);
 
-						// TODO: add this weight
-						Self::remove_task_from_account(&task);
-
 						if let Some(err) = task_dispatch_error {
 							Self::deposit_event(Event::<T>::TaskExecutionFailed {
 								who: task.owner_id.clone(),
@@ -1024,6 +1026,14 @@ pub mod pallet {
 								task_id: task.task_id.clone(),
 							});
 						}
+
+						// TODO: add this weight
+						Self::remove_task_from_account(&task);
+
+						Self::deposit_event(Event::<T>::TaskCompleted {
+							who: task.owner_id.clone(),
+							task_id: task.task_id.clone(),
+						});
 
 						task_action_weight
 							.saturating_add(T::DbWeight::get().writes(1u64))
