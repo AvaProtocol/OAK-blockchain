@@ -704,7 +704,7 @@ fn test_delete_asset_ok() {
 			vec![exchange1.to_vec()],
 			vec![asset1.to_vec()],
 			vec![asset2.to_vec()],
-			vec![9000_u128],
+			vec![6789_u128],
 			vec![START_BLOCK_TIME as u128],
 			vec![4],
 		);
