@@ -462,6 +462,7 @@ pub mod pallet {
 			decimal: u8,
 			asset_owners: Vec<AccountOf<T>>,
 		) -> DispatchResult {
+			// TODO: use sudo and remove this feature flag
 			// TODO: needs fees if opened up to non-sudo
 			// When enable dev-queue, we skip this check
 			#[cfg(not(feature = "dev-queue"))]
@@ -573,6 +574,7 @@ pub mod pallet {
 			asset1: AssetName,
 			asset2: AssetName,
 		) -> DispatchResult {
+			// TODO: use sudo and remove this feature flag
 			// When enable dev queue, we want to skip this root check so local development can
 			// happen easier
 			#[cfg(not(feature = "dev-queue"))]
