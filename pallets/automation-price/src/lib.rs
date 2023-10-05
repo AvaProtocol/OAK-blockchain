@@ -311,6 +311,11 @@ pub mod pallet {
 	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList, ValueQuery>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn get_scheduled_assets_delete)]
+	pub type ScheduledAssetsDelete<T: Config> =
+		StorageValue<_, Vec<(ChainName, Exchange, AssetPair)>, ValueQuery>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn is_shutdown)]
 	pub type Shutdown<T: Config> = StorageValue<_, bool, ValueQuery>;
 
@@ -409,10 +414,10 @@ pub mod pallet {
 			price: u128,
 		},
 		AssetDeleted {
-			asset: AssetName,
-		},
-		AssetPeriodReset {
-			asset: AssetName,
+			chain: ChainName,
+			exchange: Exchange,
+			asset1: AssetName,
+			asset2: AssetName,
 		},
 	}
 
@@ -449,7 +454,7 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic(asset_owners.len() as u32))]
 		#[transactional]
 		pub fn initialize_asset(
-			_origin: OriginFor<T>,
+			origin: OriginFor<T>,
 			chain: Vec<u8>,
 			exchange: Vec<u8>,
 			asset1: AssetName,
@@ -457,9 +462,12 @@ pub mod pallet {
 			decimal: u8,
 			asset_owners: Vec<AccountOf<T>>,
 		) -> DispatchResult {
+			// TODO: use sudo and remove this feature flag
 			// TODO: needs fees if opened up to non-sudo
-			// temporary comment out for easiser development
-			//ensure_root(origin)?;
+			// When enable dev-queue, we skip this check
+			#[cfg(not(feature = "dev-queue"))]
+			ensure_root(origin)?;
+
 			Self::create_new_asset(chain, exchange, asset1, asset2, decimal, asset_owners)?;
 
 			Ok(())
@@ -548,7 +556,8 @@ pub mod pallet {
 			Ok(().into())
 		}
 
-		/// Delete an asset
+		/// Delete an asset. Delete may not happen immediately if there was  task scheduled for
+		/// this asset. Upon
 		///
 		/// # Parameters
 		/// * `asset`: asset type
@@ -559,22 +568,23 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::initialize_asset_extrinsic(1))]
 		#[transactional]
 		pub fn delete_asset(
-			_origin: OriginFor<T>,
+			origin: OriginFor<T>,
 			chain: ChainName,
 			exchange: Exchange,
 			asset1: AssetName,
 			asset2: AssetName,
 		) -> DispatchResult {
-			// TODO: needs fees if opened up to non-sudo
-			// TODO: add a feature flag so we can toggle in dev build without sudo
-			//ensure_root(origin)?;
+			// TODO: use sudo and remove this feature flag
+			// When enable dev queue, we want to skip this root check so local development can
+			// happen easier
+			#[cfg(not(feature = "dev-queue"))]
+			ensure_root(origin)?;
 
-			let key = (chain, exchange, (&asset1, &asset2));
-
-			// TODO: handle delete
-			if let Some(_asset_target_price) = Self::get_asset_registry_info(key) {
-				//Self::delete_asset_tasks(asset.clone());
-				Self::deposit_event(Event::AssetDeleted { asset: asset1 });
+			let key = (&chain, &exchange, (&asset1, &asset2));
+			if let Some(asset_info) = Self::get_asset_registry_info(&key) {
+				AssetRegistry::<T>::remove(&key);
+				PriceRegistry::<T>::remove(&key);
+				Self::deposit_event(Event::AssetDeleted { chain, exchange, asset1, asset2 });
 			} else {
 				Err(Error::<T>::AssetNotSupported)?
 			}

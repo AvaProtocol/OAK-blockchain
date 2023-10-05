@@ -690,3 +690,45 @@ fn test_cancel_task_works() {
 		}));
 	})
 }
+
+#[test]
+fn test_delete_asset_ok() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let sender = AccountId32::new(ALICE);
+		let key = (chain1.to_vec(), exchange1.to_vec(), (asset1.to_vec(), asset2.to_vec()));
+
+		setup_asset(&sender, chain1.to_vec());
+		AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(sender.clone()),
+			vec![chain1.to_vec()],
+			vec![exchange1.to_vec()],
+			vec![asset1.to_vec()],
+			vec![asset2.to_vec()],
+			vec![6789_u128],
+			vec![START_BLOCK_TIME as u128],
+			vec![4],
+		);
+
+		assert!(AutomationPrice::get_asset_registry_info(&key).is_some());
+		assert!(AutomationPrice::get_asset_price_data(&key).is_some());
+
+		// Now we delete asset, all the relevant asset metadata and price should be deleted
+		AutomationPrice::delete_asset(
+			RawOrigin::Root.into(),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+		);
+
+		assert!(AutomationPrice::get_asset_registry_info(&key).is_none());
+		assert!(AutomationPrice::get_asset_price_data(&key).is_none());
+
+		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetDeleted {
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset1: asset1.to_vec(),
+			asset2: asset2.to_vec(),
+		}));
+	})
+}
