@@ -62,8 +62,8 @@ use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
 use scale_info::{prelude::format, TypeInfo};
 use sp_runtime::{
-	traits::{Convert, SaturatedConversion, Saturating},
-	Perbill,
+	traits::{Convert, SaturatedConversion, Saturating, CheckedConversion},
+	ArithmeticError, Perbill,
 };
 use sp_std::{
 	boxed::Box,
@@ -98,7 +98,8 @@ pub mod pallet {
 
 	type UnixTime = u64;
 	pub type TaskId = Vec<u8>;
-	pub type TaskIdList = Vec<TaskId>;
+    pub type TaskAddress<T> = (AccountOf<T>, TaskId);
+	pub type TaskIdList<T> = Vec<TaskAddress<T>>;
 
 	// TODO: Cleanup before merge
 	type ChainName = Vec<u8>;
@@ -153,6 +154,14 @@ pub mod pallet {
 		/// The maximum number of tasks that can be scheduled for a time slot.
 		#[pallet::constant]
 		type MaxTasksPerSlot: Get<u32>;
+
+		/// The maximum number of tasks that a single user can schedule
+		#[pallet::constant]
+		type MaxTasksPerAccount: Get<u32>;
+
+		/// The maximum number of tasks across our entire system
+		#[pallet::constant]
+		type MaxTasksOverall: Get<u32>;
 
 		/// The maximum weight per block.
 		#[pallet::constant]
@@ -276,18 +285,8 @@ pub mod pallet {
 			NMapKey<Twox64Concat, AssetPair>,
 			NMapKey<Twox64Concat, TriggerFunction>,
 		),
-		BTreeMap<AssetPrice, TaskIdList>,
+		BTreeMap<AssetPrice, TaskIdList<T>>,
 	>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_asset_period_reset)]
-	pub type ScheduledAssetDeletion<T: Config> =
-		StorageMap<_, Twox64Concat, UnixTime, Vec<AssetName>>;
-
-	// Tasks hold all active task, look up through (TaskId)
-	#[pallet::storage]
-	#[pallet::getter(fn get_task)]
-	pub type Tasks<T: Config> = StorageMap<_, Twox64Concat, TaskId, Task<T>>;
 
 	// All active tasks, but organized by account
 	// In this storage, we only interested in returning task belong to an account, we also want to
@@ -295,9 +294,19 @@ pub mod pallet {
 	//
 	// We also want to remove the expired task, so by leveraging this
 	#[pallet::storage]
-	#[pallet::getter(fn get_account_task_ids)]
-	pub type AccountTasks<T: Config> =
-		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId, u128>;
+	#[pallet::getter(fn get_task)]
+	pub type Tasks<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId, Task<T>>;
+
+	// A map lookup from task id -> owner id
+    //
+    // We shard the task by account id, knowing a task id alone won't allow us to look up the
+    // task. We need to have the pair of (TaskId, AccountID)
+    //
+	#[pallet::storage]
+	#[pallet::getter(fn taskid_to_owner)]
+	pub type TaskIdToOwner<T: Config> =
+		StorageMap<_, Twox64Concat, TaskId, AccountOf<T>>;
 
 	// TaskQueue stores the task to be executed. To run any tasks, they need to be move into this
 	// queue, from there our task execution pick it up and run it
@@ -308,12 +317,7 @@ pub mod pallet {
 	// If the task is expired, we also won't run
 	#[pallet::storage]
 	#[pallet::getter(fn get_task_queue)]
-	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList, ValueQuery>;
-
-	#[pallet::storage]
-	#[pallet::getter(fn get_scheduled_assets_delete)]
-	pub type ScheduledAssetsDelete<T: Config> =
-		StorageValue<_, Vec<(ChainName, Exchange, AssetPair)>, ValueQuery>;
+	pub type TaskQueue<T: Config> = StorageValue<_, TaskIdList<T>, ValueQuery>;
 
 	#[pallet::storage]
 	#[pallet::getter(fn is_shutdown)]
@@ -347,6 +351,8 @@ pub mod pallet {
 		TaskInsertionFailure,
 		/// Failed to remove task
 		TaskRemoveFailure,
+        /// Task Not Found When canceling
+        TaskDoesNotExist,
 		/// Insufficient Balance
 		InsufficientBalance,
 		/// Restrictions on Liquidity in Account
@@ -392,12 +398,14 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
-		Notify {
-			message: Vec<u8>,
-		},
 		TaskNotFound {
+			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+        TaskExpired {
+        	who: AccountOf<T>,
+			task_id: TaskId,
+        },
 		AssetCreated {
 			chain: ChainName,
 			exchange: Exchange,
@@ -591,7 +599,6 @@ pub mod pallet {
 			Ok(())
 		}
 
-		// TODO: correct weight
 		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_extrinsic())]
 		#[transactional]
@@ -747,13 +754,8 @@ pub mod pallet {
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			if let Some(task) = Self::get_task(task_id) {
-				if task.owner_id != who {
-					// TODO: Fine tune error
-					Err(Error::<T>::TaskRemoveFailure)?
-				}
-
-				Tasks::<T>::remove(&task.task_id);
+			if let Some(task) = Self::get_task(&who, &task_id) {
+				Tasks::<T>::remove(&who, &task.task_id);
 				let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 				SortedTasksIndex::<T>::remove(&key);
 				Self::remove_task_from_account(&task);
@@ -761,7 +763,9 @@ pub mod pallet {
 					who: task.owner_id.clone(),
 					task_id: task.task_id.clone(),
 				});
-			};
+            } else {
+                Err(Error::<T>::TaskDoesNotExist)?
+            }
 
 			Ok(())
 		}
@@ -792,7 +796,7 @@ pub mod pallet {
 			let weight_left: Weight = max_weight;
 
 			// TODO: Look into asset that has price move instead
-			let ref mut task_to_process: TaskIdList = Vec::new();
+			let ref mut task_to_process: TaskIdList<T> = Vec::new();
 
 			for key in SortedTasksIndex::<T>::iter_keys() {
 				let (chain, exchange, asset_pair, trigger_func) = key.clone();
@@ -972,93 +976,123 @@ pub mod pallet {
 			}
 		}
 
+        // return epoch time of current block
+		pub fn get_current_block_time() -> Result<UnixTime, DispatchError> {
+			let now = <timestamp::Pallet<T>>::get()
+				.checked_into::<UnixTime>()
+				.ok_or(ArithmeticError::Overflow)?;
+
+			if now == 0 {
+				Err(Error::<T>::BlockTimeNotSet)?;
+			}
+
+			let now = now.checked_div(1000).ok_or(ArithmeticError::Overflow)?;
+			Ok(now)
+		}
+
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
 		pub fn run_tasks(
-			mut task_ids: Vec<TaskId>,
+			mut task_ids: TaskIdList<T>,
 			mut weight_left: Weight,
-		) -> (Vec<TaskId>, Weight) {
+		) -> (TaskIdList<T>, Weight) {
 			let mut consumed_task_index: usize = 0;
-			for task_id in task_ids.iter() {
+
+            // If we cannot extract time from the block, then somthing horrible wrong, let not move
+            // forward
+            let current_block_time = Self::get_current_block_time();
+            if current_block_time.is_err() {
+                return (task_ids, weight_left);
+            }
+
+            let now = current_block_time.unwrap();
+
+			for (owner_id, task_id) in task_ids.iter() {
 				consumed_task_index.saturating_inc();
 
-				// TODO: re-check condition here once more time because the price might have been
-				// more
-				// if the task is already expired, don't run them either
+                let action_weight = match Self::get_task(&owner_id, &task_id) {
+                    None => {
+                        Self::deposit_event(Event::TaskNotFound {
+                            who: owner_id.clone(), 
+                            task_id: task_id.clone()
+                        });
+                        <T as Config>::WeightInfo::emit_event()
+                    },
+                    Some(task) => {
+                        // TODO: re-check condition here once more time because the price might have been
+                        // more
+                        // if the task is already expired, don't run them either
+                        if task.expired_at < now.into() {
+                            Self::deposit_event(Event::TaskExpired { who: task.owner_id.clone(), task_id: task_id.clone() });
+                            <T as Config>::WeightInfo::emit_event()
+                        } else {
+                            Self::deposit_event(Event::TaskTriggered {
+                                who: task.owner_id.clone(),
+                                task_id: task.task_id.clone(),
+                            });
 
-				let action_weight = match Self::get_task(task_id) {
-					None => {
-						// TODO: add back signature when insert new task work
-						//Self::deposit_event(Event::TaskNotFound { task_id: task_id.clone() });
-						<T as Config>::WeightInfo::emit_event()
-					},
-					Some(task) => {
-						Self::deposit_event(Event::TaskTriggered {
-							who: task.owner_id.clone(),
-							task_id: task.task_id.clone(),
-						});
+                            let (task_action_weight, task_dispatch_error) = match task.action.clone() {
+                                // TODO: Run actual task later to return weight
+                                // not just return weight for test to pass
+                                Action::XCMP {
+                                    destination,
+                                    execution_fee,
+                                    schedule_as,
+                                    encoded_call,
+                                    encoded_call_weight,
+                                    overall_weight,
+                                    instruction_sequence,
+                                    ..
+                                } => Self::run_xcmp_task(
+                                    destination,
+                                    schedule_as.unwrap_or(task.owner_id.clone()),
+                                    execution_fee,
+                                    encoded_call,
+                                    encoded_call_weight,
+                                    overall_weight,
+                                    instruction_sequence,
+                                ),
+                            };
 
-						let (task_action_weight, task_dispatch_error) = match task.action.clone() {
-							// TODO: Run actual task later to return weight
-							// not just return weight for test to pass
-							Action::XCMP {
-								destination,
-								execution_fee,
-								schedule_as,
-								encoded_call,
-								encoded_call_weight,
-								overall_weight,
-								instruction_sequence,
-								..
-							} => Self::run_xcmp_task(
-								destination,
-								schedule_as.unwrap_or(task.owner_id.clone()),
-								execution_fee,
-								encoded_call,
-								encoded_call_weight,
-								overall_weight,
-								instruction_sequence,
-							),
-						};
+                            Tasks::<T>::remove(task.owner_id.clone(), task_id.clone());
 
-						Tasks::<T>::remove(task_id);
+                            if let Some(err) = task_dispatch_error {
+                                Self::deposit_event(Event::<T>::TaskExecutionFailed {
+                                    who: task.owner_id.clone(),
+                                    task_id: task.task_id.clone(),
+                                    error: err,
+                                });
+                            } else {
+                                Self::deposit_event(Event::<T>::TaskExecuted {
+                                    who: task.owner_id.clone(),
+                                    task_id: task.task_id.clone(),
+                                });
+                            }
 
-						if let Some(err) = task_dispatch_error {
-							Self::deposit_event(Event::<T>::TaskExecutionFailed {
-								who: task.owner_id.clone(),
-								task_id: task.task_id.clone(),
-								error: err,
-							});
-						} else {
-							Self::deposit_event(Event::<T>::TaskExecuted {
-								who: task.owner_id.clone(),
-								task_id: task.task_id.clone(),
-							});
-						}
+                            // TODO: add this weight
+                            Self::remove_task_from_account(&task);
 
-						// TODO: add this weight
-						Self::remove_task_from_account(&task);
+                            Self::deposit_event(Event::<T>::TaskCompleted {
+                                who: task.owner_id.clone(),
+                                task_id: task.task_id.clone(),
+                            });
 
-						Self::deposit_event(Event::<T>::TaskCompleted {
-							who: task.owner_id.clone(),
-							task_id: task.task_id.clone(),
-						});
+                            task_action_weight
+                                .saturating_add(T::DbWeight::get().writes(1u64))
+                                .saturating_add(T::DbWeight::get().reads(1u64))
+                        }
+                    },
+                };
+       
+                weight_left = weight_left.saturating_sub(action_weight);
 
-						task_action_weight
-							.saturating_add(T::DbWeight::get().writes(1u64))
-							.saturating_add(T::DbWeight::get().reads(1u64))
-					},
-				};
-
-				weight_left = weight_left.saturating_sub(action_weight);
-
-				let run_another_task_weight = <T as Config>::WeightInfo::emit_event()
-					.saturating_add(T::DbWeight::get().writes(1u64))
-					.saturating_add(T::DbWeight::get().reads(1u64));
-				if weight_left.ref_time() < run_another_task_weight.ref_time() {
-					break
-				}
+                let run_another_task_weight = <T as Config>::WeightInfo::emit_event()
+                    .saturating_add(T::DbWeight::get().writes(1u64))
+                    .saturating_add(T::DbWeight::get().reads(1u64));
+                if weight_left.ref_time() < run_another_task_weight.ref_time() {
+                    break
+                }
 			}
 
 			if consumed_task_index == task_ids.len() {
@@ -1068,12 +1102,8 @@ pub mod pallet {
 			}
 		}
 
-		fn push_task_to_account(task: &Task<T>) {
-			AccountTasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), task.expired_at);
-		}
-
 		fn remove_task_from_account(task: &Task<T>) {
-			AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
+			//AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 		}
 
 		/// With transaction will protect against a partial success where N of M execution times might be full,
@@ -1086,22 +1116,32 @@ pub mod pallet {
 				Err(Error::<T>::InvalidTaskId)?
 			}
 
-			<Tasks<T>>::insert(task.task_id.clone(), &task);
-			Self::push_task_to_account(&task);
+			<Tasks<T>>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
 
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 
 			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
 				// TODO: remove hard code and take right param
 				if let Some(tasks_by_price) = sorted_task_index.get_mut(&(task.trigger_params[0])) {
-					tasks_by_price.push(task.task_id.clone());
+					tasks_by_price.push((
+                            task.owner_id.clone(),
+                            task.task_id.clone()
+                            ));
 				} else {
-					sorted_task_index.insert(task.trigger_params[0], vec![task.task_id.clone()]);
+					sorted_task_index.insert(
+                        task.trigger_params[0],
+                        vec![(task.owner_id.clone(), task.task_id.clone())]
+                    );
 				}
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			} else {
-				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList>::new();
-				sorted_task_index.insert(task.trigger_params[0], vec![task.task_id.clone()]);
+				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList<T>>::new();
+				sorted_task_index.insert(
+                    task.trigger_params[0],
+                    vec![(
+                        task.owner_id.clone(),
+                        task.task_id.clone(),
+                    )]);
 
 				// TODO: sorted based on trigger_function comparison of the parameter
 				// then at the time of trigger we cut off all the left part of the tree
@@ -1110,7 +1150,7 @@ pub mod pallet {
 
 			Self::deposit_event(Event::TaskScheduled {
 				who: task.owner_id,
-				task_id: task.task_id.clone(),
+				task_id: task.task_id,
 			});
 			Ok(())
 		}

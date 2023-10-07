@@ -328,7 +328,7 @@ fn test_schedule_xcmp_task_ok() {
 		let task_ids = get_task_ids_from_events();
 		let task_id = task_ids.first().expect("task failed to schedule");
 
-		let task = AutomationPrice::get_task(task_id).expect("missing task in registry");
+		let task = AutomationPrice::get_task(&creator, &task_id).expect("missing task in registry");
 		assert_eq!(
 			task.trigger_function,
 			"gt".as_bytes().to_vec(),
@@ -338,8 +338,7 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
 		assert_eq!(
-			AutomationPrice::get_account_task_ids(&creator, task_id)
-				.expect("account task is missing"),
+            1005u128,
 			task.expired_at
 		);
 
@@ -347,7 +346,7 @@ fn test_schedule_xcmp_task_ok() {
 
 		// Create  second task, and make sure both are recorded
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator),
+			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
 			exchange1.to_vec(),
 			asset1.to_vec(),
@@ -376,8 +375,11 @@ fn test_schedule_xcmp_task_ok() {
 			"gt".as_bytes().to_vec(),
 		))
 		.unwrap();
-		let task_ids: Vec<TaskIdList> = sorted_task_index.into_values().collect();
-		assert_eq!(task_ids, vec!(vec!(vec!(49, 45, 48, 45, 49), vec!(49, 45, 48, 45, 50))));
+		let task_ids: Vec<TaskIdList<Test>> = sorted_task_index.into_values().collect();
+		assert_eq!(task_ids, vec!(vec!(
+                    (creator.clone(), vec!(49, 45, 48, 45, 49)), 
+                    (creator, vec!(49, 45, 48, 45, 50))
+        )));
 	})
 }
 
@@ -491,7 +493,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec!(1, 2, 3),
 		));
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
-		assert_eq!(AutomationPrice::get_task_queue(), vec!(task_id1.clone()));
+		assert_eq!(AutomationPrice::get_task_queue(), vec![(creator.clone(), task_id1.clone())]);
 		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
 		// decrease to 0
 		assert_eq!(
@@ -517,7 +519,10 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec![4],
 		);
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
-		assert_eq!(AutomationPrice::get_task_queue(), vec!(task_id1.clone(), task_id3.clone()));
+		assert_eq!(AutomationPrice::get_task_queue(), vec![
+                   (creator.clone(), task_id1.clone()),
+                   (creator.clone(), task_id3.clone())
+        ]);
 		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
 		// decrease to 0
 		assert_eq!(
@@ -574,7 +579,11 @@ fn test_shift_tasks_movement_through_price_changes() {
 		// Now the task is again, moved into the queue and be removed from SortedTasksIndex
 		assert_eq!(
 			AutomationPrice::get_task_queue(),
-			vec!(task_id1.clone(), task_id3.clone(), task_id4.clone())
+			vec![
+                (creator.clone(), task_id1.clone()),
+                (creator.clone(), task_id3.clone()),
+                (creator.clone(), task_id4.clone())
+            ]
 		);
 		assert_eq!(
 			AutomationPrice::get_sorted_tasks_index((
@@ -610,7 +619,7 @@ fn test_emit_event_when_execute_tasks() {
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset_pair: (asset1.to_vec(), asset2.to_vec()),
-			expired_at: 123_u128,
+			expired_at: (START_BLOCK_TIME + 10000) as u128,
 			trigger_function: "gt".as_bytes().to_vec(),
 			trigger_params: vec![123],
 			action: Action::XCMP {
@@ -627,7 +636,7 @@ fn test_emit_event_when_execute_tasks() {
 
 		AutomationPrice::validate_and_schedule_task(task.clone());
 
-		AutomationPrice::run_tasks(vec![task.task_id.clone()], 100_000_000_000.into());
+		AutomationPrice::run_tasks(vec![(task.owner_id.clone(), task.task_id.clone())], 100_000_000_000.into());
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
