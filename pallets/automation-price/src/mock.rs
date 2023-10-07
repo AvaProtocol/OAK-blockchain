@@ -290,6 +290,10 @@ impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWei
 	fn run_xcmp_task() -> Weight {
 		Weight::from_ref_time(200_000_000_u64)
 	}
+
+	fn remove_task() -> Weight {
+		Weight::from_ref_time(20_000_000_u64)
+	}
 }
 
 pub struct MockXcmpTransactor<T, C>(PhantomData<(T, C)>);

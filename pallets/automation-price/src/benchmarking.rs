@@ -250,6 +250,34 @@ benchmarks! {
 		AutomationPrice::<T>::run_xcmp_task(destination, creator, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), InstructionSequence::PayThroughSovereignAccount)
 	}
 
+	//remove_task {
+	//	let creator : T::AccountId = account("caller", 0, SEED);
+	//	let para_id: u32 = 1000;
+	//	let call: Vec<u8> = vec![2, 4, 5];
+	//	setup_asset::<T>(vec![creator.clone()]);
+	//	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+	//	T::Currency::deposit_creating(
+	//		&creator,
+	//		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+	//	);
+
+	//	// Schedule 10000 Task, This is just an arbitrary number to simular a big task registry
+	//	// Because of using StoragMap, and avoid dealing with vector
+	//	// our task look up will always be O(1) for time
+	//	let mut task_ids: Vec<TaskId> = vec![];
+	//	for i in 1..100 {
+	//	  direct_task_schedule::<T>(creator.clone(), format!("{:?}", i).as_bytes().to_vec(), i, "gt".as_bytes().to_vec(), i, vec![100, 200, (i % 256) as u8]);
+	//	  task_ids.push(format!("{:?}", i).as_bytes().to_vec());
+	//	}
+
+	//	let task_id_to_cancel = "1".as_bytes().to_vec();
+
+	//    let task =
+	//}: {
+	//	AutomationPrice::<T>::remove_task()
+	//}
+
+
 	emit_event {
 		let who: T::AccountId = account("call", 1, SEED);
 		let task_id: TaskId = vec![1,2,3];
