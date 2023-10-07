@@ -190,8 +190,8 @@ impl pallet_timestamp::Config for Test {
 impl pallet_automation_price::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
-    type MaxTasksPerAccount = MaxTasksPerAccount;
-    type MaxTasksOverall = MaxTasksOverall;
+	type MaxTasksPerAccount = MaxTasksPerAccount;
+	type MaxTasksOverall = MaxTasksOverall;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type WeightInfo = MockWeight<Test>;
@@ -211,9 +211,9 @@ impl pallet_automation_price::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
-    // Mock value, purposely set to a small number so easiser to test limit reached
-    pub const MaxTasksOverall: u32 = 1024;
-    pub const MaxTasksPerAccount: u32 = 16;
+	// Mock value, purposely set to a small number so easiser to test limit reached
+	pub const MaxTasksOverall: u32 = 1024;
+	pub const MaxTasksPerAccount: u32 = 16;
 	#[derive(Debug)]
 	pub const MaxScheduleSeconds: u64 = 24 * 60 * 60;
 	pub const MaxBlockWeight: u64 = 20_000_000;

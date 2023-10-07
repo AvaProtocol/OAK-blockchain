@@ -96,7 +96,14 @@ pub fn assert_has_event(event: RuntimeEvent) {
 	assert!(evts.iter().any(|record| record == &event))
 }
 
-#[allow(dead_code)]
+// Helper function to asset event easiser
+/// Assert the given `event` not exists.
+#[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
+pub fn assert_no_event(event: RuntimeEvent) {
+	let evts = System::events().into_iter().map(|evt| evt.event).collect::<Vec<_>>();
+	assert!(evts.iter().all(|record| record != &event))
+}
+
 #[cfg(any(feature = "std", feature = "runtime-benchmarks", test))]
 pub fn assert_last_event(event: RuntimeEvent) {
 	assert_eq!(events().last().expect("events expected"), &event);
@@ -337,10 +344,7 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(task.chain, chain1.to_vec(), "created task has different chain id");
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
-		assert_eq!(
-            1005u128,
-			task.expired_at
-		);
+		assert_eq!(1005u128, task.expired_at);
 
 		// Ensure task is inserted into the right SortedIndex
 
@@ -376,10 +380,13 @@ fn test_schedule_xcmp_task_ok() {
 		))
 		.unwrap();
 		let task_ids: Vec<TaskIdList<Test>> = sorted_task_index.into_values().collect();
-		assert_eq!(task_ids, vec!(vec!(
-                    (creator.clone(), vec!(49, 45, 48, 45, 49)), 
-                    (creator, vec!(49, 45, 48, 45, 50))
-        )));
+		assert_eq!(
+			task_ids,
+			vec!(vec!(
+				(creator.clone(), vec!(49, 45, 48, 45, 49)),
+				(creator, vec!(49, 45, 48, 45, 50))
+			))
+		);
 	})
 }
 
@@ -519,10 +526,10 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec![4],
 		);
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
-		assert_eq!(AutomationPrice::get_task_queue(), vec![
-                   (creator.clone(), task_id1.clone()),
-                   (creator.clone(), task_id3.clone())
-        ]);
+		assert_eq!(
+			AutomationPrice::get_task_queue(),
+			vec![(creator.clone(), task_id1.clone()), (creator.clone(), task_id3.clone())]
+		);
 		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
 		// decrease to 0
 		assert_eq!(
@@ -580,10 +587,10 @@ fn test_shift_tasks_movement_through_price_changes() {
 		assert_eq!(
 			AutomationPrice::get_task_queue(),
 			vec![
-                (creator.clone(), task_id1.clone()),
-                (creator.clone(), task_id3.clone()),
-                (creator.clone(), task_id4.clone())
-            ]
+				(creator.clone(), task_id1.clone()),
+				(creator.clone(), task_id3.clone()),
+				(creator.clone(), task_id4.clone())
+			]
 		);
 		assert_eq!(
 			AutomationPrice::get_sorted_tasks_index((
@@ -636,7 +643,10 @@ fn test_emit_event_when_execute_tasks() {
 
 		AutomationPrice::validate_and_schedule_task(task.clone());
 
-		AutomationPrice::run_tasks(vec![(task.owner_id.clone(), task.task_id.clone())], 100_000_000_000.into());
+		AutomationPrice::run_tasks(
+			vec![(task.owner_id.clone(), task.task_id.clone())],
+			100_000_000_000.into(),
+		);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
@@ -646,6 +656,71 @@ fn test_emit_event_when_execute_tasks() {
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
 			who: task.owner_id.clone(),
 			task_id: task.task_id,
+		}));
+	})
+}
+
+// when running a task, if the task is already expired, the execution engine won't run the task,
+// instead an even TaskExpired is emiited
+#[test]
+fn test_expired_task_not_run() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator = AccountId32::new(ALICE);
+		let para_id: u32 = 1000;
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let task = Task::<Test> {
+			owner_id: creator.into(),
+			task_id: "123-0-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: START_BLOCK_TIME
+				.checked_div(1000)
+				.map_or(10000000_u128, |v| v.into())
+				.saturating_sub(100),
+			trigger_function: "gt".as_bytes().to_vec(),
+			trigger_params: vec![123],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+
+		AutomationPrice::validate_and_schedule_task(task.clone());
+
+		AutomationPrice::run_tasks(
+			vec![(task.owner_id.clone(), task.task_id.clone())],
+			100_000_000_000.into(),
+		);
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
 		}));
 	})
 }
