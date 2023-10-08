@@ -15,7 +15,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{mock::*, Action, AssetPayment, Config, Error, Task, TaskIdList};
+use crate::{
+	mock::*, AccountStats, Action, AssetPayment, Config, Error, StatType, Task, TaskIdList,
+	TaskStats,
+};
 use pallet_xcmp_handler::InstructionSequence;
 
 use frame_support::{
@@ -384,8 +387,95 @@ fn test_schedule_xcmp_task_ok() {
 			task_ids,
 			vec!(vec!(
 				(creator.clone(), vec!(49, 45, 48, 45, 49)),
-				(creator, vec!(49, 45, 48, 45, 50))
+				(creator.clone(), vec!(49, 45, 48, 45, 50))
 			))
+		);
+
+		// We had schedule 2 tasks so far, all two belong to the same account
+		assert_eq!(
+			2,
+			AutomationPrice::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+		assert_eq!(
+			2,
+			AutomationPrice::get_account_stat(creator, StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+	})
+}
+
+#[test]
+fn test_schedule_return_error_when_reaching_max_tasks_overall_limit() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_asset(&creator, chain1.to_vec());
+
+		TaskStats::<Test>::insert(StatType::TotalTasksOverall, 1_000_000_000);
+
+		assert_noop!(
+			AutomationPrice::schedule_xcmp_task(
+				RuntimeOrigin::signed(creator.clone()),
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				asset1.to_vec(),
+				asset2.to_vec(),
+				1005u128,
+				"gt".as_bytes().to_vec(),
+				vec!(100),
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 10000000000000
+				}),
+				call.clone(),
+				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000)
+			),
+			Error::<Test>::MaxTasksReached,
+		);
+	})
+}
+
+#[test]
+fn test_schedule_return_error_when_reaching_max_account_tasks_limit() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_asset(&creator, chain1.to_vec());
+
+		AccountStats::<Test>::insert(creator.clone(), StatType::TotalTasksPerAccount, 1_000);
+
+		assert_noop!(
+			AutomationPrice::schedule_xcmp_task(
+				RuntimeOrigin::signed(creator),
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				asset1.to_vec(),
+				asset2.to_vec(),
+				1005u128,
+				"gt".as_bytes().to_vec(),
+				vec!(100),
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					amount: 10000000000000
+				}),
+				call,
+				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000)
+			),
+			Error::<Test>::MaxTasksPerAccountReached,
 		);
 	})
 }
@@ -621,7 +711,7 @@ fn test_emit_event_when_execute_tasks() {
 		let overall_weight = Weight::from_ref_time(200_000);
 
 		let task = Task::<Test> {
-			owner_id: creator.into(),
+			owner_id: creator.clone().into(),
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -657,6 +747,104 @@ fn test_emit_event_when_execute_tasks() {
 			who: task.owner_id.clone(),
 			task_id: task.task_id,
 		}));
+	})
+}
+
+#[test]
+fn test_decrease_task_count_when_execute_tasks() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator1 = AccountId32::new(ALICE);
+		let creator2 = AccountId32::new(BOB);
+		let para_id: u32 = 1000;
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let task1 = Task::<Test> {
+			owner_id: creator1.clone().into(),
+			task_id: "123-0-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: (START_BLOCK_TIME + 10000) as u128,
+			trigger_function: "gt".as_bytes().to_vec(),
+			trigger_params: vec![123],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee: execution_fee.clone(),
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+
+		let task2 = Task::<Test> {
+			owner_id: creator2.clone().into(),
+			task_id: "123-1-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: (START_BLOCK_TIME + 10000) as u128,
+			trigger_function: "gt".as_bytes().to_vec(),
+			trigger_params: vec![123],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+
+		AutomationPrice::validate_and_schedule_task(task1.clone());
+		AutomationPrice::validate_and_schedule_task(task2.clone());
+
+		assert_eq!(
+			2,
+			AutomationPrice::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v),
+			"total task count is wrong"
+		);
+		assert_eq!(
+			1,
+			AutomationPrice::get_account_stat(creator1.clone(), StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count is wrong"
+		);
+		assert_eq!(
+			1,
+			AutomationPrice::get_account_stat(creator2.clone(), StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count is wrong"
+		);
+
+		AutomationPrice::run_tasks(
+			vec![(task1.owner_id.clone(), task1.task_id.clone())],
+			100_000_000_000.into(),
+		);
+
+		assert_eq!(
+			1,
+			AutomationPrice::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v),
+			"total task count is wrong"
+		);
+		assert_eq!(
+			0,
+			AutomationPrice::get_account_stat(creator1, StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count of creator1 is wrong"
+		);
 	})
 }
 

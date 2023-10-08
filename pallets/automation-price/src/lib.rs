@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! # Automation time pallet
+//! # Automation price pallet
 //!
 //! DISCLAIMER: This pallet is still in it's early stages. At this point
 //! we only support scheduling two tasks per hour, and sending an on-chain
@@ -24,8 +24,6 @@
 //! This pallet allows a user to schedule tasks. Tasks can scheduled for any whole hour in the future.
 //! In order to run tasks this pallet consumes up to a certain amount of weight during `on_initialize`.
 //!
-//! The pallet supports the following tasks:
-//! * On-chain events with custom text
 //!
 
 #![cfg_attr(not(feature = "std"), no_std)]
@@ -101,7 +99,6 @@ pub mod pallet {
 	pub type TaskAddress<T> = (AccountOf<T>, TaskId);
 	pub type TaskIdList<T> = Vec<TaskAddress<T>>;
 
-	// TODO: Cleanup before merge
 	type ChainName = Vec<u8>;
 	type Exchange = Vec<u8>;
 
@@ -298,14 +295,21 @@ pub mod pallet {
 	pub type Tasks<T: Config> =
 		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, TaskId, Task<T>>;
 
-	// A map lookup from task id -> owner id
-	//
-	// We shard the task by account id, knowing a task id alone won't allow us to look up the
-	// task. We need to have the pair of (TaskId, AccountID)
+	// Track various metric on our chain regarding tasks such as total task
 	//
 	#[pallet::storage]
-	#[pallet::getter(fn taskid_to_owner)]
-	pub type TaskIdToOwner<T: Config> = StorageMap<_, Twox64Concat, TaskId, AccountOf<T>>;
+	#[pallet::getter(fn get_task_stat)]
+	pub type TaskStats<T: Config> = StorageMap<_, Twox64Concat, StatType, u64>;
+
+	// Track various metric per account regarding tasks
+	// To count task per account, relying on Tasks storage alone mean we have to iterate overs
+	// value that share the first key (owner_id) to count.
+	//
+	// Store the task count
+	#[pallet::storage]
+	#[pallet::getter(fn get_account_stat)]
+	pub type AccountStats<T: Config> =
+		StorageDoubleMap<_, Twox64Concat, AccountOf<T>, Twox64Concat, StatType, u64>;
 
 	// TaskQueue stores the task to be executed. To run any tasks, they need to be move into this
 	// queue, from there our task execution pick it up and run it
@@ -346,6 +350,8 @@ pub mod pallet {
 		InvalidAssetExpirationWindow,
 		/// Maximum tasks reached for the slot
 		MaxTasksReached,
+		/// Maximum tasks reached for a given account
+		MaxTasksPerAccountReached,
 		/// Failed to insert task
 		TaskInsertionFailure,
 		/// Failed to remove task
@@ -755,9 +761,9 @@ pub mod pallet {
 
 			if let Some(task) = Self::get_task(&who, &task_id) {
 				Tasks::<T>::remove(&who, &task.task_id);
+				Self::remove_task(&task);
 				let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 				SortedTasksIndex::<T>::remove(&key);
-				Self::remove_task_from_account(&task);
 				Self::deposit_event(Event::TaskCancelled {
 					who: task.owner_id.clone(),
 					task_id: task.task_id.clone(),
@@ -1034,6 +1040,14 @@ pub mod pallet {
 								task_id: task.task_id.clone(),
 							});
 
+							let total_task =
+								Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
+							let total_task_per_account = Self::get_account_stat(
+								&task.owner_id,
+								StatType::TotalTasksPerAccount,
+							)
+							.map_or(0, |v| v);
+
 							let (task_action_weight, task_dispatch_error) =
 								match task.action.clone() {
 									// TODO: Run actual task later to return weight
@@ -1058,7 +1072,14 @@ pub mod pallet {
 									),
 								};
 
+							Self::remove_task(&task);
 							Tasks::<T>::remove(task.owner_id.clone(), task_id.clone());
+							TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task - 1);
+							AccountStats::<T>::insert(
+								task.owner_id.clone(),
+								StatType::TotalTasksPerAccount,
+								total_task_per_account - 1,
+							);
 
 							if let Some(err) = task_dispatch_error {
 								Self::deposit_event(Event::<T>::TaskExecutionFailed {
@@ -1072,9 +1093,6 @@ pub mod pallet {
 									task_id: task.task_id.clone(),
 								});
 							}
-
-							// TODO: add this weight
-							Self::remove_task_from_account(&task);
 
 							Self::deposit_event(Event::<T>::TaskCompleted {
 								who: task.owner_id.clone(),
@@ -1105,7 +1123,7 @@ pub mod pallet {
 			}
 		}
 
-		fn remove_task_from_account(task: &Task<T>) {
+		fn remove_task(task: &Task<T>) {
 			//AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 		}
 
@@ -1119,7 +1137,29 @@ pub mod pallet {
 				Err(Error::<T>::InvalidTaskId)?
 			}
 
-			<Tasks<T>>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
+			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
+			let total_task_per_account =
+				Self::get_account_stat(&task.owner_id, StatType::TotalTasksPerAccount)
+					.map_or(0, |v| v);
+
+			// check task total limit per account and overall
+			if total_task >= T::MaxTasksOverall::get().into() {
+				Err(Error::<T>::MaxTasksReached)?
+			}
+
+			// check task total limit per account and overall
+			if total_task_per_account >= T::MaxTasksPerAccount::get().into() {
+				Err(Error::<T>::MaxTasksPerAccountReached)?
+			}
+
+			Tasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
+			// Post tax processing, increase relevant metrics data
+			TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task + 1);
+			AccountStats::<T>::insert(
+				task.owner_id.clone(),
+				StatType::TotalTasksPerAccount,
+				total_task_per_account + 1,
+			);
 
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 
@@ -1146,7 +1186,11 @@ pub mod pallet {
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			}
 
-			Self::deposit_event(Event::TaskScheduled { who: task.owner_id, task_id: task.task_id });
+			Self::deposit_event(Event::TaskScheduled {
+				who: task.owner_id.clone(),
+				task_id: task.task_id,
+			});
+
 			Ok(())
 		}
 	}
