@@ -1220,22 +1220,6 @@ impl_runtime_apis! {
 			})
 		}
 
-		/**
-		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
-		 * This function requires the action type and the number of executions in order to generate an estimate.
-		 * However, the AutomationTime::calculate_schedule_fee_amount requires an Action enum from the automation time pallet,
-		 * which requires more information than is necessary for this calculation.
-		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
-		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
-		 *
-		 */
-		fn get_time_automation_fees(
-			action: AutomationAction,
-			executions: u32,
-		) -> Balance {
-			AutomationTime::calculate_schedule_fee_amount(&(action.into()), executions).expect("Can only fail for DynamicDispatch which is not an option here")
-		}
-
 		fn calculate_optimal_autostaking(
 			principal: i128,
 			collator: AccountId

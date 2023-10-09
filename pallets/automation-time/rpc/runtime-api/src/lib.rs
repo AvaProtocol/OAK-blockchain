@@ -54,7 +54,6 @@ sp_api::decl_runtime_apis! {
 		Balance: Codec,
 	{
 		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
-		fn get_time_automation_fees(action: AutomationAction, executions: u32) -> Balance;
 		fn calculate_optimal_autostaking(
 			principal: i128,
 			collator: AccountId
