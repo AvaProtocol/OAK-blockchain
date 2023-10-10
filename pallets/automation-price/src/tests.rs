@@ -490,7 +490,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 		let call: Vec<u8> = vec![2, 4, 5];
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
-		setup_prices(&creator);
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
 
 		// Lets setup 3 tasks
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
@@ -501,7 +501,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset2.to_vec(),
 			1000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(100),
+			vec!(10100),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -521,7 +521,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset3.to_vec(),
 			3000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(900),
+			vec!(10900),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -541,7 +541,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset3.to_vec(),
 			6000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(2000),
+			vec!(102000),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -577,7 +577,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		//
 		// now we update price, one task moved to the  queue
-		// The target price for those respectively tasks are 100, 900, 2000 in their pair
+		// The target price for those respectively tasks are 10100, 10900, 102000 in their pair
 		// Therefore after running this price update, first task are moved
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
@@ -585,7 +585,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec!(exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()),
 			vec!(asset1.to_vec(), asset2.to_vec(), asset1.to_vec()),
 			vec!(asset2.to_vec(), asset3.to_vec(), asset3.to_vec()),
-			vec!(1005_u128, 10_u128, 300_u128),
+			vec!(101005_u128, 10_u128, 300_u128),
 			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
 			vec!(1, 2, 3),
 		));
@@ -611,7 +611,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec![exchange1.to_vec()],
 			vec![asset1.to_vec()],
 			vec![asset3.to_vec()],
-			vec![9000_u128],
+			vec![209000_u128],
 			vec![START_BLOCK_TIME as u128],
 			vec![4],
 		);
@@ -701,6 +701,8 @@ fn test_emit_event_when_execute_tasks() {
 		let creator = AccountId32::new(ALICE);
 		let para_id: u32 = 1000;
 
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
@@ -756,6 +758,8 @@ fn test_decrease_task_count_when_execute_tasks() {
 		let creator1 = AccountId32::new(ALICE);
 		let creator2 = AccountId32::new(BOB);
 		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator1, START_BLOCK_TIME as u128);
 
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
@@ -907,6 +911,77 @@ fn test_expired_task_not_run() {
 		}));
 
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+	})
+}
+
+// when running a task, if the price has been moved against the target price, rendering the target
+// price condition not match anymore. we will skip run
+#[test]
+fn test_price_move_against_target_price_skip_run() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator = AccountId32::new(ALICE);
+		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let task = Task::<Test> {
+			owner_id: creator.into(),
+			task_id: "123-0-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: START_BLOCK_TIME
+				.checked_div(1000)
+				.map_or(10000000_u128, |v| v.into())
+				.saturating_add(100),
+			trigger_function: "gt".as_bytes().to_vec(),
+			// This asset price is set to 1000
+			// The task is config to run when price > 2000, and we invoked it directly
+			// so and we will observe that task won't run due to price doesn't match
+			// the condition
+			trigger_params: vec![2000],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+
+		AutomationPrice::validate_and_schedule_task(task.clone());
+
+		AutomationPrice::run_tasks(
+			vec![(task.owner_id.clone(), task.task_id.clone())],
+			100_000_000_000.into(),
+		);
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskHasStalePrice {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 		}));

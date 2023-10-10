@@ -20,7 +20,7 @@ use crate as pallet_automation_price;
 use crate::TaskId;
 
 use frame_support::{
-	construct_runtime, parameter_types,
+	assert_noop, assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, Contains, Everything},
 	weights::Weight,
 	PalletId,
@@ -518,7 +518,7 @@ pub fn setup_asset(sender: &AccountId32, chain: Vec<u8>) {
 }
 
 // setup a few sample assets, initialize it with sane default vale and set a price to support test cases
-pub fn setup_prices(sender: &AccountId32) {
+pub fn setup_assets_and_prices(sender: &AccountId32, block_time: u128) {
 	AutomationPrice::initialize_asset(
 		RawOrigin::Root.into(),
 		chain1.to_vec(),
@@ -548,4 +548,37 @@ pub fn setup_prices(sender: &AccountId32) {
 		10,
 		vec![sender.clone()],
 	);
+
+	assert_ok!(AutomationPrice::update_asset_prices(
+		RuntimeOrigin::signed(sender.clone()),
+		vec![chain1.to_vec()],
+		vec![exchange1.to_vec()],
+		vec![asset1.to_vec()],
+		vec![asset2.to_vec()],
+		vec![1000_u128],
+		vec![block_time],
+		vec![1000],
+	));
+
+	assert_ok!(AutomationPrice::update_asset_prices(
+		RuntimeOrigin::signed(sender.clone()),
+		vec![chain2.to_vec()],
+		vec![exchange1.to_vec()],
+		vec![asset2.to_vec()],
+		vec![asset3.to_vec()],
+		vec![5000_u128],
+		vec![block_time],
+		vec![1000],
+	));
+
+	assert_ok!(AutomationPrice::update_asset_prices(
+		RuntimeOrigin::signed(sender.clone()),
+		vec![chain2.to_vec()],
+		vec![exchange1.to_vec()],
+		vec![asset1.to_vec()],
+		vec![asset3.to_vec()],
+		vec![10000_u128],
+		vec![block_time],
+		vec![1000],
+	));
 }
