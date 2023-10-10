@@ -421,7 +421,7 @@ pub mod pallet {
 		// An event happen in extreme case, where the chain is too busy, and there is pending task
 		// from previous block, and their respectively price has now moved against their matching
 		// target range
-		TaskHasStalePrice {
+		PriceAlreadyMoved {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
@@ -1058,7 +1058,7 @@ pub mod pallet {
 				if price_matched_target_condtion {
 					return (true, consumed_weight)
 				} else {
-					Self::deposit_event(Event::TaskHasStalePrice {
+					Self::deposit_event(Event::PriceAlreadyMoved {
 						who: task.owner_id.clone(),
 						task_id: task.task_id.clone(),
 					});

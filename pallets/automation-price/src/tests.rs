@@ -981,7 +981,7 @@ fn test_price_move_against_target_price_skip_run() {
 			task_id: task.task_id.clone(),
 		}));
 
-		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskHasStalePrice {
+		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::PriceAlreadyMoved {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 		}));
