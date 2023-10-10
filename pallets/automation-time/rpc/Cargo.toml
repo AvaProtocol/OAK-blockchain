@@ -15,11 +15,11 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { package = "parity-scale-codec", version = "3.1.3" }
 jsonrpsee = { version = "0.16.2", features = ["server", "macros"] }
 
-sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
-sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.38" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 
 pallet-automation-time-rpc-runtime-api = { path = "./runtime-api" }
