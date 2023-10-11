@@ -549,13 +549,17 @@ pub fn setup_assets_and_prices(sender: &AccountId32, block_time: u128) {
 		vec![sender.clone()],
 	);
 
+	// This fixture function initialize 3 asset pairs, and set their price to 1000, 5000, 10_000
+	const pair1_price: u128 = 1000_u128;
+	const pair2_price: u128 = 5000_u128;
+	const pair3_price: u128 = 10_000_u128;
 	assert_ok!(AutomationPrice::update_asset_prices(
 		RuntimeOrigin::signed(sender.clone()),
 		vec![chain1.to_vec()],
 		vec![exchange1.to_vec()],
 		vec![asset1.to_vec()],
 		vec![asset2.to_vec()],
-		vec![1000_u128],
+		vec![pair1_price],
 		vec![block_time],
 		vec![1000],
 	));
@@ -566,7 +570,7 @@ pub fn setup_assets_and_prices(sender: &AccountId32, block_time: u128) {
 		vec![exchange1.to_vec()],
 		vec![asset2.to_vec()],
 		vec![asset3.to_vec()],
-		vec![5000_u128],
+		vec![pair2_price],
 		vec![block_time],
 		vec![1000],
 	));
@@ -577,7 +581,7 @@ pub fn setup_assets_and_prices(sender: &AccountId32, block_time: u128) {
 		vec![exchange1.to_vec()],
 		vec![asset1.to_vec()],
 		vec![asset3.to_vec()],
-		vec![10000_u128],
+		vec![pair3_price],
 		vec![block_time],
 		vec![1000],
 	));
