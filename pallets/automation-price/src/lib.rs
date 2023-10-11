@@ -1008,7 +1008,6 @@ pub mod pallet {
 			Ok(now)
 		}
 
-
 		// Check whether a task can run or not based on its expiration and price.
 		//
 		// A task can be queued but got expired when it's about to run, in that case, we don't want
@@ -1072,7 +1071,6 @@ pub mod pallet {
 			(false, consumed_weight)
 		}
 
-
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
@@ -1081,7 +1079,6 @@ pub mod pallet {
 			mut weight_left: Weight,
 		) -> (TaskIdList<T>, Weight) {
 			let mut consumed_task_index: usize = 0;
-
 
 			// If we cannot extract time from the block, then somthing horrible wrong, let not move
 			// forward
@@ -1123,7 +1120,7 @@ pub mod pallet {
 							.map_or(0, |v| v);
 
 							let (task_action_weight, task_dispatch_error) =
-								match task.action.clone() {	
+								match task.action.clone() {
 									Action::XCMP {
 										destination,
 										execution_fee,

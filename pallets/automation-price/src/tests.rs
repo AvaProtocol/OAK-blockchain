@@ -781,9 +781,7 @@ fn test_decrease_task_count_when_execute_tasks() {
 		let creator2 = AccountId32::new(BOB);
 		let para_id: u32 = 1000;
 
-
 		setup_assets_and_prices(&creator1, START_BLOCK_TIME as u128);
-
 
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
@@ -941,7 +939,6 @@ fn test_expired_task_not_run() {
 	})
 }
 
-
 // when running a task, if the price has been moved against the target price, rendering the target
 // price condition not match anymore. we will skip run
 #[test]
@@ -1012,7 +1009,6 @@ fn test_price_move_against_target_price_skip_run() {
 		}));
 	})
 }
-
 
 // When canceling, task is removed from 3 places:
 #[test]
