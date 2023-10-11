@@ -44,3 +44,11 @@ impl<AccountId> Action<AccountId> {
 		}
 	}
 }
+
+/// The enum represent  the type of metric we track
+#[derive(Clone, Debug, Eq, PartialEq, Encode, Decode, TypeInfo)]
+#[scale_info(skip_type_params(T))]
+pub enum StatType {
+	TotalTasksOverall,
+	TotalTasksPerAccount,
+}

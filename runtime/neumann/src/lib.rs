@@ -915,6 +915,8 @@ impl pallet_automation_time::Config for Runtime {
 impl pallet_automation_price::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = ConstU32<1>;
+	type MaxTasksPerAccount = ConstU32<32>;
+	type MaxTasksOverall = ConstU32<16_384>;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type WeightInfo = pallet_automation_price::weights::SubstrateWeight<Runtime>;

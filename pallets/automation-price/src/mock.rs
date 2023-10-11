@@ -49,6 +49,7 @@ pub type CurrencyId = u32;
 pub const DEFAULT_SCHEDULE_FEE_LOCATION: MultiLocation = MOONBASE_ASSET_LOCATION;
 
 pub const ALICE: [u8; 32] = [1u8; 32];
+pub const BOB: [u8; 32] = [2u8; 32];
 pub const DELEGATOR_ACCOUNT: [u8; 32] = [3u8; 32];
 pub const PROXY_ACCOUNT: [u8; 32] = [4u8; 32];
 
@@ -190,6 +191,8 @@ impl pallet_timestamp::Config for Test {
 impl pallet_automation_price::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxTasksPerSlot = MaxTasksPerSlot;
+	type MaxTasksPerAccount = MaxTasksPerAccount;
+	type MaxTasksOverall = MaxTasksOverall;
 	type MaxBlockWeight = MaxBlockWeight;
 	type MaxWeightPercentage = MaxWeightPercentage;
 	type WeightInfo = MockWeight<Test>;
@@ -209,6 +212,9 @@ impl pallet_automation_price::Config for Test {
 
 parameter_types! {
 	pub const MaxTasksPerSlot: u32 = 2;
+	// Mock value, purposely set to a small number so easiser to test limit reached
+	pub const MaxTasksOverall: u32 = 1024;
+	pub const MaxTasksPerAccount: u32 = 16;
 	#[derive(Debug)]
 	pub const MaxScheduleSeconds: u64 = 24 * 60 * 60;
 	pub const MaxBlockWeight: u64 = 20_000_000;
