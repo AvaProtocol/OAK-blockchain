@@ -27,7 +27,7 @@ use frame_support::{
 };
 use frame_system::{self, RawOrigin};
 use sp_core::Get;
-use sp_runtime::AccountId32;
+use sp_runtime::{AccountId32, ArithmeticError};
 
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
@@ -481,6 +481,21 @@ fn test_schedule_return_error_when_reaching_max_account_tasks_limit() {
 }
 
 // Test when price moves, the TaskQueue will be populated with the right task id
+//
+// In this test we will first setup 3 tasks for 3 pairs
+//  task1 for pair1
+//  task2 for pair2
+//  task3 for pair3
+//
+//  when we will adjust the price of the pair, we purposely let task2 price not match
+//  so we will test that task1, task3 will be moved into the queue accordingly.
+//
+//  then finally schedule a new task4, for pair3, but its price will match. we will test
+//  that task4 are moved to TaskQueue. task2 won't be moved
+//
+//  The purpose of this test is to simulae a few tasks being trigger accordingly to their
+//  price movement. We also verify that task  won't have its price match, will never get
+//  trigger
 #[test]
 fn test_shift_tasks_movement_through_price_changes() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -490,7 +505,9 @@ fn test_shift_tasks_movement_through_price_changes() {
 		let call: Vec<u8> = vec![2, 4, 5];
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
-		setup_prices(&creator);
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let mut base_price = 10_000_u128;
 
 		// Lets setup 3 tasks
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
@@ -501,7 +518,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset2.to_vec(),
 			1000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(100),
+			vec!(base_price + 1000),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -521,7 +538,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset3.to_vec(),
 			3000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(900),
+			vec!(base_price + 900),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -541,7 +558,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			asset3.to_vec(),
 			6000u128,
 			"gt".as_bytes().to_vec(),
-			vec!(2000),
+			vec!(base_price + 1000),
 			Box::new(destination.into()),
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
@@ -559,13 +576,13 @@ fn test_shift_tasks_movement_through_price_changes() {
 		let task_id3 = task_ids.get(task_ids.len().wrapping_sub(1)).unwrap();
 
 		// at this moment our task queue is empty
-		// There is schedule tasks, but no tasks in the queue at this moment
+		// There is schedule tasks, but no tasks in the queue at this moment, because shift_tasks
+		// has not run yet
 		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
 
 		// shift_tasks move task from registry to the queue
-		// there is no price yet, so task won't move
+		// At this moment, The price doesn't match the target so there is no change in our tasks
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
-		// The price is too low so there is no change in our tasks
 		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
 		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
 			chain1.to_vec(),
@@ -575,17 +592,20 @@ fn test_shift_tasks_movement_through_price_changes() {
 		));
 		assert_eq!(sorted_task_index.map_or_else(|| 0, |x| x.len()), 1);
 
-		//
-		// now we update price, one task moved to the  queue
-		// The target price for those respectively tasks are 100, 900, 2000 in their pair
-		// Therefore after running this price update, first task are moved
+		// now we change price of pair1 to higher than its target price, while keeping pair2/pair3 low enough,
+		// only task_id1 will be moved to the queue.
+		// The target price for those respectively tasks are 10100, 10900, 102000 in their pair
+		// Therefore after running this price update, first task task_id1 are moved into TaskQueue
+		let mut new_pair_1_price: u128 = base_price + 2000;
+		let mut new_pair_2_price: u128 = 10_u128;
+		let mut new_pair_3_price: u128 = 300_u128;
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
 			vec!(chain1.to_vec(), chain2.to_vec(), chain2.to_vec()),
 			vec!(exchange1.to_vec(), exchange1.to_vec(), exchange1.to_vec()),
 			vec!(asset1.to_vec(), asset2.to_vec(), asset1.to_vec()),
 			vec!(asset2.to_vec(), asset3.to_vec(), asset3.to_vec()),
-			vec!(1005_u128, 10_u128, 300_u128),
+			vec!(new_pair_1_price, new_pair_2_price, new_pair_3_price),
 			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
 			vec!(1, 2, 3),
 		));
@@ -604,14 +624,16 @@ fn test_shift_tasks_movement_through_price_changes() {
 			0
 		);
 
-		// Now when price meet trigger condition
+		// now we move target price of pair3 to higher than its target, and will observe that its
+		// task will be moved to TaskQueue too.
+		new_pair_3_price = base_price + 2000;
 		AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
 			vec![chain2.to_vec()],
 			vec![exchange1.to_vec()],
 			vec![asset1.to_vec()],
 			vec![asset3.to_vec()],
-			vec![9000_u128],
+			vec![new_pair_3_price],
 			vec![START_BLOCK_TIME as u128],
 			vec![4],
 		);
@@ -633,8 +655,8 @@ fn test_shift_tasks_movement_through_price_changes() {
 			0
 		);
 
-		//
-		// Now if a task come with <, they can
+		// Now, if a new task come up, and its price target matches the existing price, they will
+		// be trigger too.
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
@@ -701,6 +723,8 @@ fn test_emit_event_when_execute_tasks() {
 		let creator = AccountId32::new(ALICE);
 		let para_id: u32 = 1000;
 
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
@@ -756,6 +780,8 @@ fn test_decrease_task_count_when_execute_tasks() {
 		let creator1 = AccountId32::new(ALICE);
 		let creator2 = AccountId32::new(BOB);
 		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator1, START_BLOCK_TIME as u128);
 
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
@@ -909,6 +935,91 @@ fn test_expired_task_not_run() {
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::AlreadyExpired {
+				expired_at: task.expired_at,
+				now: START_BLOCK_TIME
+					.checked_div(1000)
+					.ok_or(ArithmeticError::Overflow)
+					.expect("blocktime is out of range") as u128,
+			},
+		}));
+	})
+}
+
+// when running a task, if the price has been moved against the target price, rendering the target
+// price condition not match anymore. we will skip run
+#[test]
+fn test_price_move_against_target_price_skip_run() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator = AccountId32::new(ALICE);
+		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let task = Task::<Test> {
+			owner_id: creator.into(),
+			task_id: "123-0-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: START_BLOCK_TIME
+				.checked_div(1000)
+				.map_or(10000000_u128, |v| v.into())
+				.saturating_add(100),
+			trigger_function: "gt".as_bytes().to_vec(),
+			// This asset price is set to 1000
+			// The task is config to run when price > 2000, and we invoked it directly
+			// so and we will observe that task won't run due to price doesn't match
+			// the condition
+			trigger_params: vec![2000],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+
+		AutomationPrice::validate_and_schedule_task(task.clone());
+
+		AutomationPrice::run_tasks(
+			vec![(task.owner_id.clone(), task.task_id.clone())],
+			100_000_000_000.into(),
+		);
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+		}));
+
+		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::PriceAlreadyMoved {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::PriceAlreadyMoved {
+				chain: chain1.to_vec(),
+				exchange: exchange1.to_vec(),
+				asset_pair: (asset1.to_vec(), asset2.to_vec()),
+				price: 1000_u128,
+				target_price: 2000_u128,
+			},
 		}));
 	})
 }

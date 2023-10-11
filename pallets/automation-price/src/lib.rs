@@ -34,6 +34,9 @@ pub mod weights;
 pub mod types;
 pub use types::*;
 
+pub mod trigger;
+pub use trigger::*;
+
 mod fees;
 
 #[cfg(test)]
@@ -370,6 +373,32 @@ pub mod pallet {
 		BadVersion,
 	}
 
+	/// This is a event helper struct to help us making sense of the chain state and surrounded
+	/// environment state when we emit an event during task execution or task scheduling.
+	///
+	/// They should contains enough information for an operator to look at and reason about "why do we
+	/// got here".
+	/// Many fields on this struct is optinal to support multiple error condition
+	#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
+	pub enum TaskCondition {
+		AlreadyExpired {
+			// the original expired_at of this task
+			expired_at: u128,
+			// the block time when we emit this event. expired_at should always <= now
+			now: u128,
+		},
+
+		PriceAlreadyMoved {
+			chain: ChainName,
+			exchange: Exchange,
+			asset_pair: AssetPair,
+			price: u128,
+
+			// The target price the task set
+			target_price: u128,
+		},
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -399,17 +428,30 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+		// An event when the task is cancelled, either by owner or by root
 		TaskCancelled {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+		// An event whenever we expect a task but cannot find it
 		TaskNotFound {
 			who: AccountOf<T>,
 			task_id: TaskId,
 		},
+		// An event when we are about to run task, but the task has expired right before
+		// it's actually run
 		TaskExpired {
 			who: AccountOf<T>,
 			task_id: TaskId,
+			condition: TaskCondition,
+		},
+		// An event happen in extreme case, where the chain is too busy, and there is pending task
+		// from previous block, and their respectively price has now moved against their matching
+		// target range
+		PriceAlreadyMoved {
+			who: AccountOf<T>,
+			task_id: TaskId,
+			condition: TaskCondition,
 		},
 		AssetCreated {
 			chain: ChainName,
@@ -839,8 +881,7 @@ pub mod pallet {
 
 					//Eg sell order, sell when price >
 					let range;
-					// TODO: move magic number into a trigger.rs module
-					if trigger_func == vec![103_u8, 116_u8] {
+					if trigger_func == TRIGGER_FUNC_GT.to_vec() {
 						range = (Excluded(&u128::MIN), Included(&current_price.amount))
 					} else {
 						// Eg buy order, buy when price <
@@ -995,6 +1036,81 @@ pub mod pallet {
 			Ok(now)
 		}
 
+		// Check whether a task can run or not based on its expiration and price.
+		//
+		// A task can be queued but got expired when it's about to run, in that case, we don't want
+		// it to be run.
+		//
+		// Or the price might move by the time task is invoked, we don't want it to get run either.
+		fn task_can_run(task: &Task<T>) -> (bool, Weight) {
+			let mut consumed_weight: Weight = Weight::from_ref_time(0);
+
+			// If we cannot extract time from the block, then somthing horrible wrong, let not move
+			// forward
+			let current_block_time = Self::get_current_block_time();
+			if current_block_time.is_err() {
+				return (false, consumed_weight)
+			}
+
+			let now = current_block_time.unwrap();
+
+			if task.expired_at < now.into() {
+				consumed_weight =
+					consumed_weight.saturating_add(<T as Config>::WeightInfo::emit_event());
+
+				Self::deposit_event(Event::TaskExpired {
+					who: task.owner_id.clone(),
+					task_id: task.task_id.clone(),
+					condition: TaskCondition::AlreadyExpired {
+						expired_at: task.expired_at,
+						now: now.into(),
+					},
+				});
+
+				return (false, consumed_weight)
+			}
+
+			// read storage once to get the price
+			consumed_weight = consumed_weight.saturating_add(T::DbWeight::get().reads(1u64));
+			if let Some(this_task_asset_price) =
+				Self::get_asset_price_data((&task.chain, &task.exchange, &task.asset_pair))
+			{
+				// trigger when target price > current price of the asset
+				// Example:
+				//  - current price: 100, the task is has target price: 50  -> runable
+				//  - current price: 100, the task is has target price: 150 -> not runable
+				//
+				let price_matched_target_condtion =
+					if task.trigger_function == TRIGGER_FUNC_GT.to_vec() {
+						task.trigger_params[0] < this_task_asset_price.amount
+					} else {
+						task.trigger_params[0] > this_task_asset_price.amount
+					};
+
+				if price_matched_target_condtion {
+					return (true, consumed_weight)
+				} else {
+					Self::deposit_event(Event::PriceAlreadyMoved {
+						who: task.owner_id.clone(),
+						task_id: task.task_id.clone(),
+						condition: TaskCondition::PriceAlreadyMoved {
+							chain: task.chain.clone(),
+							exchange: task.exchange.clone(),
+							asset_pair: task.asset_pair.clone(),
+							price: this_task_asset_price.amount,
+
+							target_price: task.trigger_params[0],
+						},
+					});
+
+					return (false, consumed_weight)
+				}
+			}
+
+			// This happen because we cannot find the price, so the task cannot be run
+			(false, consumed_weight)
+		}
+
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
 		///
 		/// Returns a vec with the tasks that were not run and the remaining weight.
@@ -1025,15 +1141,10 @@ pub mod pallet {
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
-						// TODO: re-check condition here once more time because the price might have been
-						// more
-						// if the task is already expired, don't run them either
-						if task.expired_at < now.into() {
-							Self::deposit_event(Event::TaskExpired {
-								who: task.owner_id.clone(),
-								task_id: task_id.clone(),
-							});
-							<T as Config>::WeightInfo::emit_event()
+						let (task_runable, test_can_run_weight) = Self::task_can_run(&task);
+
+						if !task_runable {
+							test_can_run_weight
 						} else {
 							Self::deposit_event(Event::TaskTriggered {
 								who: task.owner_id.clone(),
@@ -1050,8 +1161,6 @@ pub mod pallet {
 
 							let (task_action_weight, task_dispatch_error) =
 								match task.action.clone() {
-									// TODO: Run actual task later to return weight
-									// not just return weight for test to pass
 									Action::XCMP {
 										destination,
 										execution_fee,
