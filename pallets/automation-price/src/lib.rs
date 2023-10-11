@@ -357,7 +357,7 @@ pub mod pallet {
 		/// Failed to remove task
 		TaskRemoveFailure,
 		/// Task Not Found When canceling
-		TaskDoesNotExist,
+		TaskNotFound,
 		/// Insufficient Balance
 		InsufficientBalance,
 		/// Restrictions on Liquidity in Account
@@ -769,7 +769,7 @@ pub mod pallet {
 					task_id: task.task_id.clone(),
 				});
 			} else {
-				Err(Error::<T>::TaskDoesNotExist)?
+				Err(Error::<T>::TaskNotFound)?
 			}
 
 			Ok(())
@@ -1153,7 +1153,7 @@ pub mod pallet {
 			}
 
 			Tasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
-			// Post tax processing, increase relevant metrics data
+			// Post task processing, increase relevant metrics data
 			TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task + 1);
 			AccountStats::<T>::insert(
 				task.owner_id.clone(),
