@@ -417,6 +417,10 @@ pub mod pallet {
 		TaskExpired {
 			who: AccountOf<T>,
 			task_id: TaskId,
+			// the original expired_at of this task
+			expired_at: u128,
+			// the block time when we emit this event. expired_at should always <= now
+			now: u128,
 		},
 		// An event happen in extreme case, where the chain is too busy, and there is pending task
 		// from previous block, and their respectively price has now moved against their matching
@@ -1033,6 +1037,8 @@ pub mod pallet {
 				Self::deposit_event(Event::TaskExpired {
 					who: task.owner_id.clone(),
 					task_id: task.task_id.clone(),
+					expired_at: task.expired_at,
+					now: now.into(),
 				});
 
 				return (false, consumed_weight)

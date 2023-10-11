@@ -935,6 +935,8 @@ fn test_expired_task_not_run() {
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			expired_at: task.expired_at,
+			now: START_BLOCK_TIME.into(),
 		}));
 	})
 }
