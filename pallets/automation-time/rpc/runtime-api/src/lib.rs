@@ -47,17 +47,17 @@ pub struct FeeDetails<Balance> {
 	pub execution_fee: Balance,
 }
 
-sp_api::decl_runtime_apis! {
-	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
-		AccountId: Codec,
-		Hash: Codec,
-		Balance: Codec,
-	{
-		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
-		fn calculate_optimal_autostaking(
-			principal: i128,
-			collator: AccountId
-		) -> Result<AutostakingResult, Vec<u8>>;
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>>;
-	}
-}
+// sp_api::decl_runtime_apis! {
+// 	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
+// 		AccountId: Codec,
+// 		Hash: Codec,
+// 		Balance: Codec,
+// 	{
+// 		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
+// 		fn calculate_optimal_autostaking(
+// 			principal: i128,
+// 			collator: AccountId
+// 		) -> Result<AutostakingResult, Vec<u8>>;
+// 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>>;
+// 	}
+// }

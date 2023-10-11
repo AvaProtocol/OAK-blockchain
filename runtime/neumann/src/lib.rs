@@ -63,7 +63,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
@@ -311,6 +311,10 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {
@@ -576,15 +580,16 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxTopDelegationsPerCandidate = ConstU32<10>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<10>;
-	type MinCollatorStk = MinCollatorStk;
+	// type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
 	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
+	// type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	/// Handler to notify the runtime when a collator is paid
 	type OnCollatorPayout = ();
 	type PayoutCollatorReward = ();
@@ -597,6 +602,7 @@ impl pallet_parachain_staking::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 4 * MINUTES;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -624,6 +630,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 parameter_types! {
@@ -640,6 +648,8 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 type MoreThanHalfCouncil = EitherOfDiverse<
@@ -663,6 +673,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -800,6 +811,7 @@ impl pallet_democracy::Config for Runtime {
 	/// (NTB) vote.
 	type ExternalDefaultOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	/// Two thirds of the technical committee can have an `ExternalMajority/ExternalDefault` vote
 	/// be tabled immediately and with a shorter voting/enactment period.
 	type FastTrackOrigin =
@@ -1030,6 +1042,10 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Event<T>} = 62,
+
+		// AuthorInherent: pallet_author_inherent::{Pallet, Call, Storage, Inherent} = 63,
+		// AuthorFilter: pallet_author_slot_filter::{Pallet, Call, Storage, Event, Config} = 64,
+
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
@@ -1062,6 +1078,14 @@ impl_runtime_apis! {
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
+		}
+
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
 		}
 	}
 
@@ -1158,79 +1182,79 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
-		fn query_fee_details(
-			uxt: <Block as BlockT>::Extrinsic,
-		) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
-			use pallet_automation_time::Action;
+	// impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
+	// 	fn query_fee_details(
+	// 		uxt: <Block as BlockT>::Extrinsic,
+	// 	) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
+	// 		use pallet_automation_time::Action;
 
-			let (action, executions) = match uxt.function {
-				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
-				}) => {
-					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
-					Ok((action, schedule.number_of_executions()))
-				},
-				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
-					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
-				}) => {
-					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
-					Ok((action, schedule.number_of_executions()))
-				},
-				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
-					call, schedule, ..
-				}) => {
-					let action = Action::DynamicDispatch { encoded_call: call.encode() };
-					Ok((action, schedule.number_of_executions()))
-				},
-				_ => Err("Unsupported Extrinsic".as_bytes())
-			}?;
+	// 		let (action, executions) = match uxt.function {
+	// 			RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+	// 				destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
+	// 			}) => {
+	// 				let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+	// 				let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+	// 				let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
+	// 				Ok((action, schedule.number_of_executions()))
+	// 			},
+	// 			RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
+	// 				destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
+	// 			}) => {
+	// 				let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+	// 				let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+	// 				let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+	// 				Ok((action, schedule.number_of_executions()))
+	// 			},
+	// 			RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
+	// 				call, schedule, ..
+	// 			}) => {
+	// 				let action = Action::DynamicDispatch { encoded_call: call.encode() };
+	// 				Ok((action, schedule.number_of_executions()))
+	// 			},
+	// 			_ => Err("Unsupported Extrinsic".as_bytes())
+	// 		}?;
 
-			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
-			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
-				.map_err(|_| "Unable to parse fee".as_bytes())?;
+	// 		let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+	// 		let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
+	// 			.map_err(|_| "Unable to parse fee".as_bytes())?;
 
-			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount,
-				execution_fee: fee_handler.execution_fee_amount
-			})
-		}
+	// 		Ok(AutomationFeeDetails {
+	// 			schedule_fee: fee_handler.schedule_fee_amount,
+	// 			execution_fee: fee_handler.execution_fee_amount
+	// 		})
+	// 	}
 
-		fn calculate_optimal_autostaking(
-			principal: i128,
-			collator: AccountId
-		) -> Result<AutostakingResult, Vec<u8>> {
-			let candidate_info = ParachainStaking::candidate_info(collator);
-			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
+	// 	fn calculate_optimal_autostaking(
+	// 		principal: i128,
+	// 		collator: AccountId
+	// 	) -> Result<AutostakingResult, Vec<u8>> {
+	// 		let candidate_info = ParachainStaking::candidate_info(collator);
+	// 		let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
-			let collator_stake =
-				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-			let fee = AutomationTime::calculate_schedule_fee_amount(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
+	// 		let collator_stake =
+	// 			candidate_info.ok_or("collator does not exist")?.total_counted as i128;
+	// 		let fee = AutomationTime::calculate_schedule_fee_amount(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
 
-			let duration = 90;
-			let total_collators = ParachainStaking::total_selected();
-			let daily_collator_rewards =
-				(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
+	// 		let duration = 90;
+	// 		let total_collators = ParachainStaking::total_selected();
+	// 		let daily_collator_rewards =
+	// 			(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
 
-			let res = pallet_automation_time::do_calculate_optimal_autostaking(
-				principal,
-				collator_stake,
-				fee,
-				duration,
-				daily_collator_rewards,
-			);
+	// 		let res = pallet_automation_time::do_calculate_optimal_autostaking(
+	// 			principal,
+	// 			collator_stake,
+	// 			fee,
+	// 			duration,
+	// 			daily_collator_rewards,
+	// 		);
 
-			Ok(AutostakingResult{period: res.0, apy: res.1})
-		}
+	// 		Ok(AutostakingResult{period: res.0, apy: res.1})
+	// 	}
 
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
-			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
-		}
-	}
+	// 	fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
+	// 		AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
+	// 	}
+	// }
 
 	impl pallet_automation_price_rpc_runtime_api::AutomationPriceApi<Block, AccountId, Hash, Balance> for Runtime {
 		fn query_fee_details(
