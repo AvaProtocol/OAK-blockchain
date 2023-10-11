@@ -373,6 +373,32 @@ pub mod pallet {
 		BadVersion,
 	}
 
+	/// This is a event helper struct to help us making sense of the chain state and surrounded
+	/// environment state when we emit an event during task execution or task scheduling.
+	///
+	/// They should contains enough information for an operator to look at and reason about "why do we
+	/// got here".
+	/// Many fields on this struct is optinal to support multiple error condition
+	#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
+	pub enum TaskCondition {
+		AlreadyExpired {
+			// the original expired_at of this task
+			expired_at: u128,
+			// the block time when we emit this event. expired_at should always <= now
+			now: u128,
+		},
+
+		PriceAlreadyMoved {
+			chain: ChainName,
+			exchange: Exchange,
+			asset_pair: AssetPair,
+			price: u128,
+
+			// The target price the task set
+			target_price: u128,
+		},
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -417,10 +443,7 @@ pub mod pallet {
 		TaskExpired {
 			who: AccountOf<T>,
 			task_id: TaskId,
-			// the original expired_at of this task
-			expired_at: u128,
-			// the block time when we emit this event. expired_at should always <= now
-			now: u128,
+			condition: TaskCondition,
 		},
 		// An event happen in extreme case, where the chain is too busy, and there is pending task
 		// from previous block, and their respectively price has now moved against their matching
@@ -428,6 +451,7 @@ pub mod pallet {
 		PriceAlreadyMoved {
 			who: AccountOf<T>,
 			task_id: TaskId,
+			condition: TaskCondition,
 		},
 		AssetCreated {
 			chain: ChainName,
@@ -1037,8 +1061,10 @@ pub mod pallet {
 				Self::deposit_event(Event::TaskExpired {
 					who: task.owner_id.clone(),
 					task_id: task.task_id.clone(),
-					expired_at: task.expired_at,
-					now: now.into(),
+					condition: TaskCondition::AlreadyExpired {
+						expired_at: task.expired_at,
+						now: now.into(),
+					},
 				});
 
 				return (false, consumed_weight)
@@ -1067,6 +1093,14 @@ pub mod pallet {
 					Self::deposit_event(Event::PriceAlreadyMoved {
 						who: task.owner_id.clone(),
 						task_id: task.task_id.clone(),
+						condition: TaskCondition::PriceAlreadyMoved {
+							chain: task.chain.clone(),
+							exchange: task.exchange.clone(),
+							asset_pair: task.asset_pair.clone(),
+							price: this_task_asset_price.amount,
+
+							target_price: task.trigger_params[0],
+						},
 					});
 
 					return (false, consumed_weight)

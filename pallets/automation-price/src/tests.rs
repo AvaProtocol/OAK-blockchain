@@ -27,7 +27,7 @@ use frame_support::{
 };
 use frame_system::{self, RawOrigin};
 use sp_core::Get;
-use sp_runtime::AccountId32;
+use sp_runtime::{AccountId32, ArithmeticError};
 
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
@@ -935,8 +935,13 @@ fn test_expired_task_not_run() {
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
-			expired_at: task.expired_at,
-			now: START_BLOCK_TIME.into(),
+			condition: crate::TaskCondition::AlreadyExpired {
+				expired_at: task.expired_at,
+				now: START_BLOCK_TIME
+					.checked_div(1000)
+					.ok_or(ArithmeticError::Overflow)
+					.expect("blocktime is out of range") as u128,
+			},
 		}));
 	})
 }
@@ -1008,6 +1013,13 @@ fn test_price_move_against_target_price_skip_run() {
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::PriceAlreadyMoved {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::PriceAlreadyMoved {
+				chain: chain1.to_vec(),
+				exchange: exchange1.to_vec(),
+				asset_pair: (asset1.to_vec(), asset2.to_vec()),
+				price: 1000_u128,
+				target_price: 2000_u128,
+			},
 		}));
 	})
 }
