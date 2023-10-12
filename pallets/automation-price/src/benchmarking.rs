@@ -310,9 +310,18 @@ benchmarks! {
 			AutomationPrice::<T>::validate_and_schedule_task(task.clone());
 			tasks.push(task);
 		}
+
+		let task = tasks.pop().unwrap();
 	}: {
 		// remove a task at the end to simulate the worst case
-		AutomationPrice::<T>::remove_task(&(tasks.pop().unwrap()));
+		AutomationPrice::<T>::remove_task(&task, Some(crate::Event::<T>::TaskSweep {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::AlreadyExpired {
+				expired_at: task.expired_at,
+				now: 100,
+			}
+		}));
 	}
 
 

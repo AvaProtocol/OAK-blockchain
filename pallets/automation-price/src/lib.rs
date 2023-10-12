@@ -463,6 +463,13 @@ pub mod pallet {
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
+		// An event when we are proactively sweep expired task
+		// it's actually run
+		TaskSweep {
+			who: AccountOf<T>,
+			task_id: TaskId,
+			condition: TaskCondition,
+		},
 		// An event happen in extreme case, where the chain is too busy, and there is pending task
 		// from previous block, and their respectively price has now moved against their matching
 		// target range
@@ -824,11 +831,13 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			if let Some(task) = Self::get_task(&who, &task_id) {
-				Self::remove_task(&task);
-				Self::deposit_event(Event::TaskCancelled {
-					who: task.owner_id.clone(),
-					task_id: task.task_id.clone(),
-				});
+				Self::remove_task(
+					&task,
+					Some(Event::TaskCancelled {
+						who: task.owner_id.clone(),
+						task_id: task.task_id.clone(),
+					}),
+				);
 			} else {
 				Err(Error::<T>::TaskNotFound)?
 			}
@@ -1200,7 +1209,7 @@ pub mod pallet {
 									),
 								};
 
-							Self::remove_task(&task);
+							Self::remove_task(&task, None);
 
 							if let Some(err) = task_dispatch_error {
 								Self::deposit_event(Event::<T>::TaskExecutionFailed {
@@ -1250,7 +1259,7 @@ pub mod pallet {
 		//  TaskStats: decrease task count
 		//  AccountStats: decrease task count
 		//  SortedTasksIndex
-		pub fn remove_task(task: &Task<T>) {
+		pub fn remove_task(task: &Task<T>, event: Option<Event<T>>) {
 			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
@@ -1287,6 +1296,10 @@ pub mod pallet {
 					StatType::TotalTasksPerAccount,
 					total_task_per_account - 1,
 				);
+			}
+
+			if event.is_some() {
+				Self::deposit_event(event.unwrap());
 			}
 		}
 
@@ -1332,7 +1345,17 @@ pub mod pallet {
 
 						// Now let remove the task from chain storage
 						if let Some(task) = Self::get_task(owner_id, task_id) {
-							Self::remove_task(&task);
+							Self::remove_task(
+								&task,
+								Some(Event::TaskSweep {
+									who: task.owner_id.clone(),
+									task_id: task.task_id.clone(),
+									condition: TaskCondition::AlreadyExpired {
+										expired_at: task.expired_at,
+										now: now.into(),
+									},
+								}),
+							);
 						}
 					} else {
 						// If there is not enough weight left, break all the way out, we had

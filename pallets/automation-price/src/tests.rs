@@ -642,6 +642,17 @@ fn test_sweep_expired_task_works() {
 		let remain_weight = 100_000_000_000;
 		AutomationPrice::sweep_expired_task(Weight::from_ref_time(remain_weight));
 
+		for i in 0..expired_task_gen {
+			assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskSweep {
+				who: creator.clone(),
+				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
+				condition: crate::TaskCondition::AlreadyExpired {
+					expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800,
+					now: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+				},
+			}));
+		}
+
 		// After sweep there should only one task remain in queue
 		assert_eq!(Tasks::<Test>::iter().count(), 1);
 
@@ -734,8 +745,6 @@ fn test_sweep_expired_task_partially() {
 		}
 
 		// Now we set timestamp to a later point
-		println!("ts {:}", START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + 1 * 10);
-
 		Timestamp::set_timestamp(
 			START_BLOCK_TIME.saturating_add((3600 + 6 * 10) * 1000).try_into().unwrap(),
 		);
