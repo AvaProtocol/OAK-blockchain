@@ -1137,6 +1137,55 @@ fn test_shift_tasks_movement_through_price_changes() {
 	})
 }
 
+// the logic around > or < using include/exclude range to include bound or not, it can be subtle
+// and error prone to human mistake so this test exist to make sure we catch that edge case.
+#[test]
+fn test_gt_task_not_run_when_asset_price_equal_target_price() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		// TODO: Setup fund once we add fund check and weight
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let mut base_price = 1_000_u128;
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+			"gt".as_bytes().to_vec(),
+			vec!(base_price),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+
+		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		// Task shouldn't be move to task queue to trigger, and the task queue should be empty
+		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+
+		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+			"gt".as_bytes().to_vec(),
+		));
+		assert_eq!(1, sorted_task_index.map_or_else(|| 0, |x| x.len()));
+	})
+}
+
 #[test]
 fn test_emit_event_when_execute_tasks() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {

@@ -906,7 +906,7 @@ pub mod pallet {
 					//Eg sell order, sell when price >
 					let range;
 					if trigger_func == TRIGGER_FUNC_GT.to_vec() {
-						range = (Excluded(&u128::MIN), Included(&current_price.amount))
+						range = (Excluded(&u128::MIN), Excluded(&current_price.amount))
 					} else {
 						// Eg buy order, buy when price <
 						range = (Included(&current_price.amount), Excluded(&u128::MAX))
@@ -1307,8 +1307,6 @@ pub mod pallet {
 					total_task_per_account - 1,
 				);
 			}
-
-			// if it's in TaskQueue, lets remove too
 
 			if event.is_some() {
 				Self::deposit_event(event.unwrap());
