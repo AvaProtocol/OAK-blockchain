@@ -250,6 +250,81 @@ benchmarks! {
 		AutomationPrice::<T>::run_xcmp_task(destination, creator, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), InstructionSequence::PayThroughSovereignAccount)
 	}
 
+	remove_task {
+		let creator : T::AccountId = account("caller", 0, SEED);
+		let para_id: u32 = 1000;
+		let call: Vec<u8> = vec![2, 4, 5];
+		setup_asset::<T>(vec![creator.clone()]);
+		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		T::Currency::deposit_creating(
+			&creator,
+			transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		);
+
+		let para_id: u32 = 2000;
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+		let schedule_as: T::AccountId = account("caller", 0, SEED);
+
+		// Schedule 10000 Task, This is just an arbitrary number to simular a big task registry
+		// Because of using StoragMap, and avoid dealing with vector
+		// our task look up will always be O(1) for time
+		let mut task_ids: Vec<TaskId> = vec![];
+		let mut tasks: Vec<Task<T>> = vec![];
+		for i in 1..100 {
+		  let task_id = format!("{:?}", i).as_bytes().to_vec();
+		  let expired_at = i;
+		  let trigger_function = "gt".as_bytes().to_vec();
+		  let price_target: u128 = i.into();
+		  let encoded_call = vec![100, 200, (i % 256) as u8];
+
+		  task_ids.push(format!("{:?}", i).as_bytes().to_vec());
+			let action = Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee: execution_fee.clone(),
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: Some(schedule_as.clone()),
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			};
+
+			let task: Task<T> = Task::<T> {
+				owner_id: creator.clone(),
+				task_id: task_id.clone(),
+				chain: chain.to_vec(),
+				exchange: exchange.to_vec(),
+				asset_pair: (asset_tur.to_vec(), asset_usd.to_vec()),
+				expired_at,
+				trigger_function,
+				trigger_params: vec![price_target],
+				action,
+			};
+			AutomationPrice::<T>::validate_and_schedule_task(task.clone());
+			tasks.push(task);
+		}
+
+		let task = tasks.pop().unwrap();
+	}: {
+		// remove a task at the end to simulate the worst case
+		AutomationPrice::<T>::remove_task(&task, Some(crate::Event::<T>::TaskSweep {
+			who: task.owner_id.clone(),
+			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::AlreadyExpired {
+				expired_at: task.expired_at,
+				now: 100,
+			}
+		}));
+	}
+
+
 	emit_event {
 		let who: T::AccountId = account("call", 1, SEED);
 		let task_id: TaskId = vec![1,2,3];

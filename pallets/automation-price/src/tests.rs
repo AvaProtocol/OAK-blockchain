@@ -17,7 +17,7 @@
 
 use crate::{
 	mock::*, AccountStats, Action, AssetPayment, Config, Error, StatType, Task, TaskIdList,
-	TaskStats,
+	TaskStats, Tasks,
 };
 use pallet_xcmp_handler::InstructionSequence;
 
@@ -33,7 +33,10 @@ use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
 
+use sp_std::collections::btree_map::BTreeMap;
+
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
+pub const START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND: u128 = 33198768000 + 3600;
 
 struct XcmpActionParams {
 	destination: MultiLocation,
@@ -315,7 +318,7 @@ fn test_schedule_xcmp_task_ok() {
 			exchange1.to_vec(),
 			asset1.to_vec(),
 			asset2.to_vec(),
-			1005u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			"gt".as_bytes().to_vec(),
 			vec!(100),
 			Box::new(destination.into()),
@@ -347,7 +350,7 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(task.chain, chain1.to_vec(), "created task has different chain id");
 		assert_eq!(task.asset_pair.0, asset1, "created task has wrong asset pair");
 
-		assert_eq!(1005u128, task.expired_at);
+		assert_eq!(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND, task.expired_at);
 
 		// Ensure task is inserted into the right SortedIndex
 
@@ -358,7 +361,7 @@ fn test_schedule_xcmp_task_ok() {
 			exchange1.to_vec(),
 			asset1.to_vec(),
 			asset2.to_vec(),
-			1005u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			"gt".as_bytes().to_vec(),
 			vec!(100),
 			Box::new(destination.into()),
@@ -406,6 +409,423 @@ fn test_schedule_xcmp_task_ok() {
 	})
 }
 
+// Verify that upon scheduling a task, the task expiration will be inserted into
+// SortedTasksByExpiration and shard by expired_at.
+#[test]
+fn test_schedule_put_task_to_expiration_queue() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_asset(&creator, chain1.to_vec());
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+			"gt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+		let task_ids = get_task_ids_from_events();
+		let task_id = task_ids.last().expect("task failed to schedule");
+
+		let task_expiration_map = AutomationPrice::get_sorted_tasks_by_expiration();
+		assert_eq!(
+			task_expiration_map
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND))
+				.expect("missing task expiration shard"),
+			&(BTreeMap::from([(task_id.clone(), creator)]))
+		);
+	})
+}
+
+// Verify that upon scheduling a task, the task expiration will be inserted into
+// SortedTasksByExpiration and shard by expired_at.
+// This test is similar as above test but we create multiple task wit different expiration to
+// ensure all of them got to the right spot by expired_at time.
+#[test]
+fn test_schedule_put_task_to_expiration_queue_multi() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
+		let creator1 = AccountId32::new(ALICE);
+		let creator2 = AccountId32::new(BOB);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_asset(&creator1, chain1.to_vec());
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator1.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+			"gt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+		let task_ids1 = get_task_ids_from_events();
+		let task_id1 = task_ids1.last().expect("task failed to schedule");
+
+		assert_ok!(AutomationPrice::schedule_xcmp_task(
+			RuntimeOrigin::signed(creator2.clone()),
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			asset1.to_vec(),
+			asset2.to_vec(),
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 3600,
+			"lt".as_bytes().to_vec(),
+			vec!(100),
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10000000000000
+			}),
+			call.clone(),
+			Weight::from_ref_time(100_000),
+			Weight::from_ref_time(200_000)
+		));
+		let task_ids2 = get_task_ids_from_events();
+		let task_id2 = task_ids2.last().expect("task failed to schedule");
+
+		let task_expiration_map = AutomationPrice::get_sorted_tasks_by_expiration();
+		assert_eq!(
+			task_expiration_map
+				.get(&START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND)
+				.expect("missing task expiration shard"),
+			&BTreeMap::from([(task_id1.clone(), creator1)]),
+		);
+		assert_eq!(
+			task_expiration_map
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 3600))
+				.expect("missing task expiration shard"),
+			&BTreeMap::from([(task_id2.clone(), creator2)]),
+		);
+	})
+}
+
+// Verify that after calling sweep, expired task will be removed from all relevant storage. Our
+// stat is also decrease accordingly to the task removal
+#[test]
+fn test_sweep_expired_task_works() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator = AccountId32::new(ALICE);
+		let other_creator = AccountId32::new(BOB);
+		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let expired_task_gen = 10;
+		let price_target1 = 2000;
+		for i in 0..expired_task_gen {
+			// schedule task that has expired
+			let task = Task::<Test> {
+				owner_id: creator.clone().into(),
+				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
+				chain: chain1.to_vec(),
+				exchange: exchange1.to_vec(),
+				asset_pair: (asset1.to_vec(), asset2.to_vec()),
+				expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800,
+				trigger_function: "gt".as_bytes().to_vec(),
+				trigger_params: vec![price_target1],
+				action: Action::XCMP {
+					destination,
+					schedule_fee,
+					execution_fee: execution_fee.clone(),
+					encoded_call: vec![1, 2, 3],
+					encoded_call_weight,
+					overall_weight,
+					schedule_as: None,
+					instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+				},
+			};
+			assert_ok!(AutomationPrice::validate_and_schedule_task(task.clone()));
+		}
+
+		// Now we set timestamp to a later point
+		Timestamp::set_timestamp(START_BLOCK_TIME.saturating_add(3600_000_u64).try_into().unwrap());
+
+		let price_target2 = 1000;
+		let task = Task::<Test> {
+			owner_id: other_creator.clone().into(),
+			task_id: "123-1-1".as_bytes().to_vec(),
+			chain: chain1.to_vec(),
+			exchange: exchange1.to_vec(),
+			asset_pair: (asset1.to_vec(), asset2.to_vec()),
+			expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 3600,
+			trigger_function: "lt".as_bytes().to_vec(),
+			trigger_params: vec![price_target2],
+			action: Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call: vec![1, 2, 3],
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			},
+		};
+		assert_ok!(AutomationPrice::validate_and_schedule_task(task.clone()));
+
+		assert_eq!(u128::try_from(Tasks::<Test>::iter().count()).unwrap(), expired_task_gen + 1);
+
+		assert_eq!(
+			// 10 task by creator, 1 task by other_creator
+			11,
+			AutomationPrice::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+		assert_eq!(
+			10,
+			AutomationPrice::get_account_stat(creator.clone(), StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+		assert_eq!(
+			1,
+			AutomationPrice::get_account_stat(
+				other_creator.clone(),
+				StatType::TotalTasksPerAccount
+			)
+			.map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+
+		assert_eq!(
+			10,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.map_or(0, |v| v.get(&price_target1).unwrap().iter().len())
+		);
+
+		assert_eq!(
+			1,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"lt".as_bytes().to_vec(),
+			))
+			.map_or(0, |v| v.get(&price_target2).unwrap().iter().len())
+		);
+
+		assert_eq!(
+			10,
+			AutomationPrice::get_sorted_tasks_by_expiration()
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800))
+				.expect("missing task expiration shard")
+				.len(),
+		);
+
+		// now we will sweep, passing a weight limit. In actualy code, this will be the
+		// remaining_weight in on_idle block
+		let remain_weight = 100_000_000_000;
+		AutomationPrice::sweep_expired_task(Weight::from_ref_time(remain_weight));
+
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_by_expiration()
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800)),
+			None
+		);
+
+		for i in 0..expired_task_gen {
+			assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskSweep {
+				who: creator.clone(),
+				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
+				condition: crate::TaskCondition::AlreadyExpired {
+					expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800,
+					now: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+				},
+			}));
+		}
+
+		// After sweep there should only one task remain in queue
+		assert_eq!(Tasks::<Test>::iter().count(), 1);
+
+		// The task should be removed from the SortedTasksIndex
+		assert_eq!(
+			0,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.expect("missing tasks sorted by price data")
+			.get(&price_target1)
+			.map_or(0, |v| v.iter().len())
+		);
+		// The task should be removed from the SortedTasksIndex
+		assert_eq!(
+			1,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"lt".as_bytes().to_vec(),
+			))
+			.expect("missing tasks sorted by price data")
+			.get(&price_target2)
+			.map_or(0, |v| v.iter().len())
+		);
+
+		// The task stat should be changed
+		assert_eq!(
+			1,
+			AutomationPrice::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+		assert_eq!(
+			1,
+			AutomationPrice::get_account_stat(other_creator, StatType::TotalTasksPerAccount)
+				.map_or(0, |v| v),
+			"total task count is incorrect"
+		);
+	})
+}
+
+// Test swap partially data, and leave the rest of sorted index remain intact
+#[test]
+fn test_sweep_expired_task_partially() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let creator = AccountId32::new(ALICE);
+		let other_creator = AccountId32::new(BOB);
+		let para_id: u32 = 1000;
+
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let schedule_fee = MultiLocation::default();
+		let execution_fee = AssetPayment {
+			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
+			amount: 0,
+		};
+		let encoded_call_weight = Weight::from_ref_time(100_000);
+		let overall_weight = Weight::from_ref_time(200_000);
+
+		let expired_task_gen = 11;
+		let price_target1 = 2000;
+		for i in 1..expired_task_gen {
+			// schedule task that has expired
+			let task = Task::<Test> {
+				owner_id: creator.clone().into(),
+				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
+				chain: chain1.to_vec(),
+				exchange: exchange1.to_vec(),
+				asset_pair: (asset1.to_vec(), asset2.to_vec()),
+				expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + i * 10,
+				trigger_function: "gt".as_bytes().to_vec(),
+				trigger_params: vec![price_target1],
+				action: Action::XCMP {
+					destination,
+					schedule_fee,
+					execution_fee: execution_fee.clone(),
+					encoded_call: vec![1, 2, 3],
+					encoded_call_weight,
+					overall_weight,
+					schedule_as: None,
+					instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+				},
+			};
+			assert_ok!(AutomationPrice::validate_and_schedule_task(task.clone()));
+		}
+
+		// Now we set timestamp to a later point
+		Timestamp::set_timestamp(
+			START_BLOCK_TIME.saturating_add((3600 + 6 * 10) * 1000).try_into().unwrap(),
+		);
+
+		assert_eq!(
+			10,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.map_or(0, |v| v.get(&price_target1).unwrap().iter().len())
+		);
+
+		assert_eq!(10, AutomationPrice::get_sorted_tasks_by_expiration().len());
+
+		// remaining_weight in on_idle block
+		let remain_weight = 100_000_000_000;
+		AutomationPrice::sweep_expired_task(Weight::from_ref_time(remain_weight));
+
+		// The task should be removed from the SortedTasksIndex
+		assert_eq!(
+			5,
+			AutomationPrice::get_sorted_tasks_index((
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				(asset1.to_vec(), asset2.to_vec()),
+				"gt".as_bytes().to_vec(),
+			))
+			.expect("missing tasks sorted by price data")
+			.get(&price_target1)
+			.map_or(0, |v| v.iter().len())
+		);
+
+		// these task all get sweeo
+		for i in 1..5 {
+			assert_eq!(
+				0,
+				AutomationPrice::get_sorted_tasks_by_expiration()
+					.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + i * 10))
+					.map_or(0, |v| v.len()),
+			);
+		}
+
+		// these slot remian untouch
+		for i in 6..10 {
+			assert_eq!(
+				1,
+				AutomationPrice::get_sorted_tasks_by_expiration()
+					.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + i * 10))
+					.map_or(0, |v| v.len()),
+			);
+		}
+	})
+}
+
 #[test]
 fn test_schedule_return_error_when_reaching_max_tasks_overall_limit() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -425,7 +845,7 @@ fn test_schedule_return_error_when_reaching_max_tasks_overall_limit() {
 				exchange1.to_vec(),
 				asset1.to_vec(),
 				asset2.to_vec(),
-				1005u128,
+				START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 3600,
 				"gt".as_bytes().to_vec(),
 				vec!(100),
 				Box::new(destination.into()),
@@ -462,7 +882,7 @@ fn test_schedule_return_error_when_reaching_max_account_tasks_limit() {
 				exchange1.to_vec(),
 				asset1.to_vec(),
 				asset2.to_vec(),
-				1005u128,
+				START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 				"gt".as_bytes().to_vec(),
 				vec!(100),
 				Box::new(destination.into()),
@@ -516,7 +936,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			exchange1.to_vec(),
 			asset1.to_vec(),
 			asset2.to_vec(),
-			1000u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			"gt".as_bytes().to_vec(),
 			vec!(base_price + 1000),
 			Box::new(destination.into()),
@@ -536,7 +956,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			exchange1.to_vec(),
 			asset2.to_vec(),
 			asset3.to_vec(),
-			3000u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			"gt".as_bytes().to_vec(),
 			vec!(base_price + 900),
 			Box::new(destination.into()),
@@ -556,7 +976,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			exchange1.to_vec(),
 			asset1.to_vec(),
 			asset3.to_vec(),
-			6000u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 6000,
 			"gt".as_bytes().to_vec(),
 			vec!(base_price + 1000),
 			Box::new(destination.into()),
@@ -663,7 +1083,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			exchange1.to_vec(),
 			asset2.to_vec(),
 			asset3.to_vec(),
-			3000u128,
+			START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			"lt".as_bytes().to_vec(),
 			// price for this asset is 10 in our last update
 			vec!(20),
@@ -897,10 +1317,7 @@ fn test_expired_task_not_run() {
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset_pair: (asset1.to_vec(), asset2.to_vec()),
-			expired_at: START_BLOCK_TIME
-				.checked_div(1000)
-				.map_or(10000000_u128, |v| v.into())
-				.saturating_sub(100),
+			expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			trigger_function: "gt".as_bytes().to_vec(),
 			trigger_params: vec![123],
 			action: Action::XCMP {
@@ -917,6 +1334,8 @@ fn test_expired_task_not_run() {
 
 		AutomationPrice::validate_and_schedule_task(task.clone());
 
+		// Moving the clock to simulate the task expiration
+		Timestamp::set_timestamp(START_BLOCK_TIME.saturating_add(7200_000_u64).try_into().unwrap());
 		AutomationPrice::run_tasks(
 			vec![(task.owner_id.clone(), task.task_id.clone())],
 			100_000_000_000.into(),
@@ -938,6 +1357,7 @@ fn test_expired_task_not_run() {
 			condition: crate::TaskCondition::AlreadyExpired {
 				expired_at: task.expired_at,
 				now: START_BLOCK_TIME
+					.saturating_add(7200_000_u64)
 					.checked_div(1000)
 					.ok_or(ArithmeticError::Overflow)
 					.expect("blocktime is out of range") as u128,
@@ -1046,7 +1466,7 @@ fn test_cancel_task_works() {
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset_pair: (asset1.to_vec(), asset2.to_vec()),
-			expired_at: 123_u128,
+			expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
 			trigger_function: "gt".as_bytes().to_vec(),
 			trigger_params: vec![123],
 			action: Action::XCMP {

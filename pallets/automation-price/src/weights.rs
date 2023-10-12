@@ -68,6 +68,7 @@ pub trait WeightInfo {
 	fn cancel_task_extrinsic() -> Weight;
 	fn run_xcmp_task() -> Weight;
 	fn emit_event() -> Weight;
+    fn remove_task() -> Weight;
 }
 
 /// Weights for pallet_automation_price using the Substrate node and recommended hardware.
@@ -125,6 +126,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 	fn emit_event() -> Weight {
 		Weight::from_ref_time(4_000_000 as u64)
 	}
+
+	fn remove_task() -> Weight {
+		Weight::from_ref_time(4_000_000 as u64)
+	}
 }
 
 // For backwards compatibility and tests
@@ -179,6 +184,10 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 	}
 	fn emit_event() -> Weight {
+		Weight::from_ref_time(4_000_000 as u64)
+	}
+
+	fn remove_task() -> Weight {
 		Weight::from_ref_time(4_000_000 as u64)
 	}
 }

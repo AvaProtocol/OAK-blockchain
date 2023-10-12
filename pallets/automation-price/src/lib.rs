@@ -53,11 +53,7 @@ use core::convert::{TryFrom, TryInto};
 use cumulus_primitives_core::InteriorMultiLocation;
 
 use cumulus_primitives_core::ParaId;
-use frame_support::{
-	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement},
-	transactional,
-};
+use frame_support::{pallet_prelude::*, traits::Currency, transactional};
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
@@ -288,6 +284,20 @@ pub mod pallet {
 		BTreeMap<AssetPrice, TaskIdList<T>>,
 	>;
 
+	// SortedTasksByExpiration is our expiration sorted tasks
+	#[pallet::type_value]
+	pub fn DefaultSortedTasksByExpiration<T: Config>(
+	) -> BTreeMap<u128, BTreeMap<TaskId, AccountOf<T>>> {
+		BTreeMap::<u128, BTreeMap<TaskId, AccountOf<T>>>::new()
+	}
+	#[pallet::storage]
+	#[pallet::getter(fn get_sorted_tasks_by_expiration)]
+	pub type SortedTasksByExpiration<T> = StorageValue<
+		Value = BTreeMap<u128, BTreeMap<TaskId, AccountOf<T>>>,
+		QueryKind = ValueQuery,
+		OnEmpty = DefaultSortedTasksByExpiration<T>,
+	>;
+
 	// All active tasks, but organized by account
 	// In this storage, we only interested in returning task belong to an account, we also want to
 	// have fast lookup for task inserted/remove into the storage
@@ -361,6 +371,10 @@ pub mod pallet {
 		TaskRemoveFailure,
 		/// Task Not Found When canceling
 		TaskNotFound,
+		/// Error when setting task expired less than the current block time
+		InvalidTaskExpiredAt,
+		/// Error when failed to update task expiration storage
+		TaskExpiredStorageFailedToUpdate,
 		/// Insufficient Balance
 		InsufficientBalance,
 		/// Restrictions on Liquidity in Account
@@ -445,6 +459,13 @@ pub mod pallet {
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
+		// An event when we are proactively sweep expired task
+		// it's actually run
+		TaskSweep {
+			who: AccountOf<T>,
+			task_id: TaskId,
+			condition: TaskCondition,
+		},
 		// An event happen in extreme case, where the chain is too busy, and there is pending task
 		// from previous block, and their respectively price has now moved against their matching
 		// target range
@@ -487,6 +508,10 @@ pub mod pallet {
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
 			);
 			Self::trigger_tasks(max_weight)
+		}
+
+		fn on_idle(_: T::BlockNumber, remaining_weight: Weight) -> Weight {
+			Self::sweep_expired_task(remaining_weight)
 		}
 	}
 
@@ -802,14 +827,13 @@ pub mod pallet {
 			let who = ensure_signed(origin)?;
 
 			if let Some(task) = Self::get_task(&who, &task_id) {
-				Tasks::<T>::remove(&who, &task.task_id);
-				Self::remove_task(&task);
-				let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
-				SortedTasksIndex::<T>::remove(&key);
-				Self::deposit_event(Event::TaskCancelled {
-					who: task.owner_id.clone(),
-					task_id: task.task_id.clone(),
-				});
+				Self::remove_task(
+					&task,
+					Some(Event::TaskCancelled {
+						who: task.owner_id.clone(),
+						task_id: task.task_id.clone(),
+					}),
+				);
 			} else {
 				Err(Error::<T>::TaskNotFound)?
 			}
@@ -1181,14 +1205,7 @@ pub mod pallet {
 									),
 								};
 
-							Self::remove_task(&task);
-							Tasks::<T>::remove(task.owner_id.clone(), task_id.clone());
-							TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task - 1);
-							AccountStats::<T>::insert(
-								task.owner_id.clone(),
-								StatType::TotalTasksPerAccount,
-								total_task_per_account - 1,
-							);
+							Self::remove_task(&task, None);
 
 							if let Some(err) = task_dispatch_error {
 								Self::deposit_event(Event::<T>::TaskExecutionFailed {
@@ -1232,8 +1249,156 @@ pub mod pallet {
 			}
 		}
 
-		fn remove_task(task: &Task<T>) {
-			//AccountTasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
+		// Handle task removal. There are a few places task need to be remove:
+		//  - Tasks storage
+		//  - TaskQueue if the task is already queued
+		//  - TaskStats: decrease task count
+		//  - AccountStats: decrease task count
+		//  - SortedTasksIndex: sorted task by price
+		//  - SortedTasksByExpiration: sorted task by expired epch
+		pub fn remove_task(task: &Task<T>, event: Option<Event<T>>) {
+			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
+
+			// Remove it from SortedTasksIndex
+			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+			if let Some(mut sorted_tasks_by_price) = Self::get_sorted_tasks_index(&key) {
+				if let Some(tasks) = sorted_tasks_by_price.get_mut(&task.trigger_params[0]) {
+					if let Some(pos) = tasks.iter().position(|x| {
+						let (_, task_id) = x;
+						*task_id == task.task_id
+					}) {
+						tasks.remove(pos);
+					}
+
+					if tasks.is_empty() {
+						// if there is no more task on this slot, clear it up
+						sorted_tasks_by_price.remove(&task.trigger_params[0].clone());
+					}
+					SortedTasksIndex::<T>::insert(&key, sorted_tasks_by_price);
+				}
+			}
+
+			// Remove it from the SortedTasksByExpiration
+			SortedTasksByExpiration::<T>::mutate(|sorted_tasks_by_expiration| {
+				if let Some(expired_task_slot) =
+					sorted_tasks_by_expiration.get_mut(&task.expired_at)
+				{
+					expired_task_slot.remove(&task.task_id);
+					if expired_task_slot.is_empty() {
+						sorted_tasks_by_expiration.remove(&task.expired_at);
+					}
+				}
+			});
+
+			// Update metrics
+			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
+			let total_task_per_account =
+				Self::get_account_stat(&task.owner_id, StatType::TotalTasksPerAccount)
+					.map_or(0, |v| v);
+
+			if total_task >= 1 {
+				TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task - 1);
+			}
+
+			if total_task_per_account >= 1 {
+				AccountStats::<T>::insert(
+					task.owner_id.clone(),
+					StatType::TotalTasksPerAccount,
+					total_task_per_account - 1,
+				);
+			}
+
+			// if it's in TaskQueue, lets remove too
+
+			if event.is_some() {
+				Self::deposit_event(event.unwrap());
+			}
+		}
+
+		// Sweep as mucht ask we can and return the remaining weight
+		pub fn sweep_expired_task(remaining_weight: Weight) -> Weight {
+			if remaining_weight.ref_time() <= T::DbWeight::get().reads(1u64).ref_time() {
+				// Weight too low, not enough to do anything useful
+				return remaining_weight
+			}
+
+			let current_block_time = Self::get_current_block_time();
+
+			if current_block_time.is_err() {
+				// Cannot get time, this probably is the first block
+				return remaining_weight
+			}
+
+			let now = current_block_time.unwrap() as u128;
+
+			// At the end we will most likely need to write back the updated storage, so here we
+			// account for that write
+			let mut unused_weight = remaining_weight
+				.saturating_sub(T::DbWeight::get().reads(1u64))
+				.saturating_sub(T::DbWeight::get().writes(1u64));
+			let mut tasks_by_expiration = Self::get_sorted_tasks_by_expiration();
+
+			let mut expired_shards: Vec<u128> = vec![];
+			// Use Included(now) because if this task has not run at the end of this block, then
+			// that mean at next block it for sure will expired
+			'outer: for (expired_time, task_ids) in
+				tasks_by_expiration.range_mut((Included(&0_u128), Included(&now)))
+			{
+				for (task_id, owner_id) in task_ids.iter() {
+					if unused_weight.ref_time() >
+						T::DbWeight::get()
+							.reads(1u64)
+							.saturating_add(<T as Config>::WeightInfo::remove_task())
+							.ref_time()
+					{
+						unused_weight = unused_weight
+							.saturating_sub(T::DbWeight::get().reads(1u64))
+							.saturating_sub(<T as Config>::WeightInfo::remove_task());
+
+						// Now let remove the task from chain storage
+						if let Some(task) = Self::get_task(owner_id, task_id) {
+							Self::remove_task(
+								&task,
+								Some(Event::TaskSweep {
+									who: task.owner_id.clone(),
+									task_id: task.task_id.clone(),
+									condition: TaskCondition::AlreadyExpired {
+										expired_at: task.expired_at,
+										now: now.into(),
+									},
+								}),
+							);
+						}
+					} else {
+						// If there is not enough weight left, break all the way out, we had
+						// already save one weight for the write to update storage back
+						break 'outer
+					}
+				}
+				expired_shards.push(expired_time.clone());
+			}
+
+			unused_weight
+		}
+
+		// Task is write into a sorted storage, re-present by BTreeMap so we can find and expired them
+		pub fn track_expired_task(task: &Task<T>) -> Result<bool, Error<T>> {
+			// first we got back the reference to the underlying storage
+			// perform relevant update to write task to the right shard by expired
+			// time, then the value is store back to storage
+			let mut tasks_by_expiration = Self::get_sorted_tasks_by_expiration();
+
+			if let Some(task_shard) = tasks_by_expiration.get_mut(&task.expired_at) {
+				task_shard.insert(task.task_id.clone(), task.owner_id.clone());
+			} else {
+				tasks_by_expiration.insert(
+					task.expired_at.clone(),
+					BTreeMap::from([(task.task_id.clone(), task.owner_id.clone())]),
+				);
+			}
+			SortedTasksByExpiration::<T>::put(tasks_by_expiration);
+
+			return Ok(true)
 		}
 
 		/// With transaction will protect against a partial success where N of M execution times might be full,
@@ -1244,6 +1409,18 @@ pub mod pallet {
 		pub fn validate_and_schedule_task(task: Task<T>) -> Result<(), Error<T>> {
 			if task.task_id.is_empty() {
 				Err(Error::<T>::InvalidTaskId)?
+			}
+
+			let current_block_time = Self::get_current_block_time();
+			if current_block_time.is_err() {
+				// Cannot get time, this probably is the first block
+				Err(Error::<T>::BlockTimeNotSet)?
+			}
+
+			let now = current_block_time.unwrap() as u128;
+
+			if task.expired_at <= now {
+				Err(Error::<T>::InvalidTaskExpiredAt)?
 			}
 
 			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
@@ -1293,6 +1470,10 @@ pub mod pallet {
 				// TODO: sorted based on trigger_function comparison of the parameter
 				// then at the time of trigger we cut off all the left part of the tree
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
+			}
+
+			if let Err(_) = Self::track_expired_task(&task) {
+				Err(Error::<T>::TaskExpiredStorageFailedToUpdate)?
 			}
 
 			Self::deposit_event(Event::TaskScheduled {
