@@ -5664,6 +5664,7 @@ dependencies = [
  "sc-executor",
  "sc-keystore",
  "sc-network",
+ "sc-network-sync",
  "sc-rpc",
  "sc-rpc-api",
  "sc-service",
@@ -6194,6 +6195,7 @@ name = "pallet-automation-time-rpc-runtime-api"
 version = "0.1.0"
 dependencies = [
  "parity-scale-codec",
+ "scale-info",
  "serde",
  "sp-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43)",
  "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43)",
@@ -6715,7 +6717,7 @@ dependencies = [
 [[package]]
 name = "pallet-parachain-staking"
 version = "3.0.0"
-source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-merge-2500#8d5490461c7aeb2f27d27534bbdfb748ba5d46b1"
+source = "git+https://github.com/OAK-Foundation/moonbeam?branch=oak-runtime-2500#ec34242a57e078fbe01eb2a3094aa53b4a57c04b"
 dependencies = [
  "frame-benchmarking",
  "frame-support 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.43)",

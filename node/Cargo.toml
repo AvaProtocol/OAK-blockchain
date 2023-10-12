@@ -79,6 +79,7 @@ sc-client-api = { git = "https://github.com/paritytech/substrate", branch = "pol
 sc-consensus = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-executor = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-network = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
+sc-network-sync = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-keystore = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sc-rpc-api = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
@@ -128,7 +129,7 @@ polkadot-service = { git = "https://github.com/paritytech/polkadot", branch = "r
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43" }
 
 # Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-merge-2500" }
+pallet-parachain-staking = { git = "https://github.com/OAK-Foundation/moonbeam", branch = "oak-runtime-2500" }
 
 # ORML Dependencies
 orml-asset-registry = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.43" }

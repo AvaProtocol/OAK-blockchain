@@ -418,7 +418,7 @@ pub fn run() -> Result<()> {
 
 				let id = ParaId::from(para_id);
 				let parachain_account =
-					AccountIdConversion::<polkadot_primitives::v2::AccountId>::into_account_truncating(&id);
+					AccountIdConversion::<polkadot_primitives::AccountId>::into_account_truncating(&id);
 				let tokio_handle = config.tokio_handle.clone();
 				let polkadot_config =
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
@@ -462,13 +462,13 @@ impl DefaultConfigurationValues for RelayChainCli {
 		30334
 	}
 
-	fn rpc_ws_listen_port() -> u16 {
-		9945
-	}
+	// fn rpc_ws_listen_port() -> u16 {
+	// 	9945
+	// }
 
-	fn rpc_http_listen_port() -> u16 {
-		9934
-	}
+	// fn rpc_http_listen_port() -> u16 {
+	// 	9934
+	// }
 
 	fn prometheus_listen_port() -> u16 {
 		9616
@@ -499,17 +499,17 @@ impl CliConfiguration<Self> for RelayChainCli {
 			.or_else(|| self.base_path.clone().map(Into::into)))
 	}
 
-	fn rpc_http(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
-		self.base.base.rpc_http(default_listen_port)
-	}
+	// fn rpc_http(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
+	// 	self.base.base.rpc_http(default_listen_port)
+	// }
 
-	fn rpc_ipc(&self) -> Result<Option<String>> {
-		self.base.base.rpc_ipc()
-	}
+	// fn rpc_ipc(&self) -> Result<Option<String>> {
+	// 	self.base.base.rpc_ipc()
+	// }
 
-	fn rpc_ws(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
-		self.base.base.rpc_ws(default_listen_port)
-	}
+	// fn rpc_ws(&self, default_listen_port: u16) -> Result<Option<SocketAddr>> {
+	// 	self.base.base.rpc_ws(default_listen_port)
+	// }
 
 	fn prometheus_config(
 		&self,
@@ -554,9 +554,9 @@ impl CliConfiguration<Self> for RelayChainCli {
 		self.base.base.rpc_methods()
 	}
 
-	fn rpc_ws_max_connections(&self) -> Result<Option<usize>> {
-		self.base.base.rpc_ws_max_connections()
-	}
+	// fn rpc_ws_max_connections(&self) -> Result<Option<usize>> {
+	// 	self.base.base.rpc_ws_max_connections()
+	// }
 
 	fn rpc_cors(&self, is_dev: bool) -> Result<Option<Vec<String>>> {
 		self.base.base.rpc_cors(is_dev)

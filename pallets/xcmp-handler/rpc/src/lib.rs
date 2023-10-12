@@ -72,8 +72,8 @@ where
 {
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(self.client.info().best_hash);
-		let runtime_api_result = api.cross_chain_account(&at, account_id);
+		// let at = BlockId::hash(self.client.info().best_hash);
+		let runtime_api_result = api.cross_chain_account(self.client.info().best_hash, account_id);
 		let mapped_err = |message| -> JsonRpseeError {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
