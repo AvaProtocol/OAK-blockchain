@@ -1234,6 +1234,11 @@ fn test_emit_event_when_execute_tasks() {
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::TargetPriceMatched {
+				target_price: task.trigger_params[0].clone(),
+				trigger_function: task.trigger_function.clone(),
+				price: 1000,
+			},
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
@@ -1393,6 +1398,11 @@ fn test_expired_task_not_run() {
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::TargetPriceMatched {
+				target_price: task.trigger_params[0].clone(),
+				trigger_function: task.trigger_function.clone(),
+				price: 1000,
+			},
 		}));
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
@@ -1472,6 +1482,11 @@ fn test_price_move_against_target_price_skip_run() {
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
+			condition: crate::TaskCondition::TargetPriceMatched {
+				target_price: task.trigger_params[0].clone(),
+				trigger_function: task.trigger_function.clone(),
+				price: 1000,
+			},
 		}));
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
