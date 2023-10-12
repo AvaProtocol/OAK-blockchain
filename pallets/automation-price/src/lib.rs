@@ -371,7 +371,6 @@ pub mod pallet {
 		TaskRemoveFailure,
 		/// Task Not Found When canceling
 		TaskNotFound,
-		TaskDoesNotExist,
 		/// Error when setting task expired less than the current block time
 		InvalidTaskExpiredAt,
 		/// Error when failed to update task expiration storage
