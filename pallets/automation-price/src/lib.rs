@@ -397,10 +397,10 @@ pub mod pallet {
 	pub enum TaskCondition {
 		TargetPriceMatched {
 			// The target price the task set to
-			target_price: u128,
-			trigger_function: Vec<u8>,
-
 			// the price of the asset
+			chain: ChainName,
+			exchange: Exchange,
+			asset_pair: AssetPair,
 			price: u128,
 		},
 		AlreadyExpired {
@@ -1123,8 +1123,9 @@ pub mod pallet {
 				if price_matched_target_condtion {
 					return (
 						Some(TaskCondition::TargetPriceMatched {
-							target_price: task.trigger_params[0],
-							trigger_function: task.trigger_function.clone(),
+							chain: task.chain.clone(),
+							exchange: task.exchange.clone(),
+							asset_pair: task.asset_pair.clone(),
 							price: this_task_asset_price.amount,
 						}),
 						consumed_weight,

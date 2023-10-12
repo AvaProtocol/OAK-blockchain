@@ -1235,9 +1235,10 @@ fn test_emit_event_when_execute_tasks() {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
-				target_price: task.trigger_params[0].clone(),
-				trigger_function: task.trigger_function.clone(),
-				price: 1000,
+				chain: task.chain.clone(),
+				exchange: task.exchange.clone(),
+				asset_pair: task.asset_pair.clone(),
+				price: this_task_asset_price.amount,
 			},
 		}));
 
@@ -1399,9 +1400,10 @@ fn test_expired_task_not_run() {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
-				target_price: task.trigger_params[0].clone(),
-				trigger_function: task.trigger_function.clone(),
-				price: 1000,
+				chain: task.chain.clone(),
+				exchange: task.exchange.clone(),
+				asset_pair: task.asset_pair.clone(),
+				price: this_task_asset_price.amount,
 			},
 		}));
 
@@ -1483,9 +1485,10 @@ fn test_price_move_against_target_price_skip_run() {
 			who: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
-				target_price: task.trigger_params[0].clone(),
-				trigger_function: task.trigger_function.clone(),
-				price: 1000,
+				chain: task.chain.clone(),
+				exchange: task.exchange.clone(),
+				asset_pair: task.asset_pair.clone(),
+				price: this_task_asset_price.amount,
 			},
 		}));
 
