@@ -1256,7 +1256,7 @@ pub mod pallet {
 		//  - TaskStats: decrease task count
 		//  - AccountStats: decrease task count
 		//  - SortedTasksIndex: sorted task by price
-		//  - SortedTasksByExpiration: sorted task by expration
+		//  - SortedTasksByExpiration: sorted task by expired epch
 		pub fn remove_task(task: &Task<T>, event: Option<Event<T>>) {
 			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 
@@ -1291,7 +1291,7 @@ pub mod pallet {
 				}
 			});
 
-			// Update state
+			// Update metrics
 			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
 			let total_task_per_account =
 				Self::get_account_stat(&task.owner_id, StatType::TotalTasksPerAccount)
@@ -1308,6 +1308,8 @@ pub mod pallet {
 					total_task_per_account - 1,
 				);
 			}
+
+			// if it's in TaskQueue, lets remove too
 
 			if event.is_some() {
 				Self::deposit_event(event.unwrap());

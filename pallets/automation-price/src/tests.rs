@@ -804,6 +804,7 @@ fn test_sweep_expired_task_partially() {
 			.map_or(0, |v| v.iter().len())
 		);
 
+		// these task all get sweeo
 		for i in 1..5 {
 			assert_eq!(
 				0,
@@ -813,6 +814,7 @@ fn test_sweep_expired_task_partially() {
 			);
 		}
 
+		// these slot remian untouch
 		for i in 6..10 {
 			assert_eq!(
 				1,
