@@ -1253,9 +1253,23 @@ pub mod pallet {
 		fn remove_task(task: &Task<T>) {
 			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 
-			// TODO: pluck the task from SortedTasksIndex
-			// let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
-			// SortedTasksIndex::<T>::remove(&key);
+			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+			if let Some(mut sorted_tasks_by_price) = Self::get_sorted_tasks_index(&key) {
+				if let Some(tasks) = sorted_tasks_by_price.get_mut(&task.trigger_params[0]) {
+					if let Some(pos) = tasks.iter().position(|x| {
+						let (_, task_id) = x;
+						*task_id == task.task_id
+					}) {
+						tasks.remove(pos);
+					}
+
+					if tasks.is_empty() {
+						// if there is no more task on this slot, clear it up
+						sorted_tasks_by_price.remove(&task.trigger_params[0].clone());
+					}
+					SortedTasksIndex::<T>::insert(&key, sorted_tasks_by_price);
+				}
+			}
 
 			// Update state
 			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
@@ -1284,6 +1298,7 @@ pub mod pallet {
 			}
 
 			let current_block_time = Self::get_current_block_time();
+
 			if current_block_time.is_err() {
 				// Cannot get time, this probably is the first block
 				return remaining_weight
