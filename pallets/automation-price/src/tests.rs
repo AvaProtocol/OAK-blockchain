@@ -823,8 +823,6 @@ fn test_sweep_expired_task_partially() {
 					.map_or(0, |v| v.len()),
 			);
 		}
-=======
->>>>>>> 058648e (Fix > condition to exclude the upper bound)
 	})
 }
 
