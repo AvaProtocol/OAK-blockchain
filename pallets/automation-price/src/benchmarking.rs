@@ -315,7 +315,7 @@ benchmarks! {
 	}: {
 		// remove a task at the end to simulate the worst case
 		AutomationPrice::<T>::remove_task(&task, Some(crate::Event::<T>::TaskSweep {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::AlreadyExpired {
 				expired_at: task.expired_at,
@@ -326,12 +326,12 @@ benchmarks! {
 
 
 	emit_event {
-		let who: T::AccountId = account("call", 1, SEED);
+		let owner_id: T::AccountId = account("call", 1, SEED);
 		let task_id: TaskId = vec![1,2,3];
 	} : {
 		AutomationPrice::<T>::deposit_event(crate::Event::<T>::TaskScheduled {
-				who: who,
-				task_id: task_id,
+				owner_id,
+				task_id,
 			});
 	}
 

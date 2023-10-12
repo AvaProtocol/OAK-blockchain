@@ -233,7 +233,7 @@ fn test_update_asset_prices() {
 		assert_eq!(p.amount, 1005);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetUpdated {
-			who: sender,
+			owner_id: sender,
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset1: asset1.to_vec(),
@@ -282,7 +282,7 @@ fn test_update_asset_prices_multi() {
 		assert_eq!(p2.amount, 1009);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetUpdated {
-			who: sender.clone(),
+			owner_id: sender.clone(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset1: asset1.to_vec(),
@@ -291,7 +291,7 @@ fn test_update_asset_prices_multi() {
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetUpdated {
-			who: sender,
+			owner_id: sender,
 			chain: chain2.to_vec(),
 			exchange: exchange1.to_vec(),
 			asset1: asset1.to_vec(),
@@ -668,7 +668,7 @@ fn test_sweep_expired_task_works() {
 
 		for i in 0..expired_task_gen {
 			assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskSweep {
-				who: creator.clone(),
+				owner_id: creator.clone(),
 				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
 				condition: crate::TaskCondition::AlreadyExpired {
 					expired_at: START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800,
@@ -1232,7 +1232,7 @@ fn test_emit_event_when_execute_tasks() {
 		);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
 				chain: task.chain.clone(),
@@ -1243,7 +1243,7 @@ fn test_emit_event_when_execute_tasks() {
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id,
 		}));
 	})
@@ -1397,7 +1397,7 @@ fn test_expired_task_not_run() {
 		);
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
 				chain: task.chain.clone(),
@@ -1408,12 +1408,12 @@ fn test_expired_task_not_run() {
 		}));
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 		}));
 
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExpired {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::AlreadyExpired {
 				expired_at: task.expired_at,
@@ -1482,7 +1482,7 @@ fn test_price_move_against_target_price_skip_run() {
 		);
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskTriggered {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::TargetPriceMatched {
 				chain: task.chain.clone(),
@@ -1493,12 +1493,12 @@ fn test_price_move_against_target_price_skip_run() {
 		}));
 
 		assert_no_event(RuntimeEvent::AutomationPrice(crate::Event::TaskExecuted {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 		}));
 
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::PriceAlreadyMoved {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::PriceAlreadyMoved {
 				chain: chain1.to_vec(),
@@ -1555,7 +1555,7 @@ fn test_cancel_task_works() {
 		);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskCancelled {
-			who: task.owner_id.clone(),
+			owner_id: task.owner_id.clone(),
 			task_id: task.task_id,
 		}));
 	})

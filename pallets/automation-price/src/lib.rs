@@ -426,52 +426,52 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Schedule task success.
 		TaskScheduled {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 		},
 		// an event when we're about to run the task
 		TaskTriggered {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
 		// An event when the task ran succesfully
 		TaskExecuted {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 		},
 		// An event when the task is trigger, ran but result in an error
 		TaskExecutionFailed {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 			error: DispatchError,
 		},
 		// An event when the task is completed and removed from all of the queue
 		TaskCompleted {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 		},
 		// An event when the task is cancelled, either by owner or by root
 		TaskCancelled {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 		},
 		// An event whenever we expect a task but cannot find it
 		TaskNotFound {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 		},
 		// An event when we are about to run task, but the task has expired right before
 		// it's actually run
 		TaskExpired {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
 		// An event when we are proactively sweep expired task
 		// it's actually run
 		TaskSweep {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
@@ -479,7 +479,7 @@ pub mod pallet {
 		// from previous block, and their respectively price has now moved against their matching
 		// target range
 		PriceAlreadyMoved {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskId,
 			condition: TaskCondition,
 		},
@@ -491,7 +491,7 @@ pub mod pallet {
 			decimal: u8,
 		},
 		AssetUpdated {
-			who: AccountOf<T>,
+			owner_id: AccountOf<T>,
 			chain: ChainName,
 			exchange: Exchange,
 			asset1: AssetName,
@@ -596,7 +596,7 @@ pub mod pallet {
 			submitted_at: Vec<u128>,
 			rounds: Vec<u128>,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let owner_id = ensure_signed(origin)?;
 
 			if !(chains.len() == exchanges.len() &&
 				exchanges.len() == assets1.len() &&
@@ -625,7 +625,7 @@ pub mod pallet {
 
 				if let Some(asset_registry) = Self::get_asset_registry_info(key) {
 					let allow_wallets: Vec<AccountOf<T>> = asset_registry.oracle_providers;
-					if !allow_wallets.contains(&who) {
+					if !allow_wallets.contains(&owner_id) {
 						Err(Error::<T>::OracleNotAuthorized)?
 					}
 
@@ -633,7 +633,7 @@ pub mod pallet {
 					PriceRegistry::<T>::insert(&key, PriceData { round, nonce: 1, amount: *price });
 
 					Self::deposit_event(Event::AssetUpdated {
-						who: who.clone(),
+						owner_id: owner_id.clone(),
 						chain,
 						exchange,
 						asset1,
@@ -707,7 +707,7 @@ pub mod pallet {
 			// extract value from param
 			//
 			// TODO: HANDLE FEE to see user can pay fee
-			let who = ensure_signed(origin)?;
+			let owner_id = ensure_signed(origin)?;
 			let task_id = Self::generate_task_id();
 
 			let destination =
@@ -727,8 +727,8 @@ pub mod pallet {
 			};
 
 			let task: Task<T> = Task::<T> {
-				owner_id: who.clone(),
-				task_id: task_id.clone(),
+				owner_id,
+				task_id,
 				chain,
 				exchange,
 				asset_pair: (asset1, asset2),
@@ -785,10 +785,10 @@ pub mod pallet {
 			overall_weight: Weight,
 			schedule_as: T::AccountId,
 		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let owner_id = ensure_signed(origin)?;
 
 			// Make sure the owner is the proxy account of the user account.
-			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
+			T::EnsureProxy::ensure_ok(schedule_as.clone(), owner_id.clone())?;
 
 			let destination =
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
@@ -808,8 +808,8 @@ pub mod pallet {
 
 			let task_id = Self::generate_task_id();
 			let task: Task<T> = Task::<T> {
-				owner_id: who.clone(),
-				task_id: task_id.clone(),
+				owner_id,
+				task_id,
 				chain,
 				exchange,
 				asset_pair: (asset1, asset2),
@@ -833,13 +833,13 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_extrinsic())]
 		#[transactional]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskId) -> DispatchResult {
-			let who = ensure_signed(origin)?;
+			let owner_id = ensure_signed(origin)?;
 
-			if let Some(task) = Self::get_task(&who, &task_id) {
+			if let Some(task) = Self::get_task(&owner_id, &task_id) {
 				Self::remove_task(
 					&task,
 					Some(Event::TaskCancelled {
-						who: task.owner_id.clone(),
+						owner_id: task.owner_id.clone(),
 						task_id: task.task_id.clone(),
 					}),
 				);
@@ -1092,7 +1092,7 @@ pub mod pallet {
 					consumed_weight.saturating_add(<T as Config>::WeightInfo::emit_event());
 
 				Self::deposit_event(Event::TaskExpired {
-					who: task.owner_id.clone(),
+					owner_id: task.owner_id.clone(),
 					task_id: task.task_id.clone(),
 					condition: TaskCondition::AlreadyExpired {
 						expired_at: task.expired_at,
@@ -1132,7 +1132,7 @@ pub mod pallet {
 					)
 				} else {
 					Self::deposit_event(Event::PriceAlreadyMoved {
-						who: task.owner_id.clone(),
+						owner_id: task.owner_id.clone(),
 						task_id: task.task_id.clone(),
 						condition: TaskCondition::PriceAlreadyMoved {
 							chain: task.chain.clone(),
@@ -1176,7 +1176,7 @@ pub mod pallet {
 				let action_weight = match Self::get_task(&owner_id, &task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound {
-							who: owner_id.clone(),
+							owner_id: owner_id.clone(),
 							task_id: task_id.clone(),
 						});
 						<T as Config>::WeightInfo::emit_event()
@@ -1188,7 +1188,7 @@ pub mod pallet {
 							test_can_run_weight
 						} else {
 							Self::deposit_event(Event::TaskTriggered {
-								who: task.owner_id.clone(),
+								owner_id: task.owner_id.clone(),
 								task_id: task.task_id.clone(),
 								condition: task_condition.unwrap(),
 							});
@@ -1227,19 +1227,19 @@ pub mod pallet {
 
 							if let Some(err) = task_dispatch_error {
 								Self::deposit_event(Event::<T>::TaskExecutionFailed {
-									who: task.owner_id.clone(),
+									owner_id: task.owner_id.clone(),
 									task_id: task.task_id.clone(),
 									error: err,
 								});
 							} else {
 								Self::deposit_event(Event::<T>::TaskExecuted {
-									who: task.owner_id.clone(),
+									owner_id: task.owner_id.clone(),
 									task_id: task.task_id.clone(),
 								});
 							}
 
 							Self::deposit_event(Event::<T>::TaskCompleted {
-								who: task.owner_id.clone(),
+								owner_id: task.owner_id.clone(),
 								task_id: task.task_id.clone(),
 							});
 
@@ -1376,7 +1376,7 @@ pub mod pallet {
 							Self::remove_task(
 								&task,
 								Some(Event::TaskSweep {
-									who: task.owner_id.clone(),
+									owner_id: task.owner_id.clone(),
 									task_id: task.task_id.clone(),
 									condition: TaskCondition::AlreadyExpired {
 										expired_at: task.expired_at,
@@ -1493,7 +1493,7 @@ pub mod pallet {
 			}
 
 			Self::deposit_event(Event::TaskScheduled {
-				who: task.owner_id.clone(),
+				owner_id: task.owner_id.clone(),
 				task_id: task.task_id,
 			});
 
