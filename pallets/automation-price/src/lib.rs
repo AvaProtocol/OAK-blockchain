@@ -396,9 +396,9 @@ pub mod pallet {
 	#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
 	pub enum TaskCondition {
 		TargetPriceMatched {
-			// The target price the task set to
-			// the price of the asset
-			chain: ChainName,
+            // record the state of the asset at the time the task is triggered
+            // when debugging we can use this to reason about why did the task is trigger
+	        chain: ChainName,
 			exchange: Exchange,
 			asset_pair: AssetPair,
 			price: u128,
@@ -1123,9 +1123,9 @@ pub mod pallet {
 				if price_matched_target_condtion {
 					return (
 						Some(TaskCondition::TargetPriceMatched {
-							chain: task.chain.clone(),
-							exchange: task.exchange.clone(),
-							asset_pair: task.asset_pair.clone(),
+                            chain: task.chain.clone(),
+                            exchange: task.exchange.clone(),
+                            asset_pair: task.asset_pair.clone(),
 							price: this_task_asset_price.amount,
 						}),
 						consumed_weight,
