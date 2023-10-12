@@ -1123,9 +1123,9 @@ pub mod pallet {
 				if price_matched_target_condtion {
 					return (
 						Some(TaskCondition::TargetPriceMatched {
-                            chain: task.chain.clone(),
-                            exchange: task.exchange.clone(),
-                            asset_pair: task.asset_pair.clone(),
+							chain: task.chain.clone(),
+							exchange: task.exchange.clone(),
+							asset_pair: task.asset_pair.clone(),
 							price: this_task_asset_price.amount,
 						}),
 						consumed_weight,
