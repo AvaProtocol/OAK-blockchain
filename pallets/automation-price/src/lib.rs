@@ -1250,7 +1250,7 @@ pub mod pallet {
 		//  TaskStats: decrease task count
 		//  AccountStats: decrease task count
 		//  SortedTasksIndex
-		fn remove_task(task: &Task<T>) {
+		pub fn remove_task(task: &Task<T>) {
 			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
