@@ -17,7 +17,6 @@
 
 use crate::{
 	mock::*, AccountStats, Action, AssetPayment, Config, Error, StatType, Task, TaskIdList,
-	TaskStats,
 	TaskStats, Tasks,
 };
 use pallet_xcmp_handler::InstructionSequence;
