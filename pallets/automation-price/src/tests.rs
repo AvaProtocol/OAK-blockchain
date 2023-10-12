@@ -33,6 +33,8 @@ use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
 
+use sp_std::collections::btree_map::BTreeMap;
+
 pub const START_BLOCK_TIME: u64 = 33198768000 * 1_000;
 pub const START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND: u128 = 33198768000 + 3600;
 
@@ -446,7 +448,7 @@ fn test_schedule_put_task_to_expiration_queue() {
 			task_expiration_map
 				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND))
 				.expect("missing task expiration shard"),
-			&vec![(creator, task_id.clone())]
+			&(BTreeMap::from([(task_id.clone(), creator)]))
 		);
 	})
 }
@@ -515,13 +517,13 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 			task_expiration_map
 				.get(&START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND)
 				.expect("missing task expiration shard"),
-			&vec![(creator1, task_id1.clone())]
+			&BTreeMap::from([(task_id1.clone(), creator1)]),
 		);
 		assert_eq!(
 			task_expiration_map
 				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 3600))
 				.expect("missing task expiration shard"),
-			&vec![(creator2, task_id2.clone())]
+			&BTreeMap::from([(task_id2.clone(), creator2)]),
 		);
 	})
 }
@@ -645,10 +647,24 @@ fn test_sweep_expired_task_works() {
 			.map_or(0, |v| v.get(&price_target2).unwrap().iter().len())
 		);
 
+		assert_eq!(
+			10,
+			AutomationPrice::get_sorted_tasks_by_expiration()
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800))
+				.expect("missing task expiration shard")
+				.len(),
+		);
+
 		// now we will sweep, passing a weight limit. In actualy code, this will be the
 		// remaining_weight in on_idle block
 		let remain_weight = 100_000_000_000;
 		AutomationPrice::sweep_expired_task(Weight::from_ref_time(remain_weight));
+
+		assert_eq!(
+			AutomationPrice::get_sorted_tasks_by_expiration()
+				.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND - 1800)),
+			None
+		);
 
 		for i in 0..expired_task_gen {
 			assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::TaskSweep {
@@ -768,6 +784,8 @@ fn test_sweep_expired_task_partially() {
 			.map_or(0, |v| v.get(&price_target1).unwrap().iter().len())
 		);
 
+		assert_eq!(10, AutomationPrice::get_sorted_tasks_by_expiration().len());
+
 		// remaining_weight in on_idle block
 		let remain_weight = 100_000_000_000;
 		AutomationPrice::sweep_expired_task(Weight::from_ref_time(remain_weight));
@@ -785,6 +803,24 @@ fn test_sweep_expired_task_partially() {
 			.get(&price_target1)
 			.map_or(0, |v| v.iter().len())
 		);
+
+		for i in 1..5 {
+			assert_eq!(
+				0,
+				AutomationPrice::get_sorted_tasks_by_expiration()
+					.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + i * 10))
+					.map_or(0, |v| v.len()),
+			);
+		}
+
+		for i in 6..10 {
+			assert_eq!(
+				1,
+				AutomationPrice::get_sorted_tasks_by_expiration()
+					.get(&(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND + 10 + i * 10))
+					.map_or(0, |v| v.len()),
+			);
+		}
 	})
 }
 

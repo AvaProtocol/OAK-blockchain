@@ -53,11 +53,7 @@ use core::convert::{TryFrom, TryInto};
 use cumulus_primitives_core::InteriorMultiLocation;
 
 use cumulus_primitives_core::ParaId;
-use frame_support::{
-	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement},
-	transactional,
-};
+use frame_support::{pallet_prelude::*, traits::Currency, transactional};
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
@@ -290,13 +286,14 @@ pub mod pallet {
 
 	// SortedTasksByExpiration is our expiration sorted tasks
 	#[pallet::type_value]
-	pub fn DefaultSortedTasksByExpiration<T: Config>() -> BTreeMap<u128, TaskIdList<T>> {
-		BTreeMap::<u128, TaskIdList<T>>::new()
+	pub fn DefaultSortedTasksByExpiration<T: Config>(
+	) -> BTreeMap<u128, BTreeMap<TaskId, AccountOf<T>>> {
+		BTreeMap::<u128, BTreeMap<TaskId, AccountOf<T>>>::new()
 	}
 	#[pallet::storage]
 	#[pallet::getter(fn get_sorted_tasks_by_expiration)]
 	pub type SortedTasksByExpiration<T> = StorageValue<
-		Value = BTreeMap<u128, TaskIdList<T>>,
+		Value = BTreeMap<u128, BTreeMap<TaskId, AccountOf<T>>>,
 		QueryKind = ValueQuery,
 		OnEmpty = DefaultSortedTasksByExpiration<T>,
 	>;
@@ -1254,14 +1251,16 @@ pub mod pallet {
 		}
 
 		// Handle task removal. There are a few places task need to be remove:
-		//  Tasks storage
-		//  TaskQueue if the task is alreayd queue
-		//  TaskStats: decrease task count
-		//  AccountStats: decrease task count
-		//  SortedTasksIndex
+		//  - Tasks storage
+		//  - TaskQueue if the task is already queued
+		//  - TaskStats: decrease task count
+		//  - AccountStats: decrease task count
+		//  - SortedTasksIndex: sorted task by price
+		//  - SortedTasksByExpiration: sorted task by expration
 		pub fn remove_task(task: &Task<T>, event: Option<Event<T>>) {
 			Tasks::<T>::remove(task.owner_id.clone(), task.task_id.clone());
 
+			// Remove it from SortedTasksIndex
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
 			if let Some(mut sorted_tasks_by_price) = Self::get_sorted_tasks_index(&key) {
 				if let Some(tasks) = sorted_tasks_by_price.get_mut(&task.trigger_params[0]) {
@@ -1279,6 +1278,18 @@ pub mod pallet {
 					SortedTasksIndex::<T>::insert(&key, sorted_tasks_by_price);
 				}
 			}
+
+			// Remove it from the SortedTasksByExpiration
+			SortedTasksByExpiration::<T>::mutate(|sorted_tasks_by_expiration| {
+				if let Some(expired_task_slot) =
+					sorted_tasks_by_expiration.get_mut(&task.expired_at)
+				{
+					expired_task_slot.remove(&task.task_id);
+					if expired_task_slot.is_empty() {
+						sorted_tasks_by_expiration.remove(&task.expired_at);
+					}
+				}
+			});
 
 			// Update state
 			let total_task = Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
@@ -1332,7 +1343,7 @@ pub mod pallet {
 			'outer: for (expired_time, task_ids) in
 				tasks_by_expiration.range_mut((Included(&0_u128), Included(&now)))
 			{
-				for (owner_id, task_id) in task_ids.iter() {
+				for (task_id, owner_id) in task_ids.iter() {
 					if unused_weight.ref_time() >
 						T::DbWeight::get()
 							.reads(1u64)
@@ -1366,27 +1377,22 @@ pub mod pallet {
 				expired_shards.push(expired_time.clone());
 			}
 
-			for expired_time in expired_shards.iter() {
-				tasks_by_expiration.remove(&expired_time);
-			}
-			SortedTasksByExpiration::<T>::put(tasks_by_expiration);
-
 			unused_weight
 		}
 
 		// Task is write into a sorted storage, re-present by BTreeMap so we can find and expired them
-		pub fn put_task_to_expired_queue(task: &Task<T>) -> Result<bool, Error<T>> {
+		pub fn track_expired_task(task: &Task<T>) -> Result<bool, Error<T>> {
 			// first we got back the reference to the underlying storage
 			// perform relevant update to write task to the right shard by expired
 			// time, then the value is store back to storage
 			let mut tasks_by_expiration = Self::get_sorted_tasks_by_expiration();
 
 			if let Some(task_shard) = tasks_by_expiration.get_mut(&task.expired_at) {
-				task_shard.push((task.owner_id.clone(), task.task_id.clone()));
+				task_shard.insert(task.task_id.clone(), task.owner_id.clone());
 			} else {
 				tasks_by_expiration.insert(
 					task.expired_at.clone(),
-					vec![(task.owner_id.clone(), task.task_id.clone())],
+					BTreeMap::from([(task.task_id.clone(), task.owner_id.clone())]),
 				);
 			}
 			SortedTasksByExpiration::<T>::put(tasks_by_expiration);
@@ -1465,7 +1471,7 @@ pub mod pallet {
 				SortedTasksIndex::<T>::insert(key, sorted_task_index);
 			}
 
-			if let Err(_) = Self::put_task_to_expired_queue(&task) {
+			if let Err(_) = Self::track_expired_task(&task) {
 				Err(Error::<T>::TaskExpiredStorageFailedToUpdate)?
 			}
 
