@@ -306,7 +306,7 @@ where
 		&TaskManager,
 		Arc<dyn RelayChainInterface>,
 		Arc<sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, Executor>>>,
-    Arc<SyncingService<Block>>,
+		Arc<SyncingService<Block>>,
 		KeystorePtr,
 		bool,
 	) -> Result<Box<dyn ParachainConsensus<Block>>, sc_service::Error>,
@@ -339,7 +339,7 @@ where
 	let import_queue_service = params.import_queue.service();
 
 	let net_config = sc_network::config::FullNetworkConfiguration::new(&parachain_config.network);
-	
+
 	let (network, system_rpc_tx, tx_handler_controller, start_network, sync_service) =
 		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &parachain_config,
@@ -405,8 +405,8 @@ where
 	let relay_chain_slot_duration = Duration::from_secs(6);
 
 	let overseer_handle = relay_chain_interface
-        .overseer_handle()
-        .map_err(|e| sc_service::Error::Application(Box::new(e)))?;
+		.overseer_handle()
+		.map_err(|e| sc_service::Error::Application(Box::new(e)))?;
 
 	let block_import = ParachainBlockImport::new(params.client.clone(), params.backend.clone());
 

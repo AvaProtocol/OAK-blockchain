@@ -89,8 +89,8 @@ fn calculate_expected_xcmp_action_schedule_fee(
 	} else {
 		let fee_per_second =
 			get_fee_per_second(&schedule_fee_location).expect("Get fee per second should work");
-		fee_per_second * (weight.ref_time() as u128) * (num_of_execution as u128) /
-			(WEIGHT_REF_TIME_PER_SECOND as u128)
+		fee_per_second * (weight.ref_time() as u128) * (num_of_execution as u128)
+			/ (WEIGHT_REF_TIME_PER_SECOND as u128)
 	}
 }
 
@@ -119,7 +119,7 @@ pub fn assert_last_event(event: RuntimeEvent) {
 fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>) -> bool {
 	// If the target events list is empty, consider it satisfied as there are no specific order requirements
 	if events.is_empty() {
-		return true
+		return true;
 	}
 
 	// Convert both lists to iterators
@@ -137,13 +137,13 @@ fn contains_events(emitted_events: Vec<RuntimeEvent>, events: Vec<RuntimeEvent>)
 			if emitted_event == target_event {
 				// Target event found, mark as found and advance the emitted iterator
 				found = true;
-				break
+				break;
 			}
 		}
 
 		// If the target event is not found, return false
 		if !found {
-			return false
+			return false;
 		}
 	}
 

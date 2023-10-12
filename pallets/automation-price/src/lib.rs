@@ -137,11 +137,11 @@ pub mod pallet {
 	impl<T: Config> PartialEq for Task<T> {
 		fn eq(&self, other: &Self) -> bool {
 			// TODO: correct this
-			self.owner_id == other.owner_id &&
-				self.task_id == other.task_id &&
-				self.asset_pair == other.asset_pair &&
-				self.trigger_function == other.trigger_function &&
-				self.trigger_params == other.trigger_params
+			self.owner_id == other.owner_id
+				&& self.task_id == other.task_id
+				&& self.asset_pair == other.asset_pair
+				&& self.trigger_function == other.trigger_function
+				&& self.trigger_params == other.trigger_params
 		}
 	}
 
@@ -519,7 +519,7 @@ pub mod pallet {
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_: T::BlockNumber) -> Weight {
 			if Self::is_shutdown() {
-				return T::DbWeight::get().reads(1u64)
+				return T::DbWeight::get().reads(1u64);
 			}
 
 			let max_weight: Weight = Weight::from_ref_time(
@@ -614,12 +614,12 @@ pub mod pallet {
 
 			let now = current_block_time.unwrap() as u128;
 
-			if !(chains.len() == exchanges.len() &&
-				exchanges.len() == assets1.len() &&
-				assets1.len() == assets2.len() &&
-				assets2.len() == prices.len() &&
-				prices.len() == submitted_at.len() &&
-				submitted_at.len() == rounds.len())
+			if !(chains.len() == exchanges.len()
+				&& exchanges.len() == assets1.len()
+				&& assets1.len() == assets2.len()
+				&& assets2.len() == prices.len()
+				&& prices.len() == submitted_at.len()
+				&& submitted_at.len() == rounds.len())
 			{
 				Err(Error::<T>::AssetUpdatePayloadMalform)?
 			}
@@ -909,7 +909,7 @@ pub mod pallet {
 					Self::get_asset_price_data((&chain, &exchange, &asset_pair));
 
 				if current_price_wrap.is_none() {
-					continue
+					continue;
 				};
 				// Example: sell orders
 				//
@@ -963,7 +963,7 @@ pub mod pallet {
 				};
 			}
 
-			return weight_left
+			return weight_left;
 		}
 
 		/// Trigger tasks for the block time.
@@ -973,7 +973,7 @@ pub mod pallet {
 			let mut weight_left: Weight = max_weight;
 			let check_time_and_deletion_weight = T::DbWeight::get().reads(2u64);
 			if weight_left.ref_time() < check_time_and_deletion_weight.ref_time() {
-				return weight_left
+				return weight_left;
 			}
 
 			Self::shift_tasks(weight_left);
@@ -1052,7 +1052,7 @@ pub mod pallet {
 				return (
 					<T as Config>::WeightInfo::run_xcmp_task(),
 					Some(Error::<T>::BadVersion.into()),
-				)
+				);
 			}
 			let fee_asset_location = fee_asset_location.unwrap();
 
@@ -1260,7 +1260,7 @@ pub mod pallet {
 					.saturating_add(T::DbWeight::get().writes(1u64))
 					.saturating_add(T::DbWeight::get().reads(1u64));
 				if weight_left.ref_time() < run_another_task_weight.ref_time() {
-					break
+					break;
 				}
 			}
 

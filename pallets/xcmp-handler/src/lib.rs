@@ -183,7 +183,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
 			let instructions = match flow {
-				InstructionSequence::PayThroughSovereignAccount =>
+				InstructionSequence::PayThroughSovereignAccount => {
 					Self::get_local_currency_instructions(
 						destination,
 						asset_location,
@@ -192,8 +192,9 @@ pub mod pallet {
 						transact_encoded_call_weight,
 						overall_weight,
 						fee,
-					)?,
-				InstructionSequence::PayThroughRemoteDerivativeAccount =>
+					)?
+				},
+				InstructionSequence::PayThroughRemoteDerivativeAccount => {
 					Self::get_alternate_flow_instructions(
 						destination,
 						asset_location,
@@ -202,7 +203,8 @@ pub mod pallet {
 						transact_encoded_call_weight,
 						overall_weight,
 						fee,
-					)?,
+					)?
+				},
 			};
 
 			Ok(instructions)

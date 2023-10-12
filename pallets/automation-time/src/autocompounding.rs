@@ -58,8 +58,8 @@ pub fn do_calculate_optimal_autostaking(
 		let period_earnings_after_fee: i128 =
 			interval_table.iter().map(|row| row.interval_earnings_after_fee).sum();
 		let extra_days = duration % period;
-		let remainder_earnings = (interval_table.last().unwrap().ownership *
-			(extra_days as i128 * daily_collator_awards) as f64) as i128;
+		let remainder_earnings = (interval_table.last().unwrap().ownership
+			* (extra_days as i128 * daily_collator_awards) as f64) as i128;
 		let total_earnings = period_earnings_after_fee + remainder_earnings;
 
 		if total_earnings > best_earnings {

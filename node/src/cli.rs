@@ -90,9 +90,9 @@ impl RelayChainCli {
 		let chain_id = extension.map(|e| e.relay_chain.clone());
 		let base_path = para_config.base_path.path().join("polkadot");
 		Self {
-				base: polkadot_cli::RunCmd::parse_from(relay_chain_args),
-				chain_id,
-				base_path: Some(base_path),
+			base: polkadot_cli::RunCmd::parse_from(relay_chain_args),
+			chain_id,
+			base_path: Some(base_path),
 		}
 	}
 }

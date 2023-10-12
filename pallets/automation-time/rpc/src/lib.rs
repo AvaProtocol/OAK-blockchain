@@ -173,7 +173,8 @@ where
 		let api = self.client.runtime_api();
 		// let at = BlockId::hash(self.client.info().best_hash);
 
-		let runtime_api_result = api.get_auto_compound_delegated_stake_task_ids(self.client.info().best_hash, account);
+		let runtime_api_result =
+			api.get_auto_compound_delegated_stake_task_ids(self.client.info().best_hash, account);
 		runtime_api_result.map_err(|e| {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
