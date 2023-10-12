@@ -1130,7 +1130,7 @@ fn test_expired_task_not_run() {
 			task_id: task.task_id.clone(),
 			condition: crate::TaskCondition::AlreadyExpired {
 				expired_at: task.expired_at,
-				now: START_BLOCK_TIME
+				now: START_BLOCK_TIME.saturating_add(7200_000_u64)
 					.checked_div(1000)
 					.ok_or(ArithmeticError::Overflow)
 					.expect("blocktime is out of range") as u128,
