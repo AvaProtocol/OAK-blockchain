@@ -407,6 +407,8 @@ fn test_schedule_xcmp_task_ok() {
 	})
 }
 
+// Verify that upon scheduling a task, the task expiration will be inserted into
+// SortedTasksByExpiration and shard by expired_at.
 #[test]
 fn test_schedule_put_task_to_expiration_queue() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -449,6 +451,10 @@ fn test_schedule_put_task_to_expiration_queue() {
 	})
 }
 
+// Verify that upon scheduling a task, the task expiration will be inserted into
+// SortedTasksByExpiration and shard by expired_at.
+// This test is similar as above test but we create multiple task wit different expiration to
+// ensure all of them got to the right spot by expired_at time.
 #[test]
 fn test_schedule_put_task_to_expiration_queue_multi() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -520,6 +526,8 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 	})
 }
 
+// Verify that after calling sweep, expired task will be removed from all relevant storage. Our
+// stat is also decrease accordingly to the task removal
 #[test]
 fn test_sweep_expired_task_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
