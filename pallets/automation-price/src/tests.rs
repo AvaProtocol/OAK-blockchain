@@ -1238,7 +1238,7 @@ fn test_emit_event_when_execute_tasks() {
 				chain: task.chain.clone(),
 				exchange: task.exchange.clone(),
 				asset_pair: task.asset_pair.clone(),
-				price: this_task_asset_price.amount,
+				price: 1000_u128,
 			},
 		}));
 
@@ -1403,7 +1403,7 @@ fn test_expired_task_not_run() {
 				chain: task.chain.clone(),
 				exchange: task.exchange.clone(),
 				asset_pair: task.asset_pair.clone(),
-				price: this_task_asset_price.amount,
+				price: 1000_u128,
 			},
 		}));
 
@@ -1488,7 +1488,7 @@ fn test_price_move_against_target_price_skip_run() {
 				chain: task.chain.clone(),
 				exchange: task.exchange.clone(),
 				asset_pair: task.asset_pair.clone(),
-				price: this_task_asset_price.amount,
+				price: 1000_u128,
 			},
 		}));
 
