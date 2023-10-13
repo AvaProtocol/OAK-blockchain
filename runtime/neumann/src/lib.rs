@@ -553,6 +553,10 @@ impl pallet_aura::Config for Runtime {
 	type MaxAuthorities = ConstU32<100_000>;
 }
 
+parameter_types! {
+	/// Minimum stake required to be reserved to be a candidate
+	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
+}
 impl pallet_parachain_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;

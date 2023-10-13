@@ -343,7 +343,7 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 ) -> oak_runtime::GenesisConfig {
-	let candidate_stake = turing_runtime::MinCandidateStk::get();
+	let candidate_stake = oak_runtime::MinCandidateStk::get();
 	oak_runtime::GenesisConfig {
 		system: oak_runtime::SystemConfig {
 			code: oak_runtime::WASM_BINARY

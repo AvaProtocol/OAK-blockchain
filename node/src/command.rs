@@ -381,11 +381,15 @@ pub fn run() -> Result<()> {
 							.map_err(|e| {
 								sc_cli::Error::Service(sc_service::Error::Prometheus(e))
 							})?;
+
+					let info_provider =
+							try_runtime_cli::block_building_info::timestamp_with_aura_info(6000);
+
 					Ok((
 						cmd.run::<Block, ExtendedHostFunctions<
 							sp_io::SubstrateHostFunctions,
 							<Executor as NativeExecutionDispatch>::ExtendHostFunctions,
-						>>(),
+						>, _>(Some(info_provider)),
 						task_manager,
 					))
 				});
