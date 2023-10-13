@@ -1125,19 +1125,7 @@ pub mod pallet {
 			if let Some(this_task_asset_price) =
 				Self::get_asset_price_data((&task.chain, &task.exchange, &task.asset_pair))
 			{
-				// trigger when target price > current price of the asset
-				// Example:
-				//  - current price: 100, the task is has target price: 50  -> runable
-				//  - current price: 100, the task is has target price: 150 -> not runable
-				//
-				let price_matched_target_condtion =
-					if task.trigger_function == TRIGGER_FUNC_GT.to_vec() {
-						task.trigger_params[0] < this_task_asset_price.value
-					} else {
-						task.trigger_params[0] > this_task_asset_price.value
-					};
-
-				if price_matched_target_condtion {
+				if task.is_price_condition_match(&this_task_asset_price) {
 					return (
 						Some(TaskCondition::TargetPriceMatched {
 							chain: task.chain.clone(),
