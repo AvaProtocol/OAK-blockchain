@@ -22,34 +22,31 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
-use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult, FeeDetails};
+use pallet_automation_time_rpc_runtime_api::{AutostakingResult, FeeDetails};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_core::Bytes;
 use sp_rpc::number::NumberOrHex;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, MaybeDisplay},
-};
+use sp_runtime::traits::{Block as BlockT, MaybeDisplay};
 use std::sync::Arc;
 
 /// An RPC endpoint to provide information about tasks.
 #[rpc(client, server)]
 pub trait AutomationTimeApi<BlockHash, AccountId, Hash, Balance> {
-	// #[method(name = "automationTime_queryFeeDetails")]
-	// fn query_fee_details(
-	// 	&self,
-	// 	encoded_xt: Bytes,
-	// 	at: Option<BlockHash>,
-	// ) -> RpcResult<FeeDetails<NumberOrHex>>;
+	#[method(name = "automationTime_queryFeeDetails")]
+	fn query_fee_details(
+		&self,
+		encoded_xt: Bytes,
+		at: Option<BlockHash>,
+	) -> RpcResult<FeeDetails<NumberOrHex>>;
 
-	// /// Returns optimal autostaking period based on principal and a target collator.
-	// #[method(name = "automationTime_calculateOptimalAutostaking")]
-	// fn caclulate_optimal_autostaking(
-	// 	&self,
-	// 	principal: i128,
-	// 	collator: AccountId,
-	// ) -> RpcResult<AutostakingResult>;
+	/// Returns optimal autostaking period based on principal and a target collator.
+	#[method(name = "automationTime_calculateOptimalAutostaking")]
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult>;
 
 	#[method(name = "automationTime_getAutoCompoundDelegatedStakeTaskIds")]
 	fn get_auto_compound_delegated_stake_task_ids(
@@ -98,81 +95,77 @@ where
 	AccountId: Codec,
 	Hash: Codec,
 {
-	// fn query_fee_details(
-	// 	&self,
-	// 	encoded_xt: Bytes,
-	// 	at: Option<Block::Hash>,
-	// ) -> RpcResult<FeeDetails<NumberOrHex>> {
-	// 	let api = self.client.runtime_api();
-	// 	// let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+	fn query_fee_details(
+		&self,
+		encoded_xt: Bytes,
+		at: Option<Block::Hash>,
+	) -> RpcResult<FeeDetails<NumberOrHex>> {
+		let api = self.client.runtime_api();
+		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
+		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
+			CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to decode extrinsic.".to_string(),
+				Some(format!("{:?}", e)),
+			))
+		})?;
+		let fee_details = api
+			.query_fee_details(at_hash, uxt)
+			.map_err(|e| {
+				CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to query fee details.".to_string(),
+					Some(format!("{:?}", e)),
+				))
+			})?
+			.map_err(|e| {
+				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					"Unable to get fees.",
+					Some(String::from_utf8(e).unwrap_or_default()),
+				)))
+			})?;
 
-	// 	let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
-	// 		CallError::Custom(ErrorObject::owned(
-	// 			Error::RuntimeError.into(),
-	// 			"Unable to decode extrinsic.".to_string(),
-	// 			Some(format!("{:?}", e)),
-	// 		))
-	// 	})?;
-	// 	let fee_details = api
-	// 		.query_fee_details(self.client.info().best_hash, uxt)
-	// 		.map_err(|e| {
-	// 			CallError::Custom(ErrorObject::owned(
-	// 				Error::RuntimeError.into(),
-	// 				"Unable to query fee details.".to_string(),
-	// 				Some(format!("{:?}", e)),
-	// 			))
-	// 		})?
-	// 		.map_err(|e| {
-	// 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-	// 				Error::RuntimeError.into(),
-	// 				"Unable to get fees.",
-	// 				Some(String::from_utf8(e).unwrap_or_default()),
-	// 			)))
-	// 		})?;
+		let try_into_rpc_balance = |value: Balance| {
+			value.try_into().map_err(|_| {
+				JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+					Error::RuntimeError.into(),
+					format!("{} doesn't fit in NumberOrHex representation", value),
+					None::<()>,
+				)))
+			})
+		};
 
-	// 	let try_into_rpc_balance = |value: Balance| {
-	// 		value.try_into().map_err(|_| {
-	// 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-	// 				Error::RuntimeError.into(),
-	// 				format!("{} doesn't fit in NumberOrHex representation", value),
-	// 				None::<()>,
-	// 			)))
-	// 		})
-	// 	};
+		Ok(FeeDetails {
+			schedule_fee: try_into_rpc_balance(fee_details.schedule_fee)?,
+			execution_fee: try_into_rpc_balance(fee_details.execution_fee)?,
+		})
+	}
 
-	// 	Ok(FeeDetails {
-	// 		schedule_fee: try_into_rpc_balance(fee_details.schedule_fee)?,
-	// 		execution_fee: try_into_rpc_balance(fee_details.execution_fee)?,
-	// 	})
-	// }
-
-	// fn caclulate_optimal_autostaking(
-	// 	&self,
-	// 	principal: i128,
-	// 	collator: AccountId,
-	// ) -> RpcResult<AutostakingResult> {
-	// 	let api = self.client.runtime_api();
-	// 	let at = BlockId::hash(self.client.info().best_hash);
-	// 	let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
-	// 	let mapped_err = |message| -> JsonRpseeError {
-	// 		JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
-	// 			Error::RuntimeError.into(),
-	// 			"Unable to calculate optimal autostaking",
-	// 			Some(message),
-	// 		)))
-	// 	};
-	// 	runtime_api_result
-	// 		.map_err(|e| mapped_err(format!("{:?}", e)))
-	// 		.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or_default())))?
-	// }
+	fn caclulate_optimal_autostaking(
+		&self,
+		principal: i128,
+		collator: AccountId,
+	) -> RpcResult<AutostakingResult> {
+		let api = self.client.runtime_api();
+		let runtime_api_result = api.calculate_optimal_autostaking(self.client.info().best_hash, principal, collator);
+		let mapped_err = |message| -> JsonRpseeError {
+			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
+				Error::RuntimeError.into(),
+				"Unable to calculate optimal autostaking",
+				Some(message),
+			)))
+		};
+		runtime_api_result
+			.map_err(|e| mapped_err(format!("{:?}", e)))
+			.map(|r| r.map_err(|e| mapped_err(String::from_utf8(e).unwrap_or_default())))?
+	}
 
 	fn get_auto_compound_delegated_stake_task_ids(
 		&self,
 		account: AccountId,
 	) -> RpcResult<Vec<Vec<u8>>> {
 		let api = self.client.runtime_api();
-		// let at = BlockId::hash(self.client.info().best_hash);
-
 		let runtime_api_result =
 			api.get_auto_compound_delegated_stake_task_ids(self.client.info().best_hash, account);
 		runtime_api_result.map_err(|e| {

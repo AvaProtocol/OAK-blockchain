@@ -19,18 +19,18 @@
 
 use codec::{Codec, Decode, Encode};
 use sp_std::vec::Vec;
-// use scale_info::TypeInfo;
+use scale_info::{TypeInfo, prelude::string::String};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Encode, Decode)]
+#[derive(PartialEq, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
 pub struct AutostakingResult {
 	pub period: i32,
-	pub apy: f64,
+	pub apy: String,
 }
 
 #[derive(Debug, PartialEq, Encode, Decode)]
@@ -40,7 +40,7 @@ pub enum AutomationAction {
 	AutoCompoundDelegatedStake,
 }
 
-#[derive(Debug, PartialEq, Encode, Decode)]
+#[derive(Debug, PartialEq, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct FeeDetails<Balance> {
@@ -54,11 +54,11 @@ sp_api::decl_runtime_apis! {
 		Hash: Codec,
 		Balance: Codec,
 	{
-		// fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
-		// fn calculate_optimal_autostaking(
-		// 	principal: i128,
-		// 	collator: AccountId
-		// ) -> Result<AutostakingResult, Vec<u8>>;
+		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>>;
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>>;
 	}
 }

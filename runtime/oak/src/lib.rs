@@ -43,6 +43,8 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
+use scale_info::prelude::format;
+
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
@@ -1207,73 +1209,73 @@ impl_runtime_apis! {
 	}
 
 	impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
-		// fn query_fee_details(
-		// 	uxt: <Block as BlockT>::Extrinsic,
-		// ) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
-		// 	use pallet_automation_time::Action;
+		fn query_fee_details(
+			uxt: <Block as BlockT>::Extrinsic,
+		) -> Result<AutomationFeeDetails<Balance>, Vec<u8>> {
+			use pallet_automation_time::Action;
 
-		// 	let (action, executions) = match uxt.function {
-		// 		RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-		// 			destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
-		// 		}) => {
-		// 			let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-		// 			let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-		// 			let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
-		// 			Ok((action, schedule.number_of_executions()))
-		// 		},
-		// 		RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
-		// 			destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
-		// 		}) => {
-		// 			let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-		// 			let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-		// 			let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
-		// 			Ok((action, schedule.number_of_executions()))
-		// 		},
-		// 		RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
-		// 			call, schedule, ..
-		// 		}) => {
-		// 			let action = Action::DynamicDispatch { encoded_call: call.encode() };
-		// 			Ok((action, schedule.number_of_executions()))
-		// 		},
-		// 		_ => Err("Unsupported Extrinsic".as_bytes())
-		// 	}?;
+			let (action, executions) = match uxt.function {
+				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
+				}) => {
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
+					Ok((action, schedule.number_of_executions()))
+				},
+				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
+				}) => {
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+					Ok((action, schedule.number_of_executions()))
+				},
+				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
+					call, schedule, ..
+				}) => {
+					let action = Action::DynamicDispatch { encoded_call: call.encode() };
+					Ok((action, schedule.number_of_executions()))
+				},
+				_ => Err("Unsupported Extrinsic".as_bytes())
+			}?;
 
-		// 	let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
-		// 	let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
-		// 		.map_err(|_| "Unable to parse fee".as_bytes())?;
+			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
+				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
-		// 	Ok(AutomationFeeDetails {
-		// 		schedule_fee: fee_handler.schedule_fee_amount,
-		// 		execution_fee: fee_handler.execution_fee_amount
-		// 	})
-		// }
+			Ok(AutomationFeeDetails {
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
+			})
+		}
 
-		// fn calculate_optimal_autostaking(
-		// 	principal: i128,
-		// 	collator: AccountId
-		// ) -> Result<AutostakingResult, Vec<u8>> {
-		// 	let candidate_info = ParachainStaking::candidate_info(collator);
-		// 	let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
+		fn calculate_optimal_autostaking(
+			principal: i128,
+			collator: AccountId
+		) -> Result<AutostakingResult, Vec<u8>> {
+			let candidate_info = ParachainStaking::candidate_info(collator);
+			let money_supply = Balances::total_issuance() + Vesting::total_unvested_allocation();
 
-		// 	let collator_stake =
-		// 		candidate_info.ok_or("collator does not exist")?.total_counted as i128;
-		// 	let fee = AutomationTime::calculate_schedule_fee_amount(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
+			let collator_stake =
+				candidate_info.ok_or("collator does not exist")?.total_counted as i128;
+			let fee = AutomationTime::calculate_schedule_fee_amount(&(AutomationAction::AutoCompoundDelegatedStake.into()), 1).expect("Can only fail for DynamicDispatch and this is always AutoCompoundDelegatedStake") as i128;
 
-		// 	let duration = 90;
-		// 	let total_collators = ParachainStaking::total_selected();
-		// 	let daily_collator_rewards =
-		// 		(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
+			let duration = 90;
+			let total_collators = ParachainStaking::total_selected();
+			let daily_collator_rewards =
+				(money_supply as f64 * 0.025) as i128 / total_collators as i128 / 365;
 
-		// 	let res = pallet_automation_time::do_calculate_optimal_autostaking(
-		// 		principal,
-		// 		collator_stake,
-		// 		fee,
-		// 		duration,
-		// 		daily_collator_rewards,
-		// 	);
+			let res = pallet_automation_time::do_calculate_optimal_autostaking(
+				principal,
+				collator_stake,
+				fee,
+				duration,
+				daily_collator_rewards,
+			);
 
-		// 	Ok(AutostakingResult{period: res.0, apy: res.1})
-		// }
+			Ok(AutostakingResult{period: res.0, apy: format!("{}", res.1)})
+		}
 
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
 			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
