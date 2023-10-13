@@ -230,7 +230,7 @@ fn test_update_asset_prices() {
 		.expect("cannot get price");
 
 		assert_eq!(p.round, 1);
-		assert_eq!(p.amount, 1005);
+		assert_eq!(p.value, 1005);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetUpdated {
 			owner_id: sender,
@@ -242,6 +242,61 @@ fn test_update_asset_prices() {
 		}));
 	})
 }
+
+#[test]
+fn test_update_asset_price_increase_round() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let sender = AccountId32::new(ALICE);
+
+		setup_asset(&sender, chain1.to_vec());
+
+		assert_ok!(AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(sender.clone()),
+			vec!(chain1.to_vec()),
+			vec!(exchange1.to_vec()),
+			vec!(asset1.to_vec()),
+			vec!(asset2.to_vec()),
+			vec!(1005),
+			vec!(START_BLOCK_TIME as u128),
+			vec!(1),
+		));
+
+		let p = AutomationPrice::get_asset_price_data((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+		))
+		.expect("cannot get price");
+
+		assert_eq!(p.round, 1);
+		assert_eq!(p.updated_at, (START_BLOCK_TIME / 1000).into());
+
+		Timestamp::set_timestamp(
+			(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND * 1000).try_into().unwrap(),
+		);
+		assert_ok!(AutomationPrice::update_asset_prices(
+			RuntimeOrigin::signed(sender.clone()),
+			vec!(chain1.to_vec()),
+			vec!(exchange1.to_vec()),
+			vec!(asset1.to_vec()),
+			vec!(asset2.to_vec()),
+			vec!(1005),
+			vec!(START_BLOCK_TIME as u128),
+			vec!(1),
+		));
+
+		let p = AutomationPrice::get_asset_price_data((
+			chain1.to_vec(),
+			exchange1.to_vec(),
+			(asset1.to_vec(), asset2.to_vec()),
+		))
+		.expect("cannot get price");
+
+		assert_eq!(p.round, 2);
+		assert_eq!(p.updated_at, START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND);
+	})
+}
+
 #[test]
 fn test_update_asset_prices_multi() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -269,7 +324,7 @@ fn test_update_asset_prices_multi() {
 		.expect("cannot get price");
 
 		assert_eq!(p1.round, 1);
-		assert_eq!(p1.amount, 1005);
+		assert_eq!(p1.value, 1005);
 
 		let p2 = AutomationPrice::get_asset_price_data((
 			chain2.to_vec(),
@@ -279,7 +334,7 @@ fn test_update_asset_prices_multi() {
 		.expect("cannot get price");
 
 		assert_eq!(p2.round, 2);
-		assert_eq!(p2.amount, 1009);
+		assert_eq!(p2.value, 1009);
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetUpdated {
 			owner_id: sender.clone(),

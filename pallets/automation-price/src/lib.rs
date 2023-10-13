@@ -234,8 +234,8 @@ pub mod pallet {
 	#[scale_info(skip_type_params(T))]
 	pub struct PriceData {
 		pub round: u128,
-		pub nonce: u128,
-		pub amount: u128,
+		pub updated_at: u128,
+		pub value: u128,
 	}
 
 	// AssetRegistry holds information and metadata about the asset we support
@@ -598,6 +598,13 @@ pub mod pallet {
 		) -> DispatchResult {
 			let owner_id = ensure_signed(origin)?;
 
+			let current_block_time = Self::get_current_block_time();
+			if current_block_time.is_err() {
+				Err(Error::<T>::BlockTimeNotSet)?
+			}
+
+			let now = current_block_time.unwrap() as u128;
+
 			if !(chains.len() == exchanges.len() &&
 				exchanges.len() == assets1.len() &&
 				assets1.len() == assets2.len() &&
@@ -629,8 +636,18 @@ pub mod pallet {
 						Err(Error::<T>::OracleNotAuthorized)?
 					}
 
-					// TODO: Add round and nonce check logic
-					PriceRegistry::<T>::insert(&key, PriceData { round, nonce: 1, amount: *price });
+					// TODO: Eventually we will need to handle submitted_at and round properly when
+					// we had more than one oracle
+					// Currently not doing that check for the simplicity shake of interface
+					let this_round = match Self::get_asset_price_data(&key) {
+						Some(previous_price) => previous_price.round + 1,
+						None => round,
+					};
+
+					PriceRegistry::<T>::insert(
+						&key,
+						PriceData { round: this_round, updated_at: now, value: *price },
+					);
 
 					Self::deposit_event(Event::AssetUpdated {
 						owner_id: owner_id.clone(),
@@ -915,10 +932,10 @@ pub mod pallet {
 					//Eg sell order, sell when price >
 					let range;
 					if trigger_func == TRIGGER_FUNC_GT.to_vec() {
-						range = (Excluded(&u128::MIN), Excluded(&current_price.amount))
+						range = (Excluded(&u128::MIN), Excluded(&current_price.value))
 					} else {
 						// Eg buy order, buy when price <
-						range = (Included(&current_price.amount), Excluded(&u128::MAX))
+						range = (Included(&current_price.value), Excluded(&u128::MAX))
 					};
 
 					for (&price, task_ids) in (tasks.clone()).range(range) {
@@ -1115,9 +1132,9 @@ pub mod pallet {
 				//
 				let price_matched_target_condtion =
 					if task.trigger_function == TRIGGER_FUNC_GT.to_vec() {
-						task.trigger_params[0] < this_task_asset_price.amount
+						task.trigger_params[0] < this_task_asset_price.value
 					} else {
-						task.trigger_params[0] > this_task_asset_price.amount
+						task.trigger_params[0] > this_task_asset_price.value
 					};
 
 				if price_matched_target_condtion {
@@ -1126,7 +1143,7 @@ pub mod pallet {
 							chain: task.chain.clone(),
 							exchange: task.exchange.clone(),
 							asset_pair: task.asset_pair.clone(),
-							price: this_task_asset_price.amount,
+							price: this_task_asset_price.value,
 						}),
 						consumed_weight,
 					)
@@ -1138,7 +1155,7 @@ pub mod pallet {
 							chain: task.chain.clone(),
 							exchange: task.exchange.clone(),
 							asset_pair: task.asset_pair.clone(),
-							price: this_task_asset_price.amount,
+							price: this_task_asset_price.value,
 
 							target_price: task.trigger_params[0],
 						},
