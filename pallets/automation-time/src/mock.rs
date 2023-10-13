@@ -189,8 +189,6 @@ impl orml_currencies::Config for Test {
 pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 
@@ -227,7 +225,6 @@ impl pallet_parachain_staking::Config for Test {
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<10>;
-	type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial

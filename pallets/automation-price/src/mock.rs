@@ -177,8 +177,6 @@ impl orml_currencies::Config for Test {
 pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 

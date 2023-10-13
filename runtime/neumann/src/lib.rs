@@ -552,10 +552,6 @@ impl pallet_aura::Config for Runtime {
 	type MaxAuthorities = ConstU32<100_000>;
 }
 
-parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 1_000_000 * DOLLAR;
-}
 impl pallet_parachain_staking::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = Balances;
@@ -583,7 +579,6 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<10>;
-	// type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial
@@ -1042,9 +1037,6 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Event<T>} = 62,
-
-		// AuthorInherent: pallet_author_inherent::{Pallet, Call, Storage, Inherent} = 63,
-		// AuthorFilter: pallet_author_slot_filter::{Pallet, Call, Storage, Event, Config} = 64,
 
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}

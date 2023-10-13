@@ -1096,8 +1096,7 @@ pub mod pallet {
 						),
 						Err(e) => (
 							<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
-							// Some(e),
-							None,
+							Some(e.error),
 						),
 					}
 				},

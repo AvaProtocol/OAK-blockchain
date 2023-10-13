@@ -579,8 +579,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
 	pub const MinCandidateStk: u128 = 1_000_000 * DOLLAR;
 }
@@ -611,7 +609,6 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<100>;
-	// type MinCollatorStk = MinCollatorStk;
 	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
