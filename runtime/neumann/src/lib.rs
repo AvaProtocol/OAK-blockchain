@@ -28,6 +28,7 @@ use pallet_automation_time_rpc_runtime_api::{
 	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
 };
 use primitives::{assets::CustomMetadata, TokenId};
+use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -38,7 +39,6 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
-use scale_info::prelude::format;
 
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]

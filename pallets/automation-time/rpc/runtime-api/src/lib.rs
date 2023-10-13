@@ -18,8 +18,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode};
+use scale_info::{prelude::string::String, TypeInfo};
 use sp_std::vec::Vec;
-use scale_info::{TypeInfo, prelude::string::String};
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};

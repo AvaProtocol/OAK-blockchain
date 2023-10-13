@@ -148,7 +148,8 @@ where
 		collator: AccountId,
 	) -> RpcResult<AutostakingResult> {
 		let api = self.client.runtime_api();
-		let runtime_api_result = api.calculate_optimal_autostaking(self.client.info().best_hash, principal, collator);
+		let runtime_api_result =
+			api.calculate_optimal_autostaking(self.client.info().best_hash, principal, collator);
 		let mapped_err = |message| -> JsonRpseeError {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
