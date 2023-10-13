@@ -929,16 +929,9 @@ pub mod pallet {
 				if let Some(mut tasks) = Self::get_sorted_tasks_index(&key) {
 					let current_price = current_price_wrap.unwrap();
 
-					//Eg sell order, sell when price >
-					let range;
-					if trigger_func == TRIGGER_FUNC_GT.to_vec() {
-						range = (Excluded(&u128::MIN), Excluded(&current_price.value))
-					} else {
-						// Eg buy order, buy when price <
-						range = (Included(&current_price.value), Excluded(&u128::MAX))
-					};
-
-					for (&price, task_ids) in (tasks.clone()).range(range) {
+					for (&price, task_ids) in
+						(tasks.clone()).range(range_by_trigger_func(&trigger_func, &current_price))
+					{
 						// Remove because we map this into task queue
 						tasks.remove(&price);
 						let ref mut t = &mut (task_ids.clone());
