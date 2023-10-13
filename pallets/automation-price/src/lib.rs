@@ -395,6 +395,14 @@ pub mod pallet {
 	/// Many fields on this struct is optinal to support multiple error condition
 	#[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]
 	pub enum TaskCondition {
+		TargetPriceMatched {
+			// record the state of the asset at the time the task is triggered
+			// when debugging we can use this to reason about why did the task is trigger
+			chain: ChainName,
+			exchange: Exchange,
+			asset_pair: AssetPair,
+			price: u128,
+		},
 		AlreadyExpired {
 			// the original expired_at of this task
 			expired_at: u128,
@@ -425,6 +433,7 @@ pub mod pallet {
 		TaskTriggered {
 			who: AccountOf<T>,
 			task_id: TaskId,
+			condition: TaskCondition,
 		},
 		// An event when the task ran succesfully
 		TaskExecuted {
@@ -1066,14 +1075,14 @@ pub mod pallet {
 		// it to be run.
 		//
 		// Or the price might move by the time task is invoked, we don't want it to get run either.
-		fn task_can_run(task: &Task<T>) -> (bool, Weight) {
+		fn task_can_run(task: &Task<T>) -> (Option<TaskCondition>, Weight) {
 			let mut consumed_weight: Weight = Weight::from_ref_time(0);
 
 			// If we cannot extract time from the block, then somthing horrible wrong, let not move
 			// forward
 			let current_block_time = Self::get_current_block_time();
 			if current_block_time.is_err() {
-				return (false, consumed_weight)
+				return (None, consumed_weight)
 			}
 
 			let now = current_block_time.unwrap();
@@ -1091,7 +1100,7 @@ pub mod pallet {
 					},
 				});
 
-				return (false, consumed_weight)
+				return (None, consumed_weight)
 			}
 
 			// read storage once to get the price
@@ -1112,7 +1121,15 @@ pub mod pallet {
 					};
 
 				if price_matched_target_condtion {
-					return (true, consumed_weight)
+					return (
+						Some(TaskCondition::TargetPriceMatched {
+							chain: task.chain.clone(),
+							exchange: task.exchange.clone(),
+							asset_pair: task.asset_pair.clone(),
+							price: this_task_asset_price.amount,
+						}),
+						consumed_weight,
+					)
 				} else {
 					Self::deposit_event(Event::PriceAlreadyMoved {
 						who: task.owner_id.clone(),
@@ -1127,12 +1144,12 @@ pub mod pallet {
 						},
 					});
 
-					return (false, consumed_weight)
+					return (None, consumed_weight)
 				}
 			}
 
 			// This happen because we cannot find the price, so the task cannot be run
-			(false, consumed_weight)
+			(None, consumed_weight)
 		}
 
 		/// Runs as many tasks as the weight allows from the provided vec of task_ids.
@@ -1165,14 +1182,15 @@ pub mod pallet {
 						<T as Config>::WeightInfo::emit_event()
 					},
 					Some(task) => {
-						let (task_runable, test_can_run_weight) = Self::task_can_run(&task);
+						let (task_condition, test_can_run_weight) = Self::task_can_run(&task);
 
-						if !task_runable {
+						if task_condition.is_none() {
 							test_can_run_weight
 						} else {
 							Self::deposit_event(Event::TaskTriggered {
 								who: task.owner_id.clone(),
 								task_id: task.task_id.clone(),
+								condition: task_condition.unwrap(),
 							});
 
 							let total_task =
