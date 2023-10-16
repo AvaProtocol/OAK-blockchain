@@ -154,7 +154,7 @@ fn transact_in_target_chain_works() {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
 		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
 		let xcm_weight = transact_encoded_call_weight
-			.checked_add(&Weight::from_parts(100_000_000,0 ))
+			.checked_add(&Weight::from_parts(100_000_000, 0))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset { id: Concrete(asset_location), fun: Fungible(xcm_fee) };
