@@ -522,8 +522,9 @@ pub mod pallet {
 				return T::DbWeight::get().reads(1u64);
 			}
 
-			let max_weight: Weight = Weight::from_ref_time(
+			let max_weight: Weight = Weight::from_parts(
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+				0,
 			);
 			Self::trigger_tasks(max_weight)
 		}

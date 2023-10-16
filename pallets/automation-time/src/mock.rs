@@ -285,7 +285,7 @@ impl<
 pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
 	fn transfer() -> Weight {
-		Weight::from_ref_time(100_000)
+		Weight::from_parts(100_000, 0)
 	}
 
 	fn transfer_keep_alive() -> Weight {
@@ -332,40 +332,40 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		Weight::zero()
 	}
 	fn run_xcmp_task() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_dynamic_dispatch_action() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn run_missed_tasks_many_missing(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn run_tasks_many_found(v: u32) -> Weight {
-		Weight::from_ref_time(50_000 * v as u64)
+		Weight::from_parts(50_000 * v as u64, 0u64)
 	}
 	fn run_tasks_many_missing(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn update_task_queue_overhead() -> Weight {
-		Weight::from_ref_time(10_000)
+		Weight::from_parts(10_000, 0)
 	}
 	fn append_to_missed_tasks(v: u32) -> Weight {
-		Weight::from_ref_time(20_000 * v as u64)
+		Weight::from_parts(20_000 * v as u64, 0u64)
 	}
 	fn update_scheduled_task_queue() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0u64)
 	}
 	fn shift_missed_tasks() -> Weight {
-		Weight::from_ref_time(900_000)
+		Weight::from_parts(900_000, 0u64)
 	}
 }
 
@@ -685,7 +685,7 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
@@ -693,7 +693,7 @@ pub fn get_funds(account: AccountId) {
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();

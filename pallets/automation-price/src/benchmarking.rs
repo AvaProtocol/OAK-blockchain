@@ -83,8 +83,8 @@ fn schedule_xcmp_task<T: Config>(
 			amount: 0,
 		}),
 		call.clone(),
-		Weight::from_ref_time(100_000),
-		Weight::from_ref_time(200_000),
+		Weight::from_parts(100_000, 0),
+		Weight::from_parts(200_000, 0),
 	);
 }
 
@@ -106,8 +106,8 @@ fn direct_task_schedule<T: Config>(
 		asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
 		amount: 0,
 	};
-	let encoded_call_weight = Weight::from_ref_time(100_000);
-	let overall_weight = Weight::from_ref_time(200_000);
+	let encoded_call_weight = Weight::from_parts(100_000, 0);
+	let overall_weight = Weight::from_parts(200_000, 0);
 	let schedule_as = account("caller", 0, SEED);
 
 	let action = Action::XCMP {
@@ -250,7 +250,7 @@ benchmarks! {
 
 		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 	}: {
-		AutomationPrice::<T>::run_xcmp_task(destination, creator, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), InstructionSequence::PayThroughSovereignAccount)
+		AutomationPrice::<T>::run_xcmp_task(destination, creator, fee, call, Weight::from_parts(100_000, 0), Weight::from_parts(200_000, 0), InstructionSequence::PayThroughSovereignAccount)
 	}
 
 	remove_task {

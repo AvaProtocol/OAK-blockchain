@@ -241,7 +241,7 @@ parameter_types! {
 pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
 	fn transfer() -> Weight {
-		Weight::from_ref_time(100_000)
+		Weight::from_parts(100_000, 0)
 	}
 
 	fn transfer_keep_alive() -> Weight {
@@ -267,27 +267,27 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 pub struct MockWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWeight<Test> {
 	fn emit_event() -> Weight {
-		Weight::from_ref_time(20_000_000_u64)
+		Weight::from_parts(20_000_000_u64, 0u64)
 	}
 
 	fn asset_price_update_extrinsic(v: u32) -> Weight {
-		Weight::from_ref_time(220_000_000_u64 * v as u64)
+		Weight::from_parts(220_000_000_u64 * v as u64, 0u64)
 	}
 
 	fn initialize_asset_extrinsic(v: u32) -> Weight {
-		Weight::from_ref_time(220_000_000_u64)
+		Weight::from_parts(220_000_000_u64, 0u64)
 	}
 
 	fn schedule_xcmp_task_extrinsic() -> Weight {
-		Weight::from_ref_time(24_000_000_u64)
+		Weight::from_parts(24_000_000_u64, 0u64)
 	}
 
 	fn cancel_task_extrinsic() -> Weight {
-		Weight::from_ref_time(20_000_000_u64)
+		Weight::from_parts(20_000_000_u64, 0u64)
 	}
 
 	fn run_xcmp_task() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
+		Weight::from_parts(200_000_000_u64, 0u64)
 	}
 
 	fn remove_task() -> Weight {
@@ -431,7 +431,7 @@ pub fn get_task_ids_from_events() -> Vec<TaskId> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee;
@@ -439,7 +439,7 @@ pub fn get_funds(account: AccountId) {
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
 	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();

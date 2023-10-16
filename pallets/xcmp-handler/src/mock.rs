@@ -166,7 +166,7 @@ impl SendXcm for TestSendXcm {
 	) -> SendResult<Self::Ticket> {
 		let err_message = Xcm(vec![Transact {
 			origin_kind: OriginKind::Native,
-			require_weight_at_most: Weight::from_ref_time(100_000),
+			require_weight_at_most: Weight::from_parts(100_000, 0),
 			call: vec![9, 1, 1].into(),
 		}]);
 		if message.clone().unwrap() == err_message {

@@ -338,8 +338,9 @@ pub mod pallet {
 				return T::DbWeight::get().reads(1u64);
 			}
 
-			let max_weight: Weight = Weight::from_ref_time(
+			let max_weight: Weight = Weight::from_parts(
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+				0,
 			);
 
 			Self::trigger_tasks(max_weight)
@@ -660,7 +661,7 @@ pub mod pallet {
 			// The last_missed_slot might not be caught up within just 1 block.
 			// It might take multiple blocks to fully catch up, so we limit update to a max weight.
 			let max_update_weight: Weight =
-				Weight::from_ref_time(T::UpdateQueueRatio::get().mul_floor(weight_left.ref_time()));
+				Weight::from_parts(T::UpdateQueueRatio::get().mul_floor(weight_left.ref_time()), 0);
 
 			let update_weight = Self::update_task_queue(max_update_weight);
 

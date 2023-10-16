@@ -90,8 +90,8 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 				amount: 0,
 			},
 			vec![4, 5, 6],
-			Weight::from_ref_time(5_000),
-			Weight::from_ref_time(10_000),
+			Weight::from_parts(5_000, 0),
+			Weight::from_parts(10_000, 0),
 			InstructionSequence::PayThroughSovereignAccount,
 			vec![],
 		)
@@ -182,7 +182,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_ref_time(1_000), Weight::from_ref_time(2_000))
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_parts(1_000, 0), Weight::from_parts(2_000, 0))
 
 	schedule_auto_compound_delegated_stake_task_full {
 		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task().ref_time();
@@ -299,7 +299,7 @@ benchmarks! {
 		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 
 		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
-	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_ref_time(100_000), Weight::from_ref_time(200_000), InstructionSequence::PayThroughSovereignAccount) }
+	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_parts(100_000, 0), Weight::from_parts(200_000, 0), InstructionSequence::PayThroughSovereignAccount) }
 
 	run_auto_compound_delegated_stake_task {
 		let delegator: T::AccountId = account("delegator", 0, SEED);
@@ -343,7 +343,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = Weight::from_ref_time(50_000_000_000);
+		let weight_left = Weight::from_parts(50_000_000_000, 0);
 		let mut missed_tasks = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u32 = 10800;
@@ -364,7 +364,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
 		let mut missed_tasks = vec![];
-		let weight_left = Weight::from_ref_time(500_000_000_000);
+		let weight_left = Weight::from_parts(500_000_000_000, 0);
 
 		for i in 0..v {
 			let task_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -383,7 +383,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = Weight::from_ref_time(500_000_000_000);
+		let weight_left = Weight::from_parts(500_000_000_000, 0);
 		let mut task_ids = vec![];
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let execution_time = 10800;
@@ -402,7 +402,7 @@ benchmarks! {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
 		let mut task_ids = vec![];
-		let weight_left = Weight::from_ref_time(500_000_000_000);
+		let weight_left = Weight::from_parts(500_000_000_000, 0);
 
 		for i in 0..v {
 			let task_id: Vec<u8> = vec![i.saturated_into::<u8>()];
@@ -418,7 +418,7 @@ benchmarks! {
 	*/
 
 	update_task_queue_overhead {
-		let weight_left = Weight::from_ref_time(500_000_000_000);
+		let weight_left = Weight::from_parts(500_000_000_000, 0);
 	}: { AutomationTime::<T>::update_task_queue(weight_left) }
 
 	append_to_missed_tasks {
@@ -426,7 +426,7 @@ benchmarks! {
 
 		Timestamp::<T>::set_timestamp(1u32.into()); // Set to non-zero default for testing
 
-		let weight_left = Weight::from_ref_time(500_000_000_000);
+		let weight_left = Weight::from_parts(500_000_000_000, 0);
 		let caller: T::AccountId = account("callerName", 0, SEED);
 		let last_time_slot: u64 = 3600;
 		let time = last_time_slot;
