@@ -141,6 +141,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 impl parachain_info::Config for Test {}
@@ -240,17 +244,17 @@ parameter_types! {
 
 pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
-	fn transfer() -> Weight {
+	fn transfer_allow_death() -> Weight {
 		Weight::from_parts(100_000, 0)
 	}
 
 	fn transfer_keep_alive() -> Weight {
 		Weight::zero()
 	}
-	fn set_balance_creating() -> Weight {
+	fn force_set_balance_creating() -> Weight {
 		Weight::zero()
 	}
-	fn set_balance_killing() -> Weight {
+	fn force_set_balance_killing() -> Weight {
 		Weight::zero()
 	}
 	fn force_transfer() -> Weight {
@@ -260,6 +264,9 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 		Weight::zero()
 	}
 	fn force_unreserve() -> Weight {
+		Weight::zero()
+	}
+	fn upgrade_accounts(_u: u32) -> Weight {
 		Weight::zero()
 	}
 }
@@ -435,14 +442,14 @@ pub fn get_funds(account: AccountId) {
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee;
-	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, max_execution_fee).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
 	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
-	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, max_execution_fee).unwrap();
 }
 
 pub fn get_xcmp_funds(account: AccountId) {
@@ -450,7 +457,7 @@ pub fn get_xcmp_funds(account: AccountId) {
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(1u32);
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
-	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, with_xcm_fees).unwrap();
 }
 
 pub fn fund_account(account: &AccountId, action_weight: u64, additional_amount: Option<u128>) {

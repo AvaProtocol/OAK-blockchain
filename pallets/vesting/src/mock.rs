@@ -14,12 +14,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 use super::*;
 use crate as pallet_vesting;
 use frame_support::{
 	construct_runtime, parameter_types,
-	traits::{Everything, GenesisBuild},
+	traits::{ConstU32, Everything, GenesisBuild},
 };
 use sp_core::H256;
 use sp_runtime::{
@@ -97,6 +96,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {

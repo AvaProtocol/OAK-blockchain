@@ -219,7 +219,7 @@ fn pay_xcm_fee_works() {
 		let fee = 3_500_000;
 		let alice_balance = 8_000_000;
 
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
 		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
@@ -235,7 +235,7 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 		let fee = 3_500_000;
 		let alice_balance = fee;
 
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
 		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance);
