@@ -34,6 +34,7 @@ use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
+	TokenError::FundsUnavailable,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
@@ -571,7 +572,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
-					error: <pallet_balances::Error<Test>>::InsufficientBalance.into(),
+					error: DispatchError::Token(FundsUnavailable),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: account_id,

@@ -478,7 +478,7 @@ parameter_types! {
 	pub const MaxExecutionTimes: u32 = 3;
 	pub const MaxScheduleSeconds: u64 = 86_400;	// 24 hours in seconds
 	pub const SlotSizeSeconds: u64 = 600;		// 10 minutes in seconds;
-	pub const MaxBlockWeight: u64 = 20_000_000;
+	pub const MaxBlockWeight: u64 = 24_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
