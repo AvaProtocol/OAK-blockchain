@@ -221,6 +221,9 @@ benchmarks! {
 		// our task look up will always be O(1) for time
 		let mut task_ids: Vec<TaskId> = vec![];
 		for i in 1..100 {
+		  // Fund the account so we can schedule task
+		  let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
+		  T::Currency::deposit_creating(&creator, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
 		  direct_task_schedule::<T>(creator.clone(), format!("{:?}", i).as_bytes().to_vec(), i, "gt".as_bytes().to_vec(), i, vec![100, 200, (i % 256) as u8]);
 		  task_ids.push(format!("{:?}", i).as_bytes().to_vec());
 		}
@@ -327,11 +330,13 @@ benchmarks! {
 
 	emit_event {
 		let owner_id: T::AccountId = account("call", 1, SEED);
+		let schedule_as: T::AccountId = account("schedule_as", 1, SEED);
 		let task_id: TaskId = vec![1,2,3];
 	} : {
 		AutomationPrice::<T>::deposit_event(crate::Event::<T>::TaskScheduled {
 				owner_id,
 				task_id,
+				schedule_as: Some(schedule_as),
 			});
 	}
 

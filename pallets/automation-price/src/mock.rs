@@ -74,6 +74,7 @@ pub const chain2: &[u8] = "DOT".as_bytes();
 pub const asset1: &[u8] = "TUR".as_bytes();
 pub const asset2: &[u8] = "USDC".as_bytes();
 pub const asset3: &[u8] = "KSM".as_bytes();
+pub const MOCK_XCMP_FEE: u128 = 10_000_000_u128;
 
 construct_runtime!(
 	pub enum Test where
@@ -280,7 +281,7 @@ impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWei
 	}
 
 	fn schedule_xcmp_task_extrinsic() -> Weight {
-		Weight::from_ref_time(200_000_000_u64)
+		Weight::from_ref_time(24_000_000_u64)
 	}
 
 	fn cancel_task_extrinsic() -> Weight {
@@ -453,16 +454,10 @@ pub fn get_xcmp_funds(account: AccountId) {
 	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
 }
 
-pub fn fund_account(
-	account: &AccountId,
-	action_weight: u64,
-	execution_count: usize,
-	additional_amount: Option<u128>,
-) {
-	let amount: u128 =
-		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128 +
-			additional_amount.unwrap_or(0) +
-			u128::from(ExistentialDeposit::get());
+pub fn fund_account(account: &AccountId, action_weight: u64, additional_amount: Option<u128>) {
+	let amount: u128 = u128::from(action_weight) * ExecutionWeightFee::get() +
+		additional_amount.unwrap_or(0) +
+		u128::from(ExistentialDeposit::get());
 	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }
 

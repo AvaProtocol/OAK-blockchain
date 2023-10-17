@@ -16,7 +16,7 @@
 // limitations under the License.
 
 /// ! Traits and default implementation for paying execution fees.
-use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf};
+use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
 
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
@@ -34,7 +34,6 @@ pub trait HandleFees<T: Config> {
 	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
-		executions: u32,
 		prereq: F,
 	) -> Result<R, DispatchError>;
 }
@@ -54,10 +53,9 @@ where
 	fn pay_checked_fees_for<R, F: FnOnce() -> Result<R, DispatchError>>(
 		owner: &AccountOf<T>,
 		action: &ActionOf<T>,
-		executions: u32,
 		prereq: F,
 	) -> Result<R, DispatchError> {
-		let fee_handler = Self::new(owner, action, executions)?;
+		let fee_handler = Self::new(owner, action)?;
 		fee_handler.can_pay_fee().map_err(|_| Error::<T>::InsufficientBalance)?;
 		let outcome = prereq()?;
 		fee_handler.pay_fees()?;
@@ -126,21 +124,16 @@ where
 	}
 
 	/// Builds an instance of the struct
-	pub fn new(
-		owner: &AccountOf<T>,
-		action: &ActionOf<T>,
-		executions: u32,
-	) -> Result<Self, DispatchError> {
+	pub fn new(owner: &AccountOf<T>, action: &ActionOf<T>) -> Result<Self, DispatchError> {
 		let schedule_fee_location = action.schedule_fee_location::<T>();
 
-		// TODO: FIX THIS BEFORE MERGE
-		let schedule_fee_amount: u128 = 1_000;
-		//Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
+		let schedule_fee_amount: u128 =
+			Pallet::<T>::calculate_schedule_fee_amount(action)?.saturated_into();
 
 		let execution_fee_amount = match action.clone() {
 			Action::XCMP { execution_fee, instruction_sequence, .. }
 				if instruction_sequence == InstructionSequence::PayThroughSovereignAccount =>
-				execution_fee.amount.saturating_mul(executions.into()).saturated_into(),
+				execution_fee.amount.saturated_into(),
 			_ => 0u32.saturated_into(),
 		};
 

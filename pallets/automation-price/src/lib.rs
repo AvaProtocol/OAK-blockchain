@@ -53,7 +53,12 @@ use core::convert::{TryFrom, TryInto};
 use cumulus_primitives_core::InteriorMultiLocation;
 
 use cumulus_primitives_core::ParaId;
-use frame_support::{pallet_prelude::*, traits::Currency, transactional};
+use frame_support::{
+	pallet_prelude::*,
+	traits::{Currency, ExistenceRequirement},
+	transactional,
+	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
+};
 use frame_system::pallet_prelude::*;
 use orml_traits::{FixedConversionRateProvider, MultiCurrency};
 use pallet_timestamp::{self as timestamp};
@@ -382,6 +387,9 @@ pub mod pallet {
 		/// Too Many Assets Created
 		AssetLimitReached,
 
+		FeePaymentError,
+		CannotReanchor,
+		UnsupportedFeePayment,
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
@@ -428,6 +436,7 @@ pub mod pallet {
 		TaskScheduled {
 			owner_id: AccountOf<T>,
 			task_id: TaskId,
+			schedule_as: Option<AccountOf<T>>,
 		},
 		// an event when we're about to run the task
 		TaskTriggered {
@@ -756,12 +765,9 @@ pub mod pallet {
 			};
 
 			Self::validate_and_schedule_task(task)?;
-			// TODO withdraw fee
-			//T::FeeHandler::withdraw_fee(&who, fee).map_err(|_| Error::<T>::InsufficientBalance)?;
 			Ok(())
 		}
 
-		/// TODO: correct weight to use schedule_xcmp_task
 		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
 		///
 		/// Before the task can be scheduled the task must past validation checks.
@@ -1452,50 +1458,124 @@ pub mod pallet {
 				Err(Error::<T>::MaxTasksPerAccountReached)?
 			}
 
-			Tasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
-			// Post task processing, increase relevant metrics data
-			TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task + 1);
-			AccountStats::<T>::insert(
-				task.owner_id.clone(),
-				StatType::TotalTasksPerAccount,
-				total_task_per_account + 1,
+			match task.action.clone() {
+				Action::XCMP { execution_fee, instruction_sequence, .. } => {
+					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
+						.map_err(|()| Error::<T>::BadVersion)?;
+					let asset_location = asset_location
+						.reanchored(
+							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
+							T::UniversalLocation::get(),
+						)
+						.map_err(|_| Error::<T>::CannotReanchor)?;
+					// Only native token are supported as the XCMP fee for local deductions
+					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
+						asset_location != MultiLocation::new(0, Here)
+					{
+						Err(Error::<T>::UnsupportedFeePayment)?
+					}
+				},
+				_ => (),
+			};
+
+			let fee_result = T::FeeHandler::pay_checked_fees_for(
+				&(task.owner_id.clone()),
+				&(task.action.clone()),
+				|| {
+					Tasks::<T>::insert(task.owner_id.clone(), task.task_id.clone(), &task);
+
+					// Post task processing, increase relevant metrics data
+					TaskStats::<T>::insert(StatType::TotalTasksOverall, total_task + 1);
+					AccountStats::<T>::insert(
+						task.owner_id.clone(),
+						StatType::TotalTasksPerAccount,
+						total_task_per_account + 1,
+					);
+
+					let key =
+						(&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
+
+					if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
+						// TODO: remove hard code and take right param
+						if let Some(tasks_by_price) =
+							sorted_task_index.get_mut(&(task.trigger_params[0]))
+						{
+							tasks_by_price.push((task.owner_id.clone(), task.task_id.clone()));
+						} else {
+							sorted_task_index.insert(
+								task.trigger_params[0],
+								vec![(task.owner_id.clone(), task.task_id.clone())],
+							);
+						}
+						SortedTasksIndex::<T>::insert(key, sorted_task_index);
+					} else {
+						let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList<T>>::new();
+						sorted_task_index.insert(
+							task.trigger_params[0],
+							vec![(task.owner_id.clone(), task.task_id.clone())],
+						);
+
+						// TODO: sorted based on trigger_function comparison of the parameter
+						// then at the time of trigger we cut off all the left part of the tree
+						SortedTasksIndex::<T>::insert(key, sorted_task_index);
+					};
+
+					Ok(())
+				},
 			);
 
-			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
-
-			if let Some(mut sorted_task_index) = Self::get_sorted_tasks_index(key) {
-				// TODO: remove hard code and take right param
-				if let Some(tasks_by_price) = sorted_task_index.get_mut(&(task.trigger_params[0])) {
-					tasks_by_price.push((task.owner_id.clone(), task.task_id.clone()));
-				} else {
-					sorted_task_index.insert(
-						task.trigger_params[0],
-						vec![(task.owner_id.clone(), task.task_id.clone())],
-					);
-				}
-				SortedTasksIndex::<T>::insert(key, sorted_task_index);
-			} else {
-				let mut sorted_task_index = BTreeMap::<AssetPrice, TaskIdList<T>>::new();
-				sorted_task_index.insert(
-					task.trigger_params[0],
-					vec![(task.owner_id.clone(), task.task_id.clone())],
-				);
-
-				// TODO: sorted based on trigger_function comparison of the parameter
-				// then at the time of trigger we cut off all the left part of the tree
-				SortedTasksIndex::<T>::insert(key, sorted_task_index);
+			if let Err(_) = fee_result {
+				Err(Error::<T>::FeePaymentError)?
 			}
 
 			if let Err(_) = Self::track_expired_task(&task) {
 				Err(Error::<T>::TaskExpiredStorageFailedToUpdate)?
 			}
 
-			Self::deposit_event(Event::TaskScheduled {
-				owner_id: task.owner_id.clone(),
-				task_id: task.task_id,
-			});
+			let schedule_as = match task.action.clone() {
+				Action::XCMP { schedule_as, .. } => schedule_as,
+				_ => None,
+			};
 
+			Self::deposit_event(Event::TaskScheduled {
+				owner_id: task.owner_id,
+				task_id: task.task_id,
+				schedule_as,
+			});
 			Ok(())
+		}
+
+		/// Calculates the execution fee for a given action based on weight and num of executions
+		///
+		/// Fee saturates at Weight/BalanceOf when there are an unreasonable num of executions
+		/// In practice, executions is bounded by T::MaxExecutionTimes and unlikely to saturate
+		pub fn calculate_schedule_fee_amount(
+			action: &ActionOf<T>,
+		) -> Result<BalanceOf<T>, DispatchError> {
+			let total_weight = action.execution_weight::<T>()?;
+
+			let schedule_fee_location = action.schedule_fee_location::<T>();
+			let schedule_fee_location = schedule_fee_location
+				.reanchored(
+					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
+					T::UniversalLocation::get(),
+				)
+				.map_err(|_| Error::<T>::CannotReanchor)?;
+
+			let fee = if schedule_fee_location == MultiLocation::default() {
+				T::ExecutionWeightFee::get()
+					.saturating_mul(<BalanceOf<T>>::saturated_from(total_weight))
+			} else {
+				let raw_fee =
+					T::FeeConversionRateProvider::get_fee_per_second(&schedule_fee_location)
+						.ok_or("CouldNotDetermineFeePerSecond")?
+						.checked_mul(total_weight as u128)
+						.ok_or("FeeOverflow")
+						.map(|raw_fee| raw_fee / (WEIGHT_REF_TIME_PER_SECOND as u128))?;
+				<BalanceOf<T>>::saturated_from(raw_fee)
+			};
+
+			Ok(fee)
 		}
 	}
 
