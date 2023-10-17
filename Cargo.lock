@@ -5235,6 +5235,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-automation-price",
+ "pallet-automation-price-rpc-runtime-api",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
@@ -5452,6 +5453,7 @@ dependencies = [
  "neumann-runtime",
  "oak-runtime",
  "orml-asset-registry",
+ "pallet-automation-price-rpc",
  "pallet-automation-time-rpc",
  "pallet-parachain-staking",
  "pallet-transaction-payment-rpc",
@@ -5535,6 +5537,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-automation-price",
+ "pallet-automation-price-rpc-runtime-api",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",
@@ -5934,6 +5937,31 @@ dependencies = [
  "xcm",
  "xcm-builder",
  "xcm-executor",
+]
+
+[[package]]
+name = "pallet-automation-price-rpc"
+version = "0.1.0"
+dependencies = [
+ "jsonrpsee",
+ "pallet-automation-price-rpc-runtime-api",
+ "parity-scale-codec",
+ "sp-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "sp-block-builder",
+ "sp-blockchain",
+ "sp-core 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "sp-rpc",
+ "sp-runtime 7.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+]
+
+[[package]]
+name = "pallet-automation-price-rpc-runtime-api"
+version = "0.1.0"
+dependencies = [
+ "parity-scale-codec",
+ "serde",
+ "sp-api 4.0.0-dev (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
+ "sp-std 5.0.0 (git+https://github.com/paritytech/substrate?branch=polkadot-v0.9.38)",
 ]
 
 [[package]]
@@ -12922,6 +12950,7 @@ dependencies = [
  "pallet-aura",
  "pallet-authorship",
  "pallet-automation-price",
+ "pallet-automation-price-rpc-runtime-api",
  "pallet-automation-time",
  "pallet-automation-time-rpc-runtime-api",
  "pallet-balances",

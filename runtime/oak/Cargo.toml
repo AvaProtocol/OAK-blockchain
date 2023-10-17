@@ -29,6 +29,7 @@ hex-literal = "0.3.1"
 # Local Dependencies
 common-runtime = { path = "../common", default-features = false }
 pallet-automation-price = { path = "../../pallets/automation-price", default-features = false }
+pallet-automation-price-rpc-runtime-api = { path = "../../pallets/automation-price/rpc/runtime-api", default-features = false }
 pallet-automation-time = { path = "../../pallets/automation-time", default-features = false }
 pallet-automation-time-rpc-runtime-api = { path = "../../pallets/automation-time/rpc/runtime-api", default-features = false }
 pallet-valve = { path = "../../pallets/valve", default-features = false }
@@ -142,6 +143,7 @@ std = [
   "pallet-authorship/std",
   "pallet-automation-time/std",
   "pallet-automation-time-rpc-runtime-api/std",
+  "pallet-automation-price-rpc-runtime-api/std",
   "pallet-balances/std",
   "pallet-bounties/std",
   "pallet-collective/std",
@@ -196,6 +198,7 @@ runtime-benchmarks = [
   "frame-support/runtime-benchmarks",
   "frame-system/runtime-benchmarks",
   "pallet-automation-time/runtime-benchmarks",
+  "pallet-automation-price/runtime-benchmarks",
   "pallet-balances/runtime-benchmarks",
   "pallet-bounties/runtime-benchmarks",
   "pallet-collective/runtime-benchmarks",
