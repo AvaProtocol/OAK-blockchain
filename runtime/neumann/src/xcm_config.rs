@@ -148,9 +148,7 @@ impl FixedConversionRateProvider for FeePerSecondProvider {
 			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if *para_id == u32::from(ParachainInfo::parachain_id()) =>
-			{
-				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?
-			},
+				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
 			_ => AssetRegistryOf::<Runtime>::fetch_metadata_by_location(location)?,
 		};
 		metadata.additional.fee_per_second
@@ -326,9 +324,7 @@ impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
 			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
-			{
-				Some(NATIVE_TOKEN_ID)
-			},
+				Some(NATIVE_TOKEN_ID),
 			_ => AssetRegistryOf::<Runtime>::location_to_asset_id(location),
 		}
 	}
