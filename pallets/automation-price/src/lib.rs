@@ -1098,7 +1098,7 @@ pub mod pallet {
 			// forward
 			let current_block_time = Self::get_current_block_time();
 			if current_block_time.is_err() {
-				return (None, consumed_weight)
+				return (None, consumed_weight);
 			}
 
 			let now = current_block_time.unwrap();
@@ -1116,7 +1116,7 @@ pub mod pallet {
 					},
 				});
 
-				return (None, consumed_weight)
+				return (None, consumed_weight);
 			}
 
 			// read storage once to get the price
@@ -1133,7 +1133,7 @@ pub mod pallet {
 							price: this_task_asset_price.value,
 						}),
 						consumed_weight,
-					)
+					);
 				} else {
 					Self::deposit_event(Event::PriceAlreadyMoved {
 						owner_id: task.owner_id.clone(),
@@ -1148,7 +1148,7 @@ pub mod pallet {
 						},
 					});
 
-					return (None, consumed_weight)
+					return (None, consumed_weight);
 				}
 			}
 
@@ -1169,7 +1169,7 @@ pub mod pallet {
 			// forward
 			let current_block_time = Self::get_current_block_time();
 			if current_block_time.is_err() {
-				return (task_ids, weight_left)
+				return (task_ids, weight_left);
 			}
 
 			let now = current_block_time.unwrap();
@@ -1339,14 +1339,14 @@ pub mod pallet {
 		pub fn sweep_expired_task(remaining_weight: Weight) -> Weight {
 			if remaining_weight.ref_time() <= T::DbWeight::get().reads(1u64).ref_time() {
 				// Weight too low, not enough to do anything useful
-				return remaining_weight
+				return remaining_weight;
 			}
 
 			let current_block_time = Self::get_current_block_time();
 
 			if current_block_time.is_err() {
 				// Cannot get time, this probably is the first block
-				return remaining_weight
+				return remaining_weight;
 			}
 
 			let now = current_block_time.unwrap() as u128;
@@ -1365,8 +1365,8 @@ pub mod pallet {
 				tasks_by_expiration.range_mut((Included(&0_u128), Included(&now)))
 			{
 				for (task_id, owner_id) in task_ids.iter() {
-					if unused_weight.ref_time() >
-						T::DbWeight::get()
+					if unused_weight.ref_time()
+						> T::DbWeight::get()
 							.reads(1u64)
 							.saturating_add(<T as Config>::WeightInfo::remove_task())
 							.ref_time()
@@ -1392,7 +1392,7 @@ pub mod pallet {
 					} else {
 						// If there is not enough weight left, break all the way out, we had
 						// already save one weight for the write to update storage back
-						break 'outer
+						break 'outer;
 					}
 				}
 				expired_shards.push(expired_time.clone());
@@ -1418,7 +1418,7 @@ pub mod pallet {
 			}
 			SortedTasksByExpiration::<T>::put(tasks_by_expiration);
 
-			return Ok(true)
+			return Ok(true);
 		}
 
 		/// With transaction will protect against a partial success where N of M execution times might be full,
