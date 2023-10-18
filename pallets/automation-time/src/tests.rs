@@ -2150,7 +2150,7 @@ fn trigger_tasks_limits_missed_slots() {
 		));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_parts(7_769_423 + 200_000, 0));
+		AutomationTime::trigger_tasks(Weight::from_parts(9_769_423 + 200_000, 0));
 
 		let my_events = events();
 
@@ -2160,7 +2160,7 @@ fn trigger_tasks_limits_missed_slots() {
 			AutomationTime::get_last_slot()
 		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
-			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3);
+			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2);
 
 			let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 			condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2226,23 +2226,23 @@ fn trigger_tasks_limits_missed_slots() {
 						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-						who: owner,
+						who: owner.clone(),
 						task_id: missing_task_id3,
+					}),
+					// The task 2 missed
+					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
+						who: owner.clone(),
+						task_id: missing_task_id2.clone(),
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2,
+					}),
+					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+						who: owner,
+						task_id: missing_task_id2,
 					}),
 				]
 			);
 		} else {
 			panic!("trigger_tasks_limits_missed_slots test did not have LastTimeSlot updated")
-		}
-
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2) {
-			None => {
-				panic!("A task should be scheduled")
-			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, weight: _ }) => {
-				assert_eq!(account_task_ids.len(), 1);
-				assert_eq!(account_task_ids[0].1, missing_task_id2);
-			},
 		}
 
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS) {
