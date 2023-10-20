@@ -82,8 +82,11 @@ pub mod pallet {
 		BlockTimeNotSet,
 	}
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	/// The closed pallet map. Each pallet in here will not receive transcations.

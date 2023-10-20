@@ -219,8 +219,11 @@ pub mod pallet {
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	// TODO: Cleanup before merge
