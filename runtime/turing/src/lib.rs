@@ -151,7 +151,18 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = ();
+type Migrations = (
+	orml_asset_registry::Migration<Runtime>,
+	orml_unknown_tokens::Migration<Runtime>,
+	// pallet_balances::migration::ResetInactive<Runtime>,
+	// We need to apply this migration again, because `ResetInactive` resets the state again.
+	pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
+	pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
+	pallet_democracy::migrations::v1::Migration<Runtime>,
+	// pallet_preimage::migration::v1::Migration<Runtime>,
+	// pallet_scheduler::migration::v3::MigrateToV4<Runtime>,
+	// pallet_xcm::migration::v1::MigrateToV1<Runtime>,
+);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
