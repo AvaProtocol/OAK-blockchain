@@ -139,6 +139,42 @@ pub type UncheckedExtrinsic =
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
+/// The runtime migrations per release.
+#[allow(deprecated, missing_docs)]
+pub mod migrations {
+	use super::*;
+	use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
+
+	pub type V0943 = (
+		SetStorageVersions,
+	);
+
+	/// Migrations that set `StorageVersion`s we missed to set.
+	///
+	/// It's *possible* that these pallets have not in fact been migrated to the versions being set,
+	/// which we should keep in mind in the future if we notice any strange behavior.
+	/// We opted to not check exactly what on-chain versions each pallet is at, since it would be
+	/// an involved effort, this is testnet, and no one has complained
+	/// (https://github.com/paritytech/polkadot/issues/6657#issuecomment-1552956439).
+	pub struct SetStorageVersions;
+
+	impl OnRuntimeUpgrade for SetStorageVersions {
+		fn on_runtime_upgrade() -> Weight {
+			let mut writes = 0;
+			let mut reads = 0;
+
+			// Bounties
+			if Bounties::on_chain_storage_version() < 4 {
+				StorageVersion::new(4).put::<Bounties>();
+				writes += 1;
+			}
+			reads += 1;
+
+			RocksDbWeight::get().reads_writes(reads, writes)
+		}
+	}
+}
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -161,7 +197,8 @@ type Migrations = (
 	pallet_democracy::migrations::v1::Migration<Runtime>,
 	// pallet_preimage::migration::v1::Migration<Runtime>,
 	// pallet_scheduler::migration::v3::MigrateToV4<Runtime>,
-	// pallet_xcm::migration::v1::MigrateToV1<Runtime>,
+	pallet_xcm::migration::v1::MigrateToV1<Runtime>,
+	migrations::V0943,
 );
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
