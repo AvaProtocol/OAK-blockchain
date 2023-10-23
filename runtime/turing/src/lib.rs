@@ -145,9 +145,7 @@ pub mod migrations {
 	use super::*;
 	use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
 
-	pub type V0943 = (
-		SetStorageVersions,
-	);
+	pub type V0943 = (SetStorageVersions,);
 
 	/// Migrations that set `StorageVersion`s we missed to set.
 	///
