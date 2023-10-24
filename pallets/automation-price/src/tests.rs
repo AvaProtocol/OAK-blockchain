@@ -359,7 +359,6 @@ fn test_update_asset_prices_multi() {
 #[test]
 fn test_schedule_xcmp_task_ok() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
-		// TODO: Setup fund once we add fund check and weight
 		let para_id: u32 = 1000;
 		let creator = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
@@ -367,6 +366,7 @@ fn test_schedule_xcmp_task_ok() {
 
 		setup_asset(&creator, chain1.to_vec());
 
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
@@ -380,7 +380,7 @@ fn test_schedule_xcmp_task_ok() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -410,6 +410,7 @@ fn test_schedule_xcmp_task_ok() {
 		// Ensure task is inserted into the right SortedIndex
 
 		// Create  second task, and make sure both are recorded
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
@@ -423,7 +424,7 @@ fn test_schedule_xcmp_task_ok() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -444,8 +445,8 @@ fn test_schedule_xcmp_task_ok() {
 		assert_eq!(
 			task_ids,
 			vec!(vec!(
-				(creator.clone(), vec!(49, 45, 48, 45, 49)),
-				(creator.clone(), vec!(49, 45, 48, 45, 50))
+				(creator.clone(), "1-0-4".as_bytes().to_vec()),
+				(creator.clone(), "1-0-7".as_bytes().to_vec()),
 			))
 		);
 
@@ -464,6 +465,44 @@ fn test_schedule_xcmp_task_ok() {
 	})
 }
 
+// Verify when user having not enough fund, we will fail with the right error code
+#[test]
+fn test_schedule_xcmp_task_fail_not_enough_balance() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let para_id: u32 = 1000;
+		let creator = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+
+		setup_asset(&creator, chain1.to_vec());
+
+		get_xcmp_funds(creator.clone());
+		assert_noop!(
+			AutomationPrice::schedule_xcmp_task(
+				RuntimeOrigin::signed(creator.clone()),
+				chain1.to_vec(),
+				exchange1.to_vec(),
+				asset1.to_vec(),
+				asset2.to_vec(),
+				START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND,
+				"gt".as_bytes().to_vec(),
+				vec!(100),
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(0, Here).into(),
+					// Make a  really high fee to simulate not enough balance
+					amount: MOCK_XCMP_FEE * 10_000
+				}),
+				call.clone(),
+				Weight::from_ref_time(100_000),
+				Weight::from_ref_time(200_000)
+			),
+			Error::<Test>::FeePaymentError,
+		);
+	})
+}
+
 // Verify that upon scheduling a task, the task expiration will be inserted into
 // SortedTasksByExpiration and shard by expired_at.
 #[test]
@@ -474,8 +513,9 @@ fn test_schedule_put_task_to_expiration_queue() {
 		let call: Vec<u8> = vec![2, 4, 5];
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 
-		setup_asset(&creator, chain1.to_vec());
-
+		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
+		// Lets setup 3 tasks
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
@@ -489,7 +529,7 @@ fn test_schedule_put_task_to_expiration_queue() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -523,6 +563,7 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 
 		setup_asset(&creator1, chain1.to_vec());
 
+		get_xcmp_funds(creator1.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator1.clone()),
 			chain1.to_vec(),
@@ -536,7 +577,7 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: 100_000
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -545,6 +586,7 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 		let task_ids1 = get_task_ids_from_events();
 		let task_id1 = task_ids1.last().expect("task failed to schedule");
 
+		get_xcmp_funds(creator2.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator2.clone()),
 			chain1.to_vec(),
@@ -558,7 +600,7 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -598,7 +640,7 @@ fn test_sweep_expired_task_works() {
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
@@ -607,6 +649,7 @@ fn test_sweep_expired_task_works() {
 		let price_target1 = 2000;
 		for i in 0..expired_task_gen {
 			// schedule task that has expired
+			get_xcmp_funds(creator.clone());
 			let task = Task::<Test> {
 				owner_id: creator.clone().into(),
 				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
@@ -654,6 +697,7 @@ fn test_sweep_expired_task_works() {
 				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 			},
 		};
+		get_xcmp_funds(other_creator.clone());
 		assert_ok!(AutomationPrice::validate_and_schedule_task(task.clone()));
 
 		assert_eq!(u128::try_from(Tasks::<Test>::iter().count()).unwrap(), expired_task_gen + 1);
@@ -786,12 +830,11 @@ fn test_sweep_expired_task_partially() {
 		let para_id: u32 = 1000;
 
 		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
-
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
@@ -800,6 +843,7 @@ fn test_sweep_expired_task_partially() {
 		let price_target1 = 2000;
 		for i in 1..expired_task_gen {
 			// schedule task that has expired
+			get_xcmp_funds(creator.clone());
 			let task = Task::<Test> {
 				owner_id: creator.clone().into(),
 				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
@@ -944,7 +988,7 @@ fn test_schedule_return_error_when_reaching_max_account_tasks_limit() {
 				Box::new(NATIVE_LOCATION.into()),
 				Box::new(AssetPayment {
 					asset_location: MultiLocation::new(0, Here).into(),
-					amount: 10000000000000
+					amount: MOCK_XCMP_FEE
 				}),
 				call,
 				Weight::from_ref_time(100_000),
@@ -985,6 +1029,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 		let mut base_price = 10_000_u128;
 
 		// Lets setup 3 tasks
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
@@ -998,13 +1043,14 @@ fn test_shift_tasks_movement_through_price_changes() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
 			Weight::from_ref_time(200_000)
 		));
 
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
@@ -1018,13 +1064,14 @@ fn test_shift_tasks_movement_through_price_changes() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
 			Weight::from_ref_time(200_000)
 		));
 
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
@@ -1038,7 +1085,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -1132,6 +1179,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		// Now, if a new task come up, and its price target matches the existing price, they will
 		// be trigger too.
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain2.to_vec(),
@@ -1146,7 +1194,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -1207,6 +1255,7 @@ fn test_gt_task_not_run_when_asset_price_equal_target_price() {
 
 		let mut base_price = 1_000_u128;
 
+		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
 			RuntimeOrigin::signed(creator.clone()),
 			chain1.to_vec(),
@@ -1220,7 +1269,7 @@ fn test_gt_task_not_run_when_asset_price_equal_target_price() {
 			Box::new(NATIVE_LOCATION.into()),
 			Box::new(AssetPayment {
 				asset_location: MultiLocation::new(0, Here).into(),
-				amount: 10000000000000
+				amount: 100_000
 			}),
 			call.clone(),
 			Weight::from_ref_time(100_000),
@@ -1253,11 +1302,12 @@ fn test_emit_event_when_execute_tasks() {
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
 
+		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
 			owner_id: creator.clone().into(),
 			task_id: "123-0-1".as_bytes().to_vec(),
@@ -1317,11 +1367,12 @@ fn test_decrease_task_count_when_execute_tasks() {
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
 
+		get_xcmp_funds(creator1.clone());
 		let task1 = Task::<Test> {
 			owner_id: creator1.clone().into(),
 			task_id: "123-0-1".as_bytes().to_vec(),
@@ -1343,6 +1394,7 @@ fn test_decrease_task_count_when_execute_tasks() {
 			},
 		};
 
+		get_xcmp_funds(creator2.clone());
 		let task2 = Task::<Test> {
 			owner_id: creator2.clone().into(),
 			task_id: "123-1-1".as_bytes().to_vec(),
@@ -1416,11 +1468,12 @@ fn test_expired_task_not_run() {
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
 
+		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
 			owner_id: creator.into(),
 			task_id: "123-0-1".as_bytes().to_vec(),
@@ -1492,11 +1545,12 @@ fn test_price_move_against_target_price_skip_run() {
 
 		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
 
+		get_xcmp_funds(creator.clone());
 		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
@@ -1577,11 +1631,12 @@ fn test_cancel_task_works() {
 		let schedule_fee = MultiLocation::default();
 		let execution_fee = AssetPayment {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
-			amount: 0,
+			amount: MOCK_XCMP_FEE,
 		};
 		let encoded_call_weight = Weight::from_ref_time(100_000);
 		let overall_weight = Weight::from_ref_time(200_000);
 
+		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
 			owner_id: creator.into(),
 			task_id: "123-0-1".as_bytes().to_vec(),
