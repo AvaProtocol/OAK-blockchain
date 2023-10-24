@@ -168,6 +168,13 @@ pub mod migrations {
 			}
 			reads += 1;
 
+			// PolkadotXcm
+			if PolkadotXcm::on_chain_storage_version() < 1 {
+				StorageVersion::new(1).put::<PolkadotXcm>();
+				writes += 1;
+			}
+			reads += 1;
+
 			RocksDbWeight::get().reads_writes(reads, writes)
 		}
 	}
