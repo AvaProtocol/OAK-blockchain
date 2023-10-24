@@ -175,6 +175,20 @@ pub mod migrations {
 			}
 			reads += 1;
 
+			// Preimage
+			if Preimage::on_chain_storage_version() < 1 {
+				StorageVersion::new(1).put::<Preimage>();
+				writes += 1;
+			}
+			reads += 1;
+
+			// Scheduler
+			if Scheduler::on_chain_storage_version() == 3 {
+				StorageVersion::new(4).put::<Scheduler>();
+				writes += 1;
+			}
+			reads += 1;
+
 			RocksDbWeight::get().reads_writes(reads, writes)
 		}
 	}
@@ -200,9 +214,6 @@ type Migrations = (
 	pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
 	pallet_multisig::migrations::v1::MigrateToV1<Runtime>,
 	pallet_democracy::migrations::v1::Migration<Runtime>,
-	// pallet_preimage::migration::v1::Migration<Runtime>,
-	// pallet_scheduler::migration::v3::MigrateToV4<Runtime>,
-	pallet_xcm::migration::v1::MigrateToV1<Runtime>,
 	migrations::V0943,
 );
 
