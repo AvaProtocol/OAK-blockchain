@@ -257,4 +257,7 @@ try-runtime = [
   "parachain-info/try-runtime",
 ]
 
-dev-queue = ["pallet-automation-time/dev-queue"]
+dev-queue = [
+  "pallet-automation-time/dev-queue",
+  "pallet-automation-price/dev-queue"
+]
