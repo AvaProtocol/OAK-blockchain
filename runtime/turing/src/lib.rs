@@ -143,9 +143,16 @@ pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, Si
 #[allow(deprecated, missing_docs)]
 pub mod migrations {
 	use super::*;
-	use frame_support::traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion};
+	use frame_support::{
+		pallet_prelude::OptionQuery,
+		storage_alias,
+		traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion},
+		Blake2_128Concat, Twox64Concat,
+	};
+	use sp_core::Get;
+	use xcm::{ prelude::XcmVersion, VersionedMultiLocation };
 
-	pub type V0943 = (SetStorageVersions,);
+	pub type V0943 = (SetStorageVersions, PalletXcmMigrateToV1<Runtime>);
 
 	/// Migrations that set `StorageVersion`s we missed to set.
 	///
@@ -164,13 +171,6 @@ pub mod migrations {
 			// Bounties
 			if Bounties::on_chain_storage_version() < 4 {
 				StorageVersion::new(4).put::<Bounties>();
-				writes += 1;
-			}
-			reads += 1;
-
-			// PolkadotXcm
-			if PolkadotXcm::on_chain_storage_version() < 1 {
-				StorageVersion::new(1).put::<PolkadotXcm>();
 				writes += 1;
 			}
 			reads += 1;
@@ -204,6 +204,49 @@ pub mod migrations {
 			reads += 1;
 
 			RocksDbWeight::get().reads_writes(reads, writes)
+		}
+	}
+
+	// PalletXcmMigrateToV1
+
+	#[storage_alias]
+	type VersionNotifyTargets<T: pallet_xcm::Config> = StorageDoubleMap<
+		pallet_xcm::Pallet<T>,
+		Twox64Concat,
+		XcmVersion,
+		Blake2_128Concat,
+		VersionedMultiLocation,
+		(QueryId, Weight, XcmVersion),
+		OptionQuery,
+	>;
+
+	const DEFAULT_PROOF_SIZE: u64 = 64 * 1024;
+
+	pub struct PalletXcmMigrateToV1<T>(sp_std::marker::PhantomData<T>);
+	impl<T: pallet_xcm::Config> OnRuntimeUpgrade for PalletXcmMigrateToV1<T> {
+		fn on_runtime_upgrade() -> Weight {
+			if StorageVersion::get::<pallet_xcm::Pallet<T>>() == 0 {
+				log::info!("The pallet_xcm is migrating to version 1");
+				let mut weight = T::DbWeight::get().reads(1);
+
+				let translate = |pre: (u64, Weight, u32)| -> Option<(u64, Weight, u32)> {
+					weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+					let translated =
+						(pre.0, Weight::from_parts(pre.1.ref_time(), DEFAULT_PROOF_SIZE), pre.2);
+					log::info!("Migrated VersionNotifyTarget {:?} to {:?}", pre, translated);
+					Some(translated)
+				};
+
+				VersionNotifyTargets::<T>::translate_values(translate);
+
+				log::info!("v1 applied successfully");
+				StorageVersion::new(1).put::<pallet_xcm::Pallet<T>>();
+
+				weight.saturating_add(T::DbWeight::get().writes(1))
+			} else {
+				log::warn!("skipping v1, should be removed");
+				T::DbWeight::get().reads(1)
+			}
 		}
 	}
 }
