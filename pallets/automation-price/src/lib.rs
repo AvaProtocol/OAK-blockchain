@@ -563,8 +563,8 @@ pub mod pallet {
 			// TODO: use sudo and remove this feature flag
 			// TODO: needs fees if opened up to non-sudo
 			// When enable dev-queue, we skip this check
-			// #[cfg(not(feature = "dev-queue"))]
-			// ensure_root(origin)?;
+			#[cfg(not(feature = "dev-queue"))]
+			ensure_root(origin)?;
 
 			Self::create_new_asset(chain, exchange, asset1, asset2, decimal, asset_owners)?;
 
