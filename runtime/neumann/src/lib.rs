@@ -23,6 +23,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
+use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
 use pallet_automation_time_rpc_runtime_api::{
 	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
 };
@@ -390,7 +391,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Session(..))
 			},
 			ProxyType::Automation => {
-				matches!(c, RuntimeCall::AutomationTime(..))
+				matches!(c, RuntimeCall::AutomationTime(..) | RuntimeCall::AutomationPrice(..))
 			},
 		}
 	}
@@ -943,6 +944,7 @@ impl Contains<RuntimeCall> for ClosedCallFilter {
 			RuntimeCall::Bounties(_) => false,
 			RuntimeCall::ParachainStaking(_) => false,
 			RuntimeCall::Treasury(_) => false,
+			RuntimeCall::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -1230,6 +1232,43 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_automation_price_rpc_runtime_api::AutomationPriceApi<Block, AccountId, Hash, Balance> for Runtime {
+		fn query_fee_details(
+			uxt: <Block as BlockT>::Extrinsic,
+		) -> Result<AutomationPriceFeeDetails<Balance>, Vec<u8>> {
+			use pallet_automation_price::Action;
+
+			let action = match uxt.function {
+				RuntimeCall::AutomationPrice(pallet_automation_price::Call::schedule_xcmp_task_through_proxy{
+					chain,
+					exchange,
+					asset1,
+					asset2,
+					expired_at,
+					trigger_function,
+					trigger_params,
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as, ..
+				}) => {
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+					Ok(action)
+				},
+				_ => Err("Unsupported Extrinsic".as_bytes())
+			}?;
+
+			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+			let fee_handler = <Self as pallet_automation_price::Config>::FeeHandler::new(&nobody, &action)
+				.map_err(|_| "Unable to parse fee".as_bytes())?;
+
+			Ok(AutomationPriceFeeDetails {
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
+			})
+		}
+	}
+
+
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
 			ParachainSystem::collect_collation_info(header)
@@ -1246,6 +1285,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1253,6 +1293,7 @@ impl_runtime_apis! {
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
+			list_benchmark!(list, extra, pallet_automation_price, AutomationPrice::<Runtime>);
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
@@ -1269,6 +1310,8 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
+
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1290,6 +1333,8 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
+			add_benchmark!(params, batches, pallet_automation_price, AutomationPrice::<Runtime>);
+
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);

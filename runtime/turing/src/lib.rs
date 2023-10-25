@@ -24,6 +24,10 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use hex_literal::hex;
+
+// TODO: The FeeDetails RPC is very similar between time/price, it maybe worth to extract them out
+// to their standalone Fee RPC that can handle both
+use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
 use pallet_automation_time_rpc_runtime_api::{
 	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
 };
@@ -1251,6 +1255,42 @@ impl_runtime_apis! {
 
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
 			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
+		}
+	}
+
+	impl pallet_automation_price_rpc_runtime_api::AutomationPriceApi<Block, AccountId, Hash, Balance> for Runtime {
+		fn query_fee_details(
+			uxt: <Block as BlockT>::Extrinsic,
+		) -> Result<AutomationPriceFeeDetails<Balance>, Vec<u8>> {
+			use pallet_automation_price::Action;
+
+			let action = match uxt.function {
+				RuntimeCall::AutomationPrice(pallet_automation_price::Call::schedule_xcmp_task_through_proxy{
+					chain,
+					exchange,
+					asset1,
+					asset2,
+					expired_at,
+					trigger_function,
+					trigger_params,
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as, ..
+				}) => {
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+					Ok(action)
+				},
+				_ => Err("Unsupported Extrinsic".as_bytes())
+			}?;
+
+			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+			let fee_handler = <Self as pallet_automation_price::Config>::FeeHandler::new(&nobody, &action)
+				.map_err(|_| "Unable to parse fee".as_bytes())?;
+
+			Ok(AutomationPriceFeeDetails {
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
+			})
 		}
 	}
 
