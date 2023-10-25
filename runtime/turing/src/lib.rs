@@ -196,6 +196,13 @@ pub mod migrations {
 			}
 			reads += 1;
 
+			// Democracy
+			if Democracy::on_chain_storage_version() == 0 {
+				StorageVersion::new(1).put::<Democracy>();
+				writes += 1;
+			}
+			reads += 1;
+
 			RocksDbWeight::get().reads_writes(reads, writes)
 		}
 	}
@@ -219,7 +226,6 @@ type Migrations = (
 	// pallet_balances::migration::ResetInactive<Runtime>,
 	// We need to apply this migration again, because `ResetInactive` resets the state again.
 	pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
-	pallet_democracy::migrations::v1::Migration<Runtime>,
 	migrations::V0943,
 );
 
