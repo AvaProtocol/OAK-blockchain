@@ -150,7 +150,7 @@ pub mod migrations {
 		Blake2_128Concat, Twox64Concat,
 	};
 	use sp_core::Get;
-	use xcm::{ prelude::XcmVersion, VersionedMultiLocation };
+	use xcm::{prelude::XcmVersion, VersionedMultiLocation};
 
 	pub type V0943 = (SetStorageVersions, PalletXcmMigrateToV1<Runtime>);
 
