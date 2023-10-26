@@ -2160,6 +2160,9 @@ fn trigger_tasks_limits_missed_slots() {
 			AutomationTime::get_last_slot()
 		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
+			
+			// This line ensures when given a total weight of 9_769_423 + 200_000, missing_task_id5, missing_task_id4, missing_task_id3 and missing_task_id2 will be discarded from the missed_queue in the current version of code.
+			// TODO: we should examine the tasks in missed_queue instead of examing the timestamp of missing_task_id2
 			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2);
 
 			let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
