@@ -229,6 +229,9 @@ pub mod migrations {
 				log::info!("The pallet_xcm is migrating to version 1");
 				let mut weight = T::DbWeight::get().reads(1);
 
+				// Because the previous migration wasn't executed correctly,
+				// there is incorrect data on the chain with { ref_time: 0, proof_size: 0}.
+				// We will modify it to { ref_time: 0, proof_size: 65535}.
 				let translate = |pre: (u64, Weight, u32)| -> Option<(u64, Weight, u32)> {
 					weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
 					let translated =
