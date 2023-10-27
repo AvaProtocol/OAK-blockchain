@@ -607,7 +607,7 @@ pub mod pallet {
 			// TODO: Find all proxy account by schedule_as account
 
 			// TODO: Find out the task by task id and verify the schedule_as account
-			
+
 			// TODO: Cancel the task by proxy account
 			Ok(())
 		}
