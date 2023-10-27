@@ -117,6 +117,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 impl parachain_info::Config for Test {}
@@ -166,7 +170,7 @@ impl SendXcm for TestSendXcm {
 	) -> SendResult<Self::Ticket> {
 		let err_message = Xcm(vec![Transact {
 			origin_kind: OriginKind::Native,
-			require_weight_at_most: Weight::from_ref_time(100_000),
+			require_weight_at_most: Weight::from_parts(100_000, 0),
 			call: vec![9, 1, 1].into(),
 		}]);
 		if message.clone().unwrap() == err_message {
@@ -278,9 +282,12 @@ impl pallet_xcm::Config for Test {
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
+	type MaxRemoteLockConsumers = ConstU32<0>;
 	type WeightInfo = pallet_xcm::TestWeightInfo;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
+	type RemoteLockConsumerIdentifier = ();
+	type AdminOrigin = system::EnsureRoot<AccountId>;
 }
 
 impl cumulus_pallet_xcm::Config for Test {

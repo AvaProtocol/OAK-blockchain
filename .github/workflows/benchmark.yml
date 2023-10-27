@@ -66,6 +66,7 @@ jobs:
           ./oak-collator \
             benchmark \
             pallet \
+            --header=./.maintain/HEADER-GPL3
             --chain turing-dev \
             --execution wasm \
             --wasm-execution compiled \

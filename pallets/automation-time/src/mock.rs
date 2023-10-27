@@ -153,6 +153,10 @@ impl pallet_balances::Config for Test {
 	type WeightInfo = ();
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 impl parachain_info::Config for Test {}
@@ -189,8 +193,6 @@ impl orml_currencies::Config for Test {
 pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	pub const MinimumPeriod: u64 = 1000;
 }
 
@@ -225,15 +227,13 @@ impl pallet_parachain_staking::Config for Test {
 	type MaxTopDelegationsPerCandidate = ConstU32<10>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<10>;
-	type MinCollatorStk = MinCollatorStk;
 	/// Minimum stake required to be reserved to be a candidate
 	type MinCandidateStk = ConstU128<{ 500 * DOLLAR }>;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
-	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	/// Handler to notify the runtime when a collator is paid
 	type OnCollatorPayout = ();
 	type PayoutCollatorReward = ();
@@ -255,7 +255,7 @@ impl<
 		delegator: &T::AccountId,
 		candidate: &T::AccountId,
 		amount: BalanceOf<T>,
-	) -> Result<bool, DispatchError> {
+	) -> Result<bool, sp_runtime::DispatchErrorWithPostInfo<PostDispatchInfo>> {
 		if *delegator != T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap() {
 			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into())
 		}
@@ -287,17 +287,17 @@ impl<
 
 pub struct MockPalletBalanceWeight<T>(PhantomData<T>);
 impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalanceWeight<Test> {
-	fn transfer() -> Weight {
-		Weight::from_ref_time(100_000)
+	fn transfer_allow_death() -> Weight {
+		Weight::from_parts(100_000, 0)
 	}
 
 	fn transfer_keep_alive() -> Weight {
 		Weight::zero()
 	}
-	fn set_balance_creating() -> Weight {
+	fn force_set_balance_creating() -> Weight {
 		Weight::zero()
 	}
-	fn set_balance_killing() -> Weight {
+	fn force_set_balance_killing() -> Weight {
 		Weight::zero()
 	}
 	fn force_transfer() -> Weight {
@@ -307,6 +307,9 @@ impl<Test: frame_system::Config> pallet_balances::WeightInfo for MockPalletBalan
 		Weight::zero()
 	}
 	fn force_unreserve() -> Weight {
+		Weight::zero()
+	}
+	fn upgrade_accounts(_u: u32) -> Weight {
 		Weight::zero()
 	}
 }
@@ -335,40 +338,40 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 		Weight::zero()
 	}
 	fn run_xcmp_task() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_auto_compound_delegated_stake_task() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_dynamic_dispatch_action() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_dynamic_dispatch_action_fail_decode() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0)
 	}
 	fn run_missed_tasks_many_found(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn run_missed_tasks_many_missing(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn run_tasks_many_found(v: u32) -> Weight {
-		Weight::from_ref_time(50_000 * v as u64)
+		Weight::from_parts(50_000 * v as u64, 0u64)
 	}
 	fn run_tasks_many_missing(v: u32) -> Weight {
-		Weight::from_ref_time(10_000 * v as u64)
+		Weight::from_parts(10_000 * v as u64, 0u64)
 	}
 	fn update_task_queue_overhead() -> Weight {
-		Weight::from_ref_time(10_000)
+		Weight::from_parts(10_000, 0)
 	}
 	fn append_to_missed_tasks(v: u32) -> Weight {
-		Weight::from_ref_time(20_000 * v as u64)
+		Weight::from_parts(20_000 * v as u64, 0u64)
 	}
 	fn update_scheduled_task_queue() -> Weight {
-		Weight::from_ref_time(20_000)
+		Weight::from_parts(20_000, 0u64)
 	}
 	fn shift_missed_tasks() -> Weight {
-		Weight::from_ref_time(900_000)
+		Weight::from_parts(900_000, 0u64)
 	}
 }
 
@@ -473,7 +476,7 @@ parameter_types! {
 	pub const MaxExecutionTimes: u32 = 3;
 	pub const MaxScheduleSeconds: u64 = 86_400;	// 24 hours in seconds
 	pub const SlotSizeSeconds: u64 = 600;		// 10 minutes in seconds;
-	pub const MaxBlockWeight: u64 = 20_000_000;
+	pub const MaxBlockWeight: u64 = 24_000_000;
 	pub const MaxWeightPercentage: Perbill = Perbill::from_percent(40);
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
 	pub const ExecutionWeightFee: Balance = NATIVE_EXECUTION_WEIGHT_FEE;
@@ -687,18 +690,18 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 }
 
 pub fn get_funds(account: AccountId) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
-	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, max_execution_fee).unwrap();
 }
 
 pub fn get_minimum_funds(account: AccountId, executions: u32) {
-	let double_action_weight = Weight::from_ref_time(20_000_u64) * 2;
+	let double_action_weight = Weight::from_parts(20_000_u64, 0u64) * 2;
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(executions);
-	Balances::set_balance(RawOrigin::Root.into(), account, max_execution_fee, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, max_execution_fee).unwrap();
 }
 
 pub fn get_xcmp_funds(account: AccountId) {
@@ -706,7 +709,7 @@ pub fn get_xcmp_funds(account: AccountId) {
 	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
 	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
 	let with_xcm_fees = max_execution_fee + XmpFee::get();
-	Balances::set_balance(RawOrigin::Root.into(), account, with_xcm_fees, 0).unwrap();
+	Balances::force_set_balance(RawOrigin::Root.into(), account, with_xcm_fees).unwrap();
 }
 
 // TODO: swap above to this pattern

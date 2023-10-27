@@ -18,18 +18,19 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode};
+use scale_info::{prelude::string::String, TypeInfo};
 use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-#[derive(PartialEq, Encode, Decode)]
+#[derive(PartialEq, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
 pub struct AutostakingResult {
 	pub period: i32,
-	pub apy: f64,
+	pub apy: String,
 }
 
 #[derive(Debug, PartialEq, Encode, Decode)]
@@ -39,7 +40,7 @@ pub enum AutomationAction {
 	AutoCompoundDelegatedStake,
 }
 
-#[derive(Debug, PartialEq, Encode, Decode)]
+#[derive(Debug, PartialEq, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 pub struct FeeDetails<Balance> {

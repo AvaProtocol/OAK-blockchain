@@ -22,15 +22,12 @@ use jsonrpsee::{
 	types::error::{CallError, ErrorObject},
 };
 pub use pallet_automation_time_rpc_runtime_api::AutomationTimeApi as AutomationTimeRuntimeApi;
-use pallet_automation_time_rpc_runtime_api::{AutomationAction, AutostakingResult, FeeDetails};
+use pallet_automation_time_rpc_runtime_api::{AutostakingResult, FeeDetails};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_core::Bytes;
 use sp_rpc::number::NumberOrHex;
-use sp_runtime::{
-	generic::BlockId,
-	traits::{Block as BlockT, MaybeDisplay},
-};
+use sp_runtime::traits::{Block as BlockT, MaybeDisplay};
 use std::sync::Arc;
 
 /// An RPC endpoint to provide information about tasks.
@@ -104,8 +101,7 @@ where
 		at: Option<Block::Hash>,
 	) -> RpcResult<FeeDetails<NumberOrHex>> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
-
+		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
 		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
@@ -114,7 +110,7 @@ where
 			))
 		})?;
 		let fee_details = api
-			.query_fee_details(&at, uxt)
+			.query_fee_details(at_hash, uxt)
 			.map_err(|e| {
 				CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),
@@ -152,8 +148,8 @@ where
 		collator: AccountId,
 	) -> RpcResult<AutostakingResult> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(self.client.info().best_hash);
-		let runtime_api_result = api.calculate_optimal_autostaking(&at, principal, collator);
+		let runtime_api_result =
+			api.calculate_optimal_autostaking(self.client.info().best_hash, principal, collator);
 		let mapped_err = |message| -> JsonRpseeError {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),
@@ -171,9 +167,8 @@ where
 		account: AccountId,
 	) -> RpcResult<Vec<Vec<u8>>> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(self.client.info().best_hash);
-
-		let runtime_api_result = api.get_auto_compound_delegated_stake_task_ids(&at, account);
+		let runtime_api_result =
+			api.get_auto_compound_delegated_stake_task_ids(self.client.info().best_hash, account);
 		runtime_api_result.map_err(|e| {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),

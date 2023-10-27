@@ -90,7 +90,7 @@ where
 		at: Option<Block::Hash>,
 	) -> RpcResult<FeeDetails<NumberOrHex>> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+		let at_hash = at.unwrap_or_else(|| self.client.info().best_hash);
 
 		let uxt: Block::Extrinsic = Decode::decode(&mut &*encoded_xt).map_err(|e| {
 			CallError::Custom(ErrorObject::owned(
@@ -100,7 +100,7 @@ where
 			))
 		})?;
 		let fee_details = api
-			.query_fee_details(&at, uxt)
+			.query_fee_details(at_hash, uxt)
 			.map_err(|e| {
 				CallError::Custom(ErrorObject::owned(
 					Error::RuntimeError.into(),

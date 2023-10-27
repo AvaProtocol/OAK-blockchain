@@ -219,9 +219,11 @@ pub mod pallet {
 		type EnsureProxy: primitives::EnsureProxy<Self::AccountId>;
 	}
 
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+
 	#[pallet::pallet]
 	#[pallet::without_storage_info]
-	#[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::storage_version(STORAGE_VERSION)]
 	pub struct Pallet<T>(_);
 
 	// TODO: Cleanup before merge
@@ -522,8 +524,9 @@ pub mod pallet {
 				return T::DbWeight::get().reads(1u64)
 			}
 
-			let max_weight: Weight = Weight::from_ref_time(
+			let max_weight: Weight = Weight::from_parts(
 				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+				0,
 			);
 			Self::trigger_tasks(max_weight)
 		}

@@ -34,6 +34,7 @@ use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
+	TokenError::FundsUnavailable,
 };
 use sp_std::collections::btree_map::BTreeMap;
 use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
@@ -76,8 +77,8 @@ impl Default for XcmpActionParams {
 				amount: 100,
 			},
 			encoded_call: vec![3, 4, 5],
-			encoded_call_weight: Weight::from_ref_time(100_000),
-			overall_weight: Weight::from_ref_time(200_000),
+			encoded_call_weight: Weight::from_parts(100_000, 0),
+			overall_weight: Weight::from_parts(200_000, 0),
 			schedule_as: Some(delegator_account),
 			instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 		}
@@ -367,7 +368,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		let recipient = AccountId32::new(BOB);
@@ -429,7 +430,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 		System::reset_events();
 
 		// First execution
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		let event = my_events.into_iter().find(|e| {
@@ -443,7 +444,7 @@ fn will_emit_task_completed_event_when_task_completed() {
 		// Second execution
 		Timestamp::set_timestamp(next_execution_time * 1_000);
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		my_events
@@ -478,7 +479,7 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		let event = my_events.into_iter().find(|e| {
@@ -494,7 +495,7 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 		// Second execution
 		Timestamp::set_timestamp(next_execution_time * 1_000);
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		// The TaskCompleted event will not be emitted when the task is canceled
@@ -537,7 +538,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		let event = my_events.into_iter().find(|e| {
@@ -551,7 +552,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		// Second execution
 		Timestamp::set_timestamp(next_execution_time * 1_000);
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000_000, 0));
 		let my_events = events();
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
@@ -571,7 +572,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
-					error: <pallet_balances::Error<Test>>::InsufficientBalance.into(),
+					error: DispatchError::Token(FundsUnavailable),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
 					who: account_id,
@@ -836,8 +837,8 @@ fn schedule_xcmp_works() {
 				amount: 10
 			}),
 			call,
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000),
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
 		));
 	})
 }
@@ -863,8 +864,8 @@ fn schedule_xcmp_through_proxy_works() {
 				amount: 10,
 			}),
 			call,
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000),
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
 			delegator_account.clone(),
 		));
 
@@ -907,8 +908,8 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 				Box::new(MultiLocation::default().into()),
 				Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
 				call,
-				Weight::from_ref_time(100_000),
-				Weight::from_ref_time(200_000),
+				Weight::from_parts(100_000, 0),
+				Weight::from_parts(200_000, 0),
 				delegator_account,
 			),
 			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
@@ -937,8 +938,8 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 					amount: 10000000000000
 				}),
 				call,
-				Weight::from_ref_time(100_000),
-				Weight::from_ref_time(200_000),
+				Weight::from_parts(100_000, 0),
+				Weight::from_parts(200_000, 0),
 			),
 			Error::<Test>::InsufficientBalance,
 		);
@@ -1625,7 +1626,7 @@ fn cancel_works_for_an_executed_task() {
 			},
 		}
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(200_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(200_000, 0));
 		let my_events = events();
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
@@ -1954,7 +1955,7 @@ mod run_dynamic_dispatch_action {
 #[test]
 fn trigger_tasks_handles_first_run() {
 	new_test_ext(0).execute_with(|| {
-		AutomationTime::trigger_tasks(Weight::from_ref_time(30_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(30_000, 0));
 
 		assert_eq!(events(), vec![],);
 	})
@@ -1967,7 +1968,7 @@ fn trigger_tasks_nothing_to_do() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(30_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(30_000, 0));
 
 		assert_eq!(events(), vec![],);
 	})
@@ -2000,7 +2001,7 @@ fn trigger_tasks_updates_queues() {
 		));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(50_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(50_000, 0));
 
 		assert_eq!(AutomationTime::get_missed_queue().len(), 1);
 		assert_eq!(AutomationTime::get_missed_queue()[0], missed_task);
@@ -2056,7 +2057,7 @@ fn trigger_tasks_handles_missed_slots() {
 		System::reset_events();
 
 		// Give this enough weight limit to run and process miss queue and generate miss event
-		AutomationTime::trigger_tasks(Weight::from_ref_time(900_000 * 2 + 40_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(900_000 * 2 + 40_000, 0));
 
 		// the first 2 tasks are missed
 		assert_eq!(AutomationTime::get_missed_queue().len(), 2);
@@ -2149,7 +2150,7 @@ fn trigger_tasks_limits_missed_slots() {
 		));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(7_769_423 + 200_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(9_769_423 + 200_000, 0));
 
 		let my_events = events();
 
@@ -2159,7 +2160,10 @@ fn trigger_tasks_limits_missed_slots() {
 			AutomationTime::get_last_slot()
 		{
 			assert_eq!(updated_last_time_slot, SCHEDULED_TIME);
-			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3);
+
+			// This line ensures when given a total weight of 9_769_423 + 200_000, missing_task_id5, missing_task_id4, missing_task_id3 and missing_task_id2 will be discarded from the missed_queue in the current version of code.
+			// TODO: we should examine the tasks in missed_queue instead of examing the timestamp of missing_task_id2
+			assert_eq!(updated_last_missed_slot, SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2);
 
 			let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 			condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2225,23 +2229,23 @@ fn trigger_tasks_limits_missed_slots() {
 						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 3,
 					}),
 					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
-						who: owner,
+						who: owner.clone(),
 						task_id: missing_task_id3,
+					}),
+					// The task 2 missed
+					RuntimeEvent::AutomationTime(crate::Event::TaskMissed {
+						who: owner.clone(),
+						task_id: missing_task_id2.clone(),
+						execution_time: SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2,
+					}),
+					RuntimeEvent::AutomationTime(crate::Event::TaskCompleted {
+						who: owner,
+						task_id: missing_task_id2,
 					}),
 				]
 			);
 		} else {
 			panic!("trigger_tasks_limits_missed_slots test did not have LastTimeSlot updated")
-		}
-
-		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS * 2) {
-			None => {
-				panic!("A task should be scheduled")
-			},
-			Some(ScheduledTasksOf::<Test> { tasks: account_task_ids, weight: _ }) => {
-				assert_eq!(account_task_ids.len(), 1);
-				assert_eq!(account_task_ids[0].1, missing_task_id2);
-			},
 		}
 
 		match AutomationTime::get_scheduled_tasks(SCHEDULED_TIME - SLOT_SIZE_SECONDS) {
@@ -2278,7 +2282,7 @@ fn trigger_tasks_completes_all_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(20_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(20_000_000, 0));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2341,7 +2345,7 @@ fn trigger_tasks_handles_nonexisting_tasks() {
 		TaskQueueV2::<Test>::put(task_queue);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(90_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(90_000, 0));
 
 		assert_eq!(
 			events(),
@@ -2376,7 +2380,7 @@ fn trigger_tasks_completes_some_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(80_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(80_000, 0));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2431,7 +2435,7 @@ fn trigger_tasks_completes_all_missed_tasks() {
 		);
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(130_000, 0));
 
 		let owner = AccountId32::new(ALICE);
 
@@ -2502,7 +2506,7 @@ fn missed_tasks_updates_executions_left() {
 		}
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
-		AutomationTime::trigger_tasks(Weight::from_ref_time(130_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(130_000, 0));
 
 		assert_eq!(
 			events(),
@@ -2570,7 +2574,7 @@ fn missed_tasks_removes_completed_tasks() {
 
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(20_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(20_000_000, 0));
 
 		assert_eq!(AutomationTime::get_task_queue().len(), 0);
 		assert_eq!(AutomationTime::get_missed_queue().len(), 0);
@@ -2629,8 +2633,8 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					amount: 10,
 				},
 				encoded_call: encoded_call.clone(),
-				encoded_call_weight: Weight::from_ref_time(100_000),
-				overall_weight: Weight::from_ref_time(200_000),
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
 				schedule_as: None,
 				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
 			},
@@ -2640,7 +2644,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -2692,7 +2696,7 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 		let emitted_events = events();
 
 		let new_balance = Balances::free_balance(delegator.clone());
@@ -2771,7 +2775,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let emitted_events = events();
 
@@ -2807,7 +2811,7 @@ fn auto_compound_delegated_stake_enough_balance_has_delegation() {
 		Timestamp::set_timestamp(next_scheduled_time * 1_000);
 		get_funds(delegator);
 		System::reset_events();
-		AutomationTime::trigger_tasks(Weight::from_ref_time(100_000_000_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(100_000_000_000, 0));
 
 		events()
 			.into_iter()
@@ -2849,7 +2853,7 @@ fn auto_compound_delegated_stake_not_enough_balance_has_delegation() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let emitted_events = events();
 
@@ -2912,7 +2916,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegator() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let emitted_events = events();
 
@@ -2986,7 +2990,7 @@ fn auto_compound_delegated_stake_enough_balance_no_delegation() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let emitted_events = events();
 
@@ -3061,7 +3065,7 @@ fn auto_compound_delegated_stake_not_enough_balance_no_delegation() {
 
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 		let emitted_events = events();
 
 		// Expected result:
@@ -3128,7 +3132,7 @@ fn trigger_tasks_updates_executions_left() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());
@@ -3189,7 +3193,7 @@ fn trigger_tasks_removes_completed_tasks() {
 		LastTimeSlot::<Test>::put((LAST_BLOCK_TIME, LAST_BLOCK_TIME));
 		System::reset_events();
 
-		AutomationTime::trigger_tasks(Weight::from_ref_time(120_000));
+		AutomationTime::trigger_tasks(Weight::from_parts(120_000, 0));
 
 		let mut condition: BTreeMap<Vec<u8>, Vec<u8>> = BTreeMap::new();
 		condition.insert("type".as_bytes().to_vec(), "time".as_bytes().to_vec());

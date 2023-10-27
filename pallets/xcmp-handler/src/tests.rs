@@ -39,8 +39,8 @@ fn get_instruction_set_local_currency_instructions() {
 
 	new_test_ext().execute_with(|| {
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
-		let overall_weight = Weight::from_ref_time(200_000_000);
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
+		let overall_weight = Weight::from_parts(200_000_000, 0);
 		let descend_location: Junctions =
 			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
 
@@ -80,9 +80,9 @@ fn get_local_currency_instructions_works() {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
 		let xcm_weight = transact_encoded_call_weight
-			.checked_add(&Weight::from_ref_time(100_000_000))
+			.checked_add(&Weight::from_parts(100_000_000, 0))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let descend_location: Junctions =
@@ -109,9 +109,9 @@ fn transact_in_local_chain_works() {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = destination;
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
 		let xcm_weight = transact_encoded_call_weight
-			.checked_add(&Weight::from_ref_time(100_000_000))
+			.checked_add(&Weight::from_parts(100_000_000, 0))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset { id: Concrete(asset_location), fun: Fungible(xcm_fee) };
@@ -152,9 +152,9 @@ fn transact_in_target_chain_works() {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let asset_location = MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) };
 		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
-		let transact_encoded_call_weight = Weight::from_ref_time(100_000_000);
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
 		let xcm_weight = transact_encoded_call_weight
-			.checked_add(&Weight::from_ref_time(100_000_000))
+			.checked_add(&Weight::from_parts(100_000_000, 0))
 			.expect("xcm_weight overflow");
 		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
 		let asset = MultiAsset { id: Concrete(asset_location), fun: Fungible(xcm_fee) };
@@ -219,7 +219,7 @@ fn pay_xcm_fee_works() {
 		let fee = 3_500_000;
 		let alice_balance = 8_000_000;
 
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
 		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
@@ -235,7 +235,7 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 		let fee = 3_500_000;
 		let alice_balance = fee;
 
-		Balances::set_balance(RawOrigin::Root.into(), ALICE, alice_balance, 0).unwrap();
+		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
 		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance);

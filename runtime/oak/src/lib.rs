@@ -33,6 +33,7 @@ use pallet_automation_time_rpc_runtime_api::{
 use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
 
 use primitives::{assets::CustomMetadata, TokenId};
+use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -43,6 +44,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
+
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
@@ -68,7 +70,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
@@ -332,6 +334,10 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {
@@ -574,7 +580,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MinCollatorStk: u128 = 2_000_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
 	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
@@ -602,14 +607,12 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<100>;
-	type MinCollatorStk = MinCollatorStk;
 	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
-	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	/// Handler to notify the runtime when a collator is paid
 	type OnCollatorPayout = ();
 	type PayoutCollatorReward = ();
@@ -622,6 +625,7 @@ impl pallet_parachain_staking::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -649,6 +653,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 parameter_types! {
@@ -665,6 +671,8 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 type MoreThanHalfCouncil = EitherOfDiverse<
@@ -688,6 +696,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -825,6 +834,7 @@ impl pallet_democracy::Config for Runtime {
 	/// (NTB) vote.
 	type ExternalDefaultOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	/// Two thirds of the technical committee can have an `ExternalMajority/ExternalDefault` vote
 	/// be tabled immediately and with a shorter voting/enactment period.
 	type FastTrackOrigin =
@@ -1092,6 +1102,14 @@ impl_runtime_apis! {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
+
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
+		}
 	}
 
 	impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -1254,7 +1272,7 @@ impl_runtime_apis! {
 				daily_collator_rewards,
 			);
 
-			Ok(AutostakingResult{period: res.0, apy: res.1})
+			Ok(AutostakingResult{period: res.0, apy: format!("{}", res.1)})
 		}
 
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {

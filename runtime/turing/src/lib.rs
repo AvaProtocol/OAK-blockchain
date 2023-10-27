@@ -32,6 +32,7 @@ use pallet_automation_time_rpc_runtime_api::{
 	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
 };
 use primitives::{assets::CustomMetadata, TokenId};
+use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -42,6 +43,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
+
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
@@ -67,7 +69,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
@@ -137,6 +139,121 @@ pub type UncheckedExtrinsic =
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
 
+/// The runtime migrations per release.
+#[allow(deprecated, missing_docs)]
+pub mod migrations {
+	use super::*;
+	use frame_support::{
+		pallet_prelude::OptionQuery,
+		storage_alias,
+		traits::{GetStorageVersion, OnRuntimeUpgrade, StorageVersion},
+		Blake2_128Concat, Twox64Concat,
+	};
+	use sp_core::Get;
+	use xcm::{prelude::XcmVersion, VersionedMultiLocation};
+
+	pub type V0943 = (SetStorageVersions, PalletXcmMigrateToV1<Runtime>);
+
+	/// Migrations that set `StorageVersion`s we missed to set.
+	///
+	/// It's *possible* that these pallets have not in fact been migrated to the versions being set,
+	/// which we should keep in mind in the future if we notice any strange behavior.
+	/// We opted to not check exactly what on-chain versions each pallet is at, since it would be
+	/// an involved effort, this is testnet, and no one has complained
+	/// (https://github.com/paritytech/polkadot/issues/6657#issuecomment-1552956439).
+	pub struct SetStorageVersions;
+
+	impl OnRuntimeUpgrade for SetStorageVersions {
+		fn on_runtime_upgrade() -> Weight {
+			let mut writes = 0;
+			let mut reads = 0;
+
+			// Bounties
+			if Bounties::on_chain_storage_version() < 4 {
+				StorageVersion::new(4).put::<Bounties>();
+				writes += 1;
+			}
+			reads += 1;
+
+			// Preimage
+			if Preimage::on_chain_storage_version() < 1 {
+				StorageVersion::new(1).put::<Preimage>();
+				writes += 1;
+			}
+			reads += 1;
+
+			// Scheduler
+			if Scheduler::on_chain_storage_version() == 3 {
+				StorageVersion::new(4).put::<Scheduler>();
+				writes += 1;
+			}
+			reads += 1;
+
+			// Multisig
+			if Multisig::on_chain_storage_version() == 0 {
+				StorageVersion::new(1).put::<Multisig>();
+				writes += 1;
+			}
+			reads += 1;
+
+			// Democracy
+			if Democracy::on_chain_storage_version() == 0 {
+				StorageVersion::new(1).put::<Democracy>();
+				writes += 1;
+			}
+			reads += 1;
+
+			RocksDbWeight::get().reads_writes(reads, writes)
+		}
+	}
+
+	// PalletXcmMigrateToV1
+
+	#[storage_alias]
+	type VersionNotifyTargets<T: pallet_xcm::Config> = StorageDoubleMap<
+		pallet_xcm::Pallet<T>,
+		Twox64Concat,
+		XcmVersion,
+		Blake2_128Concat,
+		VersionedMultiLocation,
+		(QueryId, Weight, XcmVersion),
+		OptionQuery,
+	>;
+
+	const DEFAULT_PROOF_SIZE: u64 = 64 * 1024;
+
+	pub struct PalletXcmMigrateToV1<T>(sp_std::marker::PhantomData<T>);
+	impl<T: pallet_xcm::Config> OnRuntimeUpgrade for PalletXcmMigrateToV1<T> {
+		fn on_runtime_upgrade() -> Weight {
+			if StorageVersion::get::<pallet_xcm::Pallet<T>>() == 0 {
+				log::info!("The pallet_xcm is migrating to version 1");
+				let mut weight = T::DbWeight::get().reads(1);
+
+				// Because the previous migration wasn't executed correctly,
+				// there is incorrect data on the chain with { ref_time: 0, proof_size: 0}.
+				// We will modify it to { ref_time: 0, proof_size: 65535}.
+				let translate = |pre: (u64, Weight, u32)| -> Option<(u64, Weight, u32)> {
+					weight = weight.saturating_add(T::DbWeight::get().reads_writes(1, 1));
+					let translated =
+						(pre.0, Weight::from_parts(pre.1.ref_time(), DEFAULT_PROOF_SIZE), pre.2);
+					log::info!("Migrated VersionNotifyTarget {:?} to {:?}", pre, translated);
+					Some(translated)
+				};
+
+				VersionNotifyTargets::<T>::translate_values(translate);
+
+				log::info!("v1 applied successfully");
+				StorageVersion::new(1).put::<pallet_xcm::Pallet<T>>();
+
+				weight.saturating_add(T::DbWeight::get().writes(1))
+			} else {
+				log::warn!("skipping v1, should be removed");
+				T::DbWeight::get().reads(1)
+			}
+		}
+	}
+}
+
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -149,7 +266,14 @@ pub type Executive = frame_executive::Executive<
 
 // All migrations executed on runtime upgrade as a nested tuple of types implementing
 // `OnRuntimeUpgrade`.
-type Migrations = ();
+type Migrations = (
+	orml_asset_registry::Migration<Runtime>,
+	orml_unknown_tokens::Migration<Runtime>,
+	// pallet_balances::migration::ResetInactive<Runtime>,
+	// We need to apply this migration again, because `ResetInactive` resets the state again.
+	pallet_balances::migration::MigrateToTrackInactive<Runtime, xcm_config::CheckingAccount>,
+	migrations::V0943,
+);
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
 /// the specifics of the runtime. They can then be made to be agnostic over specific formats
@@ -334,6 +458,10 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {
@@ -575,8 +703,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	/// Minimum stake required to become a collator
-	pub const MinCollatorStk: u128 = 400_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
 	pub const MinCandidateStk: u128 = 1_000_000 * DOLLAR;
 }
@@ -604,14 +730,12 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<100>;
-	type MinCollatorStk = MinCollatorStk;
 	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
-	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	/// Handler to notify the runtime when a collator is paid
 	type OnCollatorPayout = ();
 	type PayoutCollatorReward = ();
@@ -624,6 +748,7 @@ impl pallet_parachain_staking::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -651,6 +776,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 parameter_types! {
@@ -667,6 +794,8 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 type MoreThanHalfCouncil = EitherOfDiverse<
@@ -822,6 +951,7 @@ impl pallet_democracy::Config for Runtime {
 	/// (NTB) vote.
 	type ExternalDefaultOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	/// Two thirds of the technical committee can have an `ExternalMajority/ExternalDefault` vote
 	/// be tabled immediately and with a shorter voting/enactment period.
 	type FastTrackOrigin =
@@ -1088,6 +1218,14 @@ impl_runtime_apis! {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
 		}
+
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
+		}
 	}
 
 	impl sp_block_builder::BlockBuilder<Block> for Runtime {
@@ -1250,7 +1388,7 @@ impl_runtime_apis! {
 				daily_collator_rewards,
 			);
 
-			Ok(AutostakingResult{period: res.0, apy: res.1})
+			Ok(AutostakingResult{period: res.0, apy: format!("{}", res.1)})
 		}
 
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {

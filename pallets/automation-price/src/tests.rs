@@ -60,8 +60,8 @@ impl Default for XcmpActionParams {
 				amount: 100,
 			},
 			encoded_call: vec![3, 4, 5],
-			encoded_call_weight: Weight::from_ref_time(100_000),
-			overall_weight: Weight::from_ref_time(200_000),
+			encoded_call_weight: Weight::from_parts(100_000, 0),
+			overall_weight: Weight::from_parts(200_000, 0),
 			schedule_as: Some(delegator_account),
 			instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
 		}
@@ -383,8 +383,8 @@ fn test_schedule_xcmp_task_ok() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 
 		// Upon schedule, task will be insert into 3 places
@@ -427,8 +427,8 @@ fn test_schedule_xcmp_task_ok() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 		let task_ids2 = get_task_ids_from_events();
 		let task_id2 = task_ids2.last().expect("task failed to schedule");
@@ -532,8 +532,8 @@ fn test_schedule_put_task_to_expiration_queue() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 		let task_ids = get_task_ids_from_events();
 		let task_id = task_ids.last().expect("task failed to schedule");
@@ -1067,8 +1067,8 @@ fn test_shift_tasks_movement_through_price_changes() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 
 		get_xcmp_funds(creator.clone());
@@ -1088,8 +1088,8 @@ fn test_shift_tasks_movement_through_price_changes() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 
 		let task_ids = get_task_ids_from_events();
@@ -1104,7 +1104,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		// shift_tasks move task from registry to the queue
 		// At this moment, The price doesn't match the target so there is no change in our tasks
-		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		AutomationPrice::shift_tasks(Weight::from_parts(1_000_000_000, 0));
 		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
 		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
 			chain1.to_vec(),
@@ -1131,7 +1131,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec!(START_BLOCK_TIME as u128, START_BLOCK_TIME as u128, START_BLOCK_TIME as u128),
 			vec!(1, 2, 3),
 		));
-		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		AutomationPrice::shift_tasks(Weight::from_parts(1_000_000_000, 0));
 		assert_eq!(AutomationPrice::get_task_queue(), vec![(creator.clone(), task_id1.clone())]);
 		// The task are removed from SortedTasksIndex into the TaskQueue, therefore their length
 		// decrease to 0
@@ -1159,7 +1159,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec![START_BLOCK_TIME as u128],
 			vec![4],
 		);
-		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		AutomationPrice::shift_tasks(Weight::from_parts(1_000_000_000, 0));
 		assert_eq!(
 			AutomationPrice::get_task_queue(),
 			vec![(creator.clone(), task_id1.clone()), (creator.clone(), task_id3.clone())]
@@ -1197,8 +1197,8 @@ fn test_shift_tasks_movement_through_price_changes() {
 				amount: MOCK_XCMP_FEE
 			}),
 			call.clone(),
-			Weight::from_ref_time(100_000),
-			Weight::from_ref_time(200_000)
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0)
 		));
 		// The task is now on the SortedTasksIndex
 		assert_eq!(
@@ -1212,7 +1212,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			1
 		);
 
-		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
+		AutomationPrice::shift_tasks(Weight::from_parts(1_000_000_000, 0));
 		let task_id4 = {
 			let task_ids = get_task_ids_from_events();
 			task_ids.last().unwrap().clone()
@@ -1470,8 +1470,8 @@ fn test_expired_task_not_run() {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
 			amount: MOCK_XCMP_FEE,
 		};
-		let encoded_call_weight = Weight::from_ref_time(100_000);
-		let overall_weight = Weight::from_ref_time(200_000);
+		let encoded_call_weight = Weight::from_parts(100_000, 0);
+		let overall_weight = Weight::from_parts(200_000, 0);
 
 		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
@@ -1633,8 +1633,8 @@ fn test_cancel_task_works() {
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
 			amount: MOCK_XCMP_FEE,
 		};
-		let encoded_call_weight = Weight::from_ref_time(100_000);
-		let overall_weight = Weight::from_ref_time(200_000);
+		let encoded_call_weight = Weight::from_parts(100_000, 0);
+		let overall_weight = Weight::from_parts(200_000, 0);
 
 		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
