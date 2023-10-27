@@ -589,6 +589,28 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		/// Cancel task by schedule_as
+		///
+		/// # Parameters
+		/// * `schedule_as`: The owner of the task.
+		/// * `task_id`: The id of the task.
+		///
+		/// # Errors
+		/// * `TaskDoesNotExist`: The task does not exist.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_by_schedule_as())]
+		pub fn cancel_task_by_schedule_as(
+			origin: OriginFor<T>,
+			task_id: TaskIdV2,
+		) -> DispatchResult {
+			// TODO: Find all proxy account by schedule_as account
+
+			// TODO: Find out the task by task id and verify the schedule_as account
+			
+			// TODO: Cancel the task by proxy account
+			Ok(())
+		}
 	}
 
 	impl<T: Config> Pallet<T> {
