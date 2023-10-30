@@ -250,6 +250,8 @@ pub mod pallet {
 		TimeSlotFull,
 		/// The task does not exist.
 		TaskDoesNotExist,
+		/// The task schedule_as does not match.
+		TaskScheduleAsNotMatch,
 		/// Block time not set.
 		BlockTimeNotSet,
 		/// Insufficient balance to pay execution fee.
@@ -604,12 +606,22 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			task_id: TaskIdV2,
 		) -> DispatchResult {
-			// TODO: Find all proxy account by schedule_as account
+			let who = ensure_signed(origin)?;
+	
+			let found_item = AccountTasks::<T>::iter().find(|(_account_id, account_task_id, task)| account_task_id == &task_id );
+	
+			if (found_item.is_none()) {
+				return Err(Error::<T>::TaskDoesNotExist.into());
+			}
 
-			// TODO: Find out the task by task id and verify the schedule_as account
+			let found_task = found_item.unwrap().2;
 
-			// TODO: Cancel the task by proxy account
-			Ok(())
+			if(!matches!(found_task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. })) {
+				return Err(Error::<T>::TaskScheduleAsNotMatch.into());
+			}
+
+			Self::remove_task(task_id, found_task);
+      Ok(())
 		}
 	}
 
