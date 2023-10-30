@@ -607,21 +607,23 @@ pub mod pallet {
 			task_id: TaskIdV2,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
-	
-			let found_item = AccountTasks::<T>::iter().find(|(_account_id, account_task_id, task)| account_task_id == &task_id );
-	
+
+			let found_item = AccountTasks::<T>::iter()
+				.find(|(_account_id, account_task_id, task)| account_task_id == &task_id);
+
 			if (found_item.is_none()) {
-				return Err(Error::<T>::TaskDoesNotExist.into());
+				return Err(Error::<T>::TaskDoesNotExist.into())
 			}
 
 			let found_task = found_item.unwrap().2;
 
-			if(!matches!(found_task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. })) {
-				return Err(Error::<T>::TaskScheduleAsNotMatch.into());
+			if (!matches!(found_task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. }))
+			{
+				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
 			}
 
 			Self::remove_task(task_id, found_task);
-      Ok(())
+			Ok(())
 		}
 	}
 
