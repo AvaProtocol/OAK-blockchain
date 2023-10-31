@@ -601,28 +601,21 @@ pub mod pallet {
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_by_schedule_as())]
-		pub fn cancel_task_by_schedule_as(
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as())]
+		pub fn cancel_task_with_schedule_as(
 			origin: OriginFor<T>,
+			owner_id: AccountOf<T>,
 			task_id: TaskIdV2,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let found_item = AccountTasks::<T>::iter()
-				.find(|(_account_id, account_task_id, task)| account_task_id == &task_id);
+			let task = AccountTasks::<T>::get(owner_id, task_id.clone()).ok_or(Error::<T>::TaskDoesNotExist)?;
 
-			if (found_item.is_none()) {
-				return Err(Error::<T>::TaskDoesNotExist.into())
-			}
-
-			let found_task = found_item.unwrap().2;
-
-			if (!matches!(found_task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. }))
-			{
+			if !matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who) {
 				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
 			}
 
-			Self::remove_task(task_id, found_task);
+			Self::remove_task(task_id, task);
 			Ok(())
 		}
 	}
