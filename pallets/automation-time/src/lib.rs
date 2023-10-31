@@ -609,9 +609,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
-			let task = AccountTasks::<T>::get(owner_id, task_id.clone()).ok_or(Error::<T>::TaskDoesNotExist)?;
+			let task = AccountTasks::<T>::get(owner_id, task_id.clone())
+				.ok_or(Error::<T>::TaskDoesNotExist)?;
 
-			if !matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who) {
+			if !matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who)
+			{
 				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
 			}
 

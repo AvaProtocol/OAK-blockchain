@@ -66,7 +66,12 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	task_id
 }
 
-fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, schedule_as: Option<T::AccountId>, times: Vec<u64>, count: u32) -> Vec<u8> {
+fn schedule_xcmp_tasks<T: Config>(
+	owner: T::AccountId,
+	schedule_as: Option<T::AccountId>,
+	times: Vec<u64>,
+	count: u32,
+) -> Vec<u8> {
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	T::Currency::deposit_creating(
 		&owner,
