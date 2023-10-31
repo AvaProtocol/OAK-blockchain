@@ -601,7 +601,7 @@ pub mod pallet {
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
 		#[pallet::call_index(8)]
-		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as())]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as_full())]
 		pub fn cancel_task_with_schedule_as(
 			origin: OriginFor<T>,
 			owner_id: AccountOf<T>,

@@ -82,7 +82,7 @@ pub trait WeightInfo {
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
-	fn cancel_task_by_schedule_as() -> Weight;
+	fn cancel_task_with_schedule_as_full() -> Weight;
 	fn run_xcmp_task() -> Weight;
 	fn run_auto_compound_delegated_stake_task() -> Weight;
 	fn run_dynamic_dispatch_action() -> Weight;
@@ -229,7 +229,7 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().writes(37 as u64))
 	}
 
-	fn cancel_task_by_schedule_as() -> Weight {
+	fn cancel_task_with_schedule_as_full() -> Weight {
 		Weight::zero()
 	}
 
@@ -491,7 +491,7 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().writes(37 as u64))
 	}
 
-	fn cancel_task_by_schedule_as() -> Weight {
+	fn cancel_task_with_schedule_as_full() -> Weight {
 		Weight::zero()
 	}
 
