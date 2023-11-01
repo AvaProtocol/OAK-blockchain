@@ -295,6 +295,7 @@ benchmarks! {
 		let para_id: u32 = 2001;
 		let mut times: Vec<u64> = vec![];
 
+		// Fill up all time slots
 		for i in 0..T::MaxExecutionTimes::get() {
 			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
 			times.push(hour);

@@ -595,11 +595,12 @@ pub mod pallet {
 		/// Cancel task by schedule_as
 		///
 		/// # Parameters
-		/// * `schedule_as`: The owner of the task.
+		/// * `schedule_as`: The schedule_as account of the task.
 		/// * `task_id`: The id of the task.
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
+		/// * `TaskScheduleAsNotMatch`: The schedule_as account of the task does not match.
 		#[pallet::call_index(8)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as_full())]
 		pub fn cancel_task_with_schedule_as(
