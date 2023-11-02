@@ -1296,6 +1296,9 @@ pub mod pallet {
 			}
 
 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
+
+			// Refund reserved execution fees
+
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 

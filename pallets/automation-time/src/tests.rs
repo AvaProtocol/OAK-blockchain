@@ -619,7 +619,7 @@ fn cancel_task_with_incorrect_schedule_as_will_fail() {
 	})
 }
 
-// Cancel task with incorrect schedule_as and non-existent taskid will fail
+// Cancel task with schedule_as and non-existent taskid will fail
 #[test]
 fn cancel_with_schedule_as_and_non_existent_taskid_will_fail() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
@@ -642,7 +642,7 @@ fn cancel_with_schedule_as_and_non_existent_taskid_will_fail() {
 	})
 }
 
-// Cancel task with incorrect schedule_as and incorrect owner will fail
+// Cancel task with schedule_as and incorrect owner will fail
 #[test]
 fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
