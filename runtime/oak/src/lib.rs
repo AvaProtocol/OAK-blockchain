@@ -27,7 +27,13 @@ use hex_literal::hex;
 use pallet_automation_time_rpc_runtime_api::{
 	AutomationAction, AutostakingResult, FeeDetails as AutomationFeeDetails,
 };
+
+// TODO: The FeeDetails RPC is very similar between time/price, it maybe worth to extract them out
+// to their standalone Fee RPC that can handle both
+use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
+
 use primitives::{assets::CustomMetadata, TokenId};
+use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_runtime::{
@@ -38,6 +44,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionSource, TransactionValidity},
 	AccountId32, ApplyExtrinsicResult, MultiAddress, Percent, RuntimeDebug,
 };
+
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
@@ -63,7 +70,7 @@ use frame_support::{
 };
 use frame_system::{
 	limits::{BlockLength, BlockWeights},
-	EnsureRoot,
+	EnsureRoot, EnsureSigned,
 };
 pub use sp_runtime::{Perbill, Permill, Perquintill};
 
@@ -104,6 +111,7 @@ use primitives::{
 };
 
 // Custom pallet imports
+pub use pallet_automation_price;
 pub use pallet_automation_time;
 use pallet_xcmp_handler::InstructionSequence;
 
@@ -172,7 +180,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_name: create_runtime_str!("oak"),
 	authoring_version: 1,
 	spec_version: 295,
-	impl_version: 1,
+	impl_version: 2,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 18,
 	state_version: 0,
@@ -326,6 +334,10 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
+	type HoldIdentifier = ();
+	type FreezeIdentifier = ();
+	type MaxHolds = ConstU32<0>;
+	type MaxFreezes = ConstU32<0>;
 }
 
 parameter_types! {
@@ -406,7 +418,7 @@ impl InstanceFilter<RuntimeCall> for ProxyType {
 				matches!(c, RuntimeCall::ParachainStaking(..) | RuntimeCall::Session(..))
 			},
 			ProxyType::Automation => {
-				matches!(c, RuntimeCall::AutomationTime(..))
+				matches!(c, RuntimeCall::AutomationTime(..) | RuntimeCall::AutomationPrice(..))
 			},
 		}
 	}
@@ -568,7 +580,6 @@ impl pallet_aura::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MinCollatorStk: u128 = 2_000_000 * DOLLAR;
 	/// Minimum stake required to be reserved to be a candidate
 	pub const MinCandidateStk: u128 = 2_000_000 * DOLLAR;
 }
@@ -596,14 +607,12 @@ impl pallet_parachain_staking::Config for Runtime {
 	type MaxTopDelegationsPerCandidate = ConstU32<300>;
 	/// Maximum bottom delegations per candidate
 	type MaxBottomDelegationsPerCandidate = ConstU32<50>;
+	type MaxCandidates = ConstU32<200>;
 	/// Maximum delegations per delegator
 	type MaxDelegationsPerDelegator = ConstU32<100>;
-	type MinCollatorStk = MinCollatorStk;
 	type MinCandidateStk = MinCandidateStk;
 	/// Minimum delegation amount after initial
 	type MinDelegation = ConstU128<{ 50 * DOLLAR }>;
-	/// Minimum initial stake required to be reserved to be a delegator
-	type MinDelegatorStk = ConstU128<{ 50 * DOLLAR }>;
 	/// Handler to notify the runtime when a collator is paid
 	type OnCollatorPayout = ();
 	type PayoutCollatorReward = ();
@@ -616,6 +625,7 @@ impl pallet_parachain_staking::Config for Runtime {
 
 parameter_types! {
 	pub const CouncilMotionDuration: BlockNumber = 3 * DAYS;
+	pub MaxProposalWeight: Weight = Perbill::from_percent(50) * RuntimeBlockWeights::get().max_block;
 }
 
 impl pallet_bounties::Config for Runtime {
@@ -643,6 +653,8 @@ impl pallet_collective::Config<CouncilCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 parameter_types! {
@@ -659,6 +671,8 @@ impl pallet_collective::Config<TechnicalCollective> for Runtime {
 	type MaxMembers = ConstU32<100>;
 	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
+	type MaxProposalWeight = MaxProposalWeight;
 }
 
 type MoreThanHalfCouncil = EitherOfDiverse<
@@ -682,6 +696,7 @@ impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
+	type WeightInfo = pallet_sudo::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -819,6 +834,7 @@ impl pallet_democracy::Config for Runtime {
 	/// (NTB) vote.
 	type ExternalDefaultOrigin =
 		pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 1>;
+	type SubmitOrigin = EnsureSigned<AccountId>;
 	/// Two thirds of the technical committee can have an `ExternalMajority/ExternalDefault` vote
 	/// be tabled immediately and with a shorter voting/enactment period.
 	type FastTrackOrigin =
@@ -855,7 +871,8 @@ impl pallet_democracy::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MaxScheduleSeconds: u64 = 6 * 30 * 24 * 60 * 60;
+	pub const MaxScheduleSeconds: u64 = 6 * 30 * 24 * 60 * 60;	// 6 months in seconds
+	pub const SlotSizeSeconds: u64 = 600; // 10 minutes in seconds
 	pub const MaxBlockWeight: u64 = MAXIMUM_BLOCK_WEIGHT.ref_time();
 	pub const MaxWeightPercentage: Perbill = SCHEDULED_TASKS_INITIALIZE_RATIO;
 	pub const UpdateQueueRatio: Perbill = Perbill::from_percent(50);
@@ -911,6 +928,7 @@ impl pallet_automation_time::Config for Runtime {
 	// Roughly .125% of parachain block weight per hour
 	// ≈ 500_000_000_000 (MaxBlockWeight) * 300 (Blocks/Hour) * .00125
 	type MaxWeightPerSlot = ConstU128<150_000_000_000>;
+	type SlotSizeSeconds = SlotSizeSeconds;
 	type UpdateQueueRatio = UpdateQueueRatio;
 	type WeightInfo = pallet_automation_time::weights::SubstrateWeight<Runtime>;
 	type ExecutionWeightFee = ExecutionWeightFee;
@@ -930,6 +948,27 @@ impl pallet_automation_time::Config for Runtime {
 	type TransferCallCreator = MigrationTransferCallCreator;
 }
 
+impl pallet_automation_price::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxTasksPerSlot = ConstU32<1>;
+	type MaxTasksPerAccount = ConstU32<32>;
+	type MaxTasksOverall = ConstU32<16_384>;
+	type MaxBlockWeight = MaxBlockWeight;
+	type MaxWeightPercentage = MaxWeightPercentage;
+	type WeightInfo = pallet_automation_price::weights::SubstrateWeight<Runtime>;
+	type ExecutionWeightFee = ExecutionWeightFee;
+	type Currency = Balances;
+	type MultiCurrency = Currencies;
+	type CurrencyId = TokenId;
+	type XcmpTransactor = XcmpHandler;
+	type EnsureProxy = AutomationEnsureProxy;
+	type CurrencyIdConvert = TokenIdConvert;
+	type FeeConversionRateProvider = FeePerSecondProvider;
+	type FeeHandler = pallet_automation_price::FeeHandler<Runtime, ToTreasury>;
+	type UniversalLocation = UniversalLocation;
+	type SelfParaId = parachain_info::Pallet<Runtime>;
+}
+
 pub struct ClosedCallFilter;
 impl Contains<RuntimeCall> for ClosedCallFilter {
 	fn contains(c: &RuntimeCall) -> bool {
@@ -943,6 +982,7 @@ impl Contains<RuntimeCall> for ClosedCallFilter {
 			RuntimeCall::PolkadotXcm(_) => false,
 			RuntimeCall::Treasury(_) => false,
 			RuntimeCall::XTokens(_) => false,
+			RuntimeCall::AutomationPrice(_) => false,
 			_ => true,
 		}
 	}
@@ -953,7 +993,7 @@ impl pallet_valve::Config for Runtime {
 	type WeightInfo = pallet_valve::weights::SubstrateWeight<Runtime>;
 	type ClosedCallFilter = ClosedCallFilter;
 	type AutomationTime = AutomationTime;
-	type AutomationPrice = ();
+	type AutomationPrice = AutomationPrice;
 	type CallAccessFilter = TechnicalMembership;
 }
 
@@ -1029,6 +1069,7 @@ construct_runtime!(
 		AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
 		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Event<T>} = 62,
+		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
 );
 
@@ -1060,6 +1101,14 @@ impl_runtime_apis! {
 	impl sp_api::Metadata<Block> for Runtime {
 		fn metadata() -> OpaqueMetadata {
 			OpaqueMetadata::new(Runtime::metadata().into())
+		}
+
+		fn metadata_at_version(version: u32) -> Option<OpaqueMetadata> {
+			Runtime::metadata_at_version(version)
+		}
+
+		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+			Runtime::metadata_versions()
 		}
 	}
 
@@ -1199,22 +1248,6 @@ impl_runtime_apis! {
 			})
 		}
 
-		/**
-		 * The get_time_automation_fees RPC function is used to get the execution fee of scheduling a time-automation task.
-		 * This function requires the action type and the number of executions in order to generate an estimate.
-		 * However, the AutomationTime::calculate_schedule_fee_amount requires an Action enum from the automation time pallet,
-		 * which requires more information than is necessary for this calculation.
-		 * Therefore, for ease of use, this function will just require an integer representing the action type and an integer
-		 * representing the number of executions. For all of the extraneous information, the function will provide faux inputs for it.
-		 *
-		 */
-		fn get_time_automation_fees(
-			action: AutomationAction,
-			executions: u32,
-		) -> Balance {
-			AutomationTime::calculate_schedule_fee_amount(&(action.into()), executions).expect("Can only fail for DynamicDispatch which is not an option here")
-		}
-
 		fn calculate_optimal_autostaking(
 			principal: i128,
 			collator: AccountId
@@ -1239,13 +1272,50 @@ impl_runtime_apis! {
 				daily_collator_rewards,
 			);
 
-			Ok(AutostakingResult{period: res.0, apy: res.1})
+			Ok(AutostakingResult{period: res.0, apy: format!("{}", res.1)})
 		}
 
 		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>> {
 			AutomationTime::get_auto_compound_delegated_stake_task_ids(account_id)
 		}
 	}
+
+	impl pallet_automation_price_rpc_runtime_api::AutomationPriceApi<Block, AccountId, Hash, Balance> for Runtime {
+		fn query_fee_details(
+			uxt: <Block as BlockT>::Extrinsic,
+		) -> Result<AutomationPriceFeeDetails<Balance>, Vec<u8>> {
+			use pallet_automation_price::Action;
+
+			let action = match uxt.function {
+				RuntimeCall::AutomationPrice(pallet_automation_price::Call::schedule_xcmp_task_through_proxy{
+					chain,
+					exchange,
+					asset1,
+					asset2,
+					expired_at,
+					trigger_function,
+					trigger_params,
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as, ..
+				}) => {
+					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+					Ok(action)
+				},
+				_ => Err("Unsupported Extrinsic".as_bytes())
+			}?;
+
+			let nobody = AccountId::decode(&mut sp_runtime::traits::TrailingZeroInput::zeroes()).expect("always works");
+			let fee_handler = <Self as pallet_automation_price::Config>::FeeHandler::new(&nobody, &action)
+				.map_err(|_| "Unable to parse fee".as_bytes())?;
+
+			Ok(AutomationPriceFeeDetails {
+				schedule_fee: fee_handler.schedule_fee_amount,
+				execution_fee: fee_handler.execution_fee_amount
+			})
+		}
+	}
+
 
 	impl cumulus_primitives_core::CollectCollationInfo<Block> for Runtime {
 		fn collect_collation_info(header: &<Block as BlockT>::Header) -> cumulus_primitives_core::CollationInfo {
@@ -1287,6 +1357,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{list_benchmark, Benchmarking, BenchmarkList};
 			use frame_support::traits::StorageInfoTrait;
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1294,6 +1365,7 @@ impl_runtime_apis! {
 			let mut list = Vec::<BenchmarkList>::new();
 
 			list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
+			list_benchmark!(list, extra, pallet_automation_price, AutomationPrice::<Runtime>);
 			list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
 			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
@@ -1310,6 +1382,7 @@ impl_runtime_apis! {
 			use frame_benchmarking::{Benchmarking, BenchmarkBatch, add_benchmark, TrackedStorageKey};
 
 			use pallet_automation_time::Pallet as AutomationTime;
+			use pallet_automation_price::Pallet as AutomationPrice;
 			use pallet_valve::Pallet as Valve;
 			use pallet_vesting::Pallet as Vesting;
 			use pallet_parachain_staking::Pallet as ParachainStaking;
@@ -1331,6 +1404,7 @@ impl_runtime_apis! {
 			let params = (&config, &whitelist);
 
 			add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
+			add_benchmark!(params, batches, pallet_automation_price, AutomationPrice::<Runtime>);
 			add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
 			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);

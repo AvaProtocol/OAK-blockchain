@@ -347,7 +347,7 @@ mod tests {
 	use super::*;
 	use crate::{
 		mock::*,
-		tests::{SCHEDULED_TIME, START_BLOCK_TIME},
+		tests::{SCHEDULED_TIME, SLOT_SIZE_SECONDS, START_BLOCK_TIME},
 	};
 	use frame_support::{assert_err, assert_ok};
 
@@ -454,9 +454,9 @@ mod tests {
 		#[test]
 		fn sets_executions_left() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let t1 = SCHEDULED_TIME + 3600;
-				let t2 = SCHEDULED_TIME + 3600 * 2;
-				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let t1 = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
+				let t2 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2;
+				let t3 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3;
 				let s = ScheduleParam::Fixed { execution_times: vec![t1, t2, t3] }
 					.validated_into::<Test>()
 					.expect("valid");
@@ -471,7 +471,7 @@ mod tests {
 		#[test]
 		fn validates_fixed_schedule() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let t1 = SCHEDULED_TIME + 1800;
+				let t1 = SCHEDULED_TIME + SLOT_SIZE_SECONDS / 2;
 				let s = ScheduleParam::Fixed { execution_times: vec![t1] }.validated_into::<Test>();
 				assert_err!(s, Error::<Test>::InvalidTime);
 			})
@@ -482,7 +482,7 @@ mod tests {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
 				let s = ScheduleParam::Recurring {
 					next_execution_time: SCHEDULED_TIME,
-					frequency: 3600,
+					frequency: SLOT_SIZE_SECONDS,
 				}
 				.validated_into::<Test>()
 				.expect("valid");
@@ -494,7 +494,7 @@ mod tests {
 
 				let s = ScheduleParam::Recurring {
 					next_execution_time: SCHEDULED_TIME,
-					frequency: 3601,
+					frequency: SLOT_SIZE_SECONDS + 1,
 				}
 				.validated_into::<Test>();
 				assert_err!(s, Error::<Test>::InvalidTime);
@@ -504,16 +504,16 @@ mod tests {
 		#[test]
 		fn counts_executions() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let t1 = SCHEDULED_TIME + 3600;
-				let t2 = SCHEDULED_TIME + 3600 * 2;
-				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let t1 = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
+				let t2 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2;
+				let t3 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3;
 
 				let s = ScheduleParam::Fixed { execution_times: vec![t1, t2, t3] };
 				assert_eq!(s.number_of_executions(), 3);
 
 				let s = ScheduleParam::Recurring {
 					next_execution_time: SCHEDULED_TIME,
-					frequency: 3600,
+					frequency: SLOT_SIZE_SECONDS,
 				};
 				assert_eq!(s.number_of_executions(), 1);
 			})
@@ -526,9 +526,9 @@ mod tests {
 		#[test]
 		fn new_fixed_schedule_sets_executions_left() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let t1 = SCHEDULED_TIME + 3600;
-				let t2 = SCHEDULED_TIME + 3600 * 2;
-				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let t1 = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
+				let t2 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2;
+				let t3 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3;
 				let s = Schedule::new_fixed_schedule::<Test>(vec![t1, t2, t3]).unwrap();
 				if let Schedule::Fixed { executions_left, .. } = s {
 					assert_eq!(executions_left, 3);
@@ -551,9 +551,9 @@ mod tests {
 		#[test]
 		fn new_fixed_schedule_cleans_execution_times() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				let t1 = SCHEDULED_TIME + 3600;
-				let t2 = SCHEDULED_TIME + 3600 * 2;
-				let t3 = SCHEDULED_TIME + 3600 * 3;
+				let t1 = SCHEDULED_TIME + SLOT_SIZE_SECONDS;
+				let t2 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2;
+				let t3 = SCHEDULED_TIME + SLOT_SIZE_SECONDS * 3;
 				let s = Schedule::new_fixed_schedule::<Test>(vec![t1, t3, t2, t3, t3]);
 				if let Schedule::Fixed { execution_times, .. } = s.unwrap() {
 					assert_eq!(execution_times, vec![t1, t2, t3]);
@@ -566,12 +566,14 @@ mod tests {
 		#[test]
 		fn checks_for_fixed_schedule_validity() {
 			new_test_ext(START_BLOCK_TIME).execute_with(|| {
-				assert_ok!(Schedule::new_fixed_schedule::<Test>(vec![SCHEDULED_TIME + 3600]));
+				assert_ok!(Schedule::new_fixed_schedule::<Test>(vec![
+					SCHEDULED_TIME + SLOT_SIZE_SECONDS
+				]));
 				// Execution time does not end in whole hour
 				assert_err!(
 					Schedule::new_fixed_schedule::<Test>(vec![
-						SCHEDULED_TIME + 3600,
-						SCHEDULED_TIME + 3650
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS,
+						SCHEDULED_TIME + SLOT_SIZE_SECONDS + SLOT_SIZE_SECONDS / 2
 					]),
 					Error::<Test>::InvalidTime
 				);
@@ -588,33 +590,42 @@ mod tests {
 			let start_time = 1_663_225_200;
 			new_test_ext(start_time * 1_000).execute_with(|| {
 				assert_ok!(Schedule::Recurring {
-					next_execution_time: start_time + 3600,
-					frequency: 3600
+					next_execution_time: start_time + SLOT_SIZE_SECONDS,
+					frequency: SLOT_SIZE_SECONDS
 				}
 				.valid::<Test>());
 				// Next execution time not at hour granuality
 				assert_err!(
-					Schedule::Recurring { next_execution_time: start_time + 3650, frequency: 3600 }
-						.valid::<Test>(),
+					Schedule::Recurring {
+						next_execution_time: start_time + SLOT_SIZE_SECONDS + SLOT_SIZE_SECONDS / 2,
+						frequency: SLOT_SIZE_SECONDS
+					}
+					.valid::<Test>(),
 					Error::<Test>::InvalidTime
 				);
 				// Frequency not at hour granularity
 				assert_err!(
-					Schedule::Recurring { next_execution_time: start_time + 3650, frequency: 3650 }
-						.valid::<Test>(),
+					Schedule::Recurring {
+						next_execution_time: start_time + SLOT_SIZE_SECONDS + SLOT_SIZE_SECONDS / 2,
+						frequency: SLOT_SIZE_SECONDS + SLOT_SIZE_SECONDS / 2
+					}
+					.valid::<Test>(),
 					Error::<Test>::InvalidTime
 				);
 				// Frequency of 0
 				assert_err!(
-					Schedule::Recurring { next_execution_time: start_time + 3600, frequency: 0 }
-						.valid::<Test>(),
+					Schedule::Recurring {
+						next_execution_time: start_time + SLOT_SIZE_SECONDS,
+						frequency: 0
+					}
+					.valid::<Test>(),
 					Error::<Test>::InvalidTime
 				);
 				// Frequency too far out
 				assert_err!(
 					Schedule::Recurring {
-						next_execution_time: start_time + 3600,
-						frequency: start_time + 3600
+						next_execution_time: start_time + SLOT_SIZE_SECONDS,
+						frequency: start_time + SLOT_SIZE_SECONDS
 					}
 					.valid::<Test>(),
 					Error::<Test>::TimeTooFarOut

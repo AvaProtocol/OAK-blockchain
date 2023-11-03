@@ -1,5 +1,5 @@
 [package]
-name = "pallet-automation-time-rpc"
+name = "pallet-automation-price-rpc"
 description = "RPC API to provide information about tasks"
 version = "0.1.0"
 edition = "2021"
@@ -22,4 +22,4 @@ sp-block-builder = { git = "https://github.com/paritytech/substrate", branch = "
 sp-core = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 sp-rpc = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v0.9.43" }
 
-pallet-automation-time-rpc-runtime-api = { path = "./runtime-api" }
+pallet-automation-price-rpc-runtime-api = { path = "./runtime-api" }

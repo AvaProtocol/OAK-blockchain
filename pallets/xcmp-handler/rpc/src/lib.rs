@@ -24,7 +24,7 @@ use jsonrpsee::{
 pub use pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi as XcmpHandlerRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
-use sp_runtime::{generic::BlockId, traits::Block as BlockT, AccountId32};
+use sp_runtime::{traits::Block as BlockT, AccountId32};
 use std::{fmt::Debug, sync::Arc};
 
 /// An RPC endpoint to provide information about xcmp.
@@ -72,8 +72,7 @@ where
 {
 	fn cross_chain_account(&self, account_id: AccountId32) -> RpcResult<AccountId32> {
 		let api = self.client.runtime_api();
-		let at = BlockId::hash(self.client.info().best_hash);
-		let runtime_api_result = api.cross_chain_account(&at, account_id);
+		let runtime_api_result = api.cross_chain_account(self.client.info().best_hash, account_id);
 		let mapped_err = |message| -> JsonRpseeError {
 			JsonRpseeError::Call(CallError::Custom(ErrorObject::owned(
 				Error::RuntimeError.into(),

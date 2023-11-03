@@ -183,6 +183,16 @@ impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(2))
 	}
+	/// Storage: PolkadotXcm XcmExecutionSuspended (r:0 w:1)
+	/// Proof Skipped: PolkadotXcm XcmExecutionSuspended (max_values: Some(1), max_size: None, mode: Measured)
+	fn force_suspension() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `0`
+		//  Estimated: `0`
+		// Minimum execution time: 2_972_000 picoseconds.
+		Weight::from_parts(3_082_000, 0)
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 	/// Storage: PolkadotXcm VersionNotifiers (r:4 w:2)
 	/// Proof Skipped: PolkadotXcm VersionNotifiers (max_values: None, max_size: None, mode: Measured)
 	fn migrate_version_notifiers() -> Weight {
