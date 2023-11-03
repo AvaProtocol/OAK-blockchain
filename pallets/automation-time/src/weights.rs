@@ -20,7 +20,7 @@
 // --wasm-execution=compiled
 // --heap-pages=4096
 // --template=./.maintain/frame-weight-template.hbs
-// --output=./pallets/automation_time-raw-weights.rs
+// --output=./pallets/automation-time/src/weights.rs
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
