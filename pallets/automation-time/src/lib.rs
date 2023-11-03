@@ -1295,9 +1295,9 @@ pub mod pallet {
 				});
 			}
 
-			AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
+			// TODO: Add refund reserved execution fees here
 
-			// Refund reserved execution fees
+			AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
 
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
