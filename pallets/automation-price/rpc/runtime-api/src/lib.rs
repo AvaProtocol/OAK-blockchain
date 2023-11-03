@@ -1,6 +1,6 @@
 // This file is part of OAK Blockchain.
 
-// Copyright (C) 2022 OAK Network
+// Copyright (C) 2023 OAK Network
 // SPDX-License-Identifier: Apache-2.0
 
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,27 +18,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Codec, Decode, Encode};
-use scale_info::{prelude::string::String, TypeInfo};
+use scale_info::TypeInfo;
 use sp_std::vec::Vec;
 
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
-
-#[derive(PartialEq, Encode, Decode, TypeInfo)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct AutostakingResult {
-	pub period: i32,
-	pub apy: String,
-}
-
-#[derive(Debug, PartialEq, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum AutomationAction {
-	XCMP,
-	AutoCompoundDelegatedStake,
-}
 
 #[derive(Debug, PartialEq, Encode, Decode, TypeInfo)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
@@ -49,16 +33,11 @@ pub struct FeeDetails<Balance> {
 }
 
 sp_api::decl_runtime_apis! {
-	pub trait AutomationTimeApi<AccountId, Hash, Balance> where
+	pub trait AutomationPriceApi<AccountId, Hash, Balance> where
 		AccountId: Codec,
 		Hash: Codec,
 		Balance: Codec,
 	{
 		fn query_fee_details(uxt: Block::Extrinsic) -> Result<FeeDetails<Balance>, Vec<u8>>;
-		fn calculate_optimal_autostaking(
-			principal: i128,
-			collator: AccountId
-		) -> Result<AutostakingResult, Vec<u8>>;
-		fn get_auto_compound_delegated_stake_task_ids(account_id: AccountId) -> Vec<Vec<u8>>;
 	}
 }

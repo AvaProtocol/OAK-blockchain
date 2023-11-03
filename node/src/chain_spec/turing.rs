@@ -209,10 +209,7 @@ fn testnet_genesis(
 	technical_memberships: Vec<AccountId>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
 ) -> turing_runtime::GenesisConfig {
-	let candidate_stake = std::cmp::max(
-		turing_runtime::MinCollatorStk::get(),
-		turing_runtime::MinCandidateStk::get(),
-	);
+	let candidate_stake = turing_runtime::MinCandidateStk::get();
 
 	let assets = [
 		vec![(

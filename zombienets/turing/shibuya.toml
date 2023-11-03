@@ -35,6 +35,7 @@ chain = "shibuya-dev"
     [parachains.collator]
     name = "shibuya-col-1"
     command = "../Astar/target/release/astar-collator"
+    args = ["--enable-evm-rpc"]    # EVM RPC for Metamsk: http://localhost:9948 and Shibuya Chain Id: 81
     ws_port = 9948
     rpc_port = 8867
 

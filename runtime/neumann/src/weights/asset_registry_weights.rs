@@ -70,13 +70,13 @@ impl<T: frame_system::Config> orml_asset_registry::WeightInfo for SubstrateWeigh
 	// Storage: AssetRegistry Metadata (r:1 w:1)
 	// Storage: AssetRegistry LocationToAssetId (r:1 w:1)
 	fn register_asset() -> Weight {
-		Weight::from_ref_time(25_000_000 as u64)
+		Weight::from_parts(25_000_000 as u64, 0u64)
 			.saturating_add(T::DbWeight::get().reads(3 as u64))
 			.saturating_add(T::DbWeight::get().writes(3 as u64))
 	}
 	// Storage: AssetRegistry Metadata (r:1 w:1)
 	fn update_asset() -> Weight {
-		Weight::from_ref_time(20_000_000 as u64)
+		Weight::from_parts(20_000_000 as u64, 0u64)
 			.saturating_add(T::DbWeight::get().reads(1 as u64))
 			.saturating_add(T::DbWeight::get().writes(1 as u64))
 	}
@@ -92,13 +92,13 @@ impl WeightInfo for () {
 	// Storage: AssetRegistry Metadata (r:1 w:1)
 	// Storage: AssetRegistry LocationToAssetId (r:1 w:1)
 	fn register_asset() -> Weight {
-		Weight::from_ref_time(25_000_000 as u64)
+		Weight::from_parts(25_000_000 as u64, 0u64)
 			.saturating_add(RocksDbWeight::get().reads(3 as u64))
 			.saturating_add(RocksDbWeight::get().writes(3 as u64))
 	}
 	// Storage: AssetRegistry Metadata (r:1 w:1)
 	fn update_asset() -> Weight {
-		Weight::from_ref_time(20_000_000 as u64)
+		Weight::from_parts(20_000_000 as u64, 0u64)
 			.saturating_add(RocksDbWeight::get().reads(1 as u64))
 			.saturating_add(RocksDbWeight::get().writes(1 as u64))
 	}

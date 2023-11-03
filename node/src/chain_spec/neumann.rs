@@ -305,6 +305,8 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 ) -> neumann_runtime::GenesisConfig {
+	let candidate_stake = neumann_runtime::MinCandidateStk::get();
+
 	neumann_runtime::GenesisConfig {
 		system: neumann_runtime::SystemConfig {
 			code: neumann_runtime::WASM_BINARY
@@ -330,7 +332,7 @@ fn testnet_genesis(
 			candidates: invulnerables
 				.iter()
 				.cloned()
-				.map(|(acc, _)| (acc, neumann_runtime::MinCollatorStk::get()))
+				.map(|(acc, _)| (acc, candidate_stake))
 				.collect(),
 			delegations: vec![],
 			inflation_config: inflation_config(25, 5),
