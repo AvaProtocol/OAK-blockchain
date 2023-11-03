@@ -20,7 +20,7 @@ use crate as pallet_automation_price;
 use crate::TaskId;
 
 use frame_support::{
-	assert_noop, assert_ok, construct_runtime, parameter_types,
+	assert_ok, construct_runtime, parameter_types,
 	traits::{ConstU32, Contains, Everything},
 	weights::Weight,
 	PalletId,
