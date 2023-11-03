@@ -265,7 +265,6 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
-		UnsupportedFeePayment,
 		CannotReanchor,
 	}
 
@@ -373,7 +372,6 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
@@ -430,7 +428,6 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `Other("proxy error: expected `ProxyType::Any`")`: schedule_as must be a proxy account of type "any" for the caller.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
@@ -1331,12 +1328,6 @@ pub mod pallet {
 							T::UniversalLocation::get(),
 						)
 						.map_err(|_| Error::<T>::CannotReanchor)?;
-					// Only native token are supported as the XCMP fee for local deductions
-					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
-						asset_location != MultiLocation::new(0, Here)
-					{
-						Err(Error::<T>::UnsupportedFeePayment)?
-					}
 				},
 				_ => (),
 			};
