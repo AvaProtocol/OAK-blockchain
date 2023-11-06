@@ -508,6 +508,199 @@ fn will_not_emit_task_completed_event_when_task_canceled() {
 	})
 }
 
+// The task will be remove from account tasks when the task is canceled with schedule_as.
+#[test]
+fn will_remove_task_from_account_tasks_when_task_canceled_with_schedule_as() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let schedule_as = AccountId32::new(DELEGATOR_ACCOUNT);
+		let task_owner = AccountId32::new(PROXY_ACCOUNT);
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let task_id = FIRST_TASK_ID.to_vec();
+
+		fund_account(&task_owner, 900_000_000, 2, Some(0));
+
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![0] }.into();
+
+		// Schedule task
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(task_owner.clone()),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10
+			}),
+			call.encode(),
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
+			schedule_as.clone(),
+		));
+
+		// Check if the task's schedule_as is correct
+		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
+		assert_eq!(task.is_some(), true);
+
+		let task = task.unwrap();
+		assert_eq!(
+			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
+			true
+		);
+
+		// Cancel task with schedule_as
+		assert_ok!(AutomationTime::cancel_task_with_schedule_as(
+			RuntimeOrigin::signed(schedule_as),
+			task_owner.clone(),
+			task_id.clone(),
+		));
+
+		// Verify that the task is no longer in the accountTasks.
+		assert_eq!(AutomationTime::get_account_task(task_owner, task_id), None);
+	})
+}
+
+// Calling cancel_task_with_schedule_as with a schedule_as account will cause TaskScheduleAsNotMatch error.
+#[test]
+fn cancel_task_with_incorrect_schedule_as_will_fail() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let schedule_as = AccountId32::new(DELEGATOR_ACCOUNT);
+		let task_owner = AccountId32::new(PROXY_ACCOUNT);
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let task_id = FIRST_TASK_ID.to_vec();
+
+		fund_account(&task_owner, 900_000_000, 2, Some(0));
+
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![0] }.into();
+
+		// Schedule task
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(task_owner.clone()),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10
+			}),
+			call.encode(),
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
+			schedule_as.clone(),
+		));
+
+		// Check if the task's schedule_as is correct
+		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
+		assert_eq!(task.is_some(), true);
+
+		let task = task.unwrap();
+		assert_eq!(
+			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
+			true
+		);
+
+		// Cancel task with incorrect schedule_as
+		// It will throw TaskScheduleAsNotMatch error
+		assert_noop!(
+			AutomationTime::cancel_task_with_schedule_as(
+				RuntimeOrigin::signed(AccountId32::new(ALICE)),
+				task_owner.clone(),
+				task_id.clone(),
+			),
+			Error::<Test>::TaskScheduleAsNotMatch
+		);
+
+		// Assert that the task is still present in accountTasks.
+		assert_eq!(
+			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
+			true
+		);
+	})
+}
+
+// Calling cancel_task_with_schedule_as with a non-existent taskid will cause TaskDoesNotExist error.
+#[test]
+fn cancel_with_schedule_as_and_non_existent_taskid_will_fail() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let schedule_as = AccountId32::new(DELEGATOR_ACCOUNT);
+		let task_owner = AccountId32::new(PROXY_ACCOUNT);
+		let task_id = FIRST_TASK_ID.to_vec();
+
+		fund_account(&task_owner, 900_000_000, 2, Some(0));
+
+		// Cancel task with non-existent taskid
+		// It will throw TaskDoesNotExist error
+		assert_noop!(
+			AutomationTime::cancel_task_with_schedule_as(
+				RuntimeOrigin::signed(schedule_as),
+				task_owner.clone(),
+				task_id.clone(),
+			),
+			Error::<Test>::TaskDoesNotExist
+		);
+	})
+}
+
+// Calling cancel_task_with_schedule_as with an incorrect owner will cause TaskDoesNotExist error.
+#[test]
+fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let schedule_as = AccountId32::new(DELEGATOR_ACCOUNT);
+		let task_owner = AccountId32::new(PROXY_ACCOUNT);
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let task_id = FIRST_TASK_ID.to_vec();
+
+		fund_account(&task_owner, 900_000_000, 2, Some(0));
+
+		let call: <Test as frame_system::Config>::RuntimeCall =
+			frame_system::Call::remark_with_event { remark: vec![0] }.into();
+
+		// Schedule task
+		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+			RuntimeOrigin::signed(task_owner.clone()),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment {
+				asset_location: MultiLocation::new(0, Here).into(),
+				amount: 10
+			}),
+			call.encode(),
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
+			schedule_as.clone(),
+		));
+
+		// Check if the task's schedule_as is correct
+		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
+		assert_eq!(task.is_some(), true);
+
+		let task = task.unwrap();
+		assert_eq!(
+			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
+			true
+		);
+
+		// Cancel task with incorrect owner
+		// It will throw TaskDoesNotExist error
+		assert_noop!(
+			AutomationTime::cancel_task_with_schedule_as(
+				RuntimeOrigin::signed(schedule_as.clone()),
+				AccountId32::new(ALICE),
+				task_id.clone(),
+			),
+			Error::<Test>::TaskDoesNotExist
+		);
+
+		// Assert that the task is still present in accountTasks.
+		assert_eq!(
+			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
+			true
+		);
+	})
+}
+
 // When a task fails, the TaskCompleted event will still be emitted.
 #[test]
 fn will_emit_task_completed_event_when_task_failed() {
