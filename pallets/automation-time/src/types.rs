@@ -246,6 +246,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		encoded_call: Vec<u8>,
 		encoded_call_weight: Weight,
 		overall_weight: Weight,
+		schedule_as: Option<AccountId>,
 		instruction_sequence: InstructionSequence,
 		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
@@ -258,7 +259,7 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 			encoded_call,
 			encoded_call_weight,
 			overall_weight,
-			schedule_as: None,
+			schedule_as,
 			instruction_sequence,
 		};
 		let schedule = Schedule::new_fixed_schedule::<T>(execution_times)?;

@@ -66,7 +66,12 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	task_id
 }
 
-fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u32) -> Vec<u8> {
+fn schedule_xcmp_tasks<T: Config>(
+	owner: T::AccountId,
+	schedule_as: Option<T::AccountId>,
+	times: Vec<u64>,
+	count: u32,
+) -> Vec<u8> {
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	T::Currency::deposit_creating(
 		&owner,
@@ -92,6 +97,7 @@ fn schedule_xcmp_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count: u
 			vec![4, 5, 6],
 			Weight::from_parts(5_000, 0),
 			Weight::from_parts(10_000, 0),
+			schedule_as.clone(),
 			InstructionSequence::PayThroughSovereignAccount,
 			vec![],
 		)
@@ -176,7 +182,7 @@ benchmarks! {
 
 		let fee = AssetPayment { asset_location: MultiLocation::new(0, Here).into(), amount: 100u128 };
 
-		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), times, max_tasks_per_slot - 1);
+		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), None, times, max_tasks_per_slot - 1);
 		let foreign_currency_amount = T::MultiCurrency::minimum_balance(currency_id.into())
 			.saturating_add(1u32.into())
 			.saturating_mul(ED_MULTIPLIER.into())
@@ -282,6 +288,31 @@ benchmarks! {
 		let task_id = schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get());
 	}: force_cancel_task(RawOrigin::Root, caller, task_id)
 
+	cancel_task_with_schedule_as_full {
+		let caller: T::AccountId = account("caller", 0, SEED);
+		let schedule_as: T::AccountId = account("schedule_as", 0, SEED);
+		let time: u64 = 10800;
+		let para_id: u32 = 2001;
+		let mut times: Vec<u64> = vec![];
+
+		// Fill up all time slots
+		for i in 0..T::MaxExecutionTimes::get() {
+			let hour: u64 = (3600 * (i + 1)).try_into().unwrap();
+			times.push(hour);
+		}
+
+		let local_para_id: u32 = 2114;
+		let destination = MultiLocation::new(1, X1(Parachain(para_id)));
+		let local_sovereign_account: T::AccountId = Sibling::from(local_para_id).into_account_truncating();
+		T::Currency::deposit_creating(
+			&local_sovereign_account,
+			T::Currency::minimum_balance().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		);
+
+		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
+		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), Some(schedule_as.clone()), times, 1);
+	}: cancel_task_with_schedule_as(RawOrigin::Signed(schedule_as), caller, task_id)
+
 	run_xcmp_task {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let time: u64 = 10800;
@@ -298,7 +329,7 @@ benchmarks! {
 
 		let fee = AssetPayment { asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(), amount: 1000u128 };
 
-		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), vec![time], 1);
+		let task_id = schedule_xcmp_tasks::<T>(caller.clone(), None, vec![time], 1);
 	}: { AutomationTime::<T>::run_xcmp_task(destination, caller, fee, call, Weight::from_parts(100_000, 0), Weight::from_parts(200_000, 0), InstructionSequence::PayThroughSovereignAccount) }
 
 	run_auto_compound_delegated_stake_task {

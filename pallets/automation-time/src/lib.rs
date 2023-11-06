@@ -250,6 +250,8 @@ pub mod pallet {
 		TimeSlotFull,
 		/// The task does not exist.
 		TaskDoesNotExist,
+		/// The task schedule_as does not match.
+		TaskScheduleAsNotMatch,
 		/// Block time not set.
 		BlockTimeNotSet,
 		/// Insufficient balance to pay execution fee.
@@ -587,6 +589,36 @@ pub mod pallet {
 				.ok_or(Error::<T>::TaskDoesNotExist)
 				.map(|task| Self::remove_task(task_id.clone(), task))?;
 
+			Ok(())
+		}
+
+		/// Cancel task by schedule_as
+		///
+		/// # Parameters
+		/// * `schedule_as`: The schedule_as account of the task.
+		/// * `task_id`: The id of the task.
+		///
+		/// # Errors
+		/// * `TaskDoesNotExist`: The task does not exist.
+		/// * `TaskScheduleAsNotMatch`: The schedule_as account of the task does not match.
+		#[pallet::call_index(8)]
+		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as_full())]
+		pub fn cancel_task_with_schedule_as(
+			origin: OriginFor<T>,
+			owner_id: AccountOf<T>,
+			task_id: TaskIdV2,
+		) -> DispatchResult {
+			let who = ensure_signed(origin)?;
+
+			let task = AccountTasks::<T>::get(owner_id, task_id.clone())
+				.ok_or(Error::<T>::TaskDoesNotExist)?;
+
+			if !matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who)
+			{
+				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
+			}
+
+			Self::remove_task(task_id, task);
 			Ok(())
 		}
 	}
@@ -1263,7 +1295,10 @@ pub mod pallet {
 				});
 			}
 
+			// TODO: Add refund reserved execution fees here
+
 			AccountTasks::<T>::remove(task.owner_id.clone(), task_id.clone());
+
 			Self::deposit_event(Event::TaskCancelled { who: task.owner_id, task_id });
 		}
 

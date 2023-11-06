@@ -337,6 +337,9 @@ impl<Test: frame_system::Config> pallet_automation_time::WeightInfo for MockWeig
 	fn force_cancel_scheduled_task_full() -> Weight {
 		Weight::zero()
 	}
+	fn cancel_task_with_schedule_as_full() -> Weight {
+		Weight::zero()
+	}
 	fn run_xcmp_task() -> Weight {
 		Weight::from_parts(20_000, 0)
 	}
