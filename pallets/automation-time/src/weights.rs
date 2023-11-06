@@ -82,6 +82,7 @@ pub trait WeightInfo {
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
+	fn cancel_task_with_schedule_as_full() -> Weight;
 	fn run_xcmp_task() -> Weight;
 	fn run_auto_compound_delegated_stake_task() -> Weight;
 	fn run_dynamic_dispatch_action() -> Weight;
@@ -227,6 +228,11 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(39 as u64))
 			.saturating_add(T::DbWeight::get().writes(37 as u64))
 	}
+
+	fn cancel_task_with_schedule_as_full() -> Weight {
+		Weight::zero()
+	}
+
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
@@ -484,6 +490,11 @@ impl WeightInfo for () {
 			.saturating_add(RocksDbWeight::get().reads(39 as u64))
 			.saturating_add(RocksDbWeight::get().writes(37 as u64))
 	}
+
+	fn cancel_task_with_schedule_as_full() -> Weight {
+		Weight::zero()
+	}
+
 	// Storage: ParachainInfo ParachainId (r:1 w:0)
 	// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
 	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
