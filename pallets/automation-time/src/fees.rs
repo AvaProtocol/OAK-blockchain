@@ -147,14 +147,15 @@ where
 
 				let execution_fee_amount = execution_fee.amount;
 				if !execution_fee_amount.is_zero() {
-					T::MultiCurrency::withdraw(
-						currency_id.into(),
-						&self.owner,
-						execution_fee_amount,
-					)
-					.map_err(|_| DispatchError::Token(BelowMinimum))?;
+					// T::MultiCurrency::withdraw(
+					// 	currency_id.into(),
+					// 	&self.owner,
+					// 	execution_fee_amount,
+					// )
+					// .map_err(|_| DispatchError::Token(BelowMinimum))?;
 
 					T::XcmpTransactor::pay_xcm_fee(
+						currency_id,
 						self.owner.clone(),
 						execution_fee_amount.saturated_into(),
 					)?;
@@ -177,9 +178,7 @@ where
 			Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
 
 		let execution_fee = match action.clone() {
-			Action::XCMP { execution_fee, instruction_sequence, .. }
-				if instruction_sequence == InstructionSequence::PayThroughSovereignAccount =>
-			{
+			Action::XCMP { execution_fee, instruction_sequence, .. } => {
 				let location = MultiLocation::try_from(execution_fee.asset_location)
 					.map_err(|()| Error::<T>::BadVersion)?;
 				let amount =

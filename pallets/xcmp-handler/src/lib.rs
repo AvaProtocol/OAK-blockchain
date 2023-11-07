@@ -47,13 +47,15 @@ use xcm::latest::prelude::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::Currency;
+	use orml_traits::MultiCurrency;
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
 	use xcm_executor::traits::WeightBounds;
 
-	pub type BalanceOf<T> =
-		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
+		<T as frame_system::Config>::AccountId,
+	>>::CurrencyId;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -61,8 +63,8 @@ pub mod pallet {
 
 		type RuntimeCall: From<Call<Self>> + Encode;
 
-		/// The Currency type for interacting with balances
-		type Currency: Currency<Self::AccountId>;
+		/// The MultiCurrency type for interacting with balances
+		type MultiCurrency: MultiCurrency<Self::AccountId>;
 
 		/// The currencyIds that our chain supports.
 		type CurrencyId: Parameter
@@ -71,7 +73,9 @@ pub mod pallet {
 			+ MaybeSerializeDeserialize
 			+ Ord
 			+ TypeInfo
-			+ MaxEncodedLen;
+			+ MaxEncodedLen
+			+ From<MultiCurrencyId<Self>>
+			+ Into<MultiCurrencyId<Self>>;
 
 		/// The currencyId for the native currency.
 		#[pallet::constant]
@@ -408,15 +412,19 @@ pub mod pallet {
 		/// Pay for XCMP fees.
 		/// Transfers fee from payer account to the local chain sovereign account.
 		///
-		pub fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), DispatchError> {
+		pub fn pay_xcm_fee(
+			currency_id: T::CurrencyId,
+			source: T::AccountId,
+			fee: u128,
+		) -> Result<(), DispatchError> {
 			let local_sovereign_account =
 				Sibling::from(T::SelfParaId::get()).into_account_truncating();
 
-			match T::Currency::transfer(
+			match T::MultiCurrency::transfer(
+				currency_id.into(),
 				&source,
 				&local_sovereign_account,
-				<BalanceOf<T>>::saturated_from(fee),
-				frame_support::traits::ExistenceRequirement::KeepAlive,
+				fee.saturated_into(),
 			) {
 				Ok(_number) => Self::deposit_event(Event::XcmFeesPaid {
 					source,
@@ -446,7 +454,11 @@ pub trait XcmpTransactor<AccountId, CurrencyId> {
 		flow: InstructionSequence,
 	) -> Result<(), sp_runtime::DispatchError>;
 
-	fn pay_xcm_fee(source: AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError>;
+	fn pay_xcm_fee(
+		currency_id: CurrencyId,
+		source: AccountId,
+		fee: u128,
+	) -> Result<(), sp_runtime::DispatchError>;
 }
 
 impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
@@ -474,8 +486,12 @@ impl<T: Config> XcmpTransactor<T::AccountId, T::CurrencyId> for Pallet<T> {
 		Ok(())
 	}
 
-	fn pay_xcm_fee(source: T::AccountId, fee: u128) -> Result<(), sp_runtime::DispatchError> {
-		Self::pay_xcm_fee(source, fee)?;
+	fn pay_xcm_fee(
+		currency_id: T::CurrencyId,
+		source: T::AccountId,
+		fee: u128,
+	) -> Result<(), sp_runtime::DispatchError> {
+		Self::pay_xcm_fee(currency_id, source, fee)?;
 
 		Ok(())
 	}
