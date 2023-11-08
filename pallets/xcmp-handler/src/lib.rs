@@ -47,7 +47,7 @@ use xcm::latest::prelude::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::traits::Currency;
-	use orml_traits::MultiCurrency;
+	use orml_traits::{location::Reserve, MultiCurrency};
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
 	use sp_std::prelude::*;
@@ -101,6 +101,14 @@ pub mod pallet {
 
 		/// Utility for determining XCM instruction weights.
 		type Weigher: WeightBounds<<Self as pallet::Config>::RuntimeCall>;
+
+		/// The way to retreave the reserve of a MultiAsset. This can be
+		/// configured to accept absolute or relative paths for self tokens
+		type ReserveProvider: Reserve;
+
+		/// Self chain location.
+		#[pallet::constant]
+		type SelfLocation: Get<MultiLocation>;
 	}
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -253,11 +261,22 @@ pub mod pallet {
 
 			// XCM for target chain
 			let target_asset = local_asset
+				.clone()
 				.reanchored(&destination, T::UniversalLocation::get())
 				.map_err(|_| Error::<T>::CannotReanchor)?;
 
+			// If the target_asset is a token from this chain
+			// use the ReserveAssetDeposited instruction;
+			// otherwise, use the WithdrawAsset instruction.
+			let asset_reserve = T::ReserveProvider::reserve(&local_asset);
+			let asset_reception_instruction = match asset_reserve {
+				Some(reserve) if reserve == T::SelfLocation::get() =>
+					ReserveAssetDeposited::<()>(target_asset.clone().into()),
+				_ => WithdrawAsset::<()>(target_asset.clone().into()),
+			};
+
 			let target_xcm = Xcm(vec![
-				ReserveAssetDeposited::<()>(target_asset.clone().into()),
+				asset_reception_instruction,
 				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(overall_weight) },
 				DescendOrigin::<()>(descend_location),
 				Transact::<()> {
