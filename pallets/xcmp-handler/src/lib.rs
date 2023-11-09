@@ -272,7 +272,7 @@ pub mod pallet {
 			// otherwise, use the WithdrawAsset instruction.
 			let asset_reserve = T::ReserveProvider::reserve(&local_asset);
 			if asset_reserve.is_none() {
-				return Err(Error::<T>::InvalidAssetLocation.into());
+				return Err(Error::<T>::InvalidAssetLocation.into())
 			}
 			let reserve = asset_reserve.unwrap();
 			let asset_reception_instruction = if reserve == T::SelfLocation::get() {
@@ -280,7 +280,7 @@ pub mod pallet {
 			} else if reserve == destination {
 				WithdrawAsset::<()>(target_asset.clone().into())
 			} else {
-				return Err(Error::<T>::UnsupportedFeePayment.into());
+				return Err(Error::<T>::UnsupportedFeePayment.into())
 			};
 
 			let target_xcm = Xcm(vec![

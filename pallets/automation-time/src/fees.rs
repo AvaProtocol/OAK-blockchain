@@ -78,14 +78,18 @@ where
 	T: Config,
 	TR: TakeRevenue,
 {
-
-	fn ensure_can_withdraw(&self, asset_location: MultiLocation, amount: MultiBalanceOf<T>) -> Result<(), DispatchError> {
+	fn ensure_can_withdraw(
+		&self,
+		asset_location: MultiLocation,
+		amount: MultiBalanceOf<T>,
+	) -> Result<(), DispatchError> {
 		if amount.is_zero() {
 			return Ok(())
 		}
 
 		let currency_id = T::CurrencyIdConvert::convert(asset_location)
-			.ok_or("IncoveribleMultilocation")?.into();
+			.ok_or("IncoveribleMultilocation")?
+			.into();
 		let free_balance = T::MultiCurrency::free_balance(currency_id, &self.owner);
 		let min_balance = T::MultiCurrency::minimum_balance(currency_id);
 
@@ -110,7 +114,11 @@ where
 				let fee = self.schedule_fee_amount.saturating_add(exec_fee.amount);
 				Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
 			} else {
-				Self::ensure_can_withdraw(self, self.schedule_fee_location, self.schedule_fee_amount)?;
+				Self::ensure_can_withdraw(
+					self,
+					self.schedule_fee_location,
+					self.schedule_fee_amount,
+				)?;
 				Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
 			}
 		}
