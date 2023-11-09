@@ -78,47 +78,42 @@ where
 	T: Config,
 	TR: TakeRevenue,
 {
-	/// Ensure the fee can be paid.
-	fn can_pay_fee(&self) -> Result<(), DispatchError> {
-		let mut additional_fee = MultiBalanceOf::<T>::zero();
 
-		if let Some(exec_fee) = &self.execution_fee {
-			if exec_fee.is_local_deduction && exec_fee.asset_location == self.schedule_fee_location
-			{
-				additional_fee = exec_fee.amount;
-			} else if !exec_fee.amount.is_zero() {
-				let currency_id = T::CurrencyIdConvert::convert(exec_fee.asset_location)
-					.ok_or("IncoveribleMultilocation")?;
-				let free_balance = T::MultiCurrency::free_balance(currency_id.into(), &self.owner);
-				let min_balance = T::MultiCurrency::minimum_balance(currency_id.into());
-
-				free_balance
-					.checked_sub(&exec_fee.amount)
-					.and_then(|balance_minus_fee| balance_minus_fee.checked_sub(&min_balance))
-					.ok_or(DispatchError::Token(BelowMinimum))?;
-			}
-		}
-
-		let fee = self.schedule_fee_amount.saturating_add(additional_fee);
-
-		if fee.is_zero() {
+	fn ensure_can_withdraw(&self, asset_location: MultiLocation, amount: MultiBalanceOf<T>) -> Result<(), DispatchError> {
+		if amount.is_zero() {
 			return Ok(())
 		}
 
-		let schedule_currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
-			.ok_or("IncoveribleMultilocation")?
-			.into();
-		let free_balance = T::MultiCurrency::free_balance(schedule_currency_id, &self.owner);
+		let currency_id = T::CurrencyIdConvert::convert(asset_location)
+			.ok_or("IncoveribleMultilocation")?.into();
+		let free_balance = T::MultiCurrency::free_balance(currency_id, &self.owner);
+		let min_balance = T::MultiCurrency::minimum_balance(currency_id);
 
 		free_balance
-			.checked_sub(&fee)
-			.and_then(|balance_minus_fee| {
-				balance_minus_fee
-					.checked_sub(&T::MultiCurrency::minimum_balance(schedule_currency_id))
-			})
+			.checked_sub(&amount)
+			.and_then(|balance_minus_fee| balance_minus_fee.checked_sub(&min_balance))
 			.ok_or(DispatchError::Token(BelowMinimum))?;
 
-		T::MultiCurrency::ensure_can_withdraw(schedule_currency_id, &self.owner, fee)?;
+		T::MultiCurrency::ensure_can_withdraw(currency_id, &self.owner, amount)?;
+
+		Ok(())
+	}
+
+	/// Ensure the fee can be paid.
+	fn can_pay_fee(&self) -> Result<(), DispatchError> {
+		if let Some(exec_fee) = &self.execution_fee {
+			// If the locations of schedule_fee and execution_fee are equal,
+			// we need to add the fees to check whether they are sufficient,
+			// otherwise check them separately.
+			if exec_fee.is_local_deduction && exec_fee.asset_location == self.schedule_fee_location
+			{
+				let fee = self.schedule_fee_amount.saturating_add(exec_fee.amount);
+				Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
+			} else {
+				Self::ensure_can_withdraw(self, self.schedule_fee_location, self.schedule_fee_amount)?;
+				Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
+			}
+		}
 
 		Ok(())
 	}
@@ -178,7 +173,7 @@ where
 			Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
 
 		let execution_fee = match action.clone() {
-			Action::XCMP { execution_fee, instruction_sequence, .. } => {
+			Action::XCMP { execution_fee, .. } => {
 				let location = MultiLocation::try_from(execution_fee.asset_location)
 					.map_err(|()| Error::<T>::BadVersion)?;
 				let amount =
