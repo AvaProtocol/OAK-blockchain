@@ -167,6 +167,8 @@ pub mod pallet {
 		BadVersion,
 		// Asset not found
 		TransactInfoNotFound,
+		InvalidAssetLocation,
+		UnsupportedFeePayment,
 	}
 
 	#[pallet::call]
@@ -269,10 +271,16 @@ pub mod pallet {
 			// use the ReserveAssetDeposited instruction;
 			// otherwise, use the WithdrawAsset instruction.
 			let asset_reserve = T::ReserveProvider::reserve(&local_asset);
-			let asset_reception_instruction = match asset_reserve {
-				Some(reserve) if reserve == T::SelfLocation::get() =>
-					ReserveAssetDeposited::<()>(target_asset.clone().into()),
-				_ => WithdrawAsset::<()>(target_asset.clone().into()),
+			if asset_reserve.is_none() {
+				return Err(Error::<T>::InvalidAssetLocation.into());
+			}
+			let reserve = asset_reserve.unwrap();
+			let asset_reception_instruction = if reserve == T::SelfLocation::get() {
+				ReserveAssetDeposited::<()>(target_asset.clone().into())
+			} else if reserve == destination {
+				WithdrawAsset::<()>(target_asset.clone().into())
+			} else {
+				return Err(Error::<T>::UnsupportedFeePayment.into());
 			};
 
 			let target_xcm = Xcm(vec![
@@ -287,10 +295,7 @@ pub mod pallet {
 				RefundSurplus::<()>,
 				DepositAsset::<()> {
 					assets: Wild(AllCounted(1)),
-					beneficiary: MultiLocation {
-						parents: 1,
-						interior: X1(Parachain(T::SelfParaId::get().into())),
-					},
+					beneficiary: T::SelfLocation::get(),
 				},
 			]);
 
@@ -345,8 +350,7 @@ pub mod pallet {
 		pub fn transact_in_local_chain(
 			internal_instructions: xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>,
 		) -> Result<(), DispatchError> {
-			let local_sovereign_account =
-				MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into())));
+			let local_sovereign_account = T::SelfLocation::get();
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
 				.map_err(|_| Error::<T>::ErrorGettingCallWeight)?;
 			let hash = internal_instructions.using_encoded(sp_io::hashing::blake2_256);
