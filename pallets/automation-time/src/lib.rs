@@ -275,7 +275,9 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
+		// The fee payment asset location is not supported.
 		UnsupportedFeePayment,
+		// Mulilocation cannot be reanchored.
 		CannotReanchor,
 		/// Invalid asset location.
 		InvalidAssetLocation,
@@ -1562,12 +1564,13 @@ pub mod pallet {
 			exeuction_fee_location: &MultiLocation,
 			destination: &MultiLocation,
 		) -> Result<(), DispatchError> {
-			if exeuction_fee_location.chain_part().is_none() {
+			let reserve = exeuction_fee_location.chain_part();
+			if reserve.is_none() {
 				return Err(Error::<T>::InvalidAssetLocation.into())
 			}
-
+			let reserve = reserve.unwrap();
 			let self_location = T::SelfLocation::get();
-			if exeuction_fee_location != &self_location && exeuction_fee_location != destination {
+			if reserve != self_location && &reserve != destination {
 				return Err(Error::<T>::UnsupportedFeePayment.into())
 			}
 

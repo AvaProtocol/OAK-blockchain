@@ -126,6 +126,8 @@ where
 
 	/// Withdraw the fee.
 	fn withdraw_fee(&self) -> Result<(), DispatchError> {
+		log::debug!(target: "FeeHandler", "FeeHandler::withdraw_fee, self.schedule_fee.asset_location: {:?}, self.schedule_fee.amount: {:?}",
+			self.schedule_fee.asset_location, self.schedule_fee.amount);
 		// Withdraw schedule fee
 		if !self.schedule_fee.amount.is_zero() {
 			let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee.asset_location)
@@ -143,18 +145,13 @@ where
 		// Withdraw execution fee
 		if let Some(execution_fee) = &self.execution_fee {
 			if execution_fee.is_local {
+				log::debug!(target: "FeeHandler", "FeeHandler::withdraw_fee, self.execution_fee.asset_location: {:?}, self.execution_fee.amount: {:?}",
+					execution_fee.asset_location, execution_fee.amount);
 				let currency_id = T::CurrencyIdConvert::convert(execution_fee.asset_location)
 					.ok_or("InconvertibleMultilocation")?;
 
 				let execution_fee_amount = execution_fee.amount;
 				if !execution_fee_amount.is_zero() {
-					// T::MultiCurrency::withdraw(
-					// 	currency_id.into(),
-					// 	&self.owner,
-					// 	execution_fee_amount,
-					// )
-					// .map_err(|_| DispatchError::Token(BelowMinimum))?;
-
 					T::XcmpTransactor::pay_xcm_fee(
 						currency_id,
 						self.owner.clone(),

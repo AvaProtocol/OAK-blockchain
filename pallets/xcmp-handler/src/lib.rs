@@ -46,7 +46,6 @@ use xcm::latest::prelude::*;
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-	use frame_support::traits::Currency;
 	use orml_traits::{location::Reserve, MultiCurrency};
 	use polkadot_parachain::primitives::Sibling;
 	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
@@ -167,7 +166,9 @@ pub mod pallet {
 		BadVersion,
 		// Asset not found
 		TransactInfoNotFound,
+		// Invalid asset location.
 		InvalidAssetLocation,
+		// The fee payment asset location is not supported.
 		UnsupportedFeePayment,
 	}
 
