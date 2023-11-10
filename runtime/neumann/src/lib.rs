@@ -48,6 +48,8 @@ use xcm::latest::{prelude::*, MultiLocation, NetworkId};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
 
+use orml_traits::location::AbsoluteReserveProvider;
+
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,
@@ -81,7 +83,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
-use xcm_config::{FeePerSecondProvider, ToTreasury, TokenIdConvert};
+use xcm_config::{FeePerSecondProvider, SelfLocation, ToTreasury, TokenIdConvert};
 
 pub mod weights;
 
@@ -919,8 +921,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
-	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type TransferCallCreator = MigrationTransferCallCreator;
+	type ReserveProvider = AbsoluteReserveProvider;
+	type SelfLocation = SelfLocation;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -1215,7 +1218,7 @@ impl_runtime_apis! {
 
 			let execution_fee = fee_handler.execution_fee.map(|fee| fee.amount).unwrap_or(0);
 			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount,
+				schedule_fee: fee_handler.schedule_fee.amount,
 				execution_fee,
 			})
 		}

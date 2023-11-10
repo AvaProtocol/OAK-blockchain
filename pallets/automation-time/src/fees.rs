@@ -43,13 +43,12 @@ pub trait HandleFees<T: Config> {
 pub struct FeePayment<T: Config> {
 	pub asset_location: MultiLocation,
 	pub amount: MultiBalanceOf<T>,
-	pub is_local_deduction: bool,
+	pub is_local: bool,
 }
 
 pub struct FeeHandler<T: Config, TR> {
 	owner: T::AccountId,
-	pub schedule_fee_location: MultiLocation,
-	pub schedule_fee_amount: MultiBalanceOf<T>,
+	pub schedule_fee: FeePayment<T>,
 	pub execution_fee: Option<FeePayment<T>>,
 	_phantom_data: PhantomData<TR>,
 }
@@ -109,15 +108,14 @@ where
 			// If the locations of schedule_fee and execution_fee are equal,
 			// we need to add the fees to check whether they are sufficient,
 			// otherwise check them separately.
-			if exec_fee.is_local_deduction && exec_fee.asset_location == self.schedule_fee_location
-			{
-				let fee = self.schedule_fee_amount.saturating_add(exec_fee.amount);
+			if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location {
+				let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
 				Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
 			} else {
 				Self::ensure_can_withdraw(
 					self,
-					self.schedule_fee_location,
-					self.schedule_fee_amount,
+					self.schedule_fee.asset_location,
+					self.schedule_fee.amount,
 				)?;
 				Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
 			}
@@ -129,22 +127,22 @@ where
 	/// Withdraw the fee.
 	fn withdraw_fee(&self) -> Result<(), DispatchError> {
 		// Withdraw schedule fee
-		if !self.schedule_fee_amount.is_zero() {
-			let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
+		if !self.schedule_fee.amount.is_zero() {
+			let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee.asset_location)
 				.ok_or("InconvertibleMultilocation")?;
 
-			T::MultiCurrency::withdraw(currency_id.into(), &self.owner, self.schedule_fee_amount)
+			T::MultiCurrency::withdraw(currency_id.into(), &self.owner, self.schedule_fee.amount)
 				.map_err(|_| DispatchError::Token(BelowMinimum))?;
 
 			TR::take_revenue(MultiAsset {
-				id: AssetId::Concrete(self.schedule_fee_location),
-				fun: Fungibility::Fungible(self.schedule_fee_amount.saturated_into()),
+				id: AssetId::Concrete(self.schedule_fee.asset_location),
+				fun: Fungibility::Fungible(self.schedule_fee.amount.saturated_into()),
 			});
 		}
 
 		// Withdraw execution fee
 		if let Some(execution_fee) = &self.execution_fee {
-			if execution_fee.is_local_deduction {
+			if execution_fee.is_local {
 				let currency_id = T::CurrencyIdConvert::convert(execution_fee.asset_location)
 					.ok_or("InconvertibleMultilocation")?;
 
@@ -180,21 +178,31 @@ where
 		let schedule_fee_amount: u128 =
 			Pallet::<T>::calculate_schedule_fee_amount(action, executions)?.saturated_into();
 
+		let schedule_fee = FeePayment {
+			asset_location: schedule_fee_location,
+			amount: schedule_fee_amount.saturated_into(),
+			is_local: true,
+		};
+
 		let execution_fee = match action.clone() {
-			Action::XCMP { execution_fee, .. } => {
+			Action::XCMP { execution_fee, instruction_sequence, .. } => {
 				let location = MultiLocation::try_from(execution_fee.asset_location)
 					.map_err(|()| Error::<T>::BadVersion)?;
 				let amount =
 					execution_fee.amount.saturating_mul(executions.into()).saturated_into();
-				Some(FeePayment { asset_location: location, amount, is_local_deduction: true })
+				Some(FeePayment {
+					asset_location: location,
+					amount,
+					is_local: instruction_sequence ==
+						InstructionSequence::PayThroughSovereignAccount,
+				})
 			},
 			_ => None,
 		};
 
 		Ok(Self {
 			owner: owner.clone(),
-			schedule_fee_location,
-			schedule_fee_amount: schedule_fee_amount.saturated_into(),
+			schedule_fee,
 			execution_fee,
 			_phantom_data: Default::default(),
 		})
