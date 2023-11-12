@@ -271,7 +271,8 @@ pub mod pallet {
 			// If the target_asset is a token from this chain
 			// use the ReserveAssetDeposited instruction;
 			// otherwise, use the WithdrawAsset instruction.
-			let reserve = T::ReserveProvider::reserve(&local_asset).ok_or(Error::<T>::InvalidAssetLocation)?;
+			let reserve = T::ReserveProvider::reserve(&local_asset)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
 			let asset_reception_instruction = if reserve == T::SelfLocation::get() {
 				ReserveAssetDeposited::<()>(target_asset.clone().into())
 			} else if reserve == destination {
