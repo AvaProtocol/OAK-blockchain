@@ -1564,11 +1564,7 @@ pub mod pallet {
 			exeuction_fee_location: &MultiLocation,
 			destination: &MultiLocation,
 		) -> Result<(), DispatchError> {
-			let reserve = exeuction_fee_location.chain_part();
-			if reserve.is_none() {
-				return Err(Error::<T>::InvalidAssetLocation.into())
-			}
-			let reserve = reserve.unwrap();
+			let reserve = exeuction_fee_location.chain_part().ok_or(Error::<T>::InvalidAssetLocation)?;
 			let self_location = T::SelfLocation::get();
 			if reserve != self_location && &reserve != destination {
 				return Err(Error::<T>::UnsupportedFeePayment.into())
