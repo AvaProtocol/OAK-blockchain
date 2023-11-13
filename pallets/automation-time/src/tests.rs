@@ -117,10 +117,7 @@ fn calculate_expected_xcmp_action_schedule_fee(
 	num_of_execution: u32,
 ) -> u128 {
 	let schedule_fee_location = schedule_fee_location
-		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
-			<Test as Config>::UniversalLocation::get(),
-		)
+		.reanchored(&SelfLocation::get(), <Test as Config>::UniversalLocation::get())
 		.expect("Location reanchor failed");
 	let weight = <Test as Config>::WeightInfo::run_xcmp_task();
 
@@ -859,10 +856,7 @@ fn calculate_xcmp_action_schedule_fee_amount_with_absolute_or_relative_native_sc
 		let num_of_execution = generate_random_num(1, 20);
 
 		let action_absolute = create_xcmp_action(XcmpActionParams {
-			schedule_fee: MultiLocation::new(
-				1,
-				X1(Parachain(<Test as Config>::SelfParaId::get().into())),
-			),
+			schedule_fee: SelfLocation::get(),
 			..XcmpActionParams::default()
 		});
 		let fee_amount_abosolute =

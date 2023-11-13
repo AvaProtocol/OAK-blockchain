@@ -42,6 +42,8 @@ xcm-executor = { git = "https://github.com/paritytech/polkadot", default-feature
 
 # ORML
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.43" }
+orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.43" }
+orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.43" }
 
 [dev-dependencies]
 # Substrate
@@ -57,6 +59,8 @@ polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-f
 pallet-xcm = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.43" }
 xcm-builder = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43" }
 xcm-executor = { git = 'https://github.com/paritytech/polkadot', default-features = false, branch = "release-v0.9.43" }
+
+primitives = { path = "../../primitives", default-features = false }
 
 [features]
 default = ["std"]

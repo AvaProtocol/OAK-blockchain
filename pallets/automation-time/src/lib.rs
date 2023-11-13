@@ -414,20 +414,20 @@ pub mod pallet {
 
 			Self::ensure_supported_execution_fee_location(&execution_fee_location, &destination)?;
 
-			let action = Action::XCMP {
-				destination,
-				schedule_fee,
-				execution_fee,
-				encoded_call,
-				encoded_call_weight,
-				overall_weight,
-				schedule_as: None,
-				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
-			};
+			// let action = Action::XCMP {
+			// 	destination,
+			// 	schedule_fee,
+			// 	execution_fee,
+			// 	encoded_call,
+			// 	encoded_call_weight,
+			// 	overall_weight,
+			// 	schedule_as: None,
+			// 	instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			// };
 
-			let schedule = schedule.validated_into::<T>()?;
+			// let schedule = schedule.validated_into::<T>()?;
 
-			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
+			// Self::validate_and_schedule_task(action, who, schedule, vec![])?;
 			Ok(())
 		}
 
@@ -1564,10 +1564,11 @@ pub mod pallet {
 			exeuction_fee_location: &MultiLocation,
 			destination: &MultiLocation,
 		) -> Result<(), DispatchError> {
-			let reserve =
-				exeuction_fee_location.chain_part().ok_or(Error::<T>::InvalidAssetLocation)?;
-			let self_location = T::SelfLocation::get();
-			if reserve != self_location && &reserve != destination {
+			let exeuction_fee =
+				MultiAsset { id: Concrete(*exeuction_fee_location), fun: Fungibility::Fungible(0) };
+			let reserve = T::ReserveProvider::reserve(&exeuction_fee)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
+			if reserve != MultiLocation::here() && &reserve != destination {
 				return Err(Error::<T>::UnsupportedFeePayment.into())
 			}
 

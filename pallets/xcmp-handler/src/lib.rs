@@ -273,7 +273,7 @@ pub mod pallet {
 			// otherwise, use the WithdrawAsset instruction.
 			let reserve = T::ReserveProvider::reserve(&local_asset)
 				.ok_or(Error::<T>::InvalidAssetLocation)?;
-			let asset_reception_instruction = if reserve == T::SelfLocation::get() {
+			let asset_reception_instruction = if reserve == MultiLocation::here() {
 				ReserveAssetDeposited::<()>(target_asset.clone().into())
 			} else if reserve == destination {
 				WithdrawAsset::<()>(target_asset.clone().into())

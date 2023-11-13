@@ -22,6 +22,12 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiAddress, MultiSignature,
 };
+use sp_std::marker::PhantomData;
+
+use frame_support::traits::Get;
+
+use orml_traits::location::{RelativeReserveProvider, Reserve};
+use xcm::latest::prelude::*;
 
 pub mod assets;
 
@@ -70,4 +76,21 @@ pub trait EnsureProxy<AccountId> {
 
 pub trait TransferCallCreator<AccountId, Balance, RuntimeCall> {
 	fn create_transfer_call(dest: AccountId, value: Balance) -> RuntimeCall;
+}
+
+/// `MultiAsset` reserve location provider. It's based on `RelativeReserveProvider` and in
+/// addition will convert self absolute location to relative location.
+pub struct AbsoluteAndRelativeReserveProvider<AbsoluteLocation>(PhantomData<AbsoluteLocation>);
+impl<AbsoluteLocation: Get<MultiLocation>> Reserve
+	for AbsoluteAndRelativeReserveProvider<AbsoluteLocation>
+{
+	fn reserve(asset: &MultiAsset) -> Option<MultiLocation> {
+		RelativeReserveProvider::reserve(asset).map(|reserve_location| {
+			if reserve_location == AbsoluteLocation::get() {
+				MultiLocation::here()
+			} else {
+				reserve_location
+			}
+		})
+	}
 }

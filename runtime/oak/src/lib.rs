@@ -32,7 +32,7 @@ use pallet_automation_time_rpc_runtime_api::{
 // to their standalone Fee RPC that can handle both
 use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
 
-use primitives::{assets::CustomMetadata, TokenId};
+use primitives::{assets::CustomMetadata, AbsoluteAndRelativeReserveProvider, TokenId};
 use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -947,7 +947,7 @@ impl pallet_automation_time::Config for Runtime {
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type TransferCallCreator = MigrationTransferCallCreator;
-	type ReserveProvider = AbsoluteReserveProvider;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
 	type SelfLocation = SelfLocation;
 }
 

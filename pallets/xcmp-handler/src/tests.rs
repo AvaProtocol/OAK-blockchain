@@ -218,10 +218,11 @@ fn pay_xcm_fee_works() {
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
 		let alice_balance = 8_000_000;
+		let currency_id = 0;
 
 		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_ok!(XcmpHandler::pay_xcm_fee(currency_id, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
 		assert_eq!(Balances::free_balance(local_sovereign_account), fee);
 	});
@@ -234,10 +235,11 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
 		let alice_balance = fee;
+		let currency_id = 0;
 
 		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_ok!(XcmpHandler::pay_xcm_fee(currency_id, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance);
 		assert_eq!(Balances::free_balance(local_sovereign_account), 0);
 	});

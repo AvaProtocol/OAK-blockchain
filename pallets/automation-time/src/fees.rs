@@ -104,22 +104,57 @@ where
 
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(&self) -> Result<(), DispatchError> {
-		if let Some(exec_fee) = &self.execution_fee {
-			// If the locations of schedule_fee and execution_fee are equal,
-			// we need to add the fees to check whether they are sufficient,
-			// otherwise check them separately.
-			if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location {
-				let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
-				Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
-			} else {
+		match &self.execution_fee {
+			Some(exec_fee) => {
+				// If the locations of schedule_fee and execution_fee are equal,
+				// we need to add the fees to check whether they are sufficient,
+				// otherwise check them separately.
+				if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location
+				{
+					let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
+					Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
+				} else {
+					Self::ensure_can_withdraw(
+						self,
+						self.schedule_fee.asset_location,
+						self.schedule_fee.amount,
+					)?;
+					Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
+				}
+			},
+			Null => {
 				Self::ensure_can_withdraw(
 					self,
 					self.schedule_fee.asset_location,
 					self.schedule_fee.amount,
 				)?;
-				Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
-			}
+			},
 		}
+
+		// if let Some(exec_fee) = &self.execution_fee {
+		// 	// // If the locations of schedule_fee and execution_fee are equal,
+		// 	// // we need to add the fees to check whether they are sufficient,
+		// 	// // otherwise check them separately.
+		// 	if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location {
+		// 		let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
+		// 		Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
+		// 	} else {
+		// 		Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
+		// 	}
+
+		// 	// else {
+		// 	// 	Self::ensure_can_withdraw(
+		// 	// 		self,
+		// 	// 		self.schedule_fee.asset_location,
+		// 	// 		self.schedule_fee.amount,
+		// 	// 	)?;
+		// 	// 	Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
+		// 	// }
+		// 	// let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
+		// 	// Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
+		// } else {
+		// 	Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
+		// }
 
 		Ok(())
 	}

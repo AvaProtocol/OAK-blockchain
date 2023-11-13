@@ -102,8 +102,8 @@ use common_runtime::{
 	CurrencyHooks,
 };
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, EnsureProxy, Hash, Header, Index,
-	Signature, TransferCallCreator,
+	AbsoluteAndRelativeReserveProvider, AccountId, Address, Amount, AuraId, Balance, BlockNumber,
+	EnsureProxy, Hash, Header, Index, Signature, TransferCallCreator,
 };
 
 // Custom pallet imports
@@ -922,7 +922,7 @@ impl pallet_automation_time::Config for Runtime {
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type TransferCallCreator = MigrationTransferCallCreator;
-	type ReserveProvider = AbsoluteReserveProvider;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
 	type SelfLocation = SelfLocation;
 }
 
