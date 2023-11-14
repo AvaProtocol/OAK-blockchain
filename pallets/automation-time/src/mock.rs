@@ -721,6 +721,21 @@ pub fn get_xcmp_funds(account: AccountId) {
 	Balances::force_set_balance(RawOrigin::Root.into(), account, with_xcm_fees).unwrap();
 }
 
+pub fn get_multi_xcmp_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_xcmp_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	Balances::force_set_balance(RawOrigin::Root.into(), account.clone(), max_execution_fee)
+		.unwrap();
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account,
+		FOREIGN_CURRENCY_ID,
+		XmpFee::get() as i64,
+	)
+	.unwrap();
+}
+
 // TODO: swap above to this pattern
 pub fn fund_account_dynamic_dispatch(
 	account: &AccountId,

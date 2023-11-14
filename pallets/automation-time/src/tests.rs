@@ -1030,6 +1030,56 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
+fn schedule_xcmp_works_with_multi_currency() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let alice = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		// Funds including XCM fees
+		get_multi_xcmp_funds(alice.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task(
+			RuntimeOrigin::signed(alice),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
+			call,
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
+		));
+	})
+}
+
+#[test]
+fn schedule_xcmp_works_with_unsupported_currency_will_fail() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let alice = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		// Funds including XCM fees
+		get_multi_xcmp_funds(alice.clone());
+
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task(
+				RuntimeOrigin::signed(alice),
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(1, X1(Parachain(3000))).into(),
+					amount: 10
+				}),
+				call,
+				Weight::from_parts(100_000, 0),
+				Weight::from_parts(200_000, 0),
+			),
+			Error::<Test>::UnsupportedFeePayment,
+		);
+	})
+}
+
+#[test]
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
