@@ -48,7 +48,10 @@ pub mod pallet {
 	use super::*;
 	use orml_traits::{location::Reserve, MultiCurrency};
 	use polkadot_parachain::primitives::Sibling;
-	use sp_runtime::traits::{AccountIdConversion, Convert, SaturatedConversion};
+	use sp_runtime::{
+		traits::{AccountIdConversion, CheckedSub, Convert, SaturatedConversion},
+		TokenError::BelowMinimum,
+	};
 	use sp_std::prelude::*;
 	use xcm_executor::traits::WeightBounds;
 
@@ -430,6 +433,31 @@ pub mod pallet {
 			Ok(())
 		}
 
+		fn do_pay_xcm_fee(
+			currency_id: T::CurrencyId,
+			source: T::AccountId,
+			dest: T::AccountId,
+			fee: u128,
+		) -> Result<(), DispatchError> {
+			let free_balance = T::MultiCurrency::free_balance(currency_id.into(), &source);
+			let min_balance = T::MultiCurrency::minimum_balance(currency_id.into());
+
+			free_balance
+				.checked_sub(&fee.saturated_into())
+				.and_then(|balance_minus_fee| balance_minus_fee.checked_sub(&min_balance))
+				.ok_or(DispatchError::Token(BelowMinimum))?;
+
+			T::MultiCurrency::ensure_can_withdraw(
+				currency_id.into(),
+				&source,
+				fee.saturated_into(),
+			)?;
+
+			T::MultiCurrency::transfer(currency_id.into(), &source, &dest, fee.saturated_into())?;
+
+			Ok(())
+		}
+
 		/// Pay for XCMP fees.
 		/// Transfers fee from payer account to the local chain sovereign account.
 		///
@@ -438,14 +466,13 @@ pub mod pallet {
 			source: T::AccountId,
 			fee: u128,
 		) -> Result<(), DispatchError> {
-			let local_sovereign_account =
+			let local_sovereign_account: T::AccountId =
 				Sibling::from(T::SelfParaId::get()).into_account_truncating();
-
-			match T::MultiCurrency::transfer(
-				currency_id.into(),
-				&source,
-				&local_sovereign_account,
-				fee.saturated_into(),
+			match Self::do_pay_xcm_fee(
+				currency_id,
+				source.clone(),
+				local_sovereign_account.clone(),
+				fee,
 			) {
 				Ok(_number) => Self::deposit_event(Event::XcmFeesPaid {
 					source,

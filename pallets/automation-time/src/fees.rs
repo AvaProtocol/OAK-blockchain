@@ -18,6 +18,7 @@
 /// ! Traits and default implementation for paying execution fees.
 use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
 
+use frame_support::traits::Get;
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
 use sp_runtime::{
@@ -105,12 +106,22 @@ where
 	/// Ensure the fee can be paid.
 	fn can_pay_fee(&self) -> Result<(), DispatchError> {
 		match &self.execution_fee {
-			Some(exec_fee) => {
+			Some(exec_fee) if exec_fee.is_local => {
 				// If the locations of schedule_fee and execution_fee are equal,
 				// we need to add the fees to check whether they are sufficient,
 				// otherwise check them separately.
-				if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location
-				{
+				let exec_fee_location = exec_fee
+					.asset_location
+					.reanchored(&T::SelfLocation::get(), T::UniversalLocation::get())
+					.map_err(|_| Error::<T>::CannotReanchor)?;
+
+				let schedule_fee_location = self
+					.schedule_fee
+					.asset_location
+					.reanchored(&T::SelfLocation::get(), T::UniversalLocation::get())
+					.map_err(|_| Error::<T>::CannotReanchor)?;
+
+				if exec_fee_location == schedule_fee_location {
 					let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
 					Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
 				} else {
@@ -119,10 +130,9 @@ where
 						self.schedule_fee.asset_location,
 						self.schedule_fee.amount,
 					)?;
-					Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
 				}
 			},
-			Null => {
+			_ => {
 				Self::ensure_can_withdraw(
 					self,
 					self.schedule_fee.asset_location,
@@ -130,31 +140,6 @@ where
 				)?;
 			},
 		}
-
-		// if let Some(exec_fee) = &self.execution_fee {
-		// 	// // If the locations of schedule_fee and execution_fee are equal,
-		// 	// // we need to add the fees to check whether they are sufficient,
-		// 	// // otherwise check them separately.
-		// 	if exec_fee.is_local && exec_fee.asset_location == self.schedule_fee.asset_location {
-		// 		let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
-		// 		Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
-		// 	} else {
-		// 		Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
-		// 	}
-
-		// 	// else {
-		// 	// 	Self::ensure_can_withdraw(
-		// 	// 		self,
-		// 	// 		self.schedule_fee.asset_location,
-		// 	// 		self.schedule_fee.amount,
-		// 	// 	)?;
-		// 	// 	Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
-		// 	// }
-		// 	// let fee = self.schedule_fee.amount.saturating_add(exec_fee.amount);
-		// 	// Self::ensure_can_withdraw(self, exec_fee.asset_location, fee)?;
-		// } else {
-		// 	Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
-		// }
 
 		Ok(())
 	}

@@ -48,8 +48,6 @@ use xcm::latest::{prelude::*, MultiLocation, NetworkId};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
 
-use orml_traits::location::AbsoluteReserveProvider;
-
 use frame_support::{
 	construct_runtime,
 	dispatch::DispatchClass,

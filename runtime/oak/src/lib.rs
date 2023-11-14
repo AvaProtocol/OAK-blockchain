@@ -49,8 +49,6 @@ use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
 use xcm_executor::traits::Convert;
 
-use orml_traits::location::AbsoluteReserveProvider;
-
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;

@@ -30,7 +30,6 @@ use frame_support::{
 };
 use frame_system::{self, RawOrigin};
 use rand::Rng;
-use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
@@ -1046,10 +1045,7 @@ fn schedule_xcmp_through_proxy_works() {
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
 			Box::new(MultiLocation::default().into()),
-			Box::new(AssetPayment {
-				asset_location: destination.into(),
-				amount: 10,
-			}),
+			Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
 			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),

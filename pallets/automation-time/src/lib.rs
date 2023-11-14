@@ -414,20 +414,20 @@ pub mod pallet {
 
 			Self::ensure_supported_execution_fee_location(&execution_fee_location, &destination)?;
 
-			// let action = Action::XCMP {
-			// 	destination,
-			// 	schedule_fee,
-			// 	execution_fee,
-			// 	encoded_call,
-			// 	encoded_call_weight,
-			// 	overall_weight,
-			// 	schedule_as: None,
-			// 	instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
-			// };
+			let action = Action::XCMP {
+				destination,
+				schedule_fee,
+				execution_fee,
+				encoded_call,
+				encoded_call_weight,
+				overall_weight,
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
 
-			// let schedule = schedule.validated_into::<T>()?;
+			let schedule = schedule.validated_into::<T>()?;
 
-			// Self::validate_and_schedule_task(action, who, schedule, vec![])?;
+			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
 			Ok(())
 		}
 
