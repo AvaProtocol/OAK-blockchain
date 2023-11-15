@@ -228,6 +228,29 @@ pub mod pallet {
 			Ok(instructions)
 		}
 
+		fn get_local_xcm(asset: MultiAsset, destination: MultiLocation) -> Result<xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, DispatchError> {
+			let reserve = T::ReserveProvider::reserve(&asset)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
+			let local_xcm = if reserve == MultiLocation::here() {
+				Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
+					DepositAsset::<<T as pallet::Config>::RuntimeCall> {
+						assets: Wild(All),
+						beneficiary: destination,
+					},
+				])
+			} else if reserve == destination {
+				Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.clone().into()),
+					BurnAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
+				])
+			} else {
+				return Err(Error::<T>::UnsupportedFeePayment.into())
+			};
+
+			Ok(local_xcm)
+		}
+
 		/// Construct the instructions for a transact xcm with our local currency.
 		///
 		/// Local instructions
@@ -257,15 +280,12 @@ pub mod pallet {
 			let local_asset =
 				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) };
 
-			let local_xcm = Xcm(vec![
-				WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(local_asset.clone().into()),
-				DepositAsset::<<T as pallet::Config>::RuntimeCall> {
-					assets: Wild(All),
-					beneficiary: destination,
-				},
-			]);
+			let reserve = T::ReserveProvider::reserve(&local_asset)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
 
-			// XCM for target chain
+			let local_xcm = Self::get_local_xcm(local_asset.clone(), destination.clone())?;
+
+				// XCM for target chain
 			let target_asset = local_asset
 				.clone()
 				.reanchored(&destination, T::UniversalLocation::get())
@@ -274,8 +294,6 @@ pub mod pallet {
 			// If the target_asset is a token from this chain
 			// use the ReserveAssetDeposited instruction;
 			// otherwise, use the WithdrawAsset instruction.
-			let reserve = T::ReserveProvider::reserve(&local_asset)
-				.ok_or(Error::<T>::InvalidAssetLocation)?;
 			let asset_reception_instruction = if reserve == MultiLocation::here() {
 				ReserveAssetDeposited::<()>(target_asset.clone().into())
 			} else if reserve == destination {

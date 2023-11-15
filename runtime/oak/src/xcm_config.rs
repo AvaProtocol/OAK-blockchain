@@ -291,7 +291,7 @@ impl orml_xtokens::Config for Runtime {
 	type BaseXcmWeight = BaseXcmWeight;
 	type UniversalLocation = UniversalLocation;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type ReserveProvider = AbsoluteReserveProvider;
 }
 
 impl orml_unknown_tokens::Config for Runtime {
