@@ -130,6 +130,7 @@ where
 						self.schedule_fee.asset_location,
 						self.schedule_fee.amount,
 					)?;
+					Self::ensure_can_withdraw(self, exec_fee.asset_location, exec_fee.amount)?;
 				}
 			},
 			_ => {
