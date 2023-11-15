@@ -228,9 +228,12 @@ pub mod pallet {
 			Ok(instructions)
 		}
 
-		fn get_local_xcm(asset: MultiAsset, destination: MultiLocation) -> Result<xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, DispatchError> {
-			let reserve = T::ReserveProvider::reserve(&asset)
-				.ok_or(Error::<T>::InvalidAssetLocation)?;
+		fn get_local_xcm(
+			asset: MultiAsset,
+			destination: MultiLocation,
+		) -> Result<xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, DispatchError> {
+			let reserve =
+				T::ReserveProvider::reserve(&asset).ok_or(Error::<T>::InvalidAssetLocation)?;
 			let local_xcm = if reserve == MultiLocation::here() {
 				Xcm(vec![
 					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
@@ -285,7 +288,7 @@ pub mod pallet {
 
 			let local_xcm = Self::get_local_xcm(local_asset.clone(), destination.clone())?;
 
-				// XCM for target chain
+			// XCM for target chain
 			let target_asset = local_asset
 				.clone()
 				.reanchored(&destination, T::UniversalLocation::get())
