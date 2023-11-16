@@ -41,10 +41,7 @@ use xcm_executor::{
 	Assets, XcmExecutor,
 };
 
-use orml_traits::{
-	location::AbsoluteReserveProvider, parameter_type_with_key, FixedConversionRateProvider,
-	MultiCurrency,
-};
+use orml_traits::parameter_type_with_key;
 
 use primitives::AbsoluteAndRelativeReserveProvider;
 

@@ -237,7 +237,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::{mock::*, Action};
+	use crate::{mock::*, Action, AssetPayment, Weight};
 	use codec::Encode;
 	use frame_benchmarking::frame_support::assert_err;
 	use frame_support::sp_runtime::AccountId32;
@@ -264,6 +264,100 @@ mod tests {
 			assert_eq!(result.expect("success"), "called");
 			assert_eq!(spy, 1);
 			assert!(starting_funds > Balances::free_balance(alice))
+		})
+	}
+
+	#[test]
+	fn call_pay_checked_fees_for_with_normal_flow_and_enough_execution_fee_success() {
+		new_test_ext(0).execute_with(|| {
+			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+			let alice = AccountId32::new(ALICE);
+			let mut spy = 0;
+			get_multi_xcmp_funds(alice.clone());
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee: NATIVE_LOCATION,
+				execution_fee: AssetPayment { asset_location: destination.into(), amount: 10 },
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
+
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&action,
+				1,
+				|| {
+					spy += 1;
+					Ok("called")
+				},
+			);
+			assert_eq!(result.expect("success"), "called");
+			assert_eq!(spy, 1);
+		})
+	}
+
+	#[test]
+	fn call_pay_checked_fees_for_with_normal_flow_and_insufficent_execution_fee_will_fail() {
+		new_test_ext(0).execute_with(|| {
+			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+			let alice = AccountId32::new(ALICE);
+			fund_account(&alice, 900_000_000, 1, Some(0));
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee: NATIVE_LOCATION,
+				execution_fee: AssetPayment { asset_location: destination.into(), amount: 10 },
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
+
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&action,
+				1,
+				|| Ok(()),
+			);
+			assert_err!(result, Error::<Test>::InsufficientBalance);
+		})
+	}
+
+	#[test]
+	fn call_pay_checked_fees_for_with_alternate_flow_and_no_execution_fee_success() {
+		new_test_ext(0).execute_with(|| {
+			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+			let alice = AccountId32::new(ALICE);
+			let mut spy = 0;
+			fund_account(&alice, 900_000_000, 1, Some(0));
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee: NATIVE_LOCATION,
+				execution_fee: AssetPayment { asset_location: destination.into(), amount: 10 },
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
+			};
+
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&action,
+				1,
+				|| {
+					spy += 1;
+					Ok("called")
+				},
+			);
+			assert_eq!(result.expect("success"), "called");
+			assert_eq!(spy, 1);
 		})
 	}
 
