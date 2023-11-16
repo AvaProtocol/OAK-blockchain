@@ -279,47 +279,71 @@ pub mod pallet {
 			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
-			// XCM for local chain
 			let local_asset =
 				MultiAsset { id: Concrete(asset_location), fun: Fungibility::Fungible(fee) };
 
-			let reserve = T::ReserveProvider::reserve(&local_asset)
-				.ok_or(Error::<T>::InvalidAssetLocation)?;
-
-			let local_xcm = Self::get_local_xcm(local_asset.clone(), destination.clone())?;
-
-			// XCM for target chain
 			let target_asset = local_asset
 				.clone()
 				.reanchored(&destination, T::UniversalLocation::get())
 				.map_err(|_| Error::<T>::CannotReanchor)?;
 
-			// If the target_asset is a token from this chain
-			// use the ReserveAssetDeposited instruction;
-			// otherwise, use the WithdrawAsset instruction.
-			let asset_reception_instruction = if reserve == MultiLocation::here() {
-				ReserveAssetDeposited::<()>(target_asset.clone().into())
+			let reserve = T::ReserveProvider::reserve(&local_asset)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
+
+			let (local_xcm, target_xcm) = if reserve == MultiLocation::here() {
+				let local_xcm = Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(local_asset.into()),
+					DepositAsset::<<T as pallet::Config>::RuntimeCall> {
+						assets: Wild(All),
+						beneficiary: destination,
+					},
+				]);
+				let target_xcm = Xcm(vec![
+					ReserveAssetDeposited::<()>(target_asset.clone().into()),
+					BuyExecution::<()> {
+						fees: target_asset,
+						weight_limit: Limited(overall_weight),
+					},
+					DescendOrigin::<()>(descend_location),
+					Transact::<()> {
+						origin_kind: OriginKind::SovereignAccount,
+						require_weight_at_most: transact_encoded_call_weight,
+						call: transact_encoded_call.into(),
+					},
+					RefundSurplus::<()>,
+					DepositAsset::<()> {
+						assets: Wild(AllCounted(1)),
+						beneficiary: T::SelfLocation::get(),
+					},
+				]);
+				(local_xcm, target_xcm)
 			} else if reserve == destination {
-				WithdrawAsset::<()>(target_asset.clone().into())
+				let local_xcm = Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(local_asset.clone().into()),
+					BurnAsset::<<T as pallet::Config>::RuntimeCall>(local_asset.into()),
+				]);
+				let target_xcm = Xcm(vec![
+					WithdrawAsset::<()>(target_asset.clone().into()),
+					BuyExecution::<()> {
+						fees: target_asset,
+						weight_limit: Limited(overall_weight),
+					},
+					DescendOrigin::<()>(descend_location),
+					Transact::<()> {
+						origin_kind: OriginKind::SovereignAccount,
+						require_weight_at_most: transact_encoded_call_weight,
+						call: transact_encoded_call.into(),
+					},
+					RefundSurplus::<()>,
+					DepositAsset::<()> {
+						assets: Wild(AllCounted(1)),
+						beneficiary: T::SelfLocation::get(),
+					},
+				]);
+				(local_xcm, target_xcm)
 			} else {
 				return Err(Error::<T>::UnsupportedFeePayment.into())
 			};
-
-			let target_xcm = Xcm(vec![
-				asset_reception_instruction,
-				BuyExecution::<()> { fees: target_asset, weight_limit: Limited(overall_weight) },
-				DescendOrigin::<()>(descend_location),
-				Transact::<()> {
-					origin_kind: OriginKind::SovereignAccount,
-					require_weight_at_most: transact_encoded_call_weight,
-					call: transact_encoded_call.into(),
-				},
-				RefundSurplus::<()>,
-				DepositAsset::<()> {
-					assets: Wild(AllCounted(1)),
-					beneficiary: T::SelfLocation::get(),
-				},
-			]);
 
 			Ok((local_xcm, target_xcm))
 		}
