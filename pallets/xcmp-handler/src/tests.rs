@@ -138,8 +138,6 @@ fn transact_in_local_chain_works() {
 					asset.clone(),
 					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
 				),
-				// Depositing asset
-				(asset, MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) }),
 			]
 		);
 		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmTransactedLocally)]);
