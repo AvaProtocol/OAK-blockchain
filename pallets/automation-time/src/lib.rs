@@ -59,10 +59,7 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
-use orml_traits::{
-	location::{Parse, Reserve},
-	FixedConversionRateProvider, MultiCurrency,
-};
+use orml_traits::{location::Reserve, FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
@@ -1560,6 +1557,9 @@ pub mod pallet {
 			Ok(fee)
 		}
 
+		/// Checks if the execution fee location is supported for scheduling a task
+		///
+		/// if the locations can not be verified, an error such as InvalidAssetLocation or UnsupportedFeePayment will be thrown
 		pub fn ensure_supported_execution_fee_location(
 			exeuction_fee_location: &MultiLocation,
 			destination: &MultiLocation,
