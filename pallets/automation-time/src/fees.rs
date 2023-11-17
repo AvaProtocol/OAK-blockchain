@@ -150,6 +150,8 @@ where
 		log::debug!(target: "FeeHandler", "FeeHandler::withdraw_fee, self.schedule_fee.asset_location: {:?}, self.schedule_fee.amount: {:?}",
 			self.schedule_fee.asset_location, self.schedule_fee.amount);
 		// Withdraw schedule fee
+		// When the expected deduction amount, schedule_fee_amount, is not equal to zero, execute the withdrawal process;
+		// otherwise, there’s no need to deduct.
 		if !self.schedule_fee.amount.is_zero() {
 			let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee.asset_location)
 				.ok_or("InconvertibleMultilocation")?;
@@ -172,6 +174,8 @@ where
 					.ok_or("InconvertibleMultilocation")?;
 
 				let execution_fee_amount = execution_fee.amount;
+				// When the expected deduction amount, execution_fee_amount, is not equal to zero, execute the withdrawal process;
+				// otherwise, there’s no need to deduct.
 				if !execution_fee_amount.is_zero() {
 					T::XcmpTransactor::pay_xcm_fee(
 						currency_id,
