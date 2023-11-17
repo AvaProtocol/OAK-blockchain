@@ -19,6 +19,7 @@
 use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
 
 use frame_support::traits::Get;
+use frame_system::RawOrigin;
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
 use sp_runtime::{
@@ -301,6 +302,74 @@ mod tests {
 			);
 			assert_eq!(result.expect("success"), "called");
 			assert_eq!(has_callback_run, true);
+		})
+	}
+
+	#[test]
+	fn call_pay_checked_fees_for_with_normal_flow_and_foreign_schedule_fee_success() {
+		new_test_ext(0).execute_with(|| {
+			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+			let alice = AccountId32::new(ALICE);
+			let mut has_callback_run = false;
+			let _ = Currencies::update_balance(
+				RawOrigin::Root.into(),
+				alice.clone(),
+				FOREIGN_CURRENCY_ID,
+				XmpFee::get() as i64,
+			);
+			fund_account(&alice, 900_000_000, 1, Some(0));
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee: destination.into(),
+				execution_fee: AssetPayment { asset_location: NATIVE_LOCATION.into(), amount: 10 },
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
+
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&action,
+				1,
+				|| {
+					has_callback_run = true;
+					Ok("called")
+				},
+			);
+			assert_eq!(result.expect("success"), "called");
+			assert_eq!(has_callback_run, true);
+		})
+	}
+
+	#[test]
+	fn call_pay_checked_fees_for_with_normal_flow_and_foreign_schedule_fee_will_throw_insufficent_balance(
+	) {
+		new_test_ext(0).execute_with(|| {
+			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+			let alice = AccountId32::new(ALICE);
+			fund_account(&alice, 900_000_000, 1, Some(0));
+
+			let action = Action::XCMP {
+				destination,
+				schedule_fee: destination.clone().into(),
+				execution_fee: AssetPayment { asset_location: NATIVE_LOCATION.into(), amount: 10 },
+				encoded_call: vec![3, 4, 5],
+				encoded_call_weight: Weight::from_parts(100_000, 0),
+				overall_weight: Weight::from_parts(200_000, 0),
+				schedule_as: None,
+				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+			};
+
+			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
+				&alice,
+				&action,
+				1,
+				|| Ok(()),
+			);
+			assert_err!(result, Error::<Test>::InsufficientBalance);
 		})
 	}
 
