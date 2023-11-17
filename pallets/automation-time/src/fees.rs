@@ -255,18 +255,18 @@ mod tests {
 
 			let call: <Test as frame_system::Config>::RuntimeCall =
 				frame_system::Call::remark_with_event { remark: vec![50] }.into();
-			let mut spy = 0;
+			let mut has_callback_run = false;
 			let result = <Test as crate::Config>::FeeHandler::pay_checked_fees_for(
 				&alice,
 				&Action::DynamicDispatch { encoded_call: call.encode() },
 				1,
 				|| {
-					spy += 1;
+					has_callback_run = true;
 					Ok("called")
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(spy, 1);
+			assert_eq!(has_callback_run, true);
 			assert!(starting_funds > Balances::free_balance(alice))
 		})
 	}
@@ -276,7 +276,7 @@ mod tests {
 		new_test_ext(0).execute_with(|| {
 			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 			let alice = AccountId32::new(ALICE);
-			let mut spy = 0;
+			let mut has_callback_run = false;
 			get_multi_xcmp_funds(alice.clone());
 
 			let action = Action::XCMP {
@@ -295,12 +295,12 @@ mod tests {
 				&action,
 				1,
 				|| {
-					spy += 1;
+					has_callback_run = true;
 					Ok("called")
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(spy, 1);
+			assert_eq!(has_callback_run, true);
 		})
 	}
 
@@ -337,7 +337,7 @@ mod tests {
 		new_test_ext(0).execute_with(|| {
 			let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 			let alice = AccountId32::new(ALICE);
-			let mut spy = 0;
+			let mut has_callback_run = false;
 			fund_account(&alice, 900_000_000, 1, Some(0));
 
 			let action = Action::XCMP {
@@ -356,12 +356,12 @@ mod tests {
 				&action,
 				1,
 				|| {
-					spy += 1;
+					has_callback_run = true;
 					Ok("called")
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(spy, 1);
+			assert_eq!(has_callback_run, true);
 		})
 	}
 
