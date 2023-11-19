@@ -3,7 +3,7 @@
     "id": "turing",
     "chainType": "Live",
     "bootNodes": [
-        "/ip4/54.89.28.91/tcp/30333/ws/p2p/12D3KooWKckYYKn2iztcKQcKjvdnBxs1yaL63WQigRtqMgNnmAK7",
+        "/ip4/15.235.80.57/tcp/20333/p2p/12D3KooWEEd19MrDUinekAozj2v7a28hsdSxY8QdGLYnM3UyGM8Z",
         "/ip4/15.204.212.186/tcp/30333/p2p/12D3KooWJSYJE71yzzw51TZb5tHb57HhbhQCxqeRRj9xU4QU1d7J"
     ],
     "telemetryEndpoints": [
