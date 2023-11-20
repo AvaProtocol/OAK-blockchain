@@ -28,7 +28,7 @@ use frame_support::{
 };
 use frame_system::{self as system, EnsureRoot, RawOrigin};
 use orml_traits::parameter_type_with_key;
-use primitives::{EnsureProxy, TransferCallCreator};
+use primitives::{AbsoluteAndRelativeReserveProvider, EnsureProxy, TransferCallCreator};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
@@ -398,7 +398,11 @@ where
 		Ok(())
 	}
 
-	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
+	fn pay_xcm_fee(
+		_: CurrencyId,
+		_: T::AccountId,
+		_: u128,
+	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(())
 	}
 }
@@ -504,6 +508,7 @@ parameter_types! {
 	// The universal location within the global consensus system
 	pub UniversalLocation: InteriorMultiLocation =
 		X2(GlobalConsensus(RelayNetwork::get()), Parachain(ParachainInfo::parachain_id().into()));
+	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
 }
 
 impl pallet_automation_time::Config for Test {
@@ -530,8 +535,9 @@ impl pallet_automation_time::Config for Test {
 	type FeeConversionRateProvider = MockConversionRateProvider;
 	type EnsureProxy = MockEnsureProxy;
 	type UniversalLocation = UniversalLocation;
-	type SelfParaId = parachain_info::Pallet<Test>;
 	type TransferCallCreator = MockTransferCallCreator;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type SelfLocation = SelfLocation;
 }
 
 // Build genesis storage according to the mock runtime.
@@ -715,6 +721,21 @@ pub fn get_xcmp_funds(account: AccountId) {
 	Balances::force_set_balance(RawOrigin::Root.into(), account, with_xcm_fees).unwrap();
 }
 
+pub fn get_multi_xcmp_funds(account: AccountId) {
+	let double_action_weight = MockWeight::<Test>::run_xcmp_task() * 2;
+	let action_fee = ExecutionWeightFee::get() * u128::from(double_action_weight.ref_time());
+	let max_execution_fee = action_fee * u128::from(MaxExecutionTimes::get());
+	Balances::force_set_balance(RawOrigin::Root.into(), account.clone(), max_execution_fee)
+		.unwrap();
+	Currencies::update_balance(
+		RawOrigin::Root.into(),
+		account,
+		FOREIGN_CURRENCY_ID,
+		XmpFee::get() as i64,
+	)
+	.unwrap();
+}
+
 // TODO: swap above to this pattern
 pub fn fund_account_dynamic_dispatch(
 	account: &AccountId,
@@ -742,10 +763,7 @@ pub fn fund_account(
 
 pub fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 	let location = location
-		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
-			<Test as Config>::UniversalLocation::get(),
-		)
+		.reanchored(&SelfLocation::get(), <Test as Config>::UniversalLocation::get())
 		.expect("Reanchor location failed");
 
 	let found_asset = ASSET_FEE_PER_SECOND.into_iter().find(|item| match item {

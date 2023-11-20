@@ -30,7 +30,6 @@ use frame_support::{
 };
 use frame_system::{self, RawOrigin};
 use rand::Rng;
-use sp_core::Get;
 use sp_runtime::{
 	traits::{BlakeTwo256, Hash},
 	AccountId32,
@@ -117,10 +116,7 @@ fn calculate_expected_xcmp_action_schedule_fee(
 	num_of_execution: u32,
 ) -> u128 {
 	let schedule_fee_location = schedule_fee_location
-		.reanchored(
-			&MultiLocation::new(1, X1(Parachain(<Test as Config>::SelfParaId::get().into()))),
-			<Test as Config>::UniversalLocation::get(),
-		)
+		.reanchored(&SelfLocation::get(), <Test as Config>::UniversalLocation::get())
 		.expect("Location reanchor failed");
 	let weight = <Test as Config>::WeightInfo::run_xcmp_task();
 
@@ -859,10 +855,7 @@ fn calculate_xcmp_action_schedule_fee_amount_with_absolute_or_relative_native_sc
 		let num_of_execution = generate_random_num(1, 20);
 
 		let action_absolute = create_xcmp_action(XcmpActionParams {
-			schedule_fee: MultiLocation::new(
-				1,
-				X1(Parachain(<Test as Config>::SelfParaId::get().into())),
-			),
+			schedule_fee: SelfLocation::get(),
 			..XcmpActionParams::default()
 		});
 		let fee_amount_abosolute =
@@ -1037,6 +1030,56 @@ fn schedule_xcmp_works() {
 }
 
 #[test]
+fn schedule_xcmp_works_with_multi_currency() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let alice = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		// Funds including XCM fees
+		get_multi_xcmp_funds(alice.clone());
+
+		assert_ok!(AutomationTime::schedule_xcmp_task(
+			RuntimeOrigin::signed(alice),
+			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+			Box::new(destination.into()),
+			Box::new(NATIVE_LOCATION.into()),
+			Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
+			call,
+			Weight::from_parts(100_000, 0),
+			Weight::from_parts(200_000, 0),
+		));
+	})
+}
+
+#[test]
+fn schedule_xcmp_works_with_unsupported_currency_will_fail() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let alice = AccountId32::new(ALICE);
+		let call: Vec<u8> = vec![2, 4, 5];
+		// Funds including XCM fees
+		get_multi_xcmp_funds(alice.clone());
+
+		assert_noop!(
+			AutomationTime::schedule_xcmp_task(
+				RuntimeOrigin::signed(alice),
+				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
+				Box::new(destination.into()),
+				Box::new(NATIVE_LOCATION.into()),
+				Box::new(AssetPayment {
+					asset_location: MultiLocation::new(1, X1(Parachain(3000))).into(),
+					amount: 10
+				}),
+				call,
+				Weight::from_parts(100_000, 0),
+				Weight::from_parts(200_000, 0),
+			),
+			Error::<Test>::UnsupportedFeePayment,
+		);
+	})
+}
+
+#[test]
 fn schedule_xcmp_through_proxy_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
@@ -1052,10 +1095,7 @@ fn schedule_xcmp_through_proxy_works() {
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
 			Box::new(MultiLocation::default().into()),
-			Box::new(AssetPayment {
-				asset_location: destination.into(),
-				amount: 10,
-			}),
+			Box::new(AssetPayment { asset_location: destination.into(), amount: 10 }),
 			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),

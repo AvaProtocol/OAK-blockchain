@@ -41,6 +41,10 @@ use xcm_executor::{
 	Assets, XcmExecutor,
 };
 
+use orml_traits::parameter_type_with_key;
+
+use primitives::AbsoluteAndRelativeReserveProvider;
+
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = AccountId32;
@@ -63,6 +67,8 @@ frame_support::construct_runtime!(
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin},
+		Currencies: orml_currencies::{Pallet, Call},
+		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 	}
 );
 
@@ -124,6 +130,34 @@ impl pallet_balances::Config for Test {
 }
 
 impl parachain_info::Config for Test {}
+
+parameter_type_with_key! {
+	pub ExistentialDeposits: |_currency_id: CurrencyId| -> Balance {
+		Default::default()
+	};
+}
+
+impl orml_tokens::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
+	type Balance = Balance;
+	type Amount = i64;
+	type CurrencyId = CurrencyId;
+	type WeightInfo = ();
+	type ExistentialDeposits = ExistentialDeposits;
+	type CurrencyHooks = ();
+	type MaxLocks = ConstU32<100_000>;
+	type MaxReserves = ConstU32<100_000>;
+	type ReserveIdentifier = [u8; 8];
+	type DustRemovalWhitelist = frame_support::traits::Nothing;
+}
+
+impl orml_currencies::Config for Test {
+	type MultiCurrency = Tokens;
+	type NativeCurrency = AdaptedBasicCurrency;
+	type GetNativeCurrencyId = GetNativeCurrencyId;
+	type WeightInfo = ();
+}
+pub type AdaptedBasicCurrency = orml_currencies::BasicCurrencyAdapter<Test, Balances, i64, u64>;
 
 pub struct AccountIdToMultiLocation;
 impl Convert<AccountId, MultiLocation> for AccountIdToMultiLocation {
@@ -306,13 +340,14 @@ impl Convert<CurrencyId, Option<MultiLocation>> for TokenIdConvert {
 parameter_types! {
 	pub const GetNativeCurrencyId: CurrencyId = NATIVE;
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
+	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
 }
 
 impl pallet_xcmp_handler::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type CurrencyId = CurrencyId;
-	type Currency = Balances;
+	type MultiCurrency = Currencies;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
 	type SelfParaId = parachain_info::Pallet<Test>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
@@ -321,6 +356,8 @@ impl pallet_xcmp_handler::Config for Test {
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type XcmSender = TestSendXcm;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type SelfLocation = SelfLocation;
 }
 
 // Build genesis storage according to the mock runtime.

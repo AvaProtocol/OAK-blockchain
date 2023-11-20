@@ -32,7 +32,7 @@ use pallet_automation_time_rpc_runtime_api::{
 // to their standalone Fee RPC that can handle both
 use pallet_automation_price_rpc_runtime_api::FeeDetails as AutomationPriceFeeDetails;
 
-use primitives::{assets::CustomMetadata, TokenId};
+use primitives::{assets::CustomMetadata, AbsoluteAndRelativeReserveProvider, TokenId};
 use scale_info::prelude::format;
 use sp_api::impl_runtime_apis;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -87,7 +87,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
-use xcm_config::{FeePerSecondProvider, ToTreasury, TokenIdConvert};
+use xcm_config::{FeePerSecondProvider, SelfLocation, ToTreasury, TokenIdConvert};
 
 pub mod weights;
 
@@ -944,8 +944,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
-	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type TransferCallCreator = MigrationTransferCallCreator;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type SelfLocation = SelfLocation;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -1242,9 +1243,10 @@ impl_runtime_apis! {
 			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
+			let execution_fee = fee_handler.execution_fee.map(|fee| fee.amount).unwrap_or(0);
 			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount,
-				execution_fee: fee_handler.execution_fee_amount
+				schedule_fee: fee_handler.schedule_fee.amount,
+				execution_fee,
 			})
 		}
 
