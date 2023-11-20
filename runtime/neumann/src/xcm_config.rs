@@ -36,6 +36,8 @@ use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
 
+use primitives::AbsoluteAndRelativeReserveProvider;
+
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Rococo;
@@ -301,7 +303,7 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	type CurrencyId = TokenId;
 	type GetNativeCurrencyId = GetNativeCurrencyId;
-	type Currency = pallet_balances::Pallet<Runtime>;
+	type MultiCurrency = Currencies;
 	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type AccountIdToMultiLocation = AccountIdToMultiLocation;
 	type CurrencyIdToMultiLocation = TokenIdConvert;
@@ -309,6 +311,8 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type SelfLocation = SelfLocation;
 }
 
 pub struct TokenIdConvert;

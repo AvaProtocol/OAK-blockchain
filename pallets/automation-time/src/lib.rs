@@ -59,7 +59,7 @@ use frame_support::{
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
-use orml_traits::{FixedConversionRateProvider, MultiCurrency};
+use orml_traits::{location::Reserve, FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
 pub use pallet_xcmp_handler::InstructionSequence;
@@ -189,14 +189,19 @@ pub mod pallet {
 		/// This chain's Universal Location.
 		type UniversalLocation: Get<InteriorMultiLocation>;
 
-		//The paraId of this chain.
-		type SelfParaId: Get<ParaId>;
-
 		type TransferCallCreator: primitives::TransferCallCreator<
 			MultiAddress<Self::AccountId, ()>,
 			BalanceOf<Self>,
 			<Self as frame_system::Config>::RuntimeCall,
 		>;
+
+		/// The way to retreave the reserve of a MultiAsset. This can be
+		/// configured to accept absolute or relative paths for self tokens
+		type ReserveProvider: Reserve;
+
+		/// Self chain location.
+		#[pallet::constant]
+		type SelfLocation: Get<MultiLocation>;
 	}
 
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
@@ -267,8 +272,12 @@ pub mod pallet {
 		/// The version of the `VersionedMultiLocation` value used is not able
 		/// to be interpreted.
 		BadVersion,
+		// The fee payment asset location is not supported.
 		UnsupportedFeePayment,
+		// Mulilocation cannot be reanchored.
 		CannotReanchor,
+		/// Invalid asset location.
+		InvalidAssetLocation,
 	}
 
 	#[pallet::event]
@@ -375,7 +384,8 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
+		/// * `UnsupportedFeePayment`: Unsupported fee payment.
+		/// * `InvalidAssetLocation` Invalid asset location.
 		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
 		pub fn schedule_xcmp_task(
@@ -393,10 +403,18 @@ pub mod pallet {
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let schedule_fee =
 				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+
+			let execution_fee: AssetPayment = *execution_fee;
+			let execution_fee_location =
+				MultiLocation::try_from(execution_fee.clone().asset_location)
+					.map_err(|()| Error::<T>::BadVersion)?;
+
+			Self::ensure_supported_execution_fee_location(&execution_fee_location, &destination)?;
+
 			let action = Action::XCMP {
 				destination,
 				schedule_fee,
-				execution_fee: *execution_fee,
+				execution_fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
@@ -432,7 +450,6 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `UnsupportedFeePayment`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `Other("proxy error: expected `ProxyType::Any`")`: schedule_as must be a proxy account of type "any" for the caller.
 		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
@@ -1357,21 +1374,12 @@ pub mod pallet {
 			abort_errors: Vec<Vec<u8>>,
 		) -> DispatchResult {
 			match action.clone() {
-				Action::XCMP { execution_fee, instruction_sequence, .. } => {
+				Action::XCMP { execution_fee, .. } => {
 					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
 						.map_err(|()| Error::<T>::BadVersion)?;
-					let asset_location = asset_location
-						.reanchored(
-							&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
-							T::UniversalLocation::get(),
-						)
+					let _asset_location = asset_location
+						.reanchored(&T::SelfLocation::get().into(), T::UniversalLocation::get())
 						.map_err(|_| Error::<T>::CannotReanchor)?;
-					// Only native token are supported as the XCMP fee for local deductions
-					if instruction_sequence == InstructionSequence::PayThroughSovereignAccount &&
-						asset_location != MultiLocation::new(0, Here)
-					{
-						Err(Error::<T>::UnsupportedFeePayment)?
-					}
 				},
 				_ => (),
 			};
@@ -1530,10 +1538,7 @@ pub mod pallet {
 
 			let schedule_fee_location = action.schedule_fee_location::<T>();
 			let schedule_fee_location = schedule_fee_location
-				.reanchored(
-					&MultiLocation::new(1, X1(Parachain(T::SelfParaId::get().into()))),
-					T::UniversalLocation::get(),
-				)
+				.reanchored(&T::SelfLocation::get().into(), T::UniversalLocation::get())
 				.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let fee = if schedule_fee_location == MultiLocation::default() {
@@ -1550,6 +1555,24 @@ pub mod pallet {
 			};
 
 			Ok(fee)
+		}
+
+		/// Checks if the execution fee location is supported for scheduling a task
+		///
+		/// if the locations can not be verified, an error such as InvalidAssetLocation or UnsupportedFeePayment will be thrown
+		pub fn ensure_supported_execution_fee_location(
+			exeuction_fee_location: &MultiLocation,
+			destination: &MultiLocation,
+		) -> Result<(), DispatchError> {
+			let exeuction_fee =
+				MultiAsset { id: Concrete(*exeuction_fee_location), fun: Fungibility::Fungible(0) };
+			let reserve = T::ReserveProvider::reserve(&exeuction_fee)
+				.ok_or(Error::<T>::InvalidAssetLocation)?;
+			if reserve != MultiLocation::here() && &reserve != destination {
+				return Err(Error::<T>::UnsupportedFeePayment.into())
+			}
+
+			Ok(())
 		}
 	}
 

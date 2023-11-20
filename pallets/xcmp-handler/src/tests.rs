@@ -14,8 +14,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use crate::{mock::*, InstructionSequence};
-use frame_support::assert_ok;
+use crate::{mock::*, Error, InstructionSequence};
+use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
@@ -138,8 +138,6 @@ fn transact_in_local_chain_works() {
 					asset.clone(),
 					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
 				),
-				// Depositing asset
-				(asset, MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) }),
 			]
 		);
 		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmTransactedLocally)]);
@@ -212,16 +210,105 @@ fn transact_in_target_chain_works() {
 }
 
 #[test]
+fn transact_in_target_chain_with_to_reserved_currency_works() {
+	new_test_ext().execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let asset_location = MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) };
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
+		let xcm_weight = transact_encoded_call_weight
+			.checked_add(&Weight::from_parts(100_000_000, 0))
+			.expect("xcm_weight overflow");
+		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
+		let target_asset = MultiAsset {
+			id: Concrete(MultiLocation { parents: 0, interior: Here }),
+			fun: Fungible(xcm_fee),
+		};
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+
+		let (_, target_instructions) = XcmpHandler::get_local_currency_instructions(
+			destination,
+			asset_location,
+			descend_location,
+			transact_encoded_call.clone(),
+			transact_encoded_call_weight,
+			xcm_weight,
+			xcm_fee,
+		)
+		.unwrap();
+
+		assert_ok!(XcmpHandler::transact_in_target_chain(destination, target_instructions));
+		assert_eq!(
+			sent_xcm(),
+			vec![(
+				MultiLocation { parents: 1, interior: X1(Parachain(PARA_ID)) },
+				Xcm([
+					WithdrawAsset(target_asset.clone().into()),
+					BuyExecution { fees: target_asset, weight_limit: Limited(xcm_weight) },
+					DescendOrigin(X1(AccountId32 { network: None, id: ALICE.into() }),),
+					Transact {
+						origin_kind: OriginKind::SovereignAccount,
+						require_weight_at_most: transact_encoded_call_weight,
+						call: transact_encoded_call.into(),
+					},
+					RefundSurplus,
+					DepositAsset {
+						assets: Wild(AllCounted(1)),
+						beneficiary: MultiLocation {
+							parents: 1,
+							interior: X1(Parachain(LOCAL_PARA_ID)),
+						},
+					},
+				]
+				.to_vec()),
+			)]
+		);
+		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmSent { destination })]);
+	});
+}
+
+#[test]
+fn transact_in_target_chain_with_non_reserved_currency_will_throw_unsupported_fee_payment_error() {
+	new_test_ext().execute_with(|| {
+		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
+		let asset_location = MultiLocation { parents: 1, interior: X1(Parachain(3000)) };
+		let transact_encoded_call: Vec<u8> = vec![0, 1, 2];
+		let transact_encoded_call_weight = Weight::from_parts(100_000_000, 0);
+		let xcm_weight = transact_encoded_call_weight
+			.checked_add(&Weight::from_parts(100_000_000, 0))
+			.expect("xcm_weight overflow");
+		let xcm_fee = (xcm_weight.ref_time() as u128) * 5_000_000_000;
+		let descend_location: Junctions =
+			AccountIdToMultiLocation::convert(ALICE).try_into().unwrap();
+
+		assert_noop!(
+			XcmpHandler::get_local_currency_instructions(
+				destination,
+				asset_location,
+				descend_location,
+				transact_encoded_call.clone(),
+				transact_encoded_call_weight,
+				xcm_weight,
+				xcm_fee,
+			),
+			Error::<Test>::UnsupportedFeePayment,
+		);
+	});
+}
+
+#[test]
 fn pay_xcm_fee_works() {
 	new_test_ext().execute_with(|| {
 		let local_sovereign_account: AccountId =
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
 		let alice_balance = 8_000_000;
+		let currency_id = 0;
 
 		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_ok!(XcmpHandler::pay_xcm_fee(currency_id, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance - fee);
 		assert_eq!(Balances::free_balance(local_sovereign_account), fee);
 	});
@@ -234,10 +321,11 @@ fn pay_xcm_fee_keeps_wallet_alive() {
 			Sibling::from(LOCAL_PARA_ID).into_account_truncating();
 		let fee = 3_500_000;
 		let alice_balance = fee;
+		let currency_id = 0;
 
 		Balances::force_set_balance(RawOrigin::Root.into(), ALICE, alice_balance).unwrap();
 
-		assert_ok!(XcmpHandler::pay_xcm_fee(ALICE, fee));
+		assert_ok!(XcmpHandler::pay_xcm_fee(currency_id, ALICE, fee));
 		assert_eq!(Balances::free_balance(ALICE), alice_balance);
 		assert_eq!(Balances::free_balance(local_sovereign_account), 0);
 	});

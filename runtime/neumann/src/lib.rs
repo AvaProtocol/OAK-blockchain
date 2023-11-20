@@ -81,7 +81,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
-use xcm_config::{FeePerSecondProvider, ToTreasury, TokenIdConvert};
+use xcm_config::{FeePerSecondProvider, SelfLocation, ToTreasury, TokenIdConvert};
 
 pub mod weights;
 
@@ -100,8 +100,8 @@ use common_runtime::{
 	CurrencyHooks,
 };
 use primitives::{
-	AccountId, Address, Amount, AuraId, Balance, BlockNumber, EnsureProxy, Hash, Header, Index,
-	Signature, TransferCallCreator,
+	AbsoluteAndRelativeReserveProvider, AccountId, Address, Amount, AuraId, Balance, BlockNumber,
+	EnsureProxy, Hash, Header, Index, Signature, TransferCallCreator,
 };
 
 // Custom pallet imports
@@ -919,8 +919,9 @@ impl pallet_automation_time::Config for Runtime {
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
-	type SelfParaId = parachain_info::Pallet<Runtime>;
 	type TransferCallCreator = MigrationTransferCallCreator;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
+	type SelfLocation = SelfLocation;
 }
 
 impl pallet_automation_price::Config for Runtime {
@@ -1213,9 +1214,10 @@ impl_runtime_apis! {
 			let fee_handler = <Self as pallet_automation_time::Config>::FeeHandler::new(&nobody, &action, executions)
 				.map_err(|_| "Unable to parse fee".as_bytes())?;
 
+			let execution_fee = fee_handler.execution_fee.map(|fee| fee.amount).unwrap_or(0);
 			Ok(AutomationFeeDetails {
-				schedule_fee: fee_handler.schedule_fee_amount,
-				execution_fee: fee_handler.execution_fee_amount
+				schedule_fee: fee_handler.schedule_fee.amount,
+				execution_fee,
 			})
 		}
 
