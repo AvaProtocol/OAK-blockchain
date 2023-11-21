@@ -322,7 +322,11 @@ where
 		Ok(())
 	}
 
-	fn pay_xcm_fee(_: T::AccountId, _: u128) -> Result<(), sp_runtime::DispatchError> {
+	fn pay_xcm_fee(
+		_: CurrencyId,
+		_: T::AccountId,
+		_: u128,
+	) -> Result<(), sp_runtime::DispatchError> {
 		Ok(())
 	}
 }

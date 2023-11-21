@@ -101,9 +101,8 @@ where
 
 		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
 			.ok_or("IncoveribleMultilocation")?;
-		let currency_id = currency_id.into();
 
-		match T::MultiCurrency::withdraw(currency_id, &self.owner, fee) {
+		match T::MultiCurrency::withdraw(currency_id.into(), &self.owner, fee) {
 			Ok(_) => {
 				TR::take_revenue(MultiAsset {
 					id: AssetId::Concrete(self.schedule_fee_location),
@@ -112,6 +111,7 @@ where
 
 				if self.execution_fee_amount > MultiBalanceOf::<T>::zero() {
 					T::XcmpTransactor::pay_xcm_fee(
+						currency_id,
 						self.owner.clone(),
 						self.execution_fee_amount.saturated_into(),
 					)?;

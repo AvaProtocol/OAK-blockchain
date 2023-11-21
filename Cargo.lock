@@ -7110,12 +7110,15 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "orml-currencies",
+ "orml-tokens",
  "orml-traits",
  "pallet-balances",
  "pallet-xcm",
  "parachain-info",
  "parity-scale-codec",
  "polkadot-parachain",
+ "primitives",
  "scale-info",
  "serde",
  "sp-core",
@@ -8767,11 +8770,15 @@ dependencies = [
 name = "primitives"
 version = "1.0.0"
 dependencies = [
+ "frame-support",
+ "orml-traits",
  "parity-scale-codec",
  "scale-info",
  "sp-consensus-aura",
  "sp-core",
  "sp-runtime",
+ "sp-std",
+ "xcm",
 ]
 
 [[package]]
