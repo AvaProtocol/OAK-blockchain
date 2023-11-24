@@ -4,7 +4,8 @@
   "chainType": "Live",
   "bootNodes": [
     "/ip4/52.54.129.175/tcp/30333/ws/p2p/12D3KooWP9zsTXEzP2KHd7p2vGyjBvb9kpTQPmwgsSSDve3RdthQ",
-    "/ip4/52.7.253.72/tcp/30333/ws/p2p/12D3KooWS8HqfDjWtNHYJJUANfufEAC6rGKaZHMznhTinsdESL2Q",
+    "/ip4/15.204.212.187/tcp/30333/ws/p2p/12D3KooWJjxfgUoAtg7M5Xv2uhcLNhf3E9BeznEyQ5mKKUJUzzex",
+    "/ip4/15.204.162.199/tcp/30333/ws/p2p/12D3KooWLDDoCRWRjXFK28qtSNR2c2z518gjEeHRAeTr59E2uS49",
     "/dns4/oak-turing-bootnode-01.bdnodes.net/tcp/30333/p2p/12D3KooWL9phojBkHLWaATRmzjh4YN6NKtdGPufNpPegHF3NDios"
   ],
   "telemetryEndpoints": [

@@ -39,6 +39,7 @@ pub trait WeightInfo {
 	fn cancel_scheduled_task_full() -> Weight;
 	fn force_cancel_scheduled_task() -> Weight;
 	fn force_cancel_scheduled_task_full() -> Weight;
+	fn cancel_task_with_schedule_as_full() -> Weight;
 	fn run_xcmp_task() -> Weight;
 	fn run_auto_compound_delegated_stake_task() -> Weight;
 	fn run_dynamic_dispatch_action() -> Weight;
@@ -215,12 +216,16 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(39_u64))
 			.saturating_add(T::DbWeight::get().writes(37_u64))
 	}
-	/// Storage: ParachainInfo ParachainId (r:1 w:0)
-	/// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
-	/// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
-	/// Proof Skipped: UnknownTokens ConcreteFungibleBalances (max_values: None, max_size: None, mode: Measured)
-	/// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
-	/// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
+  	fn cancel_task_with_schedule_as_full() -> Weight {
+		Weight::zero()
+	}
+
+	// Storage: ParachainInfo ParachainId (r:1 w:0)
+	// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
+	// Storage: UnknownTokens ConcreteFungibleBalances (r:1 w:0)
+	// Proof Skipped: UnknownTokens ConcreteFungibleBalances (max_values: None, max_size: None, mode: Measured)
+	// Storage: AssetRegistry LocationToAssetId (r:1 w:0)
+	// Proof Skipped: AssetRegistry LocationToAssetId (max_values: None, max_size: None, mode: Measured)
 	fn run_xcmp_task() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `481`
@@ -554,6 +559,9 @@ impl WeightInfo for () {
 		Weight::from_parts(1_250_000_000, 1045127)
 			.saturating_add(RocksDbWeight::get().reads(39_u64))
 			.saturating_add(RocksDbWeight::get().writes(37_u64))
+	}
+  	fn cancel_task_with_schedule_as_full() -> Weight {
+		Weight::zero()
 	}
 	/// Storage: ParachainInfo ParachainId (r:1 w:0)
 	/// Proof: ParachainInfo ParachainId (max_values: Some(1), max_size: Some(4), added: 499, mode: MaxEncodedLen)
