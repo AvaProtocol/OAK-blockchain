@@ -20,14 +20,11 @@
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
-use pallet_timestamp::Pallet as Timestamp;
+
 use polkadot_parachain::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
-use sp_std::cmp;
-use xcm::{
-	latest::{prelude::*, MultiLocation},
-	VersionedMultiLocation,
-};
+
+use xcm::latest::{prelude::*, MultiLocation};
 
 use crate::{
 	pallet::{Task, TaskId},
@@ -68,7 +65,7 @@ fn schedule_xcmp_task<T: Config>(
 	expired_at: u128,
 ) {
 	AutomationPrice::<T>::schedule_xcmp_task(
-		RawOrigin::Signed(owner.clone()).into(),
+		RawOrigin::Signed(owner).into(),
 		chain.to_vec(),
 		exchange.to_vec(),
 		asset_tur.to_vec(),
@@ -82,7 +79,7 @@ fn schedule_xcmp_task<T: Config>(
 			asset_location: MultiLocation::new(1, X1(Parachain(para_id))).into(),
 			amount: 0,
 		}),
-		call.clone(),
+		call,
 		Weight::from_parts(100_000, 0),
 		Weight::from_parts(200_000, 0),
 	);
@@ -123,7 +120,7 @@ fn direct_task_schedule<T: Config>(
 
 	let task: Task<T> = Task::<T> {
 		owner_id: creator,
-		task_id: task_id.clone(),
+		task_id,
 		chain: chain.to_vec(),
 		exchange: exchange.to_vec(),
 		asset_pair: (asset_tur.to_vec(), asset_usd.to_vec()),
@@ -198,7 +195,7 @@ benchmarks! {
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(
 			&sender,
-			transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+			transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
 	} : {
@@ -213,7 +210,7 @@ benchmarks! {
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(
 			&creator,
-			transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+			transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
 		// Schedule 10000 Task, This is just an arbitrary number to simular a big task registry
@@ -261,7 +258,7 @@ benchmarks! {
 		let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(
 			&creator,
-			transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+			transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()),
 		);
 
 		let para_id: u32 = 2000;
@@ -284,7 +281,7 @@ benchmarks! {
 		  let task_id = format!("{:?}", i).as_bytes().to_vec();
 		  let expired_at = i;
 		  let trigger_function = "gt".as_bytes().to_vec();
-		  let price_target: u128 = i.into();
+		  let price_target: u128 = i;
 		  let encoded_call = vec![100, 200, (i % 256) as u8];
 
 		  task_ids.push(format!("{:?}", i).as_bytes().to_vec());

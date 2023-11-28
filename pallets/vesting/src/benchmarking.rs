@@ -17,7 +17,6 @@
 use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_support::traits::Currency;
-use pallet_timestamp;
 use sp_runtime::traits::{SaturatedConversion, Saturating};
 use sp_std::{vec, vec::Vec};
 
@@ -35,7 +34,7 @@ benchmarks! {
 			let amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 			for i in 0 .. v {
 				let vesting_account = account("person", 0, i);
-				scheduled_vests.push((vesting_account, amount.clone()));
+				scheduled_vests.push((vesting_account, amount));
 			}
 			VestingSchedule::<T>::insert(FIRST_VEST_TIME, scheduled_vests);
 		}

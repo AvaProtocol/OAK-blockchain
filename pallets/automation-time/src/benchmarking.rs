@@ -43,7 +43,7 @@ fn schedule_notify_tasks<T: Config>(owner: T::AccountId, times: Vec<u64>, count:
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	T::Currency::deposit_creating(
 		&owner,
-		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()),
 	);
 	let time_moment: u32 = times[0].saturated_into();
 	Timestamp::<T>::set_timestamp(time_moment.into());
@@ -75,7 +75,7 @@ fn schedule_xcmp_tasks<T: Config>(
 	let transfer_amount = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 	T::Currency::deposit_creating(
 		&owner,
-		transfer_amount.clone().saturating_mul(DEPOSIT_MULTIPLIER.into()),
+		transfer_amount.saturating_mul(DEPOSIT_MULTIPLIER.into()),
 	);
 	let para_id: u32 = 2001;
 	let time_moment: u32 = times[0].saturated_into();
@@ -203,7 +203,7 @@ benchmarks! {
 		let time: u64 = 3600;
 
 		T::Currency::deposit_creating(&delegator, starting_balance.saturated_into());
-		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time.clone(), max_tasks_per_slot - 1);
+		schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), time, max_tasks_per_slot - 1);
 	}: schedule_auto_compound_delegated_stake_task(RawOrigin::Signed(delegator), time, 3600 , collator, account_minimum)
 
 	schedule_dynamic_dispatch_task {
@@ -337,8 +337,8 @@ benchmarks! {
 		let collator: T::AccountId = account("collator", 0, SEED);
 		let account_minimum = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 
-		T::Currency::deposit_creating(&delegator, (10_000_000_000_000_000 as u128).saturated_into());
-		T::Currency::deposit_creating(&collator, (100_000_000_000_000_000 as u128).saturated_into());
+		T::Currency::deposit_creating(&delegator, (10_000_000_000_000_000_u128).saturated_into());
+		T::Currency::deposit_creating(&collator, (100_000_000_000_000_000_u128).saturated_into());
 		T::DelegatorActions::setup_delegator(&collator, &delegator)?;
 
 		let (task_id, task) = schedule_auto_compound_delegated_stake_tasks::<T>(delegator.clone(), 3600, 1).pop().unwrap();
@@ -399,7 +399,7 @@ benchmarks! {
 
 		for i in 0..v {
 			let task_id: Vec<u8> = vec![i.saturated_into::<u8>()];
-			let missed_task = MissedTaskV2Of::<T>::new(caller.clone(), task_id.clone(), time.into());
+			let missed_task = MissedTaskV2Of::<T>::new(caller.clone(), task_id.clone(), time);
 			missed_tasks.push(missed_task)
 		}
 	}: { AutomationTime::<T>::run_missed_tasks(missed_tasks, weight_left) }
@@ -468,7 +468,7 @@ benchmarks! {
 			for j in 0..1 {
 				let time = time.saturating_add(3600);
 				let task_id: Vec<u8> = vec![i.saturated_into::<u8>(), j.saturated_into::<u8>()];
-				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time.into()], vec![4, 5, 6], vec![]).unwrap();
+				let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![time], vec![4, 5, 6], vec![]).unwrap();
 				AutomationTime::<T>::schedule_task(&task).unwrap();
 				<AccountTasks<T>>::insert(caller.clone(), task_id, task);
 			}
@@ -484,7 +484,7 @@ benchmarks! {
 
 		for i in 0..T::MaxTasksPerSlot::get() {
 			task_id = increment_task_id(task_id);
-			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![current_time.into()], vec![4, 5, 6], vec![]).unwrap();
+			let task = TaskOf::<T>::create_event_task::<T>(caller.clone(), task_id.clone(), vec![current_time], vec![4, 5, 6], vec![]).unwrap();
 			AutomationTime::<T>::schedule_task(&task).unwrap();
 			<AccountTasks<T>>::insert(caller.clone(), task_id.clone(), task);
 		}
@@ -497,7 +497,7 @@ benchmarks! {
 		let new_time_slot: u64 = 14400;
 		let diff = 1;
 
-		schedule_notify_tasks::<T>(caller.clone(), vec![new_time_slot], T::MaxTasksPerSlot::get());
+		schedule_notify_tasks::<T>(caller, vec![new_time_slot], T::MaxTasksPerSlot::get());
 	}: { AutomationTime::<T>::shift_missed_tasks(last_time_slot, diff) }
 
 	impl_benchmark_test_suite!(
