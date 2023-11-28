@@ -5,7 +5,7 @@ on:
     inputs:
       pallet:
         description: provided a list of pallet to run benchmark on
-        default: 'automation_time,vesting,valve,xcmp_handler'
+        default: 'automation_time,automation_price,vesting,valve,xcmp_handler'
         required: true
 
 concurrency:
@@ -66,7 +66,7 @@ jobs:
           ./oak-collator \
             benchmark \
             pallet \
-            --header=./.maintain/HEADER-GPL3
+            --header ./.maintain/HEADER-GPL3 \
             --chain turing-dev \
             --execution wasm \
             --wasm-execution compiled \
