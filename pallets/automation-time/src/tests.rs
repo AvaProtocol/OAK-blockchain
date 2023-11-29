@@ -1103,7 +1103,7 @@ fn schedule_xcmp_through_proxy_works() {
 		));
 
 		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
-		assert_eq!(tasks.is_some(), true);
+		assert!(tasks.is_some());
 
 		let tasks = tasks.unwrap();
 		assert_eq!(tasks.tasks[0].0, proxy_account);
@@ -1113,10 +1113,10 @@ fn schedule_xcmp_through_proxy_works() {
 			.into_iter()
 			.find(|e| match e {
 				RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
-					who,
-					schedule_as,
-					..
-				}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
+				who,
+				schedule_as,
+				..
+			}) if *who == proxy_account && *schedule_as == Some(delegator_account.clone()) => true,
 				_ => false,
 			})
 			.expect("TaskScheduled event should emit with 'who' being proxy_account, and 'schedule_as' being delegator_account.");

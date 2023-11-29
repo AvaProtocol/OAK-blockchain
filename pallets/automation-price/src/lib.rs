@@ -54,9 +54,7 @@ use cumulus_primitives_core::InteriorMultiLocation;
 
 use cumulus_primitives_core::ParaId;
 use frame_support::{
-	pallet_prelude::*,
-	traits::{Currency, ExistenceRequirement},
-	transactional,
+	pallet_prelude::*, traits::Currency, transactional,
 	weights::constants::WEIGHT_REF_TIME_PER_SECOND,
 };
 use frame_system::pallet_prelude::*;
@@ -67,13 +65,7 @@ use sp_runtime::{
 	traits::{CheckedConversion, Convert, SaturatedConversion, Saturating},
 	ArithmeticError, Perbill,
 };
-use sp_std::{
-	boxed::Box,
-	collections::btree_map::BTreeMap,
-	ops::Bound::{Excluded, Included},
-	vec,
-	vec::Vec,
-};
+use sp_std::{boxed::Box, collections::btree_map::BTreeMap, ops::Bound::Included, vec, vec::Vec};
 
 pub use pallet_xcmp_handler::InstructionSequence;
 use primitives::EnsureProxy;
@@ -634,7 +626,7 @@ pub mod pallet {
 				let exchange = exchanges[index].clone();
 				let asset1 = assets1[index].clone();
 				let asset2 = assets2[index].clone();
-				let round = rounds[index].clone();
+				let round = rounds[index];
 
 				let key = (&chain, &exchange, (&asset1, &asset2));
 
@@ -651,7 +643,7 @@ pub mod pallet {
 					// TODO: Eventually we will need to handle submitted_at and round properly when
 					// we had more than one oracle
 					// Currently not doing that check for the simplicity shake of interface
-					let this_round = match Self::get_asset_price_data(&key) {
+					let this_round = match Self::get_asset_price_data(key) {
 						Some(previous_price) => previous_price.round + 1,
 						None => round,
 					};
@@ -671,7 +663,7 @@ pub mod pallet {
 					});
 				}
 			}
-			Ok(().into())
+			Ok(())
 		}
 
 		/// Delete an asset. Delete may not happen immediately if there was  task scheduled for
@@ -699,7 +691,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			let key = (&chain, &exchange, (&asset1, &asset2));
-			if let Some(asset_info) = Self::get_asset_registry_info(&key) {
+			if let Some(asset_info) = Self::get_asset_registry_info(key) {
 				AssetRegistry::<T>::remove(&key);
 				PriceRegistry::<T>::remove(&key);
 				Self::deposit_event(Event::AssetDeleted { chain, exchange, asset1, asset2 });
@@ -880,15 +872,11 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		pub fn generate_task_id() -> TaskId {
 			let current_block_number =
-				match TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number()).ok() {
-					Some(i) => i,
-					None => 0,
-				};
+				TryInto::<u64>::try_into(<frame_system::Pallet<T>>::block_number())
+					.ok()
+					.unwrap_or(0);
 
-			let tx_id = match <frame_system::Pallet<T>>::extrinsic_index() {
-				Some(i) => i,
-				None => 0,
-			};
+			let tx_id = <frame_system::Pallet<T>>::extrinsic_index().unwrap_or(0);
 
 			let evt_index = <frame_system::Pallet<T>>::event_count();
 
@@ -902,7 +890,7 @@ pub mod pallet {
 			let weight_left: Weight = max_weight;
 
 			// TODO: Look into asset that has price move instead
-			let ref mut task_to_process: TaskIdList<T> = Vec::new();
+			let task_to_process: &mut TaskIdList<T> = &mut Vec::new();
 
 			for key in SortedTasksIndex::<T>::iter_keys() {
 				let (chain, exchange, asset_pair, trigger_func) = key.clone();
@@ -943,7 +931,7 @@ pub mod pallet {
 					{
 						// Remove because we map this into task queue
 						tasks.remove(&price);
-						let ref mut t = &mut (task_ids.clone());
+						let t = &mut (&mut (task_ids.clone()));
 						task_to_process.append(t);
 					}
 
@@ -966,7 +954,7 @@ pub mod pallet {
 				};
 			}
 
-			return weight_left
+			weight_left
 		}
 
 		/// Trigger tasks for the block time.
@@ -995,7 +983,7 @@ pub mod pallet {
 				.saturating_sub(T::DbWeight::get().reads(1u64))
 				// For measuring the TaskQueue::<T>::put(tasks_left);
 				.saturating_sub(T::DbWeight::get().writes(1u64));
-			if task_queue.len() > 0 {
+			if !task_queue.is_empty() {
 				let (tasks_left, new_weight_left) = Self::run_tasks(task_queue, weight_left);
 				weight_left = new_weight_left;
 				TaskQueue::<T>::put(tasks_left);
@@ -1180,7 +1168,7 @@ pub mod pallet {
 			for (owner_id, task_id) in task_ids.iter() {
 				consumed_task_index.saturating_inc();
 
-				let action_weight = match Self::get_task(&owner_id, &task_id) {
+				let action_weight = match Self::get_task(owner_id, task_id) {
 					None => {
 						Self::deposit_event(Event::TaskNotFound {
 							owner_id: owner_id.clone(),
@@ -1286,7 +1274,7 @@ pub mod pallet {
 
 			// Remove it from SortedTasksIndex
 			let key = (&task.chain, &task.exchange, &task.asset_pair, &task.trigger_function);
-			if let Some(mut sorted_tasks_by_price) = Self::get_sorted_tasks_index(&key) {
+			if let Some(mut sorted_tasks_by_price) = Self::get_sorted_tasks_index(key) {
 				if let Some(tasks) = sorted_tasks_by_price.get_mut(&task.trigger_params[0]) {
 					if let Some(pos) = tasks.iter().position(|x| {
 						let (_, task_id) = x;
@@ -1387,7 +1375,7 @@ pub mod pallet {
 									task_id: task.task_id.clone(),
 									condition: TaskCondition::AlreadyExpired {
 										expired_at: task.expired_at,
-										now: now.into(),
+										now,
 									},
 								}),
 							);
@@ -1398,7 +1386,7 @@ pub mod pallet {
 						break 'outer
 					}
 				}
-				expired_shards.push(expired_time.clone());
+				expired_shards.push(*expired_time);
 			}
 
 			unused_weight
@@ -1415,13 +1403,13 @@ pub mod pallet {
 				task_shard.insert(task.task_id.clone(), task.owner_id.clone());
 			} else {
 				tasks_by_expiration.insert(
-					task.expired_at.clone(),
+					task.expired_at,
 					BTreeMap::from([(task.task_id.clone(), task.owner_id.clone())]),
 				);
 			}
 			SortedTasksByExpiration::<T>::put(tasks_by_expiration);
 
-			return Ok(true)
+			Ok(true)
 		}
 
 		/// With transaction will protect against a partial success where N of M execution times might be full,
@@ -1527,11 +1515,11 @@ pub mod pallet {
 				},
 			);
 
-			if let Err(_) = fee_result {
+			if fee_result.is_err() {
 				Err(Error::<T>::FeePaymentError)?
 			}
 
-			if let Err(_) = Self::track_expired_task(&task) {
+			if Self::track_expired_task(&task).is_err() {
 				Err(Error::<T>::TaskExpiredStorageFailedToUpdate)?
 			}
 

@@ -250,8 +250,6 @@ impl<AccountId: Clone, Balance> Task<AccountId, Balance> {
 		instruction_sequence: InstructionSequence,
 		abort_errors: Vec<Vec<u8>>,
 	) -> Result<Self, DispatchError> {
-		let destination =
-			MultiLocation::try_from(destination).map_err(|_| Error::<T>::BadVersion)?;
 		let action = Action::XCMP {
 			destination,
 			schedule_fee,
@@ -639,10 +637,7 @@ mod tests {
 		#[test]
 		fn number_of_known_executions_for_fixed() {
 			new_test_ext(0).execute_with(|| {
-				let s = Schedule::Fixed {
-					execution_times: vec![].try_into().unwrap(),
-					executions_left: 5,
-				};
+				let s = Schedule::Fixed { execution_times: vec![], executions_left: 5 };
 				assert_eq!(s.known_executions_left(), 5);
 			})
 		}
