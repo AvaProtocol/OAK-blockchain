@@ -162,7 +162,7 @@ fn test_initialize_asset_works() {
 			asset1.to_vec(),
 			asset2.to_vec(),
 			10,
-			vec!(sender.clone())
+			vec!(sender)
 		));
 
 		assert_has_event(RuntimeEvent::AutomationPrice(crate::Event::AssetCreated {
@@ -197,7 +197,7 @@ fn test_initialize_asset_reject_duplicate_asset() {
 				asset1.to_vec(),
 				asset2.to_vec(),
 				10,
-				vec!(sender.clone())
+				vec!(sender)
 			),
 			Error::<Test>::AssetAlreadyInitialized,
 		);
@@ -275,7 +275,7 @@ fn test_update_asset_price_increase_round() {
 			(START_BLOCK_TIME_1HOUR_AFTER_IN_SECOND * 1000).try_into().unwrap(),
 		);
 		assert_ok!(AutomationPrice::update_asset_prices(
-			RuntimeOrigin::signed(sender.clone()),
+			RuntimeOrigin::signed(sender),
 			vec!(chain1.to_vec()),
 			vec!(exchange1.to_vec()),
 			vec!(asset1.to_vec()),
@@ -426,7 +426,7 @@ fn test_schedule_xcmp_task_ok() {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: MOCK_XCMP_FEE
 			}),
-			call.clone(),
+			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0)
 		));
@@ -479,7 +479,7 @@ fn test_schedule_xcmp_task_fail_not_enough_balance() {
 		get_xcmp_funds(creator.clone());
 		assert_noop!(
 			AutomationPrice::schedule_xcmp_task(
-				RuntimeOrigin::signed(creator.clone()),
+				RuntimeOrigin::signed(creator),
 				chain1.to_vec(),
 				exchange1.to_vec(),
 				asset1.to_vec(),
@@ -494,7 +494,7 @@ fn test_schedule_xcmp_task_fail_not_enough_balance() {
 					// Make a  really high fee to simulate not enough balance
 					amount: MOCK_XCMP_FEE * 10_000
 				}),
-				call.clone(),
+				call,
 				Weight::from_ref_time(100_000),
 				Weight::from_ref_time(200_000)
 			),
@@ -531,7 +531,7 @@ fn test_schedule_put_task_to_expiration_queue() {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: MOCK_XCMP_FEE
 			}),
-			call.clone(),
+			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0)
 		));
@@ -602,7 +602,7 @@ fn test_schedule_put_task_to_expiration_queue_multi() {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: MOCK_XCMP_FEE
 			}),
-			call.clone(),
+			call,
 			Weight::from_ref_time(100_000),
 			Weight::from_ref_time(200_000)
 		));
@@ -651,7 +651,7 @@ fn test_sweep_expired_task_works() {
 			// schedule task that has expired
 			get_xcmp_funds(creator.clone());
 			let task = Task::<Test> {
-				owner_id: creator.clone().into(),
+				owner_id: creator.clone(),
 				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
 				chain: chain1.to_vec(),
 				exchange: exchange1.to_vec(),
@@ -674,11 +674,13 @@ fn test_sweep_expired_task_works() {
 		}
 
 		// Now we set timestamp to a later point
-		Timestamp::set_timestamp(START_BLOCK_TIME.saturating_add(3600_000_u64).try_into().unwrap());
+		Timestamp::set_timestamp(
+			START_BLOCK_TIME.saturating_add(3_600_000_u64).try_into().unwrap(),
+		);
 
 		let price_target2 = 1000;
 		let task = Task::<Test> {
-			owner_id: other_creator.clone().into(),
+			owner_id: other_creator.clone(),
 			task_id: "123-1-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -698,7 +700,7 @@ fn test_sweep_expired_task_works() {
 			},
 		};
 		get_xcmp_funds(other_creator.clone());
-		assert_ok!(AutomationPrice::validate_and_schedule_task(task.clone()));
+		assert_ok!(AutomationPrice::validate_and_schedule_task(task));
 
 		assert_eq!(u128::try_from(Tasks::<Test>::iter().count()).unwrap(), expired_task_gen + 1);
 
@@ -845,7 +847,7 @@ fn test_sweep_expired_task_partially() {
 			// schedule task that has expired
 			get_xcmp_funds(creator.clone());
 			let task = Task::<Test> {
-				owner_id: creator.clone().into(),
+				owner_id: creator.clone(),
 				task_id: format!("123-0-{:?}", i).as_bytes().to_vec(),
 				chain: chain1.to_vec(),
 				exchange: exchange1.to_vec(),
@@ -939,7 +941,7 @@ fn test_schedule_return_error_when_reaching_max_tasks_overall_limit() {
 
 		assert_noop!(
 			AutomationPrice::schedule_xcmp_task(
-				RuntimeOrigin::signed(creator.clone()),
+				RuntimeOrigin::signed(creator),
 				chain1.to_vec(),
 				exchange1.to_vec(),
 				asset1.to_vec(),
@@ -953,7 +955,7 @@ fn test_schedule_return_error_when_reaching_max_tasks_overall_limit() {
 					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10000000000000
 				}),
-				call.clone(),
+				call,
 				Weight::from_ref_time(100_000),
 				Weight::from_ref_time(200_000)
 			),
@@ -1026,7 +1028,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 
 		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
 
-		let mut base_price = 10_000_u128;
+		let base_price = 10_000_u128;
 
 		// Lets setup 3 tasks
 		get_xcmp_funds(creator.clone());
@@ -1100,12 +1102,12 @@ fn test_shift_tasks_movement_through_price_changes() {
 		// at this moment our task queue is empty
 		// There is schedule tasks, but no tasks in the queue at this moment, because shift_tasks
 		// has not run yet
-		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+		assert!(AutomationPrice::get_task_queue().is_empty());
 
 		// shift_tasks move task from registry to the queue
 		// At this moment, The price doesn't match the target so there is no change in our tasks
 		AutomationPrice::shift_tasks(Weight::from_parts(1_000_000_000, 0));
-		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+		assert!(AutomationPrice::get_task_queue().is_empty());
 		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
 			chain1.to_vec(),
 			exchange1.to_vec(),
@@ -1118,8 +1120,8 @@ fn test_shift_tasks_movement_through_price_changes() {
 		// only task_id1 will be moved to the queue.
 		// The target price for those respectively tasks are 10100, 10900, 102000 in their pair
 		// Therefore after running this price update, first task task_id1 are moved into TaskQueue
-		let mut new_pair_1_price: u128 = base_price + 2000;
-		let mut new_pair_2_price: u128 = 10_u128;
+		let new_pair_1_price: u128 = base_price + 2000;
+		let new_pair_2_price: u128 = 10_u128;
 		let mut new_pair_3_price: u128 = 300_u128;
 		assert_ok!(AutomationPrice::update_asset_prices(
 			RuntimeOrigin::signed(creator.clone()),
@@ -1196,7 +1198,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: MOCK_XCMP_FEE
 			}),
-			call.clone(),
+			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0)
 		));
@@ -1224,7 +1226,7 @@ fn test_shift_tasks_movement_through_price_changes() {
 			vec![
 				(creator.clone(), task_id1.clone()),
 				(creator.clone(), task_id3.clone()),
-				(creator.clone(), task_id4.clone())
+				(creator, task_id4)
 			]
 		);
 		assert_eq!(
@@ -1253,11 +1255,11 @@ fn test_gt_task_not_run_when_asset_price_equal_target_price() {
 
 		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);
 
-		let mut base_price = 1_000_u128;
+		let base_price = 1_000_u128;
 
 		get_xcmp_funds(creator.clone());
 		assert_ok!(AutomationPrice::schedule_xcmp_task(
-			RuntimeOrigin::signed(creator.clone()),
+			RuntimeOrigin::signed(creator),
 			chain1.to_vec(),
 			exchange1.to_vec(),
 			asset1.to_vec(),
@@ -1271,14 +1273,14 @@ fn test_gt_task_not_run_when_asset_price_equal_target_price() {
 				asset_location: MultiLocation::new(0, Here).into(),
 				amount: 100_000
 			}),
-			call.clone(),
+			call,
 			Weight::from_ref_time(100_000),
 			Weight::from_ref_time(200_000)
 		));
 
 		AutomationPrice::shift_tasks(Weight::from_ref_time(1_000_000_000));
 		// Task shouldn't be move to task queue to trigger, and the task queue should be empty
-		assert_eq!(AutomationPrice::get_task_queue().is_empty(), true);
+		assert!(AutomationPrice::get_task_queue().is_empty());
 
 		let sorted_task_index = AutomationPrice::get_sorted_tasks_index((
 			chain1.to_vec(),
@@ -1309,7 +1311,7 @@ fn test_emit_event_when_execute_tasks() {
 
 		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
-			owner_id: creator.clone().into(),
+			owner_id: creator,
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1374,7 +1376,7 @@ fn test_decrease_task_count_when_execute_tasks() {
 
 		get_xcmp_funds(creator1.clone());
 		let task1 = Task::<Test> {
-			owner_id: creator1.clone().into(),
+			owner_id: creator1.clone(),
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1396,7 +1398,7 @@ fn test_decrease_task_count_when_execute_tasks() {
 
 		get_xcmp_funds(creator2.clone());
 		let task2 = Task::<Test> {
-			owner_id: creator2.clone().into(),
+			owner_id: creator2.clone(),
 			task_id: "123-1-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1417,7 +1419,7 @@ fn test_decrease_task_count_when_execute_tasks() {
 		};
 
 		AutomationPrice::validate_and_schedule_task(task1.clone());
-		AutomationPrice::validate_and_schedule_task(task2.clone());
+		AutomationPrice::validate_and_schedule_task(task2);
 
 		assert_eq!(
 			2,
@@ -1432,13 +1434,13 @@ fn test_decrease_task_count_when_execute_tasks() {
 		);
 		assert_eq!(
 			1,
-			AutomationPrice::get_account_stat(creator2.clone(), StatType::TotalTasksPerAccount)
+			AutomationPrice::get_account_stat(creator2, StatType::TotalTasksPerAccount)
 				.map_or(0, |v| v),
 			"total task count is wrong"
 		);
 
 		AutomationPrice::run_tasks(
-			vec![(task1.owner_id.clone(), task1.task_id.clone())],
+			vec![(task1.owner_id.clone(), task1.task_id)],
 			100_000_000_000.into(),
 		);
 
@@ -1475,7 +1477,7 @@ fn test_expired_task_not_run() {
 
 		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
-			owner_id: creator.into(),
+			owner_id: creator,
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1498,7 +1500,9 @@ fn test_expired_task_not_run() {
 		AutomationPrice::validate_and_schedule_task(task.clone());
 
 		// Moving the clock to simulate the task expiration
-		Timestamp::set_timestamp(START_BLOCK_TIME.saturating_add(7200_000_u64).try_into().unwrap());
+		Timestamp::set_timestamp(
+			START_BLOCK_TIME.saturating_add(7_200_000_u64).try_into().unwrap(),
+		);
 		AutomationPrice::run_tasks(
 			vec![(task.owner_id.clone(), task.task_id.clone())],
 			100_000_000_000.into(),
@@ -1526,7 +1530,7 @@ fn test_expired_task_not_run() {
 			condition: crate::TaskCondition::AlreadyExpired {
 				expired_at: task.expired_at,
 				now: START_BLOCK_TIME
-					.saturating_add(7200_000_u64)
+					.saturating_add(7_200_000_u64)
 					.checked_div(1000)
 					.ok_or(ArithmeticError::Overflow)
 					.expect("blocktime is out of range") as u128,
@@ -1556,7 +1560,7 @@ fn test_price_move_against_target_price_skip_run() {
 		let overall_weight = Weight::from_ref_time(200_000);
 
 		let task = Task::<Test> {
-			owner_id: creator.into(),
+			owner_id: creator,
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1608,7 +1612,7 @@ fn test_price_move_against_target_price_skip_run() {
 
 		assert_last_event(RuntimeEvent::AutomationPrice(crate::Event::PriceAlreadyMoved {
 			owner_id: task.owner_id.clone(),
-			task_id: task.task_id.clone(),
+			task_id: task.task_id,
 			condition: crate::TaskCondition::PriceAlreadyMoved {
 				chain: chain1.to_vec(),
 				exchange: exchange1.to_vec(),
@@ -1638,7 +1642,7 @@ fn test_cancel_task_works() {
 
 		get_xcmp_funds(creator.clone());
 		let task = Task::<Test> {
-			owner_id: creator.into(),
+			owner_id: creator,
 			task_id: "123-0-1".as_bytes().to_vec(),
 			chain: chain1.to_vec(),
 			exchange: exchange1.to_vec(),
@@ -1679,7 +1683,7 @@ fn test_delete_asset_ok() {
 
 		setup_asset(&sender, chain1.to_vec());
 		AutomationPrice::update_asset_prices(
-			RuntimeOrigin::signed(sender.clone()),
+			RuntimeOrigin::signed(sender),
 			vec![chain1.to_vec()],
 			vec![exchange1.to_vec()],
 			vec![asset1.to_vec()],

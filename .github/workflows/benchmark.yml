@@ -5,7 +5,7 @@ on:
     inputs:
       pallet:
         description: provided a list of pallet to run benchmark on
-        default: 'automation_time,automation_price,vesting,valve,xcmp_handler'
+        default: 'automation_time,automation_price,vesting,valve'
         required: true
 
 concurrency:

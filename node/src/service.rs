@@ -203,7 +203,7 @@ where
 	let block_import = ParachainBlockImport::new(client.clone(), backend.clone());
 
 	let import_queue = build_import_queue(
-		block_import.clone(),
+		block_import,
 		client.clone(),
 		config,
 		telemetry.as_ref().map(|telemetry| telemetry.handle()),
@@ -498,8 +498,8 @@ where
 
 	cumulus_client_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
 		cumulus_client_consensus_aura::ImportQueueParams {
-			block_import: block_import.clone(),
-			client: client.clone(),
+			block_import,
+			client,
 			create_inherent_data_providers: move |_, _| async move {
 				let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 

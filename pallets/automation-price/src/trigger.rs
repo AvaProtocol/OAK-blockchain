@@ -1,11 +1,8 @@
 use crate::{Config, PriceData, Task};
 
-use sp_std::{
-	collections::btree_map::Range,
-	ops::{
-		Bound,
-		Bound::{Excluded, Included},
-	},
+use sp_std::ops::{
+	Bound,
+	Bound::{Excluded, Included},
 };
 
 pub const TRIGGER_FUNC_GT: &[u8] = "gt".as_bytes();

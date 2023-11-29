@@ -973,7 +973,7 @@ pub mod pallet {
 								..
 							} => Self::run_xcmp_task(
 								destination,
-								schedule_as.unwrap_or(task.owner_id.clone()),
+								schedule_as.unwrap_or_else(|| task.owner_id.clone()),
 								execution_fee,
 								encoded_call,
 								encoded_call_weight,
