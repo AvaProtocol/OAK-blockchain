@@ -29,6 +29,7 @@ jobs:
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
           objdump -T target/release/oak-collator | grep GLIBC | sed 's/.*GLIBC_\([.0-9]*\).*/\1/g' |  sort -Vu
+
       - name: Build debian
         run: |
           cargo install cargo-deb
@@ -39,7 +40,7 @@ jobs:
         with:
           name: oak-collator
           path: artifacts/
-      - name: fail the build:
+      - name: "fail the build"
         run: |
           exit 1
 
