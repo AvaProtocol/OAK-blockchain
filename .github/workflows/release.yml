@@ -28,6 +28,7 @@ jobs:
           cargo build --locked --release --features turing-node,oak-node
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
+          objdump -T target/release/oak-collator | grep GLIBC | sed 's/.*GLIBC_\([.0-9]*\).*/\1/g' |  sort -Vu
       - name: Build debian
         run: |
           cargo install cargo-deb
