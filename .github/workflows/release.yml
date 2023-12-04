@@ -22,7 +22,6 @@ jobs:
       - name: Inspect node runner env
         run: |
           ldd --version
-          exit 1
 
       - name: Build
         run: |
@@ -39,6 +38,10 @@ jobs:
         with:
           name: oak-collator
           path: artifacts/
+      - name: fail the build:
+        run: |
+          exit 1
+
 
   build-runtime:
     name: Build Runtime
