@@ -22,6 +22,7 @@ jobs:
       - name: Inspect node runner env
         run: |
           ldd --version
+          exit 1
 
       - name: Build
         run: |
