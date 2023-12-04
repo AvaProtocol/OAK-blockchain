@@ -31,6 +31,7 @@ jobs:
           cp target/release/oak-collator artifacts/
       - name: Inspect glibc
         run: |
+          # We current support glibc <= 2.31(Ubuntu 20 LTS). Expect all output of a smaller or equal glibc version.
           objdump -T target/release/oak-collator | grep GLIBC | sed 's/.*GLIBC_\([.0-9]*\).*/\1/g' |  sort -Vu
       - name: Build debian
         run: |
