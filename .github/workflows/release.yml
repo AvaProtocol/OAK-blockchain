@@ -18,6 +18,11 @@ jobs:
           ref: ${{ github.event.inputs.tag }}
       - name: Setup Rust
         run: rustup show
+
+      - name: Inspect node runner env
+        run: |
+          ldd --version
+
       - name: Build
         run: |
           cargo build --locked --release --features turing-node,oak-node
