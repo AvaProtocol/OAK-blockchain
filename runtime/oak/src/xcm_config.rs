@@ -38,7 +38,9 @@ use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
 
-use primitives::AbsoluteAndRelativeReserveProvider;
+use primitives::{
+	AbsoluteAndRelativeReserveProvider, DescribeAllTerminal, DescribeFamily, HashedDescription,
+};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
@@ -57,7 +59,9 @@ pub type LocationToAccountId = (
 	SiblingParachainConvertsVia<Sibling, AccountId>,
 	// Straight up local `AccountId32` origins just alias directly to `AccountId`.
 	AccountId32Aliases<RelayNetwork, AccountId>,
-	Account32Hash<RelayNetwork, AccountId>,
+	// Generates private `AccountId`s from `MultiLocation`s, in a stable & safe way.
+	// Replaces the old `Account32Hash` approach.
+	HashedDescription<AccountId, DescribeFamily<DescribeAllTerminal>>,
 );
 
 pub type LocalAssetTransactor = MultiCurrencyAdapter<
