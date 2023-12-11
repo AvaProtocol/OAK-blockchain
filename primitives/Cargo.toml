@@ -9,6 +9,7 @@ repository = 'https://github.com/OAK-Foundation/OAK-blockchain'
 edition = "2021"
 
 [dependencies]
+impl-trait-for-tuples = "0.2.2"
 codec = { package = "parity-scale-codec", version = "3.0.0", features = [
   "derive",
 ], default-features = false }
@@ -22,12 +23,14 @@ sp-std = { git = "https://github.com/paritytech/substrate", branch = "polkadot-v
 sp-consensus-aura = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 sp-core = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 sp-runtime = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
+sp-io = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 
 ## Substrate FRAME Dependencies
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false, branch = "polkadot-v0.9.43" }
 
 ## Polkdadot deps
 xcm = { git = "https://github.com/paritytech/polkadot", branch = "release-v0.9.43", default-features = false }
+xcm-executor = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.43" }
 
 ## ORML deps
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v0.9.43" }

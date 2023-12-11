@@ -8771,14 +8771,17 @@ name = "primitives"
 version = "1.0.0"
 dependencies = [
  "frame-support",
+ "impl-trait-for-tuples",
  "orml-traits",
  "parity-scale-codec",
  "scale-info",
  "sp-consensus-aura",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-std",
  "xcm",
+ "xcm-executor",
 ]
 
 [[package]]
