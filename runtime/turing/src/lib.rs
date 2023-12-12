@@ -881,6 +881,7 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 			RuntimeCall::System(_) => true,
 			RuntimeCall::Balances(_) => true,
 			RuntimeCall::ParachainStaking(_) => true,
+			RuntimeCall::XTokens(_) => true,
 			_ => false,
 		}
 	}
