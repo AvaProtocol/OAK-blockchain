@@ -18,11 +18,21 @@ jobs:
           ref: ${{ github.event.inputs.tag }}
       - name: Setup Rust
         run: rustup show
+
+      - name: Inspect node runner env
+        run: |
+          # Output our glibc version of the github runner
+          ldd --version
+
       - name: Build
         run: |
           cargo build --locked --release --features turing-node,oak-node
           mkdir -p artifacts/
           cp target/release/oak-collator artifacts/
+      - name: Inspect glibc
+        run: |
+          # We current support glibc <= 2.31(Ubuntu 20 LTS). Expect all output of a smaller or equal glibc version.
+          objdump -T target/release/oak-collator | grep GLIBC | sed 's/.*GLIBC_\([.0-9]*\).*/\1/g' |  sort -Vu
       - name: Build debian
         run: |
           cargo install cargo-deb
