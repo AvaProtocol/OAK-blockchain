@@ -182,7 +182,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	impl_name: create_runtime_str!("turing"),
 	authoring_version: 1,
 	spec_version: 296,
-	impl_version: 2,
+	impl_version: 3,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 19,
 	state_version: 0,
@@ -882,6 +882,8 @@ impl Contains<RuntimeCall> for ScheduleAllowList {
 			RuntimeCall::Balances(_) => true,
 			RuntimeCall::ParachainStaking(_) => true,
 			RuntimeCall::XTokens(_) => true,
+			RuntimeCall::Utility(_) => true,
+			RuntimeCall::Currencies(_) => true,
 			_ => false,
 		}
 	}
