@@ -70,13 +70,13 @@ Turing Dev is a parachain and doesn’t produce block without a relay chain, so 
 
 First, find out a compatible version of the relay chain’s code from this repo’s `polkadot-parachain` reference in [./runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example,
 ```
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot", default-features = false, branch = "release-v0.9.29" }
+polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-v0.9.29" }
 ```
 
 release-v0.9.29 is the version of relay chain to run, so let’s build its source with the below commands.
 
 ```bash
-git clone --branch release-v0.9.29 https://github.com/paritytech/polkadot
+git clone --branch release-v0.9.29 https://github.com/paritytech/polkadot-sdk
 cd polkadot
 cargo build --release
 ```

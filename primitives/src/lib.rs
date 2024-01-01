@@ -101,7 +101,7 @@ impl<AbsoluteLocation: Get<MultiLocation>> Reserve
 use codec::{Compact, Encode};
 use sp_io::hashing::blake2_256;
 use sp_std::prelude::*;
-use xcm_executor::traits::Convert as XcmConvert;
+use xcm_executor::traits::ConvertLocation;
 
 /// Means of converting a location into a stable and unique descriptive identifier.
 pub trait DescribeLocation {
@@ -209,14 +209,17 @@ impl<Suffix: DescribeLocation> DescribeLocation for DescribeFamily<Suffix> {
 }
 
 pub struct HashedDescription<AccountId, Describe>(PhantomData<(AccountId, Describe)>);
-impl<AccountId: From<[u8; 32]> + Clone, Describe: DescribeLocation>
-	XcmConvert<MultiLocation, AccountId> for HashedDescription<AccountId, Describe>
+
+impl<AccountId: From<[u8; 32]> + Clone, Describe: DescribeLocation> 
+    ConvertLocation<AccountId> for HashedDescription<AccountId, Describe>
 {
-	fn convert(value: MultiLocation) -> Result<AccountId, MultiLocation> {
-		if let Some(description) = Describe::describe_location(&value) {
-			Ok(blake2_256(&description).into())
-		} else {
-			Err(value)
-		}
-	}
+    fn convert_location(location: &MultiLocation) -> Option<AccountId> {
+        if let Some(description) = Describe::describe_location(location) {
+            Some(blake2_256(&description).into())
+        } else {
+            None
+        }
+    }
 }
+
+

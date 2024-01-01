@@ -49,7 +49,7 @@ git merge origin/master
 # Clone the current Polkadot master branch into ./polkadot.
 # NOTE: we need to pull enough commits to be able to find a common
 # ancestor for successfully performing merges below.
-git clone --depth 20 https://github.com/paritytech/polkadot.git
+git clone --depth 20 https://github.com/paritytech/polkadot-sdk.git
 
 cd polkadot
 
@@ -68,7 +68,7 @@ then
 
   pr_companion="$(echo "${pr_body}" | sed -n -r \
       -e 's;^.*[Cc]ompanion.*paritytech/polkadot#([0-9]+).*$;\1;p' \
-      -e 's;^.*[Cc]ompanion.*https://github.com/paritytech/polkadot/pull/([0-9]+).*$;\1;p' \
+      -e 's;^.*[Cc]ompanion.*https://github.com/paritytech/polkadot-sdk/pull/([0-9]+).*$;\1;p' \
     | tail -n 1)"
 
   if [ "${pr_companion}" ]

@@ -228,7 +228,7 @@ parameter_types! {
 	// This is an external lib that we don't own so we try to not mock, follow the rule don't mock
 	// what you don't own
 	// One of test we do is Balances::transfer call, which has its weight define here:
-	// https://github.com/paritytech/substrate/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
+	// https://github.com/paritytech/polkadot-sdk/blob/polkadot-v0.9.38/frame/balances/src/weights.rs#L61-L73
 	// When logging the final calculated amount, its value is 73_314_000.
 	//
 	// in our unit test, we test a few transfers with dynamic dispatch. On top

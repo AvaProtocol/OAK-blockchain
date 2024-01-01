@@ -19,7 +19,7 @@ use tar;
 
 use flate2::{write::GzEncoder, Compression};
 
-const SUBSTRATE_GIT_URL: &str = "https://github.com/paritytech/substrate.git";
+const SUBSTRATE_GIT_URL: &str = "https://github.com/paritytech/polkadot-sdk.git";
 
 type CargoToml = HashMap<String, toml::Value>;
 

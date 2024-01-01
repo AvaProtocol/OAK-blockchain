@@ -2,5 +2,5 @@
 brew install openssl cmake
 curl https://sh.rustup.rs -sSf | sh
 source ~/.cargo/env
-cargo install --git https://github.com/paritytech/substrate subkey
-cargo install --git https://github.com/paritytech/substrate substrate
+cargo install --git https://github.com/paritytech/polkadot-sdk subkey
+cargo install --git https://github.com/paritytech/polkadot-sdk substrate
