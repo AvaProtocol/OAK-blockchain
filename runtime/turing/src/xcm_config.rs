@@ -155,7 +155,7 @@ pub struct FeePerSecondProvider;
 impl FixedConversionRateProvider for FeePerSecondProvider {
 	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 		let metadata = match location {
-			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot-sdk/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if *para_id == u32::from(ParachainInfo::parachain_id()) =>
 				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
@@ -333,7 +333,7 @@ impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
 impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
 	fn convert(location: MultiLocation) -> Option<TokenId> {
 		match location {
-			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot-sdk/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
 				Some(NATIVE_TOKEN_ID),
