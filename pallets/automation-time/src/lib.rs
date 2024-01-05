@@ -46,7 +46,6 @@ pub use types::*;
 
 use codec::Decode;
 use core::convert::TryInto;
-use cumulus_primitives_core::ParaId;
 use frame_support::{
 	dispatch::{GetDispatchInfo, PostDispatchInfo},
 	pallet_prelude::*,
@@ -377,6 +376,8 @@ pub mod pallet {
 		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
 		/// * `encoded_call_weight`: Required weight at most the provided call will take.
 		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
+		/// * `instruction_sequence`: The instruction sequence for the XCM call.
+		/// * `schedule_as`: The real task executor. If it is None, the caller will be the executor.
 		///
 		/// # Errors
 		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
@@ -386,8 +387,11 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `UnsupportedFeePayment`: Unsupported fee payment.
 		/// * `InvalidAssetLocation` Invalid asset location.
-		#[pallet::call_index(2)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()))]
+		#[pallet::call_index(1)]
+		#[pallet::weight(
+			<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions())
+				.saturating_add(T::DbWeight::get().reads(if schedule_as.is_some() { 1 } else { 0 }))
+		)]
 		pub fn schedule_xcmp_task(
 			origin: OriginFor<T>,
 			schedule: ScheduleParam,
@@ -397,8 +401,16 @@ pub mod pallet {
 			encoded_call: Vec<u8>,
 			encoded_call_weight: Weight,
 			overall_weight: Weight,
+			instruction_sequence: InstructionSequence,
+			schedule_as: Option<T::AccountId>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
+
+			// Make sure the owner is the proxy account of the user account.
+			if let Some(schedule_as_account) = schedule_as.clone() {
+				T::EnsureProxy::ensure_ok(schedule_as_account, who.clone())?;
+			}
+
 			let destination =
 				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
 			let schedule_fee =
@@ -418,72 +430,10 @@ pub mod pallet {
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
-				schedule_as: None,
-				instruction_sequence: InstructionSequence::PayThroughSovereignAccount,
+				schedule_as,
+				instruction_sequence,
 			};
 
-			let schedule = schedule.validated_into::<T>()?;
-
-			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
-			Ok(())
-		}
-
-		/// Schedule a task through XCMP through proxy account to fire an XCMP message with a provided call.
-		///
-		/// Before the task can be scheduled the task must past validation checks.
-		/// * The transaction is signed
-		/// * The times are valid
-		/// * The given asset location is supported
-		///
-		/// # Parameters
-		/// * `schedule`: The triggering rules for recurring task or the list of unix standard times in seconds for when the task should run.
-		/// * `destination`: Destination the XCMP call will be sent to.
-		/// * `schedule_fee`: The payment asset location required for scheduling automation task.
-		/// * `execution_fee`: The fee will be paid for XCMP execution.
-		/// * `encoded_call`: Call that will be sent via XCMP to the parachain id provided.
-		/// * `encoded_call_weight`: Required weight at most the provided call will take.
-		/// * `overall_weight`: The overall weight in which fees will be paid for XCM instructions.
-		///
-		/// # Errors
-		/// * `InvalidTime`: Time in seconds must be a multiple of SlotSizeSeconds.
-		/// * `PastTime`: Time must be in the future.
-		/// * `DuplicateTask`: There can be no duplicate tasks.
-		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
-		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
-		/// * `Other("proxy error: expected `ProxyType::Any`")`: schedule_as must be a proxy account of type "any" for the caller.
-		#[pallet::call_index(3)]
-		#[pallet::weight(<T as Config>::WeightInfo::schedule_xcmp_task_full(schedule.number_of_executions()).saturating_add(T::DbWeight::get().reads(1)))]
-		pub fn schedule_xcmp_task_through_proxy(
-			origin: OriginFor<T>,
-			schedule: ScheduleParam,
-			destination: Box<VersionedMultiLocation>,
-			schedule_fee: Box<VersionedMultiLocation>,
-			execution_fee: Box<AssetPayment>,
-			encoded_call: Vec<u8>,
-			encoded_call_weight: Weight,
-			overall_weight: Weight,
-			schedule_as: T::AccountId,
-		) -> DispatchResult {
-			let who = ensure_signed(origin)?;
-
-			// Make sure the owner is the proxy account of the user account.
-			T::EnsureProxy::ensure_ok(schedule_as.clone(), who.clone())?;
-
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-			let schedule_fee =
-				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
-
-			let action = Action::XCMP {
-				destination,
-				schedule_fee,
-				execution_fee: *execution_fee,
-				encoded_call,
-				encoded_call_weight,
-				overall_weight,
-				schedule_as: Some(schedule_as),
-				instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount,
-			};
 			let schedule = schedule.validated_into::<T>()?;
 
 			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
@@ -506,7 +456,7 @@ pub mod pallet {
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
 		/// * `InsufficientBalance`: Not enough funds to pay execution fee.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(2)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_auto_compound_delegated_stake_task_full())]
 		pub fn schedule_auto_compound_delegated_stake_task(
 			origin: OriginFor<T>,
@@ -547,7 +497,7 @@ pub mod pallet {
 		/// * `DuplicateTask`: There can be no duplicate tasks.
 		/// * `TimeSlotFull`: Time slot is full. No more tasks can be scheduled for this time.
 		/// * `TimeTooFarOut`: Execution time or frequency are past the max time horizon.
-		#[pallet::call_index(5)]
+		#[pallet::call_index(3)]
 		#[pallet::weight(<T as Config>::WeightInfo::schedule_dynamic_dispatch_task_full(schedule.number_of_executions()))]
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
@@ -573,7 +523,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::call_index(6)]
+		#[pallet::call_index(4)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_scheduled_task_full())]
 		pub fn cancel_task(origin: OriginFor<T>, task_id: TaskIdV2) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -593,7 +543,7 @@ pub mod pallet {
 		///
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
-		#[pallet::call_index(7)]
+		#[pallet::call_index(5)]
 		#[pallet::weight(<T as Config>::WeightInfo::force_cancel_scheduled_task_full())]
 		pub fn force_cancel_task(
 			origin: OriginFor<T>,
@@ -618,7 +568,7 @@ pub mod pallet {
 		/// # Errors
 		/// * `TaskDoesNotExist`: The task does not exist.
 		/// * `TaskScheduleAsNotMatch`: The schedule_as account of the task does not match.
-		#[pallet::call_index(8)]
+		#[pallet::call_index(6)]
 		#[pallet::weight(<T as Config>::WeightInfo::cancel_task_with_schedule_as_full())]
 		pub fn cancel_task_with_schedule_as(
 			origin: OriginFor<T>,

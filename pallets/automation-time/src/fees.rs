@@ -19,7 +19,6 @@
 use crate::{AccountOf, Action, ActionOf, Config, Error, MultiBalanceOf, Pallet};
 
 use frame_support::traits::Get;
-use frame_system::RawOrigin;
 use orml_traits::MultiCurrency;
 use pallet_xcmp_handler::{InstructionSequence, XcmpTransactor};
 use sp_runtime::{
@@ -246,6 +245,7 @@ mod tests {
 	use codec::Encode;
 	use frame_benchmarking::frame_support::assert_err;
 	use frame_support::sp_runtime::AccountId32;
+	use frame_system::RawOrigin;
 
 	#[test]
 	fn pay_checked_fees_for_success() {

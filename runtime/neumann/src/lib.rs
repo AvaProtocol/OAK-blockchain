@@ -1186,19 +1186,11 @@ impl_runtime_apis! {
 
 			let (action, executions) = match uxt.function {
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task{
-					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, ..
+					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, instruction_sequence, schedule_as, ..
 				}) => {
 					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
 					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: None, instruction_sequence: InstructionSequence::PayThroughSovereignAccount };
-					Ok((action, schedule.number_of_executions()))
-				},
-				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_xcmp_task_through_proxy{
-					destination, schedule_fee, execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule, schedule_as, ..
-				}) => {
-					let destination = MultiLocation::try_from(*destination).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let schedule_fee = MultiLocation::try_from(*schedule_fee).map_err(|()| "Unable to convert VersionedMultiLocation".as_bytes())?;
-					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as: Some(schedule_as), instruction_sequence: InstructionSequence::PayThroughRemoteDerivativeAccount };
+					let action = Action::XCMP { destination, schedule_fee, execution_fee: *execution_fee, encoded_call, encoded_call_weight, overall_weight, schedule_as, instruction_sequence };
 					Ok((action, schedule.number_of_executions()))
 				},
 				RuntimeCall::AutomationTime(pallet_automation_time::Call::schedule_dynamic_dispatch_task{
