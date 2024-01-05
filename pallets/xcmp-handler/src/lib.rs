@@ -228,32 +228,6 @@ pub mod pallet {
 			Ok(instructions)
 		}
 
-		fn get_local_xcm(
-			asset: MultiAsset,
-			destination: MultiLocation,
-		) -> Result<xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, DispatchError> {
-			let reserve =
-				T::ReserveProvider::reserve(&asset).ok_or(Error::<T>::InvalidAssetLocation)?;
-			let local_xcm = if reserve == MultiLocation::here() {
-				Xcm(vec![
-					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
-					DepositAsset::<<T as pallet::Config>::RuntimeCall> {
-						assets: Wild(All),
-						beneficiary: destination,
-					},
-				])
-			} else if reserve == destination {
-				Xcm(vec![
-					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.clone().into()),
-					BurnAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
-				])
-			} else {
-				return Err(Error::<T>::UnsupportedFeePayment.into())
-			};
-
-			Ok(local_xcm)
-		}
-
 		/// Construct the instructions for a transact xcm with our local currency.
 		///
 		/// Local instructions
