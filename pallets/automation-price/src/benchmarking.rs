@@ -21,10 +21,10 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 
-use xcm::latest::{prelude::*, MultiLocation};
+use staging_xcm::latest::{prelude::*, MultiLocation};
 
 use crate::{
 	pallet::{Task, TaskId},

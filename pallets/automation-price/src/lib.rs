@@ -72,7 +72,7 @@ use primitives::EnsureProxy;
 pub use weights::WeightInfo;
 
 use pallet_xcmp_handler::XcmpTransactor;
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use staging_xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {

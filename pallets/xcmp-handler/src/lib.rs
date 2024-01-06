@@ -41,19 +41,19 @@ pub mod migrations;
 
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
-use xcm::latest::prelude::*;
+use staging_xcm::latest::prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use orml_traits::{location::Reserve, MultiCurrency};
-	use polkadot_parachain::primitives::Sibling;
+	use polkadot_parachain_primitives::primitives::Sibling;
 	use sp_runtime::{
 		traits::{AccountIdConversion, CheckedSub, Convert, SaturatedConversion},
 		TokenError::BelowMinimum,
 	};
 	use sp_std::prelude::*;
-	use xcm_executor::traits::WeightBounds;
+	use staging_xcm_executor::traits::WeightBounds;
 
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
@@ -195,7 +195,7 @@ pub mod pallet {
 			overall_weight: Weight,
 			flow: InstructionSequence,
 		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
+			(staging_xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, staging_xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
 			let descend_location: Junctions = T::AccountIdToMultiLocation::convert(caller)
@@ -228,6 +228,32 @@ pub mod pallet {
 			Ok(instructions)
 		}
 
+		fn get_local_xcm(
+			asset: MultiAsset,
+			destination: MultiLocation,
+		) -> Result<staging_xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, DispatchError> {
+			let reserve =
+				T::ReserveProvider::reserve(&asset).ok_or(Error::<T>::InvalidAssetLocation)?;
+			let local_xcm = if reserve == OldMultiLocation::here() {
+				Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
+					DepositAsset::<<T as pallet::Config>::RuntimeCall> {
+						assets: Wild(All),
+						beneficiary: destination,
+					},
+				])
+			} else if reserve == destination {
+				Xcm(vec![
+					WithdrawAsset::<<T as pallet::Config>::RuntimeCall>(asset.clone().into()),
+					BurnAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
+				])
+			} else {
+				return Err(Error::<T>::UnsupportedFeePayment.into())
+			};
+
+			Ok(local_xcm)
+		}
+
 		/// Construct the instructions for a transact xcm with our local currency.
 		///
 		/// Local instructions
@@ -250,7 +276,7 @@ pub mod pallet {
 			overall_weight: Weight,
 			fee: u128,
 		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
+			(staging_xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, staging_xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
 			let local_asset =
@@ -342,7 +368,7 @@ pub mod pallet {
 			xcm_weight: Weight,
 			fee: u128,
 		) -> Result<
-			(xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, xcm::latest::Xcm<()>),
+			(staging_xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>, staging_xcm::latest::Xcm<()>),
 			DispatchError,
 		> {
 			// XCM for target chain
@@ -368,7 +394,7 @@ pub mod pallet {
 		/// Transact XCM instructions on local chain
 		///
 		pub fn transact_in_local_chain(
-			internal_instructions: xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>,
+			internal_instructions: staging_xcm::latest::Xcm<<T as pallet::Config>::RuntimeCall>,
 		) -> Result<(), DispatchError> {
 			let local_sovereign_account = T::SelfLocation::get();
 			let weight = T::Weigher::weight(&mut internal_instructions.clone().into())
@@ -398,7 +424,7 @@ pub mod pallet {
 		///
 		pub fn transact_in_target_chain(
 			destination: MultiLocation,
-			target_instructions: xcm::latest::Xcm<()>,
+			target_instructions: staging_xcm::latest::Xcm<()>,
 		) -> Result<(), DispatchError> {
 			#[allow(unused_variables)]
 			let destination_location = destination;

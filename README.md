@@ -68,9 +68,9 @@ At this point, the binary of Turing Dev is built and located at `./target/releas
 ### Build the relay chain
 Turing Dev is a parachain and doesn’t produce block without a relay chain, so next we will need to clone Polkadot’s code and build a local Rococo(relay chain).
 
-First, find out a compatible version of the relay chain’s code from this repo’s `polkadot-parachain` reference in [./runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example,
+First, find out a compatible version of the relay chain’s code from this repo’s `polkadot-parachain-primitives` reference in [./runtime/turing/Cargo.toml](https://github.com/OAK-Foundation/OAK-blockchain/blob/master/runtime/turing/Cargo.toml), for example,
 ```
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-v0.9.29" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-v0.9.29" }
 ```
 
 release-v0.9.29 is the version of relay chain to run, so let’s build its source with the below commands.
