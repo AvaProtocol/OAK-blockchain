@@ -188,7 +188,7 @@ benchmarks! {
 			.saturating_mul(ED_MULTIPLIER.into())
 			.saturating_mul(DEPOSIT_MULTIPLIER.into());
 		let _ = T::MultiCurrency::deposit(currency_id.into(), &caller, foreign_currency_amount);
-	}: schedule_xcmp_task(RawOrigin::Signed(caller), schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_parts(1_000, 0), Weight::from_parts(2_000, 0))
+	}: schedule_xcmp_task(RawOrigin::Signed(caller), schedule, Box::new(destination.into()), Box::new(schedule_fee.into()), Box::new(fee), call, Weight::from_parts(1_000, 0), Weight::from_parts(2_000, 0), InstructionSequence::PayThroughSovereignAccount, None)
 
 	schedule_auto_compound_delegated_stake_task_full {
 		let task_weight = <T as Config>::WeightInfo::run_auto_compound_delegated_stake_task().ref_time();

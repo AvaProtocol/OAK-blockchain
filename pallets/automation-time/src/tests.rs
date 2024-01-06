@@ -519,7 +519,7 @@ fn will_remove_task_from_account_tasks_when_task_canceled_with_schedule_as() {
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 
 		// Schedule task
-		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+		assert_ok!(AutomationTime::schedule_xcmp_task(
 			RuntimeOrigin::signed(task_owner.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
@@ -531,7 +531,8 @@ fn will_remove_task_from_account_tasks_when_task_canceled_with_schedule_as() {
 			call.encode(),
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
-			schedule_as.clone(),
+			InstructionSequence::PayThroughRemoteDerivativeAccount,
+			Some(schedule_as.clone()),
 		));
 
 		// Check if the task's schedule_as is correct
@@ -571,7 +572,7 @@ fn cancel_task_with_incorrect_schedule_as_will_fail() {
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 
 		// Schedule task
-		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+		assert_ok!(AutomationTime::schedule_xcmp_task(
 			RuntimeOrigin::signed(task_owner.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
@@ -583,7 +584,8 @@ fn cancel_task_with_incorrect_schedule_as_will_fail() {
 			call.encode(),
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
-			schedule_as.clone(),
+			InstructionSequence::PayThroughRemoteDerivativeAccount,
+			Some(schedule_as.clone()),
 		));
 
 		// Check if the task's schedule_as is correct
@@ -653,7 +655,7 @@ fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
 			frame_system::Call::remark_with_event { remark: vec![0] }.into();
 
 		// Schedule task
-		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+		assert_ok!(AutomationTime::schedule_xcmp_task(
 			RuntimeOrigin::signed(task_owner.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
@@ -665,7 +667,8 @@ fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
 			call.encode(),
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
-			schedule_as.clone(),
+			InstructionSequence::PayThroughRemoteDerivativeAccount,
+			Some(schedule_as.clone()),
 		));
 
 		// Check if the task's schedule_as is correct
@@ -1025,6 +1028,8 @@ fn schedule_xcmp_works() {
 			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
+			InstructionSequence::PayThroughSovereignAccount,
+			None,
 		));
 	})
 }
@@ -1047,6 +1052,8 @@ fn schedule_xcmp_works_with_multi_currency() {
 			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
+			InstructionSequence::PayThroughSovereignAccount,
+			None,
 		));
 	})
 }
@@ -1073,6 +1080,8 @@ fn schedule_xcmp_works_with_unsupported_currency_will_fail() {
 				call,
 				Weight::from_parts(100_000, 0),
 				Weight::from_parts(200_000, 0),
+				InstructionSequence::PayThroughSovereignAccount,
+				None,
 			),
 			Error::<Test>::UnsupportedFeePayment,
 		);
@@ -1080,7 +1089,7 @@ fn schedule_xcmp_works_with_unsupported_currency_will_fail() {
 }
 
 #[test]
-fn schedule_xcmp_through_proxy_works() {
+fn schedule_xcmp_with_schedule_as_works() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let destination = MultiLocation::new(1, X1(Parachain(PARA_ID)));
 		let delegator_account = AccountId32::new(DELEGATOR_ACCOUNT);
@@ -1090,7 +1099,7 @@ fn schedule_xcmp_through_proxy_works() {
 		// Funds including XCM fees
 		get_xcmp_funds(proxy_account.clone());
 
-		assert_ok!(AutomationTime::schedule_xcmp_task_through_proxy(
+		assert_ok!(AutomationTime::schedule_xcmp_task(
 			RuntimeOrigin::signed(proxy_account.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 			Box::new(destination.into()),
@@ -1099,7 +1108,8 @@ fn schedule_xcmp_through_proxy_works() {
 			call,
 			Weight::from_parts(100_000, 0),
 			Weight::from_parts(200_000, 0),
-			delegator_account.clone(),
+			InstructionSequence::PayThroughRemoteDerivativeAccount,
+			Some(delegator_account.clone()),
 		));
 
 		let tasks = AutomationTime::get_scheduled_tasks(SCHEDULED_TIME);
@@ -1124,7 +1134,7 @@ fn schedule_xcmp_through_proxy_works() {
 }
 
 #[test]
-fn schedule_xcmp_through_proxy_same_as_delegator_account() {
+fn schedule_xcmp_with_schedule_as_same_as_delegator_account() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let delegator_account = AccountId32::new(ALICE);
 		let call: Vec<u8> = vec![2, 4, 5];
@@ -1134,7 +1144,7 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 		get_xcmp_funds(delegator_account.clone());
 
 		assert_noop!(
-			AutomationTime::schedule_xcmp_task_through_proxy(
+			AutomationTime::schedule_xcmp_task(
 				RuntimeOrigin::signed(delegator_account.clone()),
 				ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
 				Box::new(destination.into()),
@@ -1143,7 +1153,8 @@ fn schedule_xcmp_through_proxy_same_as_delegator_account() {
 				call,
 				Weight::from_parts(100_000, 0),
 				Weight::from_parts(200_000, 0),
-				delegator_account,
+				InstructionSequence::PayThroughRemoteDerivativeAccount,
+				Some(delegator_account),
 			),
 			sp_runtime::DispatchError::Other("proxy error: expected `ProxyType::Any`"),
 		);
@@ -1173,6 +1184,8 @@ fn schedule_xcmp_fails_if_not_enough_funds() {
 				call,
 				Weight::from_parts(100_000, 0),
 				Weight::from_parts(200_000, 0),
+				InstructionSequence::PayThroughSovereignAccount,
+				None,
 			),
 			Error::<Test>::InsufficientBalance,
 		);
