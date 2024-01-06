@@ -43,7 +43,7 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		dispatch::{CallMetadata, GetCallMetadata},
+		traits::{CallMetadata, GetCallMetadata, BuildGenesisConfig},
 		pallet_prelude::*,
 		traits::{Contains, PalletInfoAccess, SortedMembers},
 	};
@@ -306,7 +306,7 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			if self.start_with_valve_closed {
 				ValveClosed::<T>::put(true);

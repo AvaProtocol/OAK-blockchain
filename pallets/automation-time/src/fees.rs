@@ -28,7 +28,7 @@ use sp_runtime::{
 	TokenError::BelowMinimum,
 };
 use sp_std::marker::PhantomData;
-use xcm::latest::prelude::*;
+use staging_xcm::latest::prelude::*;
 use xcm_builder::TakeRevenue;
 
 /// Handle execution fee payments in the context of automation actions

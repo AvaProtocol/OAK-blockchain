@@ -42,8 +42,8 @@ pub mod pallet {
 	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
 	use sp_std::vec::Vec;
 
-	use frame_support::{pallet_prelude::*, traits::Currency};
-	use frame_system::pallet_prelude::*;
+	use frame_support::{pallet_prelude::*, traits::Currency, GenesisBuild};
+
 	use pallet_timestamp::{self as timestamp};
 
 	pub type AccountOf<T> = <T as frame_system::Config>::AccountId;

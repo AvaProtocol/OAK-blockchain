@@ -22,21 +22,21 @@ use frame_support::{
 	traits::{ConstU32, Everything, GenesisBuild, Nothing},
 };
 use frame_system as system;
-use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::Sibling;
+use pallet_staging_xcm::XcmPassthrough;
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, Convert, IdentityLookup},
 	AccountId32,
 };
-use xcm::latest::{prelude::*, Weight};
+use staging_xcm::latest::{prelude::*, Weight};
 use xcm_builder::{
 	AccountId32Aliases, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 };
-use xcm_executor::{
+use staging_xcm_executor::{
 	traits::{TransactAsset, WeightTrader},
 	Assets, XcmExecutor,
 };
@@ -65,8 +65,8 @@ frame_support::construct_runtime!(
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
-		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
-		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin},
+		XcmPallet: pallet_staging_xcm::{Pallet, Call, Storage, Event<T>, Origin},
+		CumulusXcm: cumulus_pallet_staging_xcm::{Pallet, Call, Event<T>, Origin},
 		Currencies: orml_currencies::{Pallet, Call},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 	}
@@ -188,7 +188,7 @@ pub type LocationToAccountId = (
 pub type XcmOriginToCallOrigin = (
 	SovereignSignedViaLocation<LocationToAccountId, RuntimeOrigin>,
 	RelayChainAsNative<RelayChainOrigin, RuntimeOrigin>,
-	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, RuntimeOrigin>,
+	SiblingParachainAsNative<cumulus_pallet_staging_xcm::Origin, RuntimeOrigin>,
 	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
 	XcmPassthrough<RuntimeOrigin>,
 );
@@ -261,10 +261,10 @@ parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 	pub UniversalLocation: InteriorMultiLocation =
 		X1(Parachain(2114));
-	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_staging_xcm::Origin::Relay.into();
 }
 pub struct XcmConfig;
-impl xcm_executor::Config for XcmConfig {
+implstaging_xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = TestSendXcm;
 	type AssetTransactor = DummyAssetTransactor;
@@ -296,7 +296,7 @@ parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
-impl pallet_xcm::Config for Test {
+impl pallet_staging_xcm::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = ();
@@ -310,21 +310,21 @@ impl pallet_xcm::Config for Test {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type AdvertisedXcmVersion = pallet_staging_xcm::CurrentXcmVersion;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
-	type WeightInfo = pallet_xcm::TestWeightInfo;
+	type WeightInfo = pallet_staging_xcm::TestWeightInfo;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 	type RemoteLockConsumerIdentifier = ();
 	type AdminOrigin = system::EnsureRoot<AccountId>;
 }
 
-impl cumulus_pallet_xcm::Config for Test {
+impl cumulus_pallet_staging_xcm::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }

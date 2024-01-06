@@ -123,10 +123,10 @@ cumulus-relay-chain-minimal-node = { git = "https://github.com/paritytech/polkad
 
 # Polkadot dependencies
 polkadot-cli = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
 polkadot-primitives = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
 polkadot-service = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
+staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
 
 # Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/moonbeam-foundation/moonbeam", tag = "v0.35.0" }

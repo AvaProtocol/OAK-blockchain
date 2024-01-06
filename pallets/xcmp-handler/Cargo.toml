@@ -36,9 +36,9 @@ cumulus-primitives-core = { git = 'https://github.com/paritytech/polkadot-sdk', 
 
 
 # Polkadot Dependencies
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-executor = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 
 # ORML
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.1.0" }
@@ -55,10 +55,10 @@ cumulus-pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', defau
 parachain-info = { git = 'https://github.com/paritytech/polkadot-sdk', tag = "polkadot-v1.1.0" }
 
 # Polkadot Dependencies
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
-xcm-executor = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
+staging-xcm-executor = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
 
 primitives = { path = "../../primitives", default-features = false }
 
@@ -73,12 +73,12 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "orml-traits/std",
-  "polkadot-parachain/std",
+  "polkadot-parachain-primitives/std",
   "scale-info/std",
   "sp-runtime/std",
   "sp-std/std",
-  "xcm/std",
-  "xcm-builder/std",
-  "xcm-executor/std",
+  "staging-xcm/std",
+  "staging-xcm-builder/std",
+  "staging-xcm-executor/std",
 ]
 

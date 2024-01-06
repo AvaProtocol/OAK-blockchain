@@ -6,7 +6,7 @@
 networkSpec:
     displayName: neumann-parachain-testnet-customName
     name: neumann-parachain-testnet-customName
-    protocol: polkadot-parachain
+    protocol: polkadot-parachain-primitives
     imageRepository: oaknetwork/neumann
     imageVersion: 1.2.4-rc2
     config:

@@ -25,8 +25,8 @@ hex = { version = "0.4.3", default-features = false, features = [
 ] }
 
 # Polkadot
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 
 # Cumulus dependencies
 cumulus-pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
@@ -48,7 +48,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", default
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 
 ## Polkdadot deps
-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 
 ## Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/moonbeam-foundation/moonbeam", default-features = false, tag = "v0.35.0" }
@@ -71,7 +71,7 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk", default-features
 
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
-xcm-executor = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-executor = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
 
 # Cumulus dependencies
 parachain-info = { git = 'https://github.com/paritytech/polkadot-sdk', tag = "polkadot-v1.1.0" }
@@ -102,12 +102,12 @@ std = [
   "pallet-parachain-staking/std",
   "pallet-valve/std",
   "pallet-xcmp-handler/std",
-  "polkadot-parachain/std",
+  "polkadot-parachain-primitives/std",
   "scale-info/std",
   "sp-runtime/std",
   "sp-std/std",
-  "xcm/std",
-  "xcm-builder/std",
-  "xcm-executor/std",
+  "staging-xcm/std",
+  "staging-xcm-builder/std",
+  "staging-xcm-executor/std",
 ]
 dev-queue = []

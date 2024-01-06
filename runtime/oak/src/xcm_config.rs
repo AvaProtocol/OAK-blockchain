@@ -14,11 +14,11 @@ use frame_system::EnsureRoot;
 use sp_runtime::{traits::Convert, Percent};
 
 // Polkadot Imports
-use pallet_xcm::XcmPassthrough;
-use polkadot_parachain::primitives::Sibling;
+use pallet_staging_xcm::XcmPassthrough;
+use polkadot_parachain_primitives::primitives::Sibling;
 
 // XCM Imports
-use xcm::latest::prelude::*;
+use staging_xcm::latest::prelude::*;
 use xcm_builder::{
 	Account32Hash, AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
 	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
@@ -26,7 +26,7 @@ use xcm_builder::{
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
 	TakeWeightCredit, WithComputedOrigin,
 };
-use xcm_executor::{Config, XcmExecutor};
+use staging_xcm_executor::{Config, XcmExecutor};
 
 // ORML imports
 use orml_asset_registry::{AssetRegistryTrader, FixedRateAssetRegistryTrader};
@@ -45,7 +45,7 @@ use primitives::{
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
-	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
+	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_staging_xcm::Origin::Relay.into();
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
@@ -88,7 +88,7 @@ pub type XcmOriginToTransactDispatchOrigin = (
 	RelayChainAsNative<RelayChainOrigin, RuntimeOrigin>,
 	// Native converter for sibling Parachains; will convert to a `SiblingPara` origin when
 	// recognized.
-	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, RuntimeOrigin>,
+	SiblingParachainAsNative<cumulus_pallet_staging_xcm::Origin, RuntimeOrigin>,
 	// Native signed account converter; this just converts an `AccountId32` origin into a normal
 	// `Origin::Signed` origin of the same 32-byte value.
 	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
@@ -218,7 +218,7 @@ parameter_types! {
 	pub ReachableDest: Option<MultiLocation> = Some(Parent.into());
 }
 
-impl pallet_xcm::Config for Runtime {
+impl pallet_staging_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SendXcmOrigin = EnsureXcmOrigin<RuntimeOrigin, LocalOriginToLocation>;
 	type XcmRouter = XcmRouter;
@@ -232,21 +232,21 @@ impl pallet_xcm::Config for Runtime {
 	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeCall = RuntimeCall;
 	const VERSION_DISCOVERY_QUEUE_SIZE: u32 = 100;
-	type AdvertisedXcmVersion = pallet_xcm::CurrentXcmVersion;
+	type AdvertisedXcmVersion = pallet_staging_xcm::CurrentXcmVersion;
 	type Currency = Balances;
 	type CurrencyMatcher = ();
 	type TrustedLockers = ();
 	type SovereignAccountOf = LocationToAccountId;
 	type MaxLockers = ConstU32<8>;
 	type MaxRemoteLockConsumers = ConstU32<0>;
-	type WeightInfo = crate::weights::pallet_xcm::WeightInfo<Runtime>;
+	type WeightInfo = crate::weights::pallet_staging_xcm::WeightInfo<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type ReachableDest = ReachableDest;
 	type RemoteLockConsumerIdentifier = ();
 	type AdminOrigin = EnsureRoot<AccountId>;
 }
 
-impl cumulus_pallet_xcm::Config for Runtime {
+impl cumulus_pallet_staging_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }

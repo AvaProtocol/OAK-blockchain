@@ -29,7 +29,7 @@ use frame_system::{self, RawOrigin};
 use sp_core::Get;
 use sp_runtime::{AccountId32, ArithmeticError};
 
-use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
+use staging_xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use crate::weights::WeightInfo;
 

@@ -23,7 +23,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("statemint-dev"), DB CACHE: 1024
 
 // Executed Command:
-// ./artifacts/polkadot-parachain
+// ./artifacts/polkadot-parachain-primitives
 // benchmark
 // pallet
 // --chain=statemint-dev
@@ -46,7 +46,7 @@ use sp_std::marker::PhantomData;
 
 /// Weight functions for `pallet_xcm`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_xcm::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_staging_xcm::WeightInfo for WeightInfo<T> {
 	/// Storage: PolkadotXcm SupportedVersion (r:1 w:0)
 	/// Proof Skipped: PolkadotXcm SupportedVersion (max_values: None, max_size: None, mode: Measured)
 	/// Storage: PolkadotXcm VersionDiscoveryQueue (r:1 w:1)

@@ -90,11 +90,11 @@ parachain-info = { git = 'https://github.com/paritytech/polkadot-sdk', tag = "po
 
 # Polkadot Dependencies
 pallet-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-polkadot-parachain = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 polkadot-runtime-common = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-xcm-executor = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+staging-xcm-executor = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
 
 # Moonbeam Dependencies
 pallet-parachain-staking = { git = "https://github.com/moonbeam-foundation/moonbeam", default-features = false, tag = "v0.35.0" }
@@ -170,11 +170,11 @@ std = [
 	"cumulus-primitives-utility/std",
 	"cumulus-pallet-dmp-queue/std",
 	"parachain-info/std",
-	"polkadot-parachain/std",
+	"polkadot-parachain-primitives/std",
 	"polkadot-runtime-common/std",
-	"xcm-builder/std",
-	"xcm-executor/std",
-	"xcm/std",
+	"staging-xcm-builder/std",
+	"staging-xcm-executor/std",
+	"staging-xcm/std",
 	"orml-asset-registry/std",
 	"orml-currencies/std",
 	"orml-tokens/std",
@@ -186,7 +186,7 @@ std = [
 
 runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
-	"xcm-builder/runtime-benchmarks",
+	"staging-xcm-builder/runtime-benchmarks",
 	"frame-benchmarking",
 	"frame-system-benchmarking",
 	"frame-support/runtime-benchmarks",

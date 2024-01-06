@@ -27,7 +27,9 @@ use sp_std::marker::PhantomData;
 use frame_support::traits::Get;
 
 use orml_traits::location::{RelativeReserveProvider, Reserve};
-use xcm::latest::prelude::*;
+use xcm::latest::MultiAsset;
+
+
 
 pub mod assets;
 

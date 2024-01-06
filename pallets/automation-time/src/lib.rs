@@ -72,7 +72,7 @@ use sp_runtime::{
 };
 use sp_std::{boxed::Box, collections::btree_map::BTreeMap, vec, vec::Vec};
 pub use weights::WeightInfo;
-use xcm::{latest::prelude::*, VersionedMultiLocation};
+use staging_xcm::{latest::prelude::*, VersionedMultiLocation};
 
 const AUTO_COMPOUND_DELEGATION_ABORT_ERRORS: [&str; 2] = ["DelegatorDNE", "DelegationDNE"];
 

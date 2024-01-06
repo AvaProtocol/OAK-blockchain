@@ -22,10 +22,10 @@ use super::*;
 use frame_benchmarking::{account, benchmarks};
 use frame_system::RawOrigin;
 use pallet_timestamp::Pallet as Timestamp;
-use polkadot_parachain::primitives::Sibling;
+use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
-use xcm::latest::prelude::*;
+use staging_xcm::latest::prelude::*;
 
 use crate::{Config, MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 
