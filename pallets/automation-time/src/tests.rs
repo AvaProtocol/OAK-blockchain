@@ -381,7 +381,6 @@ fn schedule_transfer_with_dynamic_dispatch() {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::Balances(pallet_balances::pallet::Event::Transfer {
 					from: account_id.clone(),
@@ -759,7 +758,6 @@ fn will_emit_task_completed_event_when_task_failed() {
 					who: account_id.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecutionFailed {
 					who: account_id.clone(),
@@ -1559,6 +1557,10 @@ fn taskid_changed_per_block() {
 fn taskid_adjusted_on_extrinsicid_on_same_block() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let first_caller = AccountId32::new(ALICE);
+		let message: Vec<u8> = vec![2, 4, 5];
+		let call: RuntimeCall =
+			frame_system::Call::remark_with_event { remark: message.clone() }.into();
+
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![
@@ -1566,7 +1568,7 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message.clone(),
 		);
 
 		// Set to a high and more than one digit extrinsic index to test task_id also match
@@ -1580,7 +1582,7 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message,
 		);
 		LastTimeSlot::<Test>::put((
 			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
@@ -1594,12 +1596,14 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 			who: first_caller,
 			task_id: FIRST_TASK_ID.to_vec(),
 			schedule_as: None,
+			encoded_call: Some(call.clone().encode()),
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: second_caller,
 			task_id: vec![49, 45, 50, 51, 52, 45, 56],
 			schedule_as: None,
+			encoded_call: Some(call.encode()),
 		}));
 	})
 }
@@ -1609,6 +1613,9 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let caller = AccountId32::new(ALICE);
+		let message: Vec<u8> = vec![2, 4, 5];
+		let call: RuntimeCall =
+			frame_system::Call::remark_with_event { remark: message.clone() }.into();
 
 		let task_id1 = schedule_task(
 			ALICE,
@@ -1617,7 +1624,7 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message.clone(),
 		);
 
 		// Set to a high and more than one digit extrinsic index to test task_id also match
@@ -1630,7 +1637,7 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message.clone(),
 		);
 
 		// 1-0-3
@@ -1642,12 +1649,14 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 			who: caller.clone(),
 			task_id: "1-0-3".as_bytes().to_vec(),
 			schedule_as: None,
+			encoded_call: Some(call.clone().encode()),
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: caller,
 			task_id: "1-234-6".as_bytes().to_vec(),
 			schedule_as: None,
+			encoded_call: Some(call.encode()),
 		}));
 	})
 }
@@ -1657,6 +1666,10 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 fn taskid_on_same_extrinsid_have_unique_event_index() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
+		let message: Vec<u8> = vec![2, 4, 5];
+		let call: RuntimeCall =
+			frame_system::Call::remark_with_event { remark: message.clone() }.into();
+
 		let task_id1 = schedule_task(
 			ALICE,
 			vec![
@@ -1664,7 +1677,7 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message.clone(),
 		);
 
 		let task_id2 = schedule_task(
@@ -1674,7 +1687,7 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			vec![2, 4, 5],
+			message,
 		);
 		LastTimeSlot::<Test>::put((
 			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
@@ -1688,6 +1701,7 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 			who: owner,
 			task_id: FIRST_TASK_ID.to_vec(),
 			schedule_as: None,
+			encoded_call: Some(call.encode()),
 		}));
 	})
 }
@@ -1885,7 +1899,6 @@ fn cancel_works_for_an_executed_task() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
-					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2105,13 +2118,13 @@ mod extrinsics {
 				assert_ok!(fund_account_dynamic_dispatch(
 					&account_id,
 					execution_times.len(),
-					call.encode()
+					call.clone().encode()
 				));
 
 				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 					RuntimeOrigin::signed(account_id.clone()),
 					ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-					Box::new(call)
+					Box::new(call.clone())
 				));
 				assert_eq!(
 					last_event(),
@@ -2119,6 +2132,7 @@ mod extrinsics {
 						who: account_id,
 						task_id: FIRST_TASK_ID.to_vec(),
 						schedule_as: None,
+						encoded_call: Some(call.encode()),
 					})
 				);
 			})
@@ -2324,7 +2338,6 @@ fn trigger_tasks_handles_missed_slots() {
 					who: owner.clone(),
 					task_id: task_will_be_run_id.clone(),
 					condition,
-					encoded_call: Some(call.encode()),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: AccountId32::new(ALICE),
@@ -2424,7 +2437,6 @@ fn trigger_tasks_limits_missed_slots() {
 						who: owner.clone(),
 						task_id: task_id.clone(),
 						condition: condition.clone(),
-						encoded_call: Some(call.encode()),
 					}),
 					RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 						sender: owner.clone(),
@@ -2541,7 +2553,6 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2559,7 +2570,6 @@ fn trigger_tasks_completes_all_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: Some(vec![0, 7, 8, 2, 4]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2639,7 +2649,6 @@ fn trigger_tasks_completes_some_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition,
-					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2836,7 +2845,6 @@ fn missed_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 12, 2, 5, 7]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -2903,7 +2911,6 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					who: owner.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: Some(encoded_call),
 				}),
 				RuntimeEvent::AutomationTime(crate::Event::TaskExecuted {
 					who: owner.clone(),
@@ -2964,7 +2971,6 @@ fn trigger_tasks_completes_auto_compound_delegated_stake_task() {
 					who: delegator.clone(),
 					task_id: task_id.clone(),
 					condition,
-					encoded_call: None,
 				}),
 				RuntimeEvent::ParachainStaking(
 					pallet_parachain_staking::Event::DelegationIncreased {
@@ -3390,8 +3396,7 @@ fn trigger_tasks_updates_executions_left() {
 				RuntimeEvent::AutomationTime(crate::Event::TaskTriggered {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
-					condition,
-					encoded_call: (Some(vec![0, 7, 12, 2, 5, 7])),
+					condition
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3452,7 +3457,6 @@ fn trigger_tasks_removes_completed_tasks() {
 					who: owner.clone(),
 					task_id: task_id01.clone(),
 					condition,
-					encoded_call: Some(vec![0, 7, 12, 2, 5, 7]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3515,7 +3519,6 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id1.clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 12, 2, 4, 5]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3534,7 +3537,6 @@ fn on_init_runs_tasks() {
 					who: owner.clone(),
 					task_id: task_id2.clone(),
 					condition,
-					encoded_call: Some(vec![0, 7, 8, 2, 4]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3613,7 +3615,6 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[0].clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 4, 0]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3631,7 +3632,6 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[1].clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 4, 1]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3659,7 +3659,6 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[2].clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 4, 2]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
@@ -3677,7 +3676,6 @@ fn on_init_check_task_queue() {
 					who: owner.clone(),
 					task_id: tasks[3].clone(),
 					condition: condition.clone(),
-					encoded_call: Some(vec![0, 7, 4, 3]),
 				}),
 				RuntimeEvent::System(frame_system::pallet::Event::Remarked {
 					sender: owner.clone(),
