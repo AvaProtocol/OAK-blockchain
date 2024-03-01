@@ -36,7 +36,10 @@ use sp_runtime::{
 	TokenError::FundsUnavailable,
 };
 use sp_std::collections::btree_map::BTreeMap;
-use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
+use xcm::{
+	latest::{prelude::*, Junction::Parachain, MultiLocation},
+	VersionedMultiLocation,
+};
 
 use pallet_valve::Shutdown;
 
@@ -1029,6 +1032,62 @@ fn schedule_xcmp_works() {
 			InstructionSequence::PayThroughSovereignAccount,
 			None,
 		));
+	})
+}
+
+#[test]
+fn schedule_xcmp_task_and_check_encoded_call_success() {
+	new_test_ext(START_BLOCK_TIME).execute_with(|| {
+		let alice = AccountId32::new(ALICE);
+		// Funds including XCM fees
+		get_xcmp_funds(alice.clone());
+
+		let origin = RuntimeOrigin::signed(alice);
+		let schedule = ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] };
+		let destination: Box<VersionedMultiLocation> = Box::new(MultiLocation::new(1, X1(Parachain(PARA_ID))).into());
+		let schedule_fee: Box<VersionedMultiLocation> = Box::new(NATIVE_LOCATION.into());
+		let execution_fee = Box::new(AssetPayment {
+			asset_location: MultiLocation::new(0, Here).into(),
+			amount: 10,
+		});
+		let remote_encoded_call = vec![2, 4, 5];
+		let encoded_call_weight = Weight::from_parts(100_000, 0);
+		let overall_weight = Weight::from_parts(200_000, 0);
+		let instruction_sequence = InstructionSequence::PayThroughSovereignAccount;
+		let schedule_as = None;
+
+		// Call the schedule_xcmp_task function
+		assert_ok!(AutomationTime::schedule_xcmp_task(
+			origin.clone(),
+			schedule.clone(),
+			destination.clone(),
+			schedule_fee.clone(),
+			execution_fee.clone(),
+			remote_encoded_call.clone(),
+			encoded_call_weight.clone(),
+			overall_weight.clone(),
+			instruction_sequence.clone(),
+			schedule_as.clone(),
+		));
+
+		// Calculate the expected encoded call
+		let expected_encoded_call = Into::<RuntimeCall>::into(crate::Call::schedule_xcmp_task {
+			schedule,
+			destination,
+			schedule_fee,
+			execution_fee,
+			encoded_call: remote_encoded_call,
+			encoded_call_weight,
+			overall_weight,
+			instruction_sequence,
+			schedule_as,
+		}).encode();
+
+		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
+		events()
+			.into_iter()
+			.find(|e| matches!(e, RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { encoded_call, .. }) if encoded_call.as_ref() == Some(&expected_encoded_call)))
+			.expect("TaskScheduled event should emit with correct encoded_call.");
 	})
 }
 
