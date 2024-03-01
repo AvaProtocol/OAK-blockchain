@@ -1617,8 +1617,6 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let first_caller = AccountId32::new(ALICE);
 		let message: Vec<u8> = vec![2, 4, 5];
-		let call: RuntimeCall =
-			frame_system::Call::remark_with_event { remark: message.clone() }.into();
 
 		let task_id1 = schedule_task(
 			ALICE,
@@ -1641,7 +1639,7 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			message,
+			message.clone(),
 		);
 		LastTimeSlot::<Test>::put((
 			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
@@ -1651,18 +1649,26 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
 		assert_eq!(task_id2, vec![49, 45, 50, 51, 52, 45, 56]);
 
+		// Calculate the expected encoded call
+		let expected_encoded_call =
+			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
+				remark: message.clone(),
+			})
+			.encode();
+
+		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: first_caller,
 			task_id: FIRST_TASK_ID.to_vec(),
 			schedule_as: None,
-			encoded_call: Some(call.clone().encode()),
+			encoded_call: Some(expected_encoded_call.clone()),
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: second_caller,
 			task_id: vec![49, 45, 50, 51, 52, 45, 56],
 			schedule_as: None,
-			encoded_call: Some(call.encode()),
+			encoded_call: Some(expected_encoded_call),
 		}));
 	})
 }
@@ -1673,8 +1679,6 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let caller = AccountId32::new(ALICE);
 		let message: Vec<u8> = vec![2, 4, 5];
-		let call: RuntimeCall =
-			frame_system::Call::remark_with_event { remark: message.clone() }.into();
 
 		let task_id1 = schedule_task(
 			ALICE,
@@ -1704,18 +1708,26 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 		// 1-234-6
 		assert_eq!(task_id2, "1-234-6".as_bytes().to_vec());
 
+		// Calculate the expected encoded call
+		let expected_encoded_call =
+			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
+				remark: message.clone(),
+			})
+			.encode();
+
+		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: caller.clone(),
 			task_id: "1-0-3".as_bytes().to_vec(),
 			schedule_as: None,
-			encoded_call: Some(call.clone().encode()),
+			encoded_call: Some(expected_encoded_call.clone()),
 		}));
 
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: caller,
 			task_id: "1-234-6".as_bytes().to_vec(),
 			schedule_as: None,
-			encoded_call: Some(call.encode()),
+			encoded_call: Some(expected_encoded_call),
 		}));
 	})
 }
@@ -1726,8 +1738,6 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let owner = AccountId32::new(ALICE);
 		let message: Vec<u8> = vec![2, 4, 5];
-		let call: RuntimeCall =
-			frame_system::Call::remark_with_event { remark: message.clone() }.into();
 
 		let task_id1 = schedule_task(
 			ALICE,
@@ -1746,7 +1756,7 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS,
 				SCHEDULED_TIME + SLOT_SIZE_SECONDS * 2,
 			],
-			message,
+			message.clone(),
 		);
 		LastTimeSlot::<Test>::put((
 			SCHEDULED_TIME - SLOT_SIZE_SECONDS * 4,
@@ -1756,11 +1766,17 @@ fn taskid_on_same_extrinsid_have_unique_event_index() {
 		assert_eq!(task_id1, FIRST_TASK_ID.to_vec());
 		assert_eq!(task_id2, SECOND_TASK_ID.to_vec());
 
+		// Calculate the expected encoded call
+		let expected_encoded_call =
+			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event { remark: message })
+				.encode();
+
+		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
 			who: owner,
 			task_id: FIRST_TASK_ID.to_vec(),
 			schedule_as: None,
-			encoded_call: Some(call.encode()),
+			encoded_call: Some(expected_encoded_call),
 		}));
 	})
 }
