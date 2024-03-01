@@ -529,7 +529,7 @@ impl pallet_automation_time::Config for Test {
 	type FeeHandler = FeeHandler<Test, ()>;
 	type DelegatorActions = MockDelegatorActions<Test, Balances>;
 	type XcmpTransactor = MockXcmpTransactor<Test, Balances>;
-	type Call = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type CurrencyIdConvert = MockTokenIdConvert;
 	type FeeConversionRateProvider = MockConversionRateProvider;

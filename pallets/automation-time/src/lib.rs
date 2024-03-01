@@ -61,6 +61,7 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{location::Reserve, FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
+// use crate::pallet_automation_time;
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
@@ -173,12 +174,13 @@ pub mod pallet {
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
 
 		/// The overarching call type.
-		type Call: Parameter
+		type RuntimeCall: Parameter
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
-			+ IsType<<Self as frame_system::Config>::RuntimeCall>;
+			+ IsType<<Self as frame_system::Config>::RuntimeCall>
+			+ From<crate::Call<Self>>;
 
 		type ScheduleAllowList: Contains<<Self as frame_system::Config>::RuntimeCall>;
 
@@ -447,8 +449,8 @@ pub mod pallet {
 				vec![],
 			)?;
 
-			// Encode this extrinsic.
-			let call: pallet::Call<T> = Call::schedule_xcmp_task {
+			// Tranform the call into a runtime call and encode it.
+			let call: <T as crate::Config>::RuntimeCall = Call::schedule_xcmp_task {
 				schedule,
 				destination,
 				schedule_fee,
@@ -458,7 +460,8 @@ pub mod pallet {
 				overall_weight,
 				instruction_sequence,
 				schedule_as,
-			};
+			}
+			.into();
 			let encoded_call = call.encode();
 
 			Self::deposit_event(Event::<T>::TaskScheduled {
@@ -541,7 +544,7 @@ pub mod pallet {
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
 			schedule: ScheduleParam,
-			call: Box<<T as Config>::Call>,
+			call: Box<<T as Config>::RuntimeCall>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
@@ -1156,7 +1159,7 @@ pub mod pallet {
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
 		) -> (Weight, Option<DispatchError>) {
-			match <T as Config>::Call::decode(&mut &*encoded_call) {
+			match <T as Config>::RuntimeCall::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
 					let mut dispatch_origin: T::RuntimeOrigin =
 						frame_system::RawOrigin::Signed(caller).into();

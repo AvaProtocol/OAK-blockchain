@@ -217,7 +217,7 @@ benchmarks! {
 		let schedule = ScheduleParam::Fixed { execution_times: times };
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 
 		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
@@ -243,7 +243,7 @@ benchmarks! {
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 
 		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
@@ -347,7 +347,7 @@ benchmarks! {
 	run_dynamic_dispatch_action {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let task_id = vec![49, 45, 48, 45, 52];
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
 	}: {
 		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call);
