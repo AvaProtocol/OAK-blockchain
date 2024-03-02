@@ -61,7 +61,6 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{location::Reserve, FixedConversionRateProvider, MultiCurrency};
 use pallet_parachain_staking::DelegatorActions;
 use pallet_timestamp::{self as timestamp};
-// use crate::pallet_automation_time;
 pub use pallet_xcmp_handler::InstructionSequence;
 use pallet_xcmp_handler::XcmpTransactor;
 use primitives::EnsureProxy;
@@ -449,7 +448,7 @@ pub mod pallet {
 				vec![],
 			)?;
 
-			// Tranform the call into a runtime call and encode it.
+			// Convert the call into a runtime call and encode it.
 			let call: <T as crate::Config>::RuntimeCall = Call::schedule_xcmp_task {
 				schedule,
 				destination,
