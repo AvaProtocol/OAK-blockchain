@@ -458,7 +458,7 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				instruction_sequence,
-				schedule_as,
+				schedule_as: schedule_as.clone(),
 			}
 			.into();
 			let encoded_call = call.encode();
@@ -466,7 +466,7 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::TaskScheduled {
 				who,
 				task_id,
-				schedule_as: Self::get_schedule_as_from_action(action),
+				schedule_as,
 				encoded_call: Some(encoded_call),
 			});
 
@@ -518,7 +518,7 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::TaskScheduled {
 				who,
 				task_id,
-				schedule_as: Self::get_schedule_as_from_action(action),
+				schedule_as: None,
 				encoded_call: None,
 			});
 
@@ -556,7 +556,7 @@ pub mod pallet {
 			Self::deposit_event(Event::<T>::TaskScheduled {
 				who,
 				task_id,
-				schedule_as: Self::get_schedule_as_from_action(action),
+				schedule_as: None,
 				encoded_call: Some(encoded_call),
 			});
 
@@ -1355,14 +1355,6 @@ pub mod pallet {
 				Commit(Ok(task_id))
 			})
 			.map_err(|_| Error::<T>::TimeSlotFull)
-		}
-
-		/// Get schedule_as from action
-		pub fn get_schedule_as_from_action(action: ActionOf<T>) -> Option<T::AccountId> {
-			match action {
-				Action::XCMP { schedule_as, .. } => schedule_as,
-				_ => None,
-			}
 		}
 
 		/// Validate and schedule task.
