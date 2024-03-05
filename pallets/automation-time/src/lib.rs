@@ -438,19 +438,9 @@ pub mod pallet {
 				instruction_sequence: instruction_sequence.clone(),
 			};
 
-			let schedule_value = schedule.clone().validated_into::<T>()?;
-
-			// Schedule the task.
-			let task_id: TaskIdV2 = Self::validate_and_schedule_task(
-				action.clone(),
-				who.clone(),
-				schedule_value,
-				vec![],
-			)?;
-
-			// Convert the call into a runtime call and encode it.
+			// Convert the call into a runtime call
 			let call: <T as crate::Config>::RuntimeCall = Call::schedule_xcmp_task {
-				schedule,
+				schedule: schedule.clone(),
 				destination,
 				schedule_fee,
 				execution_fee,
@@ -458,17 +448,18 @@ pub mod pallet {
 				encoded_call_weight,
 				overall_weight,
 				instruction_sequence,
-				schedule_as: schedule_as.clone(),
+				schedule_as,
 			}
 			.into();
-			let encoded_call = call.encode();
 
-			Self::deposit_event(Event::<T>::TaskScheduled {
+			// Schedule the task.
+			Self::schedule_task_with_event(
+				action,
 				who,
-				task_id,
-				schedule_as,
-				encoded_call: Some(encoded_call),
-			});
+				schedule.validated_into::<T>()?,
+				vec![],
+				Some(call.encode()),
+			)?;
 
 			Ok(())
 		}
@@ -513,14 +504,7 @@ pub mod pallet {
 				.map(|&error| error.as_bytes().to_vec())
 				.collect();
 
-			let task_id: TaskIdV2 =
-				Self::validate_and_schedule_task(action.clone(), who.clone(), schedule, errors)?;
-			Self::deposit_event(Event::<T>::TaskScheduled {
-				who,
-				task_id,
-				schedule_as: None,
-				encoded_call: None,
-			});
+			Self::schedule_task_with_event(action, who, schedule, errors, None)?;
 
 			Ok(())
 		}
@@ -551,14 +535,7 @@ pub mod pallet {
 			let action = Action::DynamicDispatch { encoded_call: encoded_call.clone() };
 			let schedule = schedule.validated_into::<T>()?;
 
-			let task_id: TaskIdV2 =
-				Self::validate_and_schedule_task(action.clone(), who.clone(), schedule, vec![])?;
-			Self::deposit_event(Event::<T>::TaskScheduled {
-				who,
-				task_id,
-				schedule_as: None,
-				encoded_call: Some(encoded_call),
-			});
+			Self::schedule_task_with_event(action, who, schedule, vec![], Some(encoded_call))?;
 
 			Ok(())
 		}
@@ -1359,7 +1336,7 @@ pub mod pallet {
 
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
-		pub fn validate_and_schedule_task(
+		fn validate_and_schedule_task(
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			schedule: Schedule,
@@ -1394,6 +1371,38 @@ pub mod pallet {
 				})?;
 
 			Ok(task_id)
+		}
+
+		/// Schedule a task with TaskScheduled event.
+		pub fn schedule_task_with_event(
+			action: ActionOf<T>,
+			owner_id: AccountOf<T>,
+			schedule: Schedule,
+			abort_errors: Vec<Vec<u8>>,
+			encoded_call: Option<Vec<u8>>,
+		) -> DispatchResult {
+			// Schedule the task.
+			let task_id: TaskIdV2 = Self::validate_and_schedule_task(
+				action.clone(),
+				owner_id.clone(),
+				schedule,
+				abort_errors,
+			)?;
+
+			let schedule_as = match action {
+				Action::XCMP { schedule_as, .. } => schedule_as,
+				_ => None,
+			};
+
+			// Deposit the event.
+			Self::deposit_event(Event::<T>::TaskScheduled {
+				who: owner_id,
+				task_id,
+				schedule_as,
+				encoded_call,
+			});
+
+			Ok(())
 		}
 
 		fn reschedule_or_remove_task(mut task: TaskOf<T>, dispatch_error: Option<DispatchError>) {
