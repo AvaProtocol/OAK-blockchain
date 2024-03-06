@@ -217,18 +217,18 @@ benchmarks! {
 		let schedule = ScheduleParam::Fixed { execution_times: times };
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 
 		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
 
 		let initial_event_count = frame_system::Pallet::<T>::event_count() as u8;
-	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call))
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call.clone()))
 	verify {
 		{
 			//panic!("events count: {:?} final {:?} data:{:?}", initial_event_count, frame_system::Pallet::<T>::event_count(), frame_system::Pallet::<T>::events());
 			// the task id schedule on first block, first extrinsics, but depend on which path in unitest or in benchmark the initial_event_count might be different therefore we get it from the initial state
-			assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(),   }.into())
+			assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(), encoded_call: Some(call.encode()) }.into())
 		}
 	}
 
@@ -243,7 +243,7 @@ benchmarks! {
 		let schedule = ScheduleParam::Fixed { execution_times: times.clone() };
 
 		let caller: T::AccountId = account("caller", 0, SEED);
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 
 		let account_min = T::Currency::minimum_balance().saturating_mul(ED_MULTIPLIER.into());
 		T::Currency::deposit_creating(&caller, account_min.saturating_mul(DEPOSIT_MULTIPLIER.into()));
@@ -251,10 +251,10 @@ benchmarks! {
 		// Almost fill up all time slots
 		schedule_notify_tasks::<T>(caller.clone(), times, T::MaxTasksPerSlot::get() - 1);
 		let initial_event_count = frame_system::Pallet::<T>::event_count() as u8;
-	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call))
+	}: schedule_dynamic_dispatch_task(RawOrigin::Signed(caller.clone()), schedule, Box::new(call.clone()))
 	verify {
 		// the task id schedule on first block, first extrinsics, but depend on which path in unitest or in benchmark the initial_event_count might be different therefore we get it from the initial state
-		assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(),   }.into())
+		assert_last_event::<T>(Event::TaskScheduled { who: caller, schedule_as: None, task_id: format!("1-0-{:?}", initial_event_count).as_bytes().to_vec(), encoded_call: Some(call.encode()) }.into())
 	}
 
 	cancel_scheduled_task_full {
@@ -347,7 +347,7 @@ benchmarks! {
 	run_dynamic_dispatch_action {
 		let caller: T::AccountId = account("caller", 0, SEED);
 		let task_id = vec![49, 45, 48, 45, 52];
-		let call: <T as Config>::Call = frame_system::Call::remark { remark: vec![] }.into();
+		let call: <T as Config>::RuntimeCall = frame_system::Call::remark { remark: vec![] }.into();
 		let encoded_call = call.encode();
 	}: {
 		let (_, error) = AutomationTime::<T>::run_dynamic_dispatch_action(caller.clone(), encoded_call);

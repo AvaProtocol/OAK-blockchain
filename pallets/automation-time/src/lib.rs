@@ -173,12 +173,13 @@ pub mod pallet {
 		type DelegatorActions: DelegatorActions<Self::AccountId, BalanceOf<Self>>;
 
 		/// The overarching call type.
-		type Call: Parameter
+		type RuntimeCall: Parameter
 			+ Dispatchable<RuntimeOrigin = Self::RuntimeOrigin, PostInfo = PostDispatchInfo>
 			+ GetDispatchInfo
 			+ From<frame_system::Call<Self>>
 			+ IsSubType<Call<Self>>
-			+ IsType<<Self as frame_system::Config>::RuntimeCall>;
+			+ IsType<<Self as frame_system::Config>::RuntimeCall>
+			+ From<crate::Call<Self>>;
 
 		type ScheduleAllowList: Contains<<Self as frame_system::Config>::RuntimeCall>;
 
@@ -287,6 +288,7 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 			schedule_as: Option<AccountOf<T>>,
+			encoded_call: Option<Vec<u8>>,
 		},
 		/// Cancelled a task.
 		TaskCancelled {
@@ -330,7 +332,6 @@ pub mod pallet {
 			who: AccountOf<T>,
 			task_id: TaskIdV2,
 			condition: BTreeMap<Vec<u8>, Vec<u8>>,
-			encoded_call: Option<Vec<u8>>,
 		},
 		TaskExecuted {
 			who: AccountOf<T>,
@@ -411,32 +412,55 @@ pub mod pallet {
 				T::EnsureProxy::ensure_ok(schedule_as_account, who.clone())?;
 			}
 
-			let destination =
-				MultiLocation::try_from(*destination).map_err(|()| Error::<T>::BadVersion)?;
-			let schedule_fee =
-				MultiLocation::try_from(*schedule_fee).map_err(|()| Error::<T>::BadVersion)?;
+			let destination_location = MultiLocation::try_from(*destination.clone())
+				.map_err(|()| Error::<T>::BadVersion)?;
+			let schedule_fee_location = MultiLocation::try_from(*schedule_fee.clone())
+				.map_err(|()| Error::<T>::BadVersion)?;
 
-			let execution_fee: AssetPayment = *execution_fee;
+			let execution_fee_payment: AssetPayment = *execution_fee.clone();
 			let execution_fee_location =
-				MultiLocation::try_from(execution_fee.clone().asset_location)
+				MultiLocation::try_from(execution_fee_payment.clone().asset_location)
 					.map_err(|()| Error::<T>::BadVersion)?;
 
-			Self::ensure_supported_execution_fee_location(&execution_fee_location, &destination)?;
+			Self::ensure_supported_execution_fee_location(
+				&execution_fee_location,
+				&destination_location,
+			)?;
 
 			let action = Action::XCMP {
+				destination: destination_location,
+				schedule_fee: schedule_fee_location,
+				execution_fee: execution_fee_payment,
+				encoded_call: encoded_call.clone(),
+				encoded_call_weight: encoded_call_weight.clone(),
+				overall_weight: overall_weight.clone(),
+				schedule_as: schedule_as.clone(),
+				instruction_sequence: instruction_sequence.clone(),
+			};
+
+			// Convert the call into a runtime call
+			let call: <T as crate::Config>::RuntimeCall = Call::schedule_xcmp_task {
+				schedule: schedule.clone(),
 				destination,
 				schedule_fee,
 				execution_fee,
 				encoded_call,
 				encoded_call_weight,
 				overall_weight,
-				schedule_as,
 				instruction_sequence,
-			};
+				schedule_as,
+			}
+			.into();
 
-			let schedule = schedule.validated_into::<T>()?;
+			// Schedule the task.
+			Self::schedule_task_with_event(
+				action,
+				who,
+				schedule.validated_into::<T>()?,
+				vec![],
+				Some(call.encode()),
+			)?;
 
-			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
 			Ok(())
 		}
 
@@ -480,7 +504,8 @@ pub mod pallet {
 				.map(|&error| error.as_bytes().to_vec())
 				.collect();
 
-			Self::validate_and_schedule_task(action, who, schedule, errors)?;
+			Self::schedule_task_with_event(action, who, schedule, errors, None)?;
+
 			Ok(())
 		}
 
@@ -502,15 +527,16 @@ pub mod pallet {
 		pub fn schedule_dynamic_dispatch_task(
 			origin: OriginFor<T>,
 			schedule: ScheduleParam,
-			call: Box<<T as Config>::Call>,
+			call: Box<<T as Config>::RuntimeCall>,
 		) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 
 			let encoded_call = call.encode();
-			let action = Action::DynamicDispatch { encoded_call };
+			let action = Action::DynamicDispatch { encoded_call: encoded_call.clone() };
 			let schedule = schedule.validated_into::<T>()?;
 
-			Self::validate_and_schedule_task(action, who, schedule, vec![])?;
+			Self::schedule_task_with_event(action, who, schedule, vec![], Some(encoded_call))?;
+
 			Ok(())
 		}
 
@@ -898,17 +924,10 @@ pub mod pallet {
 							format!("{}", time_slot).into_bytes(),
 						);
 
-						let encoded_call = match task.action.clone() {
-							Action::XCMP { encoded_call, .. } => Some(encoded_call),
-							Action::DynamicDispatch { encoded_call } => Some(encoded_call),
-							_ => None,
-						};
-
 						Self::deposit_event(Event::TaskTriggered {
 							who: account_id.clone(),
 							task_id: task_id.clone(),
 							condition,
-							encoded_call,
 						});
 
 						let (task_action_weight, dispatch_error) = match task.action.clone() {
@@ -1116,7 +1135,7 @@ pub mod pallet {
 			caller: AccountOf<T>,
 			encoded_call: Vec<u8>,
 		) -> (Weight, Option<DispatchError>) {
-			match <T as Config>::Call::decode(&mut &*encoded_call) {
+			match <T as Config>::RuntimeCall::decode(&mut &*encoded_call) {
 				Ok(scheduled_call) => {
 					let mut dispatch_origin: T::RuntimeOrigin =
 						frame_system::RawOrigin::Signed(caller).into();
@@ -1317,12 +1336,12 @@ pub mod pallet {
 
 		/// Validate and schedule task.
 		/// This will also charge the execution fee.
-		pub fn validate_and_schedule_task(
+		fn validate_and_schedule_task(
 			action: ActionOf<T>,
 			owner_id: AccountOf<T>,
 			schedule: Schedule,
 			abort_errors: Vec<Vec<u8>>,
-		) -> DispatchResult {
+		) -> Result<TaskIdV2, DispatchError> {
 			match action.clone() {
 				Action::XCMP { execution_fee, .. } => {
 					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
@@ -1351,12 +1370,37 @@ pub mod pallet {
 					Ok(task_id)
 				})?;
 
+			Ok(task_id)
+		}
+
+		/// Schedule a task with TaskScheduled event.
+		pub fn schedule_task_with_event(
+			action: ActionOf<T>,
+			owner_id: AccountOf<T>,
+			schedule: Schedule,
+			abort_errors: Vec<Vec<u8>>,
+			encoded_call: Option<Vec<u8>>,
+		) -> DispatchResult {
+			// Schedule the task.
+			let task_id: TaskIdV2 = Self::validate_and_schedule_task(
+				action.clone(),
+				owner_id.clone(),
+				schedule,
+				abort_errors,
+			)?;
+
 			let schedule_as = match action {
 				Action::XCMP { schedule_as, .. } => schedule_as,
 				_ => None,
 			};
 
-			Self::deposit_event(Event::<T>::TaskScheduled { who: owner_id, task_id, schedule_as });
+			// Deposit the event.
+			Self::deposit_event(Event::<T>::TaskScheduled {
+				who: owner_id,
+				task_id,
+				schedule_as,
+				encoded_call,
+			});
 
 			Ok(())
 		}

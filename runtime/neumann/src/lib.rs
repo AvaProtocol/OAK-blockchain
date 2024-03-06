@@ -915,7 +915,7 @@ impl pallet_automation_time::Config for Runtime {
 	type DelegatorActions = ParachainStaking;
 	type CurrencyIdConvert = TokenIdConvert;
 	type FeeConversionRateProvider = FeePerSecondProvider;
-	type Call = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 	type ScheduleAllowList = ScheduleAllowList;
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
