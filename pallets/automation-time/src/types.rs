@@ -49,8 +49,9 @@ impl<AccountId, Balance> Action<AccountId, Balance> {
 			Action::AutoCompoundDelegatedStake { .. } =>
 				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
 			Action::DynamicDispatch { encoded_call } => {
-				let scheduled_call: <T as Config>::Call = Decode::decode(&mut &**encoded_call)
-					.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
+				let scheduled_call: <T as Config>::RuntimeCall =
+					Decode::decode(&mut &**encoded_call)
+						.map_err(|_| Error::<T>::CallCannotBeDecoded)?;
 				<T as Config>::WeightInfo::run_dynamic_dispatch_action()
 					.saturating_add(scheduled_call.get_dispatch_info().weight)
 			},
