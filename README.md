@@ -114,6 +114,51 @@ We have configured a network of 2 relay chain nodes, 1 Turing node and 1 Mangata
 
 The zombie spawn will run 2 relay chain nodes, 1 Turing node and 1 Mangata node, and set up an HRMP channel between the parachains.
 
+## Run local networks with parachain-launch
+
+parachain-launch is a script that generates a docker compose file allowing you to launch a testnet of multiple blockchain nodes.
+
+Launch the Turing development environment via parachain-launch, including the following steps:
+
+1. Install the package globally:
+
+    ```
+    yarn global add @open-web3/parachain-launch
+    ```
+
+1. Run the generate script:
+
+    ```
+    cd parachain-launch
+    parachain-launch generate --config=./config.yml
+    ```
+
+1. Start relaychain and parachain
+
+    ```
+    cd ./output
+    docker-compose up -d --build
+    ```
+
+1. Additional Docker Commands
+
+    List all of the containers:
+    ```
+    docker ps -a
+    ```
+
+    Track container logs:
+
+    ```
+    docker logs -f [container_id/container_name]
+    ```
+
+    Stop all of the containers:
+
+    ```
+    docker-compose stop
+    ```
+
 ## Slo-mo - manually run local networks
 In this section we will walk through the steps of manually running a local network with a Rococo relay chain, a Turing parachain and a Mangata parachain.
 

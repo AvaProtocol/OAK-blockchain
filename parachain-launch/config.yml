@@ -2,7 +2,7 @@
 # Relaychain Configuration
 # `parachain-launch  generate --config=parachain-launch/config.yml --output=parachain-launch`
 relaychain:
-  image: parity/polkadot:v0.9.29 # the docker image to use
+  image: parity/polkadot:v0.9.43 # the docker image to use
   chain: rococo-local # the chain to use
   runtimeGenesisConfig: # additonal genesis override
     configuration:
@@ -28,8 +28,8 @@ relaychain:
 # Parachain Configuration
 parachains:
 # Config for first parachain
-- image: oaknetwork/neumann:latest
-  chain: local
+- image: oaknetwork/turing:latest
+  chain: turing-dev
   id: 2000 # override parachain id
   parachain: true # this is parachain, not parathread
   flags: # CLI flags for this parachain nodes
