@@ -87,7 +87,7 @@ use polkadot_runtime_common::BlockHashCount;
 
 // XCM configurations.
 pub mod xcm_config;
-use xcm_config::{FeePerSecondProvider, SelfLocation, ToTreasury, TokenIdConvert};
+use xcm_config::{FeePerSecondProvider, SelfLocationAbsolute, ToTreasury, TokenIdConvert};
 
 pub mod weights;
 
@@ -948,8 +948,8 @@ impl pallet_automation_time::Config for Runtime {
 	type EnsureProxy = AutomationEnsureProxy;
 	type UniversalLocation = UniversalLocation;
 	type TransferCallCreator = MigrationTransferCallCreator;
-	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
-	type SelfLocation = SelfLocation;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocationAbsolute>;
+	type SelfLocation = SelfLocationAbsolute;
 }
 
 impl pallet_automation_price::Config for Runtime {
