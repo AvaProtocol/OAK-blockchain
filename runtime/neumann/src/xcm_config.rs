@@ -266,7 +266,8 @@ impl cumulus_pallet_dmp_queue::Config for Runtime {
 }
 
 parameter_types! {
-	pub SelfLocation: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
+	pub SelfLocation: MultiLocation = Here.into_location();
+	pub SelfLocationAbsolute: MultiLocation = MultiLocation::new(1, X1(Parachain(ParachainInfo::parachain_id().into())));
 	pub const BaseXcmWeight: Weight = Weight::from_parts(100_000_000, 0);
 	pub const MaxAssetsForTransfer: usize = 1;
 }
@@ -291,7 +292,7 @@ impl orml_xtokens::Config for Runtime {
 	type BaseXcmWeight = BaseXcmWeight;
 	type UniversalLocation = UniversalLocation;
 	type MaxAssetsForTransfer = MaxAssetsForTransfer;
-	type ReserveProvider = AbsoluteReserveProvider;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocationAbsolute>;
 }
 
 impl orml_unknown_tokens::Config for Runtime {
@@ -315,8 +316,8 @@ impl pallet_xcmp_handler::Config for Runtime {
 	type XcmSender = XcmRouter;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 	type Weigher = FixedWeightBounds<UnitWeightCost, RuntimeCall, MaxInstructions>;
-	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocation>;
-	type SelfLocation = SelfLocation;
+	type ReserveProvider = AbsoluteAndRelativeReserveProvider<SelfLocationAbsolute>;
+	type SelfLocation = SelfLocationAbsolute;
 }
 
 pub struct TokenIdConvert;
