@@ -25,7 +25,7 @@ use pallet_timestamp::Pallet as Timestamp;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 use sp_std::cmp;
-use staging_xcm::latest::prelude::*;
+use xcm::latest::prelude::*;
 
 use crate::{Config, MissedTaskV2Of, Pallet as AutomationTime, TaskOf};
 

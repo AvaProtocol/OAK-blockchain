@@ -43,9 +43,9 @@ pub use pallet::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::{
-		traits::{CallMetadata, GetCallMetadata, BuildGenesisConfig},
+		// dispatch::{CallMetadata, GetCallMetadata},
 		pallet_prelude::*,
-		traits::{Contains, PalletInfoAccess, SortedMembers},
+		traits::{Contains, PalletInfoAccess, SortedMembers, GenesisBuild, CallMetadata, GetCallMetadata},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;
@@ -298,28 +298,28 @@ pub mod pallet {
 		}
 	}
 
-	#[derive(Default)]
-	#[pallet::genesis_config]
-	pub struct GenesisConfig {
-		pub start_with_valve_closed: bool,
-		pub closed_gates: Vec<Vec<u8>>,
-	}
+	// #[derive(Default)]
+	// #[pallet::genesis_config]
+	// pub struct GenesisConfig {
+	// 	pub start_with_valve_closed: bool,
+	// 	pub closed_gates: Vec<Vec<u8>>,
+	// }
 
-	#[pallet::genesis_build]
-	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
-		fn build(&self) {
-			if self.start_with_valve_closed {
-				ValveClosed::<T>::put(true);
-			}
+	// #[pallet::genesis_build]
+	// impl<T: Config> GenesisBuild<T> for GenesisConfig {
+	// 	fn build(&self) {
+	// 		if self.start_with_valve_closed {
+	// 			ValveClosed::<T>::put(true);
+	// 		}
 
-			let mut closed_pallet_count = ClosedPalletCount::<T>::get();
-			for gate in self.closed_gates.iter() {
-				ClosedPallets::<T>::insert(gate, ());
-				closed_pallet_count = closed_pallet_count.saturating_add(1);
-			}
-			ClosedPalletCount::<T>::put(closed_pallet_count);
-		}
-	}
+	// 		let mut closed_pallet_count = ClosedPalletCount::<T>::get();
+	// 		for gate in self.closed_gates.iter() {
+	// 			ClosedPallets::<T>::insert(gate, ());
+	// 			closed_pallet_count = closed_pallet_count.saturating_add(1);
+	// 		}
+	// 		ClosedPalletCount::<T>::put(closed_pallet_count);
+	// 	}
+	// }
 
 	impl<T: Config> Pallet<T> {
 		/// Sudo or a member of the CallAccessFilter can call.

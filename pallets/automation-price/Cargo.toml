@@ -22,12 +22,12 @@ scale-info = { version = "2.2.0", default-features = false, features = [
 log = { version = "0.4.17", default-features = false }
 
 # Polkadot
-polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-staging-xcm = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+polkadot-parachain-primitives = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+xcm = { package="staging-xcm", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 # Cumulus dependencies
-cumulus-pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
-cumulus-primitives-core = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
+cumulus-pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, branch = "release-polkadot-v1.1.0" }
+cumulus-primitives-core = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, branch = "release-polkadot-v1.1.0" }
 
 ## ORML
 orml-traits = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.1.0" }
@@ -36,19 +36,19 @@ orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-modul
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
-sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-sp-std = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 ## Substrate FRAME Dependencies
-frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, optional = true, tag = "polkadot-v1.1.0" }
-frame-support = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-frame-system = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, optional = true, branch = "release-polkadot-v1.1.0" }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 ## Substrate Pallet Dependencies
-pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 ## Polkdadot deps
-staging-xcm-builder = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
+xcm-builder = { package="staging-xcm-builder", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 ## Local
 pallet-valve = { path = "../valve", default-features = false }
@@ -58,15 +58,15 @@ primitives = { path = "../../primitives", default-features = false }
 [dev-dependencies]
 rand = { version = "0.8.5" }
 serde = { version = "1.0.163" }
-sp-core = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-sp-io = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, tag = "polkadot-v1.1.0" }
-pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", tag = "polkadot-v1.1.0" }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
 
-pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
-staging-xcm-executor = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, tag = "polkadot-v1.1.0" }
+pallet-xcm = { git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, branch = "release-polkadot-v1.1.0" }
+xcm-executor = { package="staging-xcm-executor", git = 'https://github.com/paritytech/polkadot-sdk', default-features = false, branch = "release-polkadot-v1.1.0" }
 
 # Cumulus dependencies
-parachain-info = { git = 'https://github.com/paritytech/polkadot-sdk', tag = "polkadot-v1.1.0" }
+parachain-info = { git = 'https://github.com/paritytech/polkadot-sdk', branch = "release-polkadot-v1.1.0" }
 
 orml-currencies = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.1.0" }
 orml-tokens = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.1.0" }
@@ -93,8 +93,8 @@ std = [
   "scale-info/std",
   "sp-runtime/std",
   "sp-std/std",
-  "staging-xcm/std",
-  "staging-xcm-builder/std",
-  "staging-xcm-executor/std",
+  "xcm/std",
+  "xcm-builder/std",
+  "xcm-executor/std",
 ]
 dev-queue = []

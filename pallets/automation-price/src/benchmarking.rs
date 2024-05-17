@@ -24,7 +24,7 @@ use frame_system::RawOrigin;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Saturating};
 
-use staging_xcm::latest::{prelude::*, MultiLocation};
+use xcm::latest::{prelude::*, MultiLocation};
 
 use crate::{
 	pallet::{Task, TaskId},

@@ -72,7 +72,7 @@ use primitives::EnsureProxy;
 pub use weights::WeightInfo;
 
 use pallet_xcmp_handler::XcmpTransactor;
-use staging_xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -509,24 +509,24 @@ pub mod pallet {
 		},
 	}
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_: T::BlockNumber) -> Weight {
-			if Self::is_shutdown() {
-				return T::DbWeight::get().reads(1u64)
-			}
+	// #[pallet::hooks]
+	// impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	// 	fn on_initialize(_: T::BlockNumber) -> Weight {
+	// 		if Self::is_shutdown() {
+	// 			return T::DbWeight::get().reads(1u64)
+	// 		}
 
-			let max_weight: Weight = Weight::from_parts(
-				T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
-				0,
-			);
-			Self::trigger_tasks(max_weight)
-		}
+	// 		let max_weight: Weight = Weight::from_parts(
+	// 			T::MaxWeightPercentage::get().mul_floor(T::MaxBlockWeight::get()),
+	// 			0,
+	// 		);
+	// 		Self::trigger_tasks(max_weight)
+	// 	}
 
-		fn on_idle(_: T::BlockNumber, remaining_weight: Weight) -> Weight {
-			Self::sweep_expired_task(remaining_weight)
-		}
-	}
+	// 	fn on_idle(_: T::BlockNumber, remaining_weight: Weight) -> Weight {
+	// 		Self::sweep_expired_task(remaining_weight)
+	// 	}
+	// }
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {

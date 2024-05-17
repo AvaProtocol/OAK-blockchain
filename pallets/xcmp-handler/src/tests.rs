@@ -19,7 +19,7 @@ use frame_support::{assert_noop, assert_ok};
 use frame_system::RawOrigin;
 use polkadot_parachain_primitives::primitives::Sibling;
 use sp_runtime::traits::{AccountIdConversion, Convert};
-use staging_xcm::latest::{prelude::*, Weight};
+use xcm::latest::{prelude::*, Weight};
 
 //*****************
 //Extrinsics

@@ -27,9 +27,8 @@ use sp_std::marker::PhantomData;
 use frame_support::traits::Get;
 
 use orml_traits::location::{RelativeReserveProvider, Reserve};
-use xcm::latest::MultiAsset;
-
-
+use xcm::latest::prelude::*;
+use xcm::v3::MultiAsset;
 
 pub mod assets;
 
@@ -102,7 +101,6 @@ impl<AbsoluteLocation: Get<MultiLocation>> Reserve
 
 use codec::{Compact, Encode};
 use sp_io::hashing::blake2_256;
-use sp_std::prelude::*;
 use xcm_executor::traits::ConvertLocation;
 
 /// Means of converting a location into a stable and unique descriptive identifier.

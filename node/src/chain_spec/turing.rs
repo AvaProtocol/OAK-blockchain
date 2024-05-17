@@ -14,7 +14,7 @@ use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
 	VestingConfig,
 };
-use staging_xcm::{prelude::*, VersionedMultiLocation::V3};
+use xcm::{prelude::*, VersionedMultiLocation::V3};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -22,7 +22,7 @@ static RELAY_CHAIN: &str = "rococo-local";
 const REGISTERED_PARA_ID: u32 = 2114;
 
 /// The default XCM version to set in genesis config.
-const SAFE_XCM_VERSION: u32 = staging_xcm::prelude::XCM_VERSION;
+const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::GenesisConfig, Extensions>;

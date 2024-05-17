@@ -36,7 +36,7 @@ use sp_runtime::{
 	AccountId32, DispatchError, MultiAddress, Perbill,
 };
 use sp_std::{marker::PhantomData, vec::Vec};
-use staging_xcm::latest::prelude::*;
+use xcm::latest::prelude::*;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -387,7 +387,7 @@ where
 {
 	fn transact_xcm(
 		_destination: MultiLocation,
-		_location: staging_xcm::latest::MultiLocation,
+		_location: xcm::latest::MultiLocation,
 		_fee: u128,
 		_caller: T::AccountId,
 		_transact_encoded_call: sp_std::vec::Vec<u8>,

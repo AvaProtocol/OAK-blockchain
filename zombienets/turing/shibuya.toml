@@ -3,7 +3,7 @@ provider = "native"
 timeout = 1000
 
 [relaychain]
-default_command = "../polkadot/target/release/polkadot"
+default_command = "../polkadot-sdk/target/release/polkadot"
 chain = "rococo-local"
 
     [[relaychain.nodes]]
@@ -24,6 +24,7 @@ chain = "turing-dev"
     [parachains.collator]
     name = "turing-col-1"
     command = "./target/release/oak-collator"
+    args = ["-l=xcm=trace", "--state-pruning=archive"]
     ws_port = 9946
     rpc_port = 8855
 
@@ -35,7 +36,7 @@ chain = "shibuya-dev"
     [parachains.collator]
     name = "shibuya-col-1"
     command = "../Astar/target/release/astar-collator"
-    args = ["--enable-evm-rpc"]    # EVM RPC for Metamsk: http://localhost:9948 and Shibuya Chain Id: 81
+    args = ["-l=xcm=trace", "--state-pruning=archive", "--enable-evm-rpc"]    # EVM RPC for Metamsk: http://localhost:9948 and Shibuya Chain Id: 81
     ws_port = 9948
     rpc_port = 8867
 
@@ -43,10 +44,10 @@ chain = "shibuya-dev"
 sender = 2114
 recipient = 2000
 max_capacity = 8
-max_message_size = 102400
+max_message_size = 512
 
 [[hrmp_channels]]
 sender = 2000
 recipient = 2114
 max_capacity = 8
-max_message_size = 102400
+max_message_size = 512

@@ -34,7 +34,6 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-use pallet_parachain_staking::AdditionalIssuance;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -42,7 +41,9 @@ pub mod pallet {
 	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
 	use sp_std::vec::Vec;
 
-	use frame_support::{pallet_prelude::*, traits::Currency, GenesisBuild};
+	use frame_support::{pallet_prelude::*, traits::{Currency, GenesisBuild}};
+	use frame_system::pallet_prelude::BlockNumberFor;
+	// use pallet_parachain_staking::AdditionalIssuance;
 
 	use pallet_timestamp::{self as timestamp};
 
@@ -99,13 +100,13 @@ pub mod pallet {
 	#[pallet::getter(fn total_unvested_allocation)]
 	pub type TotalUnvestedAllocation<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
-	#[pallet::hooks]
-	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-		fn on_initialize(_: T::BlockNumber) -> Weight {
-			let vest_count = Self::vest();
-			<T as Config>::WeightInfo::vest(vest_count)
-		}
-	}
+	// #[pallet::hooks]
+	// impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+	// 	fn on_initialize(_: T::BlockNumber) -> Weight {
+	// 		let vest_count = Self::vest();
+	// 		<T as Config>::WeightInfo::vest(vest_count)
+	// 	}
+	// }
 
 	impl<T: Config> Pallet<T> {
 		/// Based on the block time, return the time slot.
@@ -145,42 +146,42 @@ pub mod pallet {
 		}
 	}
 
-	#[pallet::genesis_config]
-	pub struct GenesisConfig<T: Config> {
-		pub vesting_schedule: Vec<(UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>)>,
-	}
+	// #[pallet::genesis_config]
+	// pub struct GenesisConfig<T: Config> {
+	// 	pub vesting_schedule: Vec<(UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>)>,
+	// }
 
-	#[cfg(feature = "std")]
-	impl<T: Config> Default for GenesisConfig<T> {
-		fn default() -> Self {
-			Self { vesting_schedule: Default::default() }
-		}
-	}
+	// #[cfg(feature = "std")]
+	// impl<T: Config> Default for GenesisConfig<T> {
+	// 	fn default() -> Self {
+	// 		Self { vesting_schedule: Default::default() }
+	// 	}
+	// }
 
-	#[pallet::genesis_build]
-	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-		fn build(&self) {
-			let mut unvested_allocation: BalanceOf<T> = Zero::zero();
-			for (time, schedule) in self.vesting_schedule.iter() {
-				assert!(time % 3600 == 0, "Invalid time");
-				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
-				for (account, amount) in schedule {
-					assert!(
-						*amount > <T>::Currency::minimum_balance(),
-						"Cannot vest less than the existential deposit"
-					);
-					scheduled_vests.push((account.clone(), *amount));
-					unvested_allocation = unvested_allocation.saturating_add(*amount);
-				}
-				VestingSchedule::<T>::insert(time, scheduled_vests);
-			}
-			TotalUnvestedAllocation::<T>::set(unvested_allocation);
-		}
-	}
+	// #[pallet::genesis_build]
+	// impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+	// 	fn build(&self) {
+	// 		let mut unvested_allocation: BalanceOf<T> = Zero::zero();
+	// 		for (time, schedule) in self.vesting_schedule.iter() {
+	// 			assert!(time % 3600 == 0, "Invalid time");
+	// 			let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
+	// 			for (account, amount) in schedule {
+	// 				assert!(
+	// 					*amount > <T>::Currency::minimum_balance(),
+	// 					"Cannot vest less than the existential deposit"
+	// 				);
+	// 				scheduled_vests.push((account.clone(), *amount));
+	// 				unvested_allocation = unvested_allocation.saturating_add(*amount);
+	// 			}
+	// 			VestingSchedule::<T>::insert(time, scheduled_vests);
+	// 		}
+	// 		TotalUnvestedAllocation::<T>::set(unvested_allocation);
+	// 	}
+	// }
 
-	impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
-		fn additional_issuance() -> BalanceOf<T> {
-			Self::total_unvested_allocation()
-		}
-	}
+	// impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
+	// 	fn additional_issuance() -> BalanceOf<T> {
+	// 		Self::total_unvested_allocation()
+	// 	}
+	// }
 }

@@ -36,7 +36,7 @@ use sp_runtime::{
 	TokenError::FundsUnavailable,
 };
 use sp_std::collections::btree_map::BTreeMap;
-use staging_xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
+use xcm::latest::{prelude::*, Junction::Parachain, MultiLocation};
 
 use pallet_valve::Shutdown;
 

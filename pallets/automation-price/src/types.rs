@@ -4,7 +4,7 @@ use frame_support::pallet_prelude::*;
 
 use sp_std::prelude::*;
 
-use staging_xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 /// The struct that stores execution payment for a task.
 #[derive(Debug, Encode, Eq, PartialEq, Decode, TypeInfo, Clone)]

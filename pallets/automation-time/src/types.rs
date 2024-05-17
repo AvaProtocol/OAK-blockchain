@@ -7,7 +7,7 @@ use sp_std::prelude::*;
 
 use pallet_automation_time_rpc_runtime_api::AutomationAction;
 
-use staging_xcm::{latest::prelude::*, VersionedMultiLocation};
+use xcm::{latest::prelude::*, VersionedMultiLocation};
 
 pub type Seconds = u64;
 pub type UnixTime = u64;
