@@ -18,7 +18,7 @@ scale-info = { version = "2.2.0", default-features = false, features = [
   "derive",
 ] }
 log = { version = "0.4.17", default-features = false }
-serde = { version = "1.0.163" }
+serde = { version = "1.0.171", default-features = false, features = ["derive"] }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -67,6 +67,8 @@ default = ["std"]
 runtime-benchmarks = ["frame-benchmarking/runtime-benchmarks"]
 try-runtime = ["frame-support/try-runtime"]
 std = [
+  "serde/std",
+  "sp-io/std",
   "codec/std",
   "cumulus-primitives-core/std",
   "frame-benchmarking/std",

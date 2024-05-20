@@ -46,7 +46,7 @@ use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
 use xcm::latest::{prelude::*, MultiLocation, NetworkId};
 use xcm_builder::Account32Hash;
-use staging_xcm_executor::traits::Convert;
+use xcm_executor::traits::Convert;
 
 use frame_support::{
 	construct_runtime,
@@ -1021,7 +1021,7 @@ construct_runtime!(
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
 		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 41,
-		CumulusXcm: cumulus_pallet_staging_xcm::{Pallet, Event<T>, Origin} = 42,
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,
 		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 45,

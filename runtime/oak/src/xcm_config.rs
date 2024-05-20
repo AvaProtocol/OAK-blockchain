@@ -26,7 +26,7 @@ use xcm_builder::{
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
 	TakeWeightCredit, WithComputedOrigin,
 };
-use staging_xcm_executor::{Config, XcmExecutor};
+use xcm_executor::{Config, XcmExecutor};
 
 // ORML imports
 use orml_asset_registry::{AssetRegistryTrader, FixedRateAssetRegistryTrader};
@@ -45,7 +45,7 @@ use primitives::{
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
-	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_staging_xcm::Origin::Relay.into();
+	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 	pub Ancestry: MultiLocation = Parachain(ParachainInfo::parachain_id().into()).into();
 }
 
@@ -88,7 +88,7 @@ pub type XcmOriginToTransactDispatchOrigin = (
 	RelayChainAsNative<RelayChainOrigin, RuntimeOrigin>,
 	// Native converter for sibling Parachains; will convert to a `SiblingPara` origin when
 	// recognized.
-	SiblingParachainAsNative<cumulus_pallet_staging_xcm::Origin, RuntimeOrigin>,
+	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, RuntimeOrigin>,
 	// Native signed account converter; this just converts an `AccountId32` origin into a normal
 	// `Origin::Signed` origin of the same 32-byte value.
 	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
@@ -155,7 +155,7 @@ pub struct FeePerSecondProvider;
 impl FixedConversionRateProvider for FeePerSecondProvider {
 	fn get_fee_per_second(location: &MultiLocation) -> Option<u128> {
 		let metadata = match location {
-			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot-sdk/pull/4470
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if *para_id == u32::from(ParachainInfo::parachain_id()) =>
 				AssetRegistryOf::<Runtime>::metadata(NATIVE_TOKEN_ID)?,
@@ -246,7 +246,7 @@ impl pallet_xcm::Config for Runtime {
 	type AdminOrigin = EnsureRoot<AccountId>;
 }
 
-impl cumulus_pallet_staging_xcm::Config for Runtime {
+impl cumulus_pallet_xcm::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }
@@ -334,7 +334,7 @@ impl Convert<TokenId, Option<MultiLocation>> for TokenIdConvert {
 impl Convert<MultiLocation, Option<TokenId>> for TokenIdConvert {
 	fn convert(location: MultiLocation) -> Option<TokenId> {
 		match location {
-			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot-sdk/pull/4470
+			// adapt for re-anchor canonical location bug: https://github.com/paritytech/polkadot/pull/4470
 			MultiLocation { parents: 1, interior: X1(Parachain(para_id)) }
 				if para_id == u32::from(ParachainInfo::parachain_id()) =>
 				Some(NATIVE_TOKEN_ID),

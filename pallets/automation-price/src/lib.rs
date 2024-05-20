@@ -1083,7 +1083,7 @@ pub mod pallet {
 		//
 		// Or the price might move by the time task is invoked, we don't want it to get run either.
 		fn task_can_run(task: &Task<T>) -> (Option<TaskCondition>, Weight) {
-			let mut consumed_weight: Weight = Weight::from_ref_time(0);
+			let mut consumed_weight: Weight = Weight::zero();
 
 			// If we cannot extract time from the block, then somthing horrible wrong, let not move
 			// forward

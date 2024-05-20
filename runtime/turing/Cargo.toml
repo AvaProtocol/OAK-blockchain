@@ -22,7 +22,7 @@ log = { version = "0.4.17", default-features = false }
 scale-info = { version = "2.2.0", default-features = false, features = [
   "derive",
 ] }
-serde = { version = "1.0.163", optional = true, features = ["derive"] }
+serde = { version = "1.0.171", default-features = false, optional = true, features = ["derive"] }
 smallvec = "1.11.0"
 hex-literal = "0.4.0"
 
@@ -119,7 +119,7 @@ default = ["std"]
 std = [
   "codec/std",
   "common-runtime/std",
-  "serde",
+  "serde/std",
   "scale-info/std",
   "log/std",
   "sp-api/std",

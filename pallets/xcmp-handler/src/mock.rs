@@ -36,7 +36,7 @@ use xcm_builder::{
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation,
 };
-use staging_xcm_executor::{
+use xcm_executor::{
 	traits::{TransactAsset, WeightTrader},
 	Assets, XcmExecutor,
 };
@@ -66,7 +66,7 @@ frame_support::construct_runtime!(
 		ParachainInfo: parachain_info::{Pallet, Storage, Config},
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Storage, Event<T>},
 		XcmPallet: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin},
-		CumulusXcm: cumulus_pallet_staging_xcm::{Pallet, Call, Event<T>, Origin},
+		CumulusXcm: cumulus_pallet_xcm::{Pallet, Call, Event<T>, Origin},
 		Currencies: orml_currencies::{Pallet, Call},
 		Tokens: orml_tokens::{Pallet, Storage, Event<T>, Config<T>},
 	}
@@ -188,7 +188,7 @@ pub type LocationToAccountId = (
 pub type XcmOriginToCallOrigin = (
 	SovereignSignedViaLocation<LocationToAccountId, RuntimeOrigin>,
 	RelayChainAsNative<RelayChainOrigin, RuntimeOrigin>,
-	SiblingParachainAsNative<cumulus_pallet_staging_xcm::Origin, RuntimeOrigin>,
+	SiblingParachainAsNative<cumulus_pallet_xcm::Origin, RuntimeOrigin>,
 	SignedAccountId32AsNative<RelayNetwork, RuntimeOrigin>,
 	XcmPassthrough<RuntimeOrigin>,
 );
@@ -261,10 +261,10 @@ parameter_types! {
 	pub const RelayNetwork: NetworkId = NetworkId::Polkadot;
 	pub UniversalLocation: InteriorMultiLocation =
 		X1(Parachain(2114));
-	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_staging_xcm::Origin::Relay.into();
+	pub RelayChainOrigin: RuntimeOrigin = cumulus_pallet_xcm::Origin::Relay.into();
 }
 pub struct XcmConfig;
-implstaging_xcm_executor::Config for XcmConfig {
+impl xcm_executor::Config for XcmConfig {
 	type RuntimeCall = RuntimeCall;
 	type XcmSender = TestSendXcm;
 	type AssetTransactor = DummyAssetTransactor;
@@ -324,7 +324,7 @@ impl pallet_xcm::Config for Test {
 	type AdminOrigin = system::EnsureRoot<AccountId>;
 }
 
-impl cumulus_pallet_staging_xcm::Config for Test {
+impl cumulus_pallet_xcm::Config for Test {
 	type RuntimeEvent = RuntimeEvent;
 	type XcmExecutor = XcmExecutor<XcmConfig>;
 }

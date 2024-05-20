@@ -22,7 +22,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiAddress, MultiSignature,
 };
-use sp_std::marker::PhantomData;
+use sp_std::{prelude::*, marker::PhantomData};
 
 use frame_support::traits::Get;
 

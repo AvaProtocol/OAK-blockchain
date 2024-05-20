@@ -57,7 +57,7 @@ primitives = { path = "../../primitives", default-features = false }
 
 [dev-dependencies]
 rand = { version = "0.8.5" }
-serde = { version = "1.0.163" }
+serde = { version = "1.0.171", default-features = false }
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0" }
@@ -77,6 +77,8 @@ default = ["std"]
 runtime-benchmarks = ["frame-benchmarking"]
 try-runtime = ["frame-support/try-runtime"]
 std = [
+  "serde/std",
+  "sp-io/std",
   "codec/std",
   "cumulus-pallet-xcm/std",
   "cumulus-primitives-core/std",
