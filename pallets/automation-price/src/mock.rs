@@ -433,8 +433,9 @@ pub fn get_task_ids_from_events() -> Vec<TaskId> {
 	System::events()
 		.into_iter()
 		.filter_map(|e| match e.event {
-			RuntimeEvent::AutomationPrice(crate::Event::TaskScheduled { task_id, .. }) =>
-				Some(task_id),
+			RuntimeEvent::AutomationPrice(crate::Event::TaskScheduled { task_id, .. }) => {
+				Some(task_id)
+			},
 			_ => None,
 		})
 		.collect::<Vec<_>>()
@@ -464,9 +465,9 @@ pub fn get_xcmp_funds(account: AccountId) {
 }
 
 pub fn fund_account(account: &AccountId, action_weight: u64, additional_amount: Option<u128>) {
-	let amount: u128 = u128::from(action_weight) * ExecutionWeightFee::get() +
-		additional_amount.unwrap_or(0) +
-		u128::from(ExistentialDeposit::get());
+	let amount: u128 = u128::from(action_weight) * ExecutionWeightFee::get()
+		+ additional_amount.unwrap_or(0)
+		+ u128::from(ExistentialDeposit::get());
 	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }
 

@@ -257,11 +257,11 @@ impl<
 		amount: BalanceOf<T>,
 	) -> Result<bool, sp_runtime::DispatchErrorWithPostInfo<PostDispatchInfo>> {
 		if *delegator != T::AccountId::decode(&mut DELEGATOR_ACCOUNT.as_ref()).unwrap() {
-			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into())
+			return Err(<pallet_parachain_staking::Error<T>>::DelegatorDNE.into());
 		}
 
 		if *candidate != T::AccountId::decode(&mut COLLATOR_ACCOUNT.as_ref()).unwrap() {
-			return Err(<pallet_parachain_staking::Error<T>>::DelegationDNE.into())
+			return Err(<pallet_parachain_staking::Error<T>>::DelegationDNE.into());
 		}
 
 		let delegation: u128 = amount.saturated_into();
@@ -691,8 +691,9 @@ pub fn get_task_ids_from_events() -> Vec<TaskIdV2> {
 	System::events()
 		.into_iter()
 		.filter_map(|e| match e.event {
-			RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { task_id, .. }) =>
-				Some(task_id),
+			RuntimeEvent::AutomationTime(crate::Event::TaskScheduled { task_id, .. }) => {
+				Some(task_id)
+			},
 			_ => None,
 		})
 		.collect::<Vec<_>>()
@@ -755,9 +756,9 @@ pub fn fund_account(
 	additional_amount: Option<u128>,
 ) {
 	let amount: u128 =
-		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128 +
-			additional_amount.unwrap_or(0) +
-			u128::from(ExistentialDeposit::get());
+		u128::from(action_weight) * ExecutionWeightFee::get() * execution_count as u128
+			+ additional_amount.unwrap_or(0)
+			+ u128::from(ExistentialDeposit::get());
 	_ = <Test as Config>::Currency::deposit_creating(account, amount);
 }
 

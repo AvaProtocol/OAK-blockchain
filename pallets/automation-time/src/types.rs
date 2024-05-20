@@ -46,8 +46,9 @@ impl<AccountId, Balance> Action<AccountId, Balance> {
 	pub fn execution_weight<T: Config>(&self) -> Result<u64, DispatchError> {
 		let weight = match self {
 			Action::XCMP { .. } => <T as Config>::WeightInfo::run_xcmp_task(),
-			Action::AutoCompoundDelegatedStake { .. } =>
-				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task(),
+			Action::AutoCompoundDelegatedStake { .. } => {
+				<T as Config>::WeightInfo::run_auto_compound_delegated_stake_task()
+			},
 			Action::DynamicDispatch { encoded_call } => {
 				let scheduled_call: <T as Config>::RuntimeCall =
 					Decode::decode(&mut &**encoded_call)
@@ -108,18 +109,21 @@ impl ScheduleParam {
 	/// Convert from ScheduleParam to Schedule
 	pub fn validated_into<T: Config>(self) -> Result<Schedule, DispatchError> {
 		match self {
-			Self::Fixed { execution_times, .. } =>
-				Schedule::new_fixed_schedule::<T>(execution_times),
-			Self::Recurring { next_execution_time, frequency } =>
-				Schedule::new_recurring_schedule::<T>(next_execution_time, frequency),
+			Self::Fixed { execution_times, .. } => {
+				Schedule::new_fixed_schedule::<T>(execution_times)
+			},
+			Self::Recurring { next_execution_time, frequency } => {
+				Schedule::new_recurring_schedule::<T>(next_execution_time, frequency)
+			},
 		}
 	}
 
 	/// Number of known executions at the time of scheduling the task
 	pub fn number_of_executions(&self) -> u32 {
 		match self {
-			Self::Fixed { execution_times } =>
-				execution_times.len().try_into().expect("bounded by u32"),
+			Self::Fixed { execution_times } => {
+				execution_times.len().try_into().expect("bounded by u32")
+			},
 			Self::Recurring { .. } => 1,
 		}
 	}
@@ -203,10 +207,10 @@ pub struct Task<AccountId, Balance> {
 
 impl<AccountId: Ord, Balance: Ord> PartialEq for Task<AccountId, Balance> {
 	fn eq(&self, other: &Self) -> bool {
-		self.owner_id == other.owner_id &&
-			self.task_id == other.task_id &&
-			self.action == other.action &&
-			self.schedule == other.schedule
+		self.owner_id == other.owner_id
+			&& self.task_id == other.task_id
+			&& self.action == other.action
+			&& self.schedule == other.schedule
 	}
 }
 
@@ -332,8 +336,8 @@ impl<AccountId, TaskId> ScheduledTasks<AccountId, TaskId> {
 		// A hard limit on tasks/slot prevents unforseen performance consequences
 		// that could occur when scheduling a huge number of lightweight tasks.
 		// Also allows us to make reasonable assumptions for worst case benchmarks.
-		if self.tasks.len() as u32 >= T::MaxTasksPerSlot::get() ||
-			weight > T::MaxWeightPerSlot::get()
+		if self.tasks.len() as u32 >= T::MaxTasksPerSlot::get()
+			|| weight > T::MaxWeightPerSlot::get()
 		{
 			Err(Error::<T>::TimeSlotFull)?
 		}

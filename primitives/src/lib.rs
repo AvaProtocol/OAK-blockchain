@@ -22,7 +22,7 @@ use sp_runtime::{
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiAddress, MultiSignature,
 };
-use sp_std::{prelude::*, marker::PhantomData};
+use sp_std::{marker::PhantomData, prelude::*};
 
 use frame_support::traits::Get;
 
@@ -137,9 +137,10 @@ pub struct DescribePalletTerminal;
 impl DescribeLocation for DescribePalletTerminal {
 	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
 		match (l.parents, &l.interior) {
-			(0, X1(PalletInstance(i))) =>
-				Some((b"Pallet", Compact::<u32>::from(*i as u32)).encode()),
-			_ => None,
+			(0, X1(PalletInstance(i))) => {
+				Some((b"Pallet", Compact::<u32>::from(*i as u32)).encode())
+			},
+			_ => return None,
 		}
 	}
 }
@@ -210,16 +211,14 @@ impl<Suffix: DescribeLocation> DescribeLocation for DescribeFamily<Suffix> {
 
 pub struct HashedDescription<AccountId, Describe>(PhantomData<(AccountId, Describe)>);
 
-impl<AccountId: From<[u8; 32]> + Clone, Describe: DescribeLocation> 
-    ConvertLocation<AccountId> for HashedDescription<AccountId, Describe>
+impl<AccountId: From<[u8; 32]> + Clone, Describe: DescribeLocation> ConvertLocation<AccountId>
+	for HashedDescription<AccountId, Describe>
 {
-    fn convert_location(location: &MultiLocation) -> Option<AccountId> {
-        if let Some(description) = Describe::describe_location(location) {
-            Some(blake2_256(&description).into())
-        } else {
-            None
-        }
-    }
+	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
+		if let Some(description) = Describe::describe_location(location) {
+			Some(blake2_256(&description).into())
+		} else {
+			None
+		}
+	}
 }
-
-

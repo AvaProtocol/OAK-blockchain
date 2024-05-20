@@ -41,8 +41,8 @@ pub mod migrations;
 
 use cumulus_primitives_core::ParaId;
 use frame_support::pallet_prelude::*;
-use xcm::latest::prelude::*;
 use sp_std::prelude::*;
+use xcm::latest::prelude::*;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -54,8 +54,8 @@ pub mod pallet {
 		TokenError::BelowMinimum,
 	};
 	use sp_std::prelude::*;
-	use xcm_executor::traits::WeightBounds;
 	use xcm::latest::prelude::*;
+	use xcm_executor::traits::WeightBounds;
 
 	pub type MultiCurrencyId<T> = <<T as Config>::MultiCurrency as MultiCurrency<
 		<T as frame_system::Config>::AccountId,
@@ -205,7 +205,7 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::FailedMultiLocationToJunction)?;
 
 			let instructions = match flow {
-				InstructionSequence::PayThroughSovereignAccount =>
+				InstructionSequence::PayThroughSovereignAccount => {
 					Self::get_local_currency_instructions(
 						destination,
 						asset_location,
@@ -214,8 +214,9 @@ pub mod pallet {
 						transact_encoded_call_weight,
 						overall_weight,
 						fee,
-					)?,
-				InstructionSequence::PayThroughRemoteDerivativeAccount =>
+					)?
+				},
+				InstructionSequence::PayThroughRemoteDerivativeAccount => {
 					Self::get_alternate_flow_instructions(
 						destination,
 						asset_location,
@@ -224,7 +225,8 @@ pub mod pallet {
 						transact_encoded_call_weight,
 						overall_weight,
 						fee,
-					)?,
+					)?
+				},
 			};
 
 			Ok(instructions)
@@ -250,7 +252,7 @@ pub mod pallet {
 					BurnAsset::<<T as pallet::Config>::RuntimeCall>(asset.into()),
 				])
 			} else {
-				return Err(Error::<T>::UnsupportedFeePayment.into())
+				return Err(Error::<T>::UnsupportedFeePayment.into());
 			};
 
 			Ok(local_xcm)
@@ -344,7 +346,7 @@ pub mod pallet {
 				]);
 				(local_xcm, target_xcm)
 			} else {
-				return Err(Error::<T>::UnsupportedFeePayment.into())
+				return Err(Error::<T>::UnsupportedFeePayment.into());
 			};
 
 			Ok((local_xcm, target_xcm))

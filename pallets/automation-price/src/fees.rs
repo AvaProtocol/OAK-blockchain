@@ -73,7 +73,7 @@ where
 		let fee = self.schedule_fee_amount.saturating_add(self.execution_fee_amount);
 
 		if fee.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 
 		// Manually check for ExistenceRequirement since MultiCurrency doesn't currently support it
@@ -96,7 +96,7 @@ where
 		let fee = self.schedule_fee_amount.saturating_add(self.execution_fee_amount);
 
 		if fee.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 
 		let currency_id = T::CurrencyIdConvert::convert(self.schedule_fee_location)
@@ -133,7 +133,9 @@ where
 		let execution_fee_amount = match action.clone() {
 			Action::XCMP { execution_fee, instruction_sequence, .. }
 				if instruction_sequence == InstructionSequence::PayThroughSovereignAccount =>
-				execution_fee.amount.saturated_into(),
+			{
+				execution_fee.amount.saturated_into()
+			},
 			_ => 0u32.saturated_into(),
 		};
 

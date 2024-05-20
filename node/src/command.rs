@@ -51,7 +51,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 						Box::new(chain_spec::turing::ChainSpec::from_json_file(path)?)
 					}
 					#[cfg(not(feature = "turing-node"))]
-					return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into())
+					return Err(service::TURING_RUNTIME_NOT_AVAILABLE.into());
 				},
 				chain_spec if chain_spec.is_oak() => {
 					#[cfg(feature = "oak-node")]
@@ -59,7 +59,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 						Box::new(chain_spec::oak::ChainSpec::from_json_file(path)?)
 					}
 					#[cfg(not(feature = "oak-node"))]
-					return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into())
+					return Err(service::OAK_RUNTIME_NOT_AVAILABLE.into());
 				},
 				_ => {
 					#[cfg(feature = "neumann-node")]
@@ -67,7 +67,7 @@ fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
 						Box::new(chain_spec::neumann::ChainSpec::from_json_file(path)?)
 					}
 					#[cfg(not(feature = "neumann-node"))]
-					return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into())
+					return Err(service::NEUMANN_RUNTIME_NOT_AVAILABLE.into());
 				},
 			}
 		},
@@ -118,21 +118,21 @@ impl SubstrateCli for Cli {
 				panic!("{}", service::TURING_RUNTIME_NOT_AVAILABLE);
 
 				#[cfg(feature = "turing-node")]
-				return &service::turing_runtime::VERSION
+				return &service::turing_runtime::VERSION;
 			},
 			chain_spec if chain_spec.is_oak() => {
 				#[cfg(not(feature = "oak-node"))]
 				panic!("{}", service::OAK_RUNTIME_NOT_AVAILABLE);
 
 				#[cfg(feature = "oak-node")]
-				return &service::oak_runtime::VERSION
+				return &service::oak_runtime::VERSION;
 			},
 			_ => {
 				#[cfg(not(feature = "neumann-node"))]
 				panic!("{}", service::NEUMANN_RUNTIME_NOT_AVAILABLE);
 
 				#[cfg(feature = "neumann-node")]
-				return &service::neumann_runtime::VERSION
+				return &service::neumann_runtime::VERSION;
 			},
 		}
 	}
@@ -329,14 +329,15 @@ pub fn run() -> Result<()> {
 			with_runtime_or_err!(chain_spec, {
 				{
 					match cmd {
-						BenchmarkCmd::Pallet(cmd) =>
+						BenchmarkCmd::Pallet(cmd) => {
 							if cfg!(feature = "runtime-benchmarks") {
 								runner.sync_run(|config| cmd.run::<Block, Executor>(config))
 							} else {
 								Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."
 									.into())
-							},
+							}
+						},
 						BenchmarkCmd::Block(cmd) => runner.sync_run(|config| {
 							let partials = service::new_partial::<RuntimeApi, Executor, _>(
 								&config,

@@ -34,14 +34,16 @@ mod benchmarking;
 pub mod weights;
 pub use weights::WeightInfo;
 
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
 	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
 	use sp_std::vec::Vec;
 
-	use frame_support::{pallet_prelude::*, traits::{Currency, GenesisBuild}};
+	use frame_support::{
+		pallet_prelude::*,
+		traits::{Currency, GenesisBuild},
+	};
 	use frame_system::pallet_prelude::BlockNumberFor;
 	// use pallet_parachain_staking::AdditionalIssuance;
 

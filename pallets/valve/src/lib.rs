@@ -45,7 +45,9 @@ pub mod pallet {
 	use frame_support::{
 		// dispatch::{CallMetadata, GetCallMetadata},
 		pallet_prelude::*,
-		traits::{Contains, PalletInfoAccess, SortedMembers, GenesisBuild, CallMetadata, GetCallMetadata},
+		traits::{
+			CallMetadata, Contains, GenesisBuild, GetCallMetadata, PalletInfoAccess, SortedMembers,
+		},
 	};
 	use frame_system::pallet_prelude::*;
 	use sp_std::vec::Vec;

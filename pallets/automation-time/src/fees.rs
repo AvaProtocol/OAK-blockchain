@@ -84,7 +84,7 @@ where
 		amount: MultiBalanceOf<T>,
 	) -> Result<(), DispatchError> {
 		if amount.is_zero() {
-			return Ok(())
+			return Ok(());
 		}
 
 		let currency_id = T::CurrencyIdConvert::convert(asset_location)
@@ -215,8 +215,8 @@ where
 				Some(FeePayment {
 					asset_location: location,
 					amount,
-					is_local: instruction_sequence ==
-						InstructionSequence::PayThroughSovereignAccount,
+					is_local: instruction_sequence
+						== InstructionSequence::PayThroughSovereignAccount,
 				})
 			},
 			_ => None,
