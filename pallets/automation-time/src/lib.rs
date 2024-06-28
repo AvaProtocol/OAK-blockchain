@@ -432,10 +432,10 @@ pub mod pallet {
 				schedule_fee: schedule_fee_location,
 				execution_fee: execution_fee_payment,
 				encoded_call: encoded_call.clone(),
-				encoded_call_weight: encoded_call_weight.clone(),
-				overall_weight: overall_weight.clone(),
+				encoded_call_weight,
+				overall_weight,
 				schedule_as: schedule_as.clone(),
-				instruction_sequence: instruction_sequence.clone(),
+				instruction_sequence,
 			};
 
 			// Convert the call into a runtime call
@@ -606,7 +606,7 @@ pub mod pallet {
 			let task = AccountTasks::<T>::get(owner_id, task_id.clone())
 				.ok_or(Error::<T>::TaskDoesNotExist)?;
 
-			if !matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who)
+			if !matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who)
 			{
 				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
 			}
@@ -1347,7 +1347,7 @@ pub mod pallet {
 					let asset_location = MultiLocation::try_from(execution_fee.asset_location)
 						.map_err(|()| Error::<T>::BadVersion)?;
 					let _asset_location = asset_location
-						.reanchored(&T::SelfLocation::get().into(), T::UniversalLocation::get())
+						.reanchored(&T::SelfLocation::get(), T::UniversalLocation::get())
 						.map_err(|_| Error::<T>::CannotReanchor)?;
 				},
 				_ => (),
@@ -1532,7 +1532,7 @@ pub mod pallet {
 
 			let schedule_fee_location = action.schedule_fee_location::<T>();
 			let schedule_fee_location = schedule_fee_location
-				.reanchored(&T::SelfLocation::get().into(), T::UniversalLocation::get())
+				.reanchored(&T::SelfLocation::get(), T::UniversalLocation::get())
 				.map_err(|_| Error::<T>::CannotReanchor)?;
 
 			let fee = if schedule_fee_location == MultiLocation::default() {

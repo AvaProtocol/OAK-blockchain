@@ -828,7 +828,7 @@ fn test_sweep_expired_task_works() {
 fn test_sweep_expired_task_partially() {
 	new_test_ext(START_BLOCK_TIME).execute_with(|| {
 		let creator = AccountId32::new(ALICE);
-		let other_creator = AccountId32::new(BOB);
+		let _other_creator = AccountId32::new(BOB);
 		let para_id: u32 = 1000;
 
 		setup_assets_and_prices(&creator, START_BLOCK_TIME as u128);

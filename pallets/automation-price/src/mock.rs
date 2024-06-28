@@ -281,7 +281,7 @@ impl<Test: frame_system::Config> pallet_automation_price::WeightInfo for MockWei
 		Weight::from_parts(220_000_000_u64 * v as u64, 0u64)
 	}
 
-	fn initialize_asset_extrinsic(v: u32) -> Weight {
+	fn initialize_asset_extrinsic(_v: u32) -> Weight {
 		Weight::from_parts(220_000_000_u64, 0u64)
 	}
 

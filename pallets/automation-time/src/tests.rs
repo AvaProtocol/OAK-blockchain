@@ -360,7 +360,7 @@ fn schedule_transfer_with_dynamic_dispatch() {
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME] },
-			Box::new(call.clone()),
+			Box::new(call),
 		));
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -539,12 +539,11 @@ fn will_remove_task_from_account_tasks_when_task_canceled_with_schedule_as() {
 
 		// Check if the task's schedule_as is correct
 		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
-		assert_eq!(task.is_some(), true);
+		assert!(task.is_some());
 
 		let task = task.unwrap();
-		assert_eq!(
-			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
-			true
+		assert!(
+			matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as)
 		);
 
 		// Cancel task with schedule_as
@@ -592,12 +591,11 @@ fn cancel_task_with_incorrect_schedule_as_will_fail() {
 
 		// Check if the task's schedule_as is correct
 		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
-		assert_eq!(task.is_some(), true);
+		assert!(task.is_some());
 
 		let task = task.unwrap();
-		assert_eq!(
-			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
-			true
+		assert!(
+			matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as)
 		);
 
 		// Cancel task with incorrect schedule_as
@@ -605,16 +603,15 @@ fn cancel_task_with_incorrect_schedule_as_will_fail() {
 		assert_noop!(
 			AutomationTime::cancel_task_with_schedule_as(
 				RuntimeOrigin::signed(AccountId32::new(ALICE)),
-				task_owner.clone(),
-				task_id.clone(),
+				task_owner,
+				task_id,
 			),
 			Error::<Test>::TaskScheduleAsNotMatch
 		);
 
 		// Assert that the task is still present in accountTasks.
-		assert_eq!(
-			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
-			true
+		assert!(
+			matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as)
 		);
 	})
 }
@@ -634,8 +631,8 @@ fn cancel_with_schedule_as_and_non_existent_taskid_will_fail() {
 		assert_noop!(
 			AutomationTime::cancel_task_with_schedule_as(
 				RuntimeOrigin::signed(schedule_as),
-				task_owner.clone(),
-				task_id.clone(),
+				task_owner,
+				task_id,
 			),
 			Error::<Test>::TaskDoesNotExist
 		);
@@ -674,13 +671,12 @@ fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
 		));
 
 		// Check if the task's schedule_as is correct
-		let task = AccountTasks::<Test>::get(task_owner.clone(), task_id.clone());
-		assert_eq!(task.is_some(), true);
+		let task = AccountTasks::<Test>::get(task_owner, task_id.clone());
+		assert!(task.is_some());
 
 		let task = task.unwrap();
-		assert_eq!(
-			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
-			true
+		assert!(
+			matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as)
 		);
 
 		// Cancel task with incorrect owner
@@ -689,15 +685,14 @@ fn cancel_with_schedule_as_and_incorrect_owner_will_fail() {
 			AutomationTime::cancel_task_with_schedule_as(
 				RuntimeOrigin::signed(schedule_as.clone()),
 				AccountId32::new(ALICE),
-				task_id.clone(),
+				task_id,
 			),
 			Error::<Test>::TaskDoesNotExist
 		);
 
 		// Assert that the task is still present in accountTasks.
-		assert_eq!(
-			matches!(task.clone().action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as),
-			true
+		assert!(
+			matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &schedule_as)
 		);
 	})
 }
@@ -724,7 +719,7 @@ fn will_emit_task_completed_event_when_task_failed() {
 		assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
 			RuntimeOrigin::signed(account_id.clone()),
 			ScheduleParam::Fixed { execution_times: vec![SCHEDULED_TIME, next_execution_time] },
-			Box::new(call.clone()),
+			Box::new(call),
 		));
 
 		// First execution
@@ -1058,15 +1053,15 @@ fn schedule_xcmp_task_and_check_encoded_call_success() {
 
 		// Call the schedule_xcmp_task function
 		assert_ok!(AutomationTime::schedule_xcmp_task(
-			origin.clone(),
+			origin,
 			schedule.clone(),
 			destination.clone(),
 			schedule_fee.clone(),
 			execution_fee.clone(),
 			remote_encoded_call.clone(),
-			encoded_call_weight.clone(),
-			overall_weight.clone(),
-			instruction_sequence.clone(),
+			encoded_call_weight,
+			overall_weight,
+			instruction_sequence,
 			schedule_as.clone(),
 		));
 
@@ -1652,7 +1647,7 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 		// Calculate the expected encoded call
 		let expected_encoded_call =
 			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
-				remark: message.clone(),
+				remark: message,
 			})
 			.encode();
 
@@ -1711,7 +1706,7 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 		// Calculate the expected encoded call
 		let expected_encoded_call =
 			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
-				remark: message.clone(),
+				remark: message,
 			})
 			.encode();
 
@@ -1924,7 +1919,7 @@ fn cancel_works_for_an_executed_task() {
 		let task_id1 = schedule_dynamic_dispatch_task(
 			ALICE,
 			vec![SCHEDULED_TIME, SCHEDULED_TIME + SLOT_SIZE_SECONDS],
-			call.clone(),
+			call,
 		);
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
@@ -2193,7 +2188,7 @@ mod extrinsics {
 				assert_ok!(fund_account_dynamic_dispatch(
 					&account_id,
 					execution_times.len(),
-					call.clone().encode()
+					call.encode()
 				));
 
 				assert_ok!(AutomationTime::schedule_dynamic_dispatch_task(
@@ -2381,7 +2376,7 @@ fn trigger_tasks_handles_missed_slots() {
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
 		let task_will_be_run_id =
-			schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
+			schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call);
 		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
@@ -2475,7 +2470,7 @@ fn trigger_tasks_limits_missed_slots() {
 		let remark_message = vec![50];
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
-		let task_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call.clone());
+		let task_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
 		LastTimeSlot::<Test>::put((
@@ -2961,7 +2956,7 @@ fn trigger_tasks_completes_some_xcmp_tasks() {
 					asset_location: MultiLocation::new(0, Here).into(),
 					amount: 10,
 				},
-				encoded_call: encoded_call.clone(),
+				encoded_call,
 				encoded_call_weight: Weight::from_parts(100_000, 0),
 				overall_weight: Weight::from_parts(200_000, 0),
 				schedule_as: None,

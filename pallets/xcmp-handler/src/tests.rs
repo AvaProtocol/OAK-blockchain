@@ -135,7 +135,7 @@ fn transact_in_local_chain_works() {
 			vec![
 				// Withdrawing asset
 				(
-					asset.clone(),
+					asset,
 					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
 				),
 			]
@@ -287,7 +287,7 @@ fn transact_in_target_chain_with_non_reserved_currency_will_throw_unsupported_fe
 				destination,
 				asset_location,
 				descend_location,
-				transact_encoded_call.clone(),
+				transact_encoded_call,
 				transact_encoded_call_weight,
 				xcm_weight,
 				xcm_fee,

@@ -267,7 +267,7 @@ mod tests {
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(has_callback_run, true);
+			assert!(has_callback_run);
 			assert!(starting_funds > Balances::free_balance(alice))
 		})
 	}
@@ -301,7 +301,7 @@ mod tests {
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(has_callback_run, true);
+			assert!(has_callback_run);
 		})
 	}
 
@@ -321,7 +321,7 @@ mod tests {
 
 			let action = Action::XCMP {
 				destination,
-				schedule_fee: destination.into(),
+				schedule_fee: destination,
 				execution_fee: AssetPayment { asset_location: NATIVE_LOCATION.into(), amount: 10 },
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_parts(100_000, 0),
@@ -340,7 +340,7 @@ mod tests {
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(has_callback_run, true);
+			assert!(has_callback_run);
 		})
 	}
 
@@ -354,7 +354,7 @@ mod tests {
 
 			let action = Action::XCMP {
 				destination,
-				schedule_fee: destination.clone().into(),
+				schedule_fee: destination,
 				execution_fee: AssetPayment { asset_location: NATIVE_LOCATION.into(), amount: 10 },
 				encoded_call: vec![3, 4, 5],
 				encoded_call_weight: Weight::from_parts(100_000, 0),
@@ -430,7 +430,7 @@ mod tests {
 				},
 			);
 			assert_eq!(result.expect("success"), "called");
-			assert_eq!(has_callback_run, true);
+			assert!(has_callback_run);
 		})
 	}
 
