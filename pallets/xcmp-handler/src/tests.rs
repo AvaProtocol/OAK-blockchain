@@ -134,10 +134,7 @@ fn transact_in_local_chain_works() {
 			transact_asset(),
 			vec![
 				// Withdrawing asset
-				(
-					asset,
-					MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }
-				),
+				(asset, MultiLocation { parents: 1, interior: X1(Parachain(LOCAL_PARA_ID)) }),
 			]
 		);
 		assert_eq!(events(), [RuntimeEvent::XcmpHandler(crate::Event::XcmTransactedLocally)]);

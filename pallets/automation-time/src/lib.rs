@@ -606,8 +606,7 @@ pub mod pallet {
 			let task = AccountTasks::<T>::get(owner_id, task_id.clone())
 				.ok_or(Error::<T>::TaskDoesNotExist)?;
 
-			if !matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who)
-			{
+			if !matches!(task.action, Action::XCMP { schedule_as: Some(ref s), .. } if s == &who) {
 				return Err(Error::<T>::TaskScheduleAsNotMatch.into())
 			}
 

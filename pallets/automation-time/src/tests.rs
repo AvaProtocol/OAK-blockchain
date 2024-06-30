@@ -1646,10 +1646,8 @@ fn taskid_adjusted_on_extrinsicid_on_same_block() {
 
 		// Calculate the expected encoded call
 		let expected_encoded_call =
-			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
-				remark: message,
-			})
-			.encode();
+			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event { remark: message })
+				.encode();
 
 		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
@@ -1705,10 +1703,8 @@ fn taskid_adjusted_on_eventindex_on_same_block_from_same_caller() {
 
 		// Calculate the expected encoded call
 		let expected_encoded_call =
-			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event {
-				remark: message,
-			})
-			.encode();
+			Into::<RuntimeCall>::into(frame_system::Call::remark_with_event { remark: message })
+				.encode();
 
 		// Find the TaskScheduled event in the event list and verify if the encoded_call within it is correct.
 		assert_has_event(RuntimeEvent::AutomationTime(crate::Event::TaskScheduled {
@@ -2375,8 +2371,7 @@ fn trigger_tasks_handles_missed_slots() {
 		let remark_message = vec![50];
 		let call: <Test as frame_system::Config>::RuntimeCall =
 			frame_system::Call::remark_with_event { remark: remark_message.clone() }.into();
-		let task_will_be_run_id =
-			schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call);
+		let task_will_be_run_id = schedule_dynamic_dispatch_task(ALICE, vec![SCHEDULED_TIME], call);
 		let scheduled_task_id = schedule_task(ALICE, vec![SCHEDULED_TIME], vec![50]);
 
 		Timestamp::set_timestamp(SCHEDULED_TIME * 1_000);
