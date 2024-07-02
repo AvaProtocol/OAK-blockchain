@@ -691,7 +691,7 @@ pub mod pallet {
 			ensure_root(origin)?;
 
 			let key = (&chain, &exchange, (&asset1, &asset2));
-			if let Some(asset_info) = Self::get_asset_registry_info(key) {
+			if let Some(_asset_info) = Self::get_asset_registry_info(key) {
 				AssetRegistry::<T>::remove(&key);
 				PriceRegistry::<T>::remove(&key);
 				Self::deposit_event(Event::AssetDeleted { chain, exchange, asset1, asset2 });
@@ -1163,7 +1163,7 @@ pub mod pallet {
 				return (task_ids, weight_left)
 			}
 
-			let now = current_block_time.unwrap();
+			let _now = current_block_time.unwrap();
 
 			for (owner_id, task_id) in task_ids.iter() {
 				consumed_task_index.saturating_inc();
@@ -1188,9 +1188,9 @@ pub mod pallet {
 								condition: task_condition.unwrap(),
 							});
 
-							let total_task =
+							let _total_task =
 								Self::get_task_stat(StatType::TotalTasksOverall).map_or(0, |v| v);
-							let total_task_per_account = Self::get_account_stat(
+							let _total_task_per_account = Self::get_account_stat(
 								&task.owner_id,
 								StatType::TotalTasksPerAccount,
 							)
