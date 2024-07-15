@@ -769,7 +769,7 @@ type ScheduleOrigin = EitherOfDiverse<
 	pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 1, 2>,
 >;
 
-/// Used the compare the privilege of an origin inside the scheduler.
+/// Used to compare the privilege of an origin inside the scheduler.
 pub struct OriginPrivilegeCmp;
 
 impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
