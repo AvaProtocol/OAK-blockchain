@@ -2,7 +2,7 @@
 # Please execute this script in the project root directory.
 set -e
 
-# The following line ensure we run from the project root
+# The following line ensures we run from the project root
 PROJECT_ROOT=`git rev-parse --show-toplevel`
 cd $PROJECT_ROOT
 
