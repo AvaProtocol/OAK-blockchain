@@ -877,7 +877,7 @@ impl EnsureProxy<AccountId> for AutomationEnsureProxy {
 				Some(ProxyType::Any),
 			)
 			.map_err(|_| "proxy error: expected `ProxyType::Any`")?;
-		// We only allow to use it for delay zero proxies, as the call will immediatly be executed
+		// We only allow to use it for delay zero proxies, as the call will immediately be executed
 		ensure!(def.delay.is_zero(), "proxy delay is Non-zero`");
 		Ok(())
 	}
