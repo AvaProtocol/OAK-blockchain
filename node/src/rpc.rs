@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use primitives::{AccountId, Balance, Block, Hash, Index as Nonce};
+use turing_runtime::{opaque::Block, AccountId, Balance, Nonce};
 
 use sc_client_api::AuxStore;
 pub use sc_rpc::{DenyUnsafe, SubscriptionTaskExecutor};
@@ -43,26 +43,16 @@ where
 		+ 'static,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>,
-	C::Api: pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>,
-	C::Api: pallet_automation_price_rpc::AutomationPriceRuntimeApi<Block, AccountId, Hash, Balance>,
-	C::Api: pallet_xcmp_handler_rpc::XcmpHandlerRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
 	P: TransactionPool + Sync + Send + 'static,
 {
-	use pallet_automation_price_rpc::{AutomationPrice, AutomationPriceApiServer};
-	use pallet_automation_time_rpc::{AutomationTime, AutomationTimeApiServer};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
-	use pallet_xcmp_handler_rpc::{XcmpHandler, XcmpHandlerApiServer};
 	use substrate_frame_rpc_system::{System, SystemApiServer};
 
 	let mut module = RpcExtension::new(());
 	let FullDeps { client, pool, deny_unsafe } = deps;
 
 	module.merge(System::new(client.clone(), pool, deny_unsafe).into_rpc())?;
-	module.merge(TransactionPayment::new(client.clone()).into_rpc())?;
-	module.merge(AutomationTime::new(client.clone()).into_rpc())?;
-	module.merge(AutomationPrice::new(client.clone()).into_rpc())?;
-	module.merge(XcmpHandler::new(client).into_rpc())?;
-
+	module.merge(TransactionPayment::new(client).into_rpc())?;
 	Ok(module)
 }

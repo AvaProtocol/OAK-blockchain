@@ -75,6 +75,7 @@ std = [
   "frame-support/std",
   "frame-system/std",
   "orml-traits/std",
+  "orml-tokens/std",
   "polkadot-parachain-primitives/std",
   "scale-info/std",
   "sp-runtime/std",
