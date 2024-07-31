@@ -46,7 +46,10 @@ use sp_runtime::{
 
 use xcm::latest::{prelude::*, MultiLocation};
 use xcm_builder::Account32Hash;
-use xcm_executor::traits::Convert;
+use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
+// use xcm_executor::traits::Convert;
+
+use xcm_config::RelayLocation;
 
 use sp_std::{cmp::Ordering, prelude::*};
 #[cfg(feature = "std")]
@@ -58,7 +61,7 @@ use frame_support::{
 	dispatch::DispatchClass,
 	ensure, parameter_types,
 	traits::{
-		ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
+		ConstBool, ConstU128, ConstU16, ConstU32, ConstU8, Contains, EitherOfDiverse, EnsureOrigin,
 		EnsureOriginWithArg, InstanceFilter, PrivilegeCmp, Everything,
 	},
 	weights::{
@@ -120,6 +123,9 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
+
+/// Index of a transaction in the chain.
+pub type Nonce = u32;
 
 /// The SignedExtension to the basic transaction logic.
 pub type SignedExtra = (
@@ -241,6 +247,8 @@ impl frame_system::Config for Runtime {
 	type RuntimeCall = RuntimeCall;
 	/// The lookup mechanism to get account ID from whatever is passed in dispatchers.
 	type Lookup = AccountIdLookup<AccountId, ()>;
+	/// The index type for storing how many extrinsics an account has signed.
+	type Nonce = Nonce;
 	/// The type for hashing blocks and tries.
 	type Hash = Hash;
 	/// The hashing algorithm used.
@@ -333,7 +341,7 @@ impl pallet_balances::Config for Runtime {
 	type WeightInfo = pallet_balances::weights::SubstrateWeight<Runtime>;
 	type MaxReserves = MaxReserves;
 	type ReserveIdentifier = [u8; 8];
-	type HoldIdentifier = ();
+	type RuntimeHoldReason = RuntimeHoldReason;
 	type FreezeIdentifier = ();
 	type MaxHolds = ConstU32<0>;
 	type MaxFreezes = ConstU32<0>;
@@ -499,7 +507,7 @@ impl EnsureOriginWithArg<RuntimeOrigin, Option<u32>> for AssetAuthority {
 		origin: RuntimeOrigin,
 		_asset_id: &Option<u32>,
 	) -> Result<Self::Success, RuntimeOrigin> {
-		EnsureRoot::try_origin(origin)
+		<EnsureRoot<AccountId> as EnsureOrigin<RuntimeOrigin>>::try_origin(origin)
 	}
 
 	#[cfg(feature = "runtime-benchmarks")]
@@ -516,6 +524,7 @@ impl orml_asset_registry::Config for Runtime {
 	type AssetProcessor = orml_asset_registry::SequentialId<Runtime>;
 	type Balance = Balance;
 	type WeightInfo = weights::asset_registry_weights::SubstrateWeight<Runtime>;
+	type StringLimit = ConstU32<128>;
 }
 
 parameter_types! {
@@ -556,6 +565,7 @@ impl cumulus_pallet_aura_ext::Config for Runtime {}
 
 parameter_types! {
 	pub const Period: u32 = 6 * HOURS;
+	pub const Offset: u32 = 0;
 }
 
 impl pallet_session::Config for Runtime {
@@ -574,10 +584,40 @@ impl pallet_session::Config for Runtime {
 	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
+parameter_types! {
+	pub const PotId: PalletId = PalletId(*b"PotStake");
+	pub const SessionLength: BlockNumber = 6 * HOURS;
+	// StakingAdmin pluralistic body.
+	pub const StakingAdminBodyId: BodyId = BodyId::Defense;
+}
+
+/// We allow root and the StakingAdmin to execute privileged collator selection operations.
+pub type CollatorSelectionUpdateOrigin = EitherOfDiverse<
+	EnsureRoot<AccountId>,
+	EnsureXcm<IsVoiceOfBody<RelayLocation, StakingAdminBodyId>>,
+>;
+
+impl pallet_collator_selection::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type UpdateOrigin = CollatorSelectionUpdateOrigin;
+	type PotId = PotId;
+	type MaxCandidates = ConstU32<100>;
+	type MinEligibleCollators = ConstU32<4>;
+	type MaxInvulnerables = ConstU32<20>;
+	// should be a multiple of session or things will get inconsistent
+	type KickThreshold = Period;
+	type ValidatorId = <Self as frame_system::Config>::AccountId;
+	type ValidatorIdOf = pallet_collator_selection::IdentityCollator;
+	type ValidatorRegistration = Session;
+	type WeightInfo = ();
+}
+
 impl pallet_aura::Config for Runtime {
 	type AuthorityId = AuraId;
 	type DisabledValidators = ();
 	type MaxAuthorities = ConstU32<100_000>;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
 }
 
 parameter_types! {
@@ -996,11 +1036,11 @@ impl Contains<RuntimeCall> for ClosedCallFilter {
 // 	type CallAccessFilter = TechnicalMembership;
 // }
 
-impl pallet_vesting::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
-	type Currency = Balances;
-}
+// impl pallet_vesting::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+// 	type Currency = Balances;
+// }
 
 impl pallet_utility::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1017,12 +1057,10 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic,
 	{
 		// System support stuff.
-		System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
-		ParachainSystem: cumulus_pallet_parachain_system::{
-			Pallet, Call, Config, Storage, Inherent, Event<T>, ValidateUnsigned,
-		} = 1,
+		System: frame_system = 0,
+		ParachainSystem: cumulus_pallet_parachain_system = 1,
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
-		ParachainInfo: parachain_info::{Pallet, Storage, Config} = 3,
+		ParachainInfo: parachain_info = 3,
 
 		// Monetary stuff.
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
@@ -1036,7 +1074,8 @@ construct_runtime!(
 		Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 21,
 		// ParachainStaking: pallet_parachain_staking::{Pallet, Call, Storage, Event<T>, Config<T>} = 22,
 		Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
-		AuraExt: cumulus_pallet_aura_ext::{Pallet, Storage, Config} = 24,
+		AuraExt: cumulus_pallet_aura_ext = 24,
+		CollatorSelection: pallet_collator_selection = 25,
 
 		// Utilities
 		// Valve: pallet_valve::{Pallet, Call, Config, Storage, Event<T>} = 30,
@@ -1046,14 +1085,14 @@ construct_runtime!(
 
 		// XCM helpers.
 		XcmpQueue: cumulus_pallet_xcmp_queue::{Pallet, Call, Storage, Event<T>} = 40,
-		PolkadotXcm: pallet_xcm::{Pallet, Call, Storage, Event<T>, Origin, Config} = 41,
+		PolkadotXcm: pallet_xcm = 41,
 		CumulusXcm: cumulus_pallet_xcm::{Pallet, Event<T>, Origin} = 42,
 		DmpQueue: cumulus_pallet_dmp_queue::{Pallet, Call, Storage, Event<T>} = 43,
 		XTokens: orml_xtokens::{Pallet, Storage, Call, Event<T>} = 44,
 		UnknownTokens: orml_unknown_tokens::{Pallet, Storage, Event} = 45,
 
 		// Support pallets.
-		Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 51,
+		Treasury: pallet_treasury = 51,
 		Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 52,
 		TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Event<T>, Origin<T>, Config<T>} = 53,
 		TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
@@ -1065,7 +1104,7 @@ construct_runtime!(
 
 		//custom pallets
 		// AutomationTime: pallet_automation_time::{Pallet, Call, Storage, Event<T>} = 60,
-		Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
+		// Vesting: pallet_vesting::{Pallet, Storage, Config<T>, Event<T>} = 61,
 		XcmpHandler: pallet_xcmp_handler::{Pallet, Call, Event<T>} = 62,
 		AutomationPrice: pallet_automation_price::{Pallet, Call, Storage, Event<T>} = 200,
 	}
@@ -1187,22 +1226,22 @@ impl_runtime_apis! {
 	}
 
 
-	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
-		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
-			let parachain_id: u32 = ParachainInfo::parachain_id().into();
+	// impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
+	// 	fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
+	// 		let parachain_id: u32 = ParachainInfo::parachain_id().into();
 
-			let multiloc = MultiLocation::new(
-				1,
-				X2(
-					Parachain(parachain_id),
-					Junction::AccountId32 { network: None, id: account_id.into() },
-				),
-			);
+	// 		let multiloc = MultiLocation::new(
+	// 			1,
+	// 			X2(
+	// 				Parachain(parachain_id),
+	// 				Junction::AccountId32 { network: None, id: account_id.into() },
+	// 			),
+	// 		);
 
-			Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
-				.map_err(|_| "unable to convert account".into())
-		}
-	}
+	// 		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
+	// 			.map_err(|_| "unable to convert account".into())
+	// 	}
+	// }
 
 	// impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 	// 	fn query_fee_details(
@@ -1349,7 +1388,7 @@ impl_runtime_apis! {
 			// use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_automation_price::Pallet as AutomationPrice;
 			// use pallet_valve::Pallet as Valve;
-			use pallet_vesting::Pallet as Vesting;
+			// use pallet_vesting::Pallet as Vesting;
 			// use pallet_parachain_staking::Pallet as ParachainStaking;
 
 			let mut list = Vec::<BenchmarkList>::new();
@@ -1357,7 +1396,7 @@ impl_runtime_apis! {
 			// list_benchmark!(list, extra, pallet_automation_time, AutomationTime::<Runtime>);
 			list_benchmark!(list, extra, pallet_automation_price, AutomationPrice::<Runtime>);
 			// list_benchmark!(list, extra, pallet_valve, Valve::<Runtime>);
-			list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
+			// list_benchmark!(list, extra, pallet_vesting, Vesting::<Runtime>);
 			// list_benchmark!(list, extra, pallet_parachain_staking, ParachainStaking::<Runtime>);
 
 			let storage_info = AllPalletsWithSystem::storage_info();
@@ -1374,7 +1413,7 @@ impl_runtime_apis! {
 			// use pallet_automation_time::Pallet as AutomationTime;
 			use pallet_automation_price::Pallet as AutomationPrice;
 			// use pallet_valve::Pallet as Valve;
-			use pallet_vesting::Pallet as Vesting;
+			// use pallet_vesting::Pallet as Vesting;
 			// use pallet_parachain_staking::Pallet as ParachainStaking;
 
 			let whitelist: Vec<TrackedStorageKey> = vec![
@@ -1396,7 +1435,7 @@ impl_runtime_apis! {
 			// add_benchmark!(params, batches, pallet_automation_time, AutomationTime::<Runtime>);
 			add_benchmark!(params, batches, pallet_automation_price, AutomationPrice::<Runtime>);
 			// add_benchmark!(params, batches, pallet_valve, Valve::<Runtime>);
-			add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
+			// add_benchmark!(params, batches, pallet_vesting, Vesting::<Runtime>);
 			// add_benchmark!(params, batches, pallet_parachain_staking, ParachainStaking::<Runtime>);
 
 			if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
