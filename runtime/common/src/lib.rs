@@ -15,10 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![cfg_attr(not(feature = "std"), no_std)]
-use frame_support::traits::Get;
-use orml_traits::currency::MutationHooks;
+use frame_support::{
+	traits::Get, parameter_types,
+};
+use orml_traits::{
+	asset_registry::AssetMetadata,
+	currency::MutationHooks,
+};
 use sp_std::marker::PhantomData;
-
 pub mod constants;
 pub mod fees;
 
@@ -37,4 +41,19 @@ where
 	type PostTransfer = ();
 	type OnNewTokenAccount = ();
 	type OnKilledTokenAccount = ();
+}
+
+pub mod config {
+	use super::*;
+
+	pub mod orml_asset_registry {
+		use crate::*;
+		use primitives::{Balance, assets::CustomMetadata};
+
+		parameter_types! {
+			pub const StringLimit: u32 = 50;
+		}
+
+		pub type AssetMetadataOf = AssetMetadata<Balance, CustomMetadata, StringLimit>;
+	}
 }

@@ -21,19 +21,20 @@ path = "src/main.rs"
 
 [features]
 runtime-benchmarks = [
-  "neumann-runtime/runtime-benchmarks",
-  "oak-runtime/runtime-benchmarks",
+#  "neumann-runtime/runtime-benchmarks",
+#  "oak-runtime/runtime-benchmarks",
   "turing-runtime/runtime-benchmarks",
   "polkadot-cli/runtime-benchmarks",
 ]
-neumann-node = ["neumann-runtime"]
-oak-node = ["oak-runtime"]
+#neumann-node = ["neumann-runtime"]
+#oak-node = ["oak-runtime"]
 turing-node = ["turing-runtime"]
-all-nodes = ["neumann-node", "turing-node", "oak-node"]
+#all-nodes = ["neumann-node", "turing-node", "oak-node"]
+all-nodes = ["turing-node"]
 try-runtime = [
   "try-runtime-cli/try-runtime",
   "turing-runtime/try-runtime",
-  "oak-runtime/try-runtime",
+#  "oak-runtime/try-runtime",
 ]
 
 [dependencies]
@@ -51,8 +52,8 @@ jsonrpsee = { version = "0.16.2", features = ["server"] }
 
 # Local Dependencies
 common-runtime = { path = "../runtime/common" }
-neumann-runtime = { path = "../runtime/neumann", optional = true }
-oak-runtime = { path = '../runtime/oak', optional = true }
+#neumann-runtime = { path = "../runtime/neumann", optional = true }
+#oak-runtime = { path = '../runtime/oak', optional = true }
 turing-runtime = { path = '../runtime/turing', optional = true }
 pallet-automation-time-rpc = { path = "../pallets/automation-time/rpc" }
 pallet-automation-price-rpc = { path = "../pallets/automation-price/rpc" }

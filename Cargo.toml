@@ -7,7 +7,7 @@ resolver = "2"
 
 members = [
 	"node",
-	"runtime/*",
+	"runtime/turing",
 	"pallets/automation-price",
 	"pallets/automation-time",
 	"pallets/automation-time/rpc",

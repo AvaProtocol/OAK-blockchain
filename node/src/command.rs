@@ -108,34 +108,6 @@ impl SubstrateCli for Cli {
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
 		load_spec(id)
 	}
-
-	fn native_runtime_version(
-		chain_spec: &Box<dyn sc_service::ChainSpec>,
-	) -> &'static RuntimeVersion {
-		match chain_spec {
-			chain_spec if chain_spec.is_turing() => {
-				#[cfg(not(feature = "turing-node"))]
-				panic!("{}", service::TURING_RUNTIME_NOT_AVAILABLE);
-
-				#[cfg(feature = "turing-node")]
-				return &service::turing_runtime::VERSION;
-			},
-			chain_spec if chain_spec.is_oak() => {
-				#[cfg(not(feature = "oak-node"))]
-				panic!("{}", service::OAK_RUNTIME_NOT_AVAILABLE);
-
-				#[cfg(feature = "oak-node")]
-				return &service::oak_runtime::VERSION;
-			},
-			_ => {
-				#[cfg(not(feature = "neumann-node"))]
-				panic!("{}", service::NEUMANN_RUNTIME_NOT_AVAILABLE);
-
-				#[cfg(feature = "neumann-node")]
-				return &service::neumann_runtime::VERSION;
-			},
-		}
-	}
 }
 
 impl SubstrateCli for RelayChainCli {
@@ -178,12 +150,6 @@ impl SubstrateCli for RelayChainCli {
 			_ => polkadot_cli::Cli::from_iter([RelayChainCli::executable_name()].iter())
 				.load_spec(id),
 		}
-	}
-
-	fn native_runtime_version(
-		chain_spec: &Box<dyn sc_service::ChainSpec>,
-	) -> &'static RuntimeVersion {
-		polkadot_cli::Cli::native_runtime_version(chain_spec)
 	}
 }
 

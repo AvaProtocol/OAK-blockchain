@@ -38,7 +38,8 @@ pub use weights::WeightInfo;
 pub mod pallet {
 	use super::*;
 	use sp_runtime::traits::{SaturatedConversion, Saturating, Zero};
-	use sp_std::vec::Vec;
+	use sp_std::{vec, vec::Vec};
+	// use sp_std::{boxed::Box, collections::btree_map::BTreeMap, ops::Bound::Included, vec, vec::Vec};
 
 	use frame_support::{
 		pallet_prelude::*,
@@ -148,10 +149,10 @@ pub mod pallet {
 		}
 	}
 
-	// #[pallet::genesis_config]
-	// pub struct GenesisConfig<T: Config> {
-	// 	pub vesting_schedule: Vec<(UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>)>,
-	// }
+	#[pallet::genesis_config]
+	pub struct GenesisConfig<T: Config> {
+		pub vesting_schedule: Vec<(UnixTime, Vec<(AccountOf<T>, BalanceOf<T>)>)>,
+	}
 
 	// #[cfg(feature = "std")]
 	// impl<T: Config> Default for GenesisConfig<T> {
@@ -160,26 +161,26 @@ pub mod pallet {
 	// 	}
 	// }
 
-	// #[pallet::genesis_build]
-	// impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
-	// 	fn build(&self) {
-	// 		let mut unvested_allocation: BalanceOf<T> = Zero::zero();
-	// 		for (time, schedule) in self.vesting_schedule.iter() {
-	// 			assert!(time % 3600 == 0, "Invalid time");
-	// 			let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
-	// 			for (account, amount) in schedule {
-	// 				assert!(
-	// 					*amount > <T>::Currency::minimum_balance(),
-	// 					"Cannot vest less than the existential deposit"
-	// 				);
-	// 				scheduled_vests.push((account.clone(), *amount));
-	// 				unvested_allocation = unvested_allocation.saturating_add(*amount);
-	// 			}
-	// 			VestingSchedule::<T>::insert(time, scheduled_vests);
-	// 		}
-	// 		TotalUnvestedAllocation::<T>::set(unvested_allocation);
-	// 	}
-	// }
+	#[pallet::genesis_build]
+	impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
+		fn build(&self) {
+			let mut unvested_allocation: BalanceOf<T> = Zero::zero();
+			for (time, schedule) in self.vesting_schedule.iter() {
+				assert!(time % 3600 == 0, "Invalid time");
+				let mut scheduled_vests: Vec<(AccountOf<T>, BalanceOf<T>)> = vec![];
+				for (account, amount) in schedule {
+					assert!(
+						*amount > <T>::Currency::minimum_balance(),
+						"Cannot vest less than the existential deposit"
+					);
+					scheduled_vests.push((account.clone(), *amount));
+					unvested_allocation = unvested_allocation.saturating_add(*amount);
+				}
+				VestingSchedule::<T>::insert(time, scheduled_vests);
+			}
+			TotalUnvestedAllocation::<T>::set(unvested_allocation);
+		}
+	}
 
 	// impl<T: Config> AdditionalIssuance<BalanceOf<T>> for Pallet<T> {
 	// 	fn additional_issuance() -> BalanceOf<T> {

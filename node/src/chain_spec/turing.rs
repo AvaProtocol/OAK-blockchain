@@ -8,13 +8,19 @@ use crate::chain_spec::{
 	Extensions,
 };
 use codec::Encode;
-use common_runtime::constants::currency::{DOLLAR, TOKEN_DECIMALS};
+use common_runtime::{
+	constants::currency::{DOLLAR, TOKEN_DECIMALS},
+	config::orml_asset_registry::{StringLimit, AssetMetadataOf},
+};
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig, ValveConfig,
-	VestingConfig,
+	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig,
+	// ValveConfig, VestingConfig,
 };
 use xcm::{prelude::*, VersionedMultiLocation::V3};
+use frame_support::{
+	traits::{  ConstU32 }, BoundedVec,
+};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;
@@ -85,11 +91,11 @@ pub fn turing_development_config() -> ChainSpec {
 				vec![
 					(
 						1,
-						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-							&orml_asset_registry::AssetMetadata {
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+							&AssetMetadataOf {
 								decimals: 18,
-								name: b"Mangata Rococo".to_vec(),
-								symbol: b"MGR".to_vec(),
+								name:  BoundedVec::truncate_from(b"Mangata Rococo".to_vec()),
+								symbol: BoundedVec::truncate_from(b"MGR".to_vec()),
 								existential_deposit: Default::default(),
 								location: Some(
 									MultiLocation::new(
@@ -110,11 +116,11 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						2,
-						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-							&orml_asset_registry::AssetMetadata {
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+							&AssetMetadataOf {
 								decimals: 18,
-								name: b"Rocstar".to_vec(),
-								symbol: b"RSTR".to_vec(),
+								name: BoundedVec::truncate_from(b"Rocstar".to_vec()),
+								symbol: BoundedVec::truncate_from(b"RSTR".to_vec()),
 								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2006))).into()),
 								additional: CustomMetadata {
@@ -126,11 +132,11 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						3,
-						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-							&orml_asset_registry::AssetMetadata {
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+							&AssetMetadataOf {
 								decimals: 18,
-								name: b"Shiden".to_vec(),
-								symbol: b"SDN".to_vec(),
+								name: BoundedVec::truncate_from(b"Shiden".to_vec()),
+								symbol: BoundedVec::truncate_from(b"SDN".to_vec()),
 								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2007))).into()),
 								additional: CustomMetadata {
@@ -142,11 +148,11 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						4,
-						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-							&orml_asset_registry::AssetMetadata {
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+							&AssetMetadataOf {
 								decimals: 18,
-								name: b"Shibuya".to_vec(),
-								symbol: b"SBY".to_vec(),
+								name: BoundedVec::truncate_from(b"Shibuya".to_vec()),
+								symbol: BoundedVec::truncate_from(b"SBY".to_vec()),
 								existential_deposit: 10_000_000_000_000_000,
 								location: Some(MultiLocation::new(1, X1(Parachain(2000))).into()),
 								additional: CustomMetadata {
@@ -158,11 +164,11 @@ pub fn turing_development_config() -> ChainSpec {
 					),
 					(
 						5,
-						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-							&orml_asset_registry::AssetMetadata {
+						orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+							&AssetMetadataOf {
 								decimals: 18,
-								name: b"Moonbase".to_vec(),
-								symbol: b"DEV".to_vec(),
+								name: BoundedVec::truncate_from(b"Moonbase".to_vec()),
+								symbol: BoundedVec::truncate_from(b"DEV".to_vec()),
 								existential_deposit: 1,
 								location: Some(
 									MultiLocation::new(1, X2(Parachain(1000), PalletInstance(3)))
@@ -214,11 +220,11 @@ fn testnet_genesis(
 	let assets = [
 		vec![(
 			0,
-			orml_asset_registry::AssetMetadata::<Balance, CustomMetadata>::encode(
-				&orml_asset_registry::AssetMetadata {
+			orml_asset_registry::AssetMetadata::<Balance, CustomMetadata, StringLimit>::encode(
+				&AssetMetadataOf {
 					decimals: TOKEN_DECIMALS,
-					name: "Native".as_bytes().to_vec(),
-					symbol: TOKEN_SYMBOL.as_bytes().to_vec(),
+					name: BoundedVec::truncate_from(b"Native".to_vec()),
+					symbol: BoundedVec::truncate_from(TOKEN_SYMBOL.as_bytes().to_vec()),
 					existential_deposit: 100_000_000,
 					location: Some(V3(MultiLocation { parents: 0, interior: Here })),
 					additional: CustomMetadata {
@@ -255,19 +261,19 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		parachain_staking: turing_runtime::ParachainStakingConfig {
-			candidates: invulnerables
-				.iter()
-				.cloned()
-				.map(|(acc, _)| (acc, candidate_stake))
-				.collect(),
-			delegations: vec![],
-			inflation_config: inflation_config(600, 5),
-			blocks_per_round: 600,
-			collator_commission: Perbill::from_percent(20),
-			parachain_bond_reserve_percent: Percent::from_percent(30),
-			num_selected_candidates: NUM_SELECTED_CANDIDATES,
-		},
+		// parachain_staking: turing_runtime::ParachainStakingConfig {
+		// 	candidates: invulnerables
+		// 		.iter()
+		// 		.cloned()
+		// 		.map(|(acc, _)| (acc, candidate_stake))
+		// 		.collect(),
+		// 	delegations: vec![],
+		// 	inflation_config: inflation_config(600, 5),
+		// 	blocks_per_round: 600,
+		// 	collator_commission: Perbill::from_percent(20),
+		// 	parachain_bond_reserve_percent: Percent::from_percent(30),
+		// 	num_selected_candidates: NUM_SELECTED_CANDIDATES,
+		// },
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),
@@ -283,8 +289,8 @@ fn testnet_genesis(
 		parachain_system: Default::default(),
 		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
 		treasury: Default::default(),
-		valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
-		vesting: VestingConfig { vesting_schedule },
+		// valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
+		// vesting: VestingConfig { vesting_schedule },
 		asset_registry: AssetRegistryConfig { assets, last_asset_id },
 	}
 }

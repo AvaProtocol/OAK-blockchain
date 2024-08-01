@@ -82,6 +82,7 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 pallet-treasury = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 pallet-utility = { git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
+pallet-collator-selection = { git = "https://github.com/paritytech/polkadot-sdk", branch = "release-polkadot-v1.1.0", default-features = false }
 
 # Cumulus dependencies
 cumulus-pallet-aura-ext = { git = 'https://github.com/paritytech/polkadot-sdk', branch = "release-polkadot-v1.1.0", default-features = false }
@@ -103,7 +104,7 @@ xcm-builder = { package = "staging-xcm-builder", git = "https://github.com/parit
 xcm-executor = { package = "staging-xcm-executor", git = "https://github.com/paritytech/polkadot-sdk", default-features = false, branch = "release-polkadot-v1.1.0" }
 
 # Moonbeam Dependencies
-pallet-parachain-staking = { git = "https://github.com/moonbeam-foundation/moonbeam", default-features = false, tag = "v0.35.0" }
+# pallet-parachain-staking = { git = "https://github.com/moonbeam-foundation/moonbeam", default-features = false, tag = "v0.35.0" }
 
 # ORML Dependencies
 orml-asset-registry = { git = "https://github.com/open-web3-stack/open-runtime-module-library", default-features = false, branch = "polkadot-v1.1.0" }
@@ -146,6 +147,7 @@ std = [
   "pallet-automation-price-rpc-runtime-api/std",
   "pallet-balances/std",
   "pallet-bounties/std",
+  "pallet-collator-selection/std",
   "pallet-collective/std",
   "pallet-democracy/std",
   "pallet-identity/std",
@@ -163,7 +165,7 @@ std = [
   "pallet-utility/std",
   "pallet-valve/std",
   "pallet-vesting/std",
-  "pallet-parachain-staking/std",
+ # "pallet-parachain-staking/std",
   "pallet-xcmp-handler/std",
   "pallet-xcmp-handler-rpc-runtime-api/std",
   "primitives/std",
@@ -201,6 +203,7 @@ runtime-benchmarks = [
   "pallet-automation-price/runtime-benchmarks",
   "pallet-balances/runtime-benchmarks",
   "pallet-bounties/runtime-benchmarks",
+  "pallet-collator-selection/runtime-benchmarks",
   "pallet-collective/runtime-benchmarks",
   "pallet-proxy/runtime-benchmarks",
   "pallet-timestamp/runtime-benchmarks",
@@ -209,7 +212,7 @@ runtime-benchmarks = [
   "pallet-valve/runtime-benchmarks",
   "pallet-vesting/runtime-benchmarks",
   "pallet-xcm/runtime-benchmarks",
-  "pallet-parachain-staking/runtime-benchmarks",
+#  "pallet-parachain-staking/runtime-benchmarks",
 ]
 
 try-runtime = [
@@ -227,12 +230,13 @@ try-runtime = [
   "pallet-authorship/try-runtime",
   "pallet-balances/try-runtime",
   "pallet-bounties/try-runtime",
+  "pallet-collator-selection/try-runtime",
   "pallet-collective/try-runtime",
   "pallet-democracy/try-runtime",
   "pallet-identity/try-runtime",
   "pallet-membership/try-runtime",
   "pallet-multisig/try-runtime",
-  "pallet-parachain-staking/try-runtime",
+#  "pallet-parachain-staking/try-runtime",
   "pallet-preimage/try-runtime",
   "pallet-proxy/try-runtime",
   "pallet-scheduler/try-runtime",

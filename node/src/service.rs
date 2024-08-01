@@ -17,12 +17,11 @@ use cumulus_client_consensus_common::{
 };
 use cumulus_client_network::BlockAnnounceValidator;
 use cumulus_client_service::{
-	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams,
+	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams, build_relay_chain_interface,
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
 use cumulus_relay_chain_interface::{RelayChainInterface, RelayChainResult};
-use cumulus_relay_chain_minimal_node::build_minimal_relay_chain_node;
 
 // Substrate Imports
 use sc_consensus::ImportQueue;
@@ -131,7 +130,7 @@ pub fn new_partial<RuntimeApi, Executor, BIQ>(
 		FullClient<RuntimeApi, Executor>,
 		FullBackend,
 		(),
-		sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+		sc_consensus::DefaultImportQueue<Block>,
 		sc_transaction_pool::FullPool<Block, FullClient<RuntimeApi, Executor>>,
 		(Option<Telemetry>, Option<TelemetryWorkerHandle>),
 	>,
@@ -143,7 +142,7 @@ where
 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
+		// + sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>,
 	sc_client_api::StateBackendFor<FullBackend, Block>: sp_api::StateBackend<BlakeTwo256>,
@@ -155,7 +154,7 @@ where
 		Option<TelemetryHandle>,
 		&TaskManager,
 	) -> Result<
-		sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+		sc_consensus::DefaultImportQueue<Block>,
 		sc_service::Error,
 	>,
 {
@@ -224,33 +223,33 @@ where
 	Ok(params)
 }
 
-/// Build a relay chain interface.
-/// Will return a minimal relay chain node with RPC
-/// client or an inprocess node, based on the [`CollatorOptions`] passed in.
-async fn build_relay_chain_interface(
-	polkadot_config: Configuration,
-	parachain_config: &Configuration,
-	telemetry_worker_handle: Option<TelemetryWorkerHandle>,
-	task_manager: &mut TaskManager,
-	collator_options: CollatorOptions,
-) -> RelayChainResult<(Arc<(dyn RelayChainInterface + 'static)>, Option<CollatorPair>)> {
-	if !collator_options.relay_chain_rpc_urls.is_empty() {
-		build_minimal_relay_chain_node(
-			polkadot_config,
-			task_manager,
-			collator_options.relay_chain_rpc_urls,
-		)
-		.await
-	} else {
-		build_inprocess_relay_chain(
-			polkadot_config,
-			parachain_config,
-			telemetry_worker_handle,
-			task_manager,
-			None,
-		)
-	}
-}
+// /// Build a relay chain interface.
+// /// Will return a minimal relay chain node with RPC
+// /// client or an inprocess node, based on the [`CollatorOptions`] passed in.
+// async fn build_relay_chain_interface(
+// 	polkadot_config: Configuration,
+// 	parachain_config: &Configuration,
+// 	telemetry_worker_handle: Option<TelemetryWorkerHandle>,
+// 	task_manager: &mut TaskManager,
+// 	collator_options: CollatorOptions,
+// ) -> RelayChainResult<(Arc<(dyn RelayChainInterface + 'static)>, Option<CollatorPair>)> {
+// 	if !collator_options.relay_chain_rpc_urls.is_empty() {
+// 		build_minimal_relay_chain_node(
+// 			polkadot_config,
+// 			task_manager,
+// 			collator_options.relay_chain_rpc_urls,
+// 		)
+// 		.await
+// 	} else {
+// 		build_inprocess_relay_chain(
+// 			polkadot_config,
+// 			parachain_config,
+// 			telemetry_worker_handle,
+// 			task_manager,
+// 			None,
+// 		)
+// 	}
+// }
 
 /// Start a node with the given parachain `Configuration` and relay chain `Configuration`.
 ///
@@ -272,7 +271,7 @@ where
 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
+		// + sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
@@ -295,7 +294,7 @@ where
 			Option<TelemetryHandle>,
 			&TaskManager,
 		) -> Result<
-			sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+			sc_consensus::DefaultImportQueue<Block>,
 			sc_service::Error,
 		> + 'static,
 	BIC: FnOnce(
@@ -326,6 +325,7 @@ where
 		telemetry_worker_handle,
 		&mut task_manager,
 		collator_options.clone(),
+		hwbench.clone(),
 	)
 	.await
 	.map_err(|e| sc_service::Error::Application(Box::new(e) as Box<_>))?;
@@ -473,7 +473,7 @@ pub fn parachain_build_import_queue<RuntimeApi, Executor>(
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
 ) -> Result<
-	sc_consensus::DefaultImportQueue<Block, FullClient<RuntimeApi, Executor>>,
+	sc_consensus::DefaultImportQueue<Block>,
 	sc_service::Error,
 >
 where
@@ -482,7 +482,7 @@ where
 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
+		// + sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
@@ -532,7 +532,7 @@ where
 	RuntimeApi::RuntimeApi: sp_transaction_pool::runtime_api::TaggedTransactionQueue<Block>
 		+ sp_api::Metadata<Block>
 		+ sp_session::SessionKeys<Block>
-		+ sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
+		// + sp_api::ApiExt<Block, StateBackend = sc_client_api::StateBackendFor<FullBackend, Block>>
 		+ sp_offchain::OffchainWorkerApi<Block>
 		+ sp_block_builder::BlockBuilder<Block>
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
