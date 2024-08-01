@@ -1,14 +1,13 @@
 use cumulus_primitives_core::ParaId;
-use turing_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 use sc_chain_spec::{ChainSpecExtension, ChainSpecGroup};
 use sc_service::ChainType;
 use serde::{Deserialize, Serialize};
 use sp_core::{sr25519, Pair, Public};
 use sp_runtime::traits::{IdentifyAccount, Verify};
+use turing_runtime::{AccountId, AuraId, Signature, EXISTENTIAL_DEPOSIT};
 
 /// Specialized `ChainSpec` for the normal parachain runtime.
-pub type ChainSpec =
-	sc_service::GenericChainSpec<turing_runtime::RuntimeGenesisConfig, Extensions>;
+pub type ChainSpec = sc_service::GenericChainSpec<turing_runtime::RuntimeGenesisConfig, Extensions>;
 
 /// The default XCM version to set in genesis config.
 const SAFE_XCM_VERSION: u32 = xcm::prelude::XCM_VERSION;
