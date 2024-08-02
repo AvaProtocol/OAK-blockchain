@@ -4,7 +4,9 @@ use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
 
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config, DummyChainSpec,
+	get_account_id_from_seed, get_collator_keys_from_seed,
+	// inflation_config,
+	DummyChainSpec,
 	Extensions,
 };
 use codec::Encode;
@@ -16,6 +18,7 @@ use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
 	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig,
 	// ValveConfig, VestingConfig,
+	CollatorSelectionConfig,
 };
 use xcm::{prelude::*, VersionedMultiLocation::V3};
 use frame_support::{
@@ -214,7 +217,7 @@ fn testnet_genesis(
 	general_councils: Vec<AccountId>,
 	technical_memberships: Vec<AccountId>,
 	additional_assets: Vec<(TokenId, Vec<u8>)>,
-) -> turing_runtime::GenesisConfig {
+) -> turing_runtime::RuntimeGenesisConfig {
 	let candidate_stake = turing_runtime::MinCandidateStk::get();
 
 	let assets = [
@@ -240,7 +243,7 @@ fn testnet_genesis(
 
 	let last_asset_id = assets.iter().map(|asset| asset.0).max().expect("At least 1 item!");
 
-	turing_runtime::GenesisConfig {
+	turing_runtime::RuntimeGenesisConfig {
 		system: turing_runtime::SystemConfig {
 			code: turing_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
@@ -292,6 +295,11 @@ fn testnet_genesis(
 		// valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		// vesting: VestingConfig { vesting_schedule },
 		asset_registry: AssetRegistryConfig { assets, last_asset_id },
+		collator_selection: CollatorSelectionConfig {
+			invulnerables: invulnerables.iter().cloned().map(|(acc, _)| acc).collect(),
+			candidacy_bond: common_runtime::constants::currency::EXISTENTIAL_DEPOSIT * 16,
+			..Default::default()
+		},
 	}
 }
 

@@ -8,7 +8,7 @@ use sp_runtime::{
 	Perbill,
 };
 
-use pallet_parachain_staking::{InflationInfo, Range};
+// use pallet_parachain_staking::{InflationInfo, Range};
 
 use primitives::{AccountId, AuraId, Balance, Signature};
 
@@ -91,30 +91,30 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-pub fn inflation_config(
-	blocks_per_round: u32,
-	annual_inflation_percentage: u32,
-) -> InflationInfo<Balance> {
-	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
-		use pallet_parachain_staking::inflation::{
-			perbill_annual_to_perbill_round, BLOCKS_PER_YEAR,
-		};
-		perbill_annual_to_perbill_round(annual, BLOCKS_PER_YEAR / blocks_per_round)
-	}
+// pub fn inflation_config(
+// 	blocks_per_round: u32,
+// 	annual_inflation_percentage: u32,
+// ) -> InflationInfo<Balance> {
+// 	fn to_round_inflation(annual: Range<Perbill>, blocks_per_round: u32) -> Range<Perbill> {
+// 		use pallet_parachain_staking::inflation::{
+// 			perbill_annual_to_perbill_round, BLOCKS_PER_YEAR,
+// 		};
+// 		perbill_annual_to_perbill_round(annual, BLOCKS_PER_YEAR / blocks_per_round)
+// 	}
 
-	let annual = Range {
-		min: Perbill::from_percent(annual_inflation_percentage),
-		ideal: Perbill::from_percent(annual_inflation_percentage),
-		max: Perbill::from_percent(annual_inflation_percentage),
-	};
+// 	let annual = Range {
+// 		min: Perbill::from_percent(annual_inflation_percentage),
+// 		ideal: Perbill::from_percent(annual_inflation_percentage),
+// 		max: Perbill::from_percent(annual_inflation_percentage),
+// 	};
 
-	InflationInfo {
-		// We have no staking expectations since inflation range is a singular value
-		expect: Range { min: 0, ideal: 0, max: 0 },
-		annual,
-		round: to_round_inflation(annual, blocks_per_round),
-	}
-}
+// 	InflationInfo {
+// 		// We have no staking expectations since inflation range is a singular value
+// 		expect: Range { min: 0, ideal: 0, max: 0 },
+// 		annual,
+// 		round: to_round_inflation(annual, blocks_per_round),
+// 	}
+// }
 
 pub mod test {
 	use super::*;

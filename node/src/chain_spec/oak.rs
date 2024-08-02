@@ -8,7 +8,8 @@ use sp_runtime::{Perbill, Percent};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed, inflation_config,
+	get_account_id_from_seed, get_collator_keys_from_seed,
+	// inflation_config,
 	test::{validate_allocation, validate_vesting},
 	Extensions,
 };
@@ -365,19 +366,19 @@ fn testnet_genesis(
 				})
 				.collect(),
 		},
-		parachain_staking: oak_runtime::ParachainStakingConfig {
-			candidates: invulnerables
-				.iter()
-				.cloned()
-				.map(|(acc, _)| (acc, candidate_stake))
-				.collect(),
-			delegations: vec![],
-			inflation_config: inflation_config(1800, 5),
-			blocks_per_round: 1800,
-			collator_commission: Perbill::from_percent(20),
-			parachain_bond_reserve_percent: Percent::from_percent(30),
-			num_selected_candidates: NUM_SELECTED_CANDIDATES,
-		},
+		// parachain_staking: oak_runtime::ParachainStakingConfig {
+		// 	candidates: invulnerables
+		// 		.iter()
+		// 		.cloned()
+		// 		.map(|(acc, _)| (acc, candidate_stake))
+		// 		.collect(),
+		// 	delegations: vec![],
+		// 	inflation_config: inflation_config(1800, 5),
+		// 	blocks_per_round: 1800,
+		// 	collator_commission: Perbill::from_percent(20),
+		// 	parachain_bond_reserve_percent: Percent::from_percent(30),
+		// 	num_selected_candidates: NUM_SELECTED_CANDIDATES,
+		// },
 		// no need to pass anything to aura, in fact it will panic if we do. Session will take care
 		// of this.
 		aura: Default::default(),

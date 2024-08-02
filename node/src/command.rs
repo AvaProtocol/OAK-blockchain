@@ -14,7 +14,7 @@ use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 use crate::{
 	chain_spec::{self, IdentifyVariant},
 	cli::{Cli, RelayChainCli, Subcommand},
-	service,
+	service, service::new_partial,
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
@@ -268,17 +268,35 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::ExportGenesisState(cmd)) => {
+			// let runner = cli.create_runner(cmd)?;
+			// let chain_spec = &runner.config().chain_spec;
+			// with_runtime_or_err!(chain_spec, {
+			// 	{
+			// 		runner.sync_run(|_config| {
+			// 			let spec =
+			// 				cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+			// 			let state_version = Cli::native_runtime_version(&spec).state_version();
+			// 			cmd.run::<Block>(&*spec, state_version)
+			// 		})
+			// 	}
+			// })
+			// let runner = cli.create_runner(cmd)?;
+			// runner.sync_run(|config| {
+			// 	// let spec =
+			// 	// 	cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+			// 	let partials = service::new_partial::<RuntimeApi, Executor, _>(
+			// 		&config,
+			// 		crate::service::parachain_build_import_queue,
+			// 	)?;
+
+			// 	// cmd.run(partials.client)
+			// 	cmd.run(&*config.chain_spec, &*partials.client)
+			// })
+
 			let runner = cli.create_runner(cmd)?;
-			let chain_spec = &runner.config().chain_spec;
-			with_runtime_or_err!(chain_spec, {
-				{
-					runner.sync_run(|_config| {
-						let spec =
-							cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-						let state_version = Cli::native_runtime_version(&spec).state_version();
-						cmd.run::<Block>(&*spec, state_version)
-					})
-				}
+			runner.sync_run(|_config| {
+				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+				cmd.run(&*spec)
 			})
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
@@ -395,18 +413,18 @@ pub fn run() -> Result<()> {
 					SubstrateCli::create_configuration(&polkadot_cli, &polkadot_cli, tokio_handle)
 						.map_err(|err| format!("Relay chain argument error: {}", err))?;
 
-				let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
+				// let state_version = Cli::native_runtime_version(&config.chain_spec).state_version();
 
-				let genesis_state = with_runtime_or_err!(chain_spec, {
-					{
-						let block: Block = generate_genesis_block(&**chain_spec, state_version)?;
-						format!("0x{:?}", HexDisplay::from(&block.header().encode()))
-					}
-				});
+				// let genesis_state = with_runtime_or_err!(chain_spec, {
+				// 	{
+				// 		let block: Block = generate_genesis_block(&**chain_spec, state_version)?;
+				// 		format!("0x{:?}", HexDisplay::from(&block.header().encode()))
+				// 	}
+				// });
 
 				info!("Parachain id: {:?}", id);
 				info!("Parachain Account: {}", parachain_account);
-				info!("Parachain genesis state: {:?}", genesis_state);
+				// info!("Parachain genesis state: {:?}", genesis_state);
 				info!("Is collating: {}", if config.role.is_authority() { "yes" } else { "no" });
 
 				with_runtime_or_err!(chain_spec, {
