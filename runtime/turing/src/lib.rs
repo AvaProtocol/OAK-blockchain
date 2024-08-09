@@ -45,9 +45,11 @@ use sp_runtime::{
 };
 
 use xcm::latest::{prelude::*, MultiLocation};
-use xcm_builder::Account32Hash;
+use xcm_builder::{Account32Hash, DescribeFamily, HashedDescription};
 use pallet_xcm::{EnsureXcm, IsVoiceOfBody};
+use xcm_executor::traits::ConvertLocation;
 // use xcm_executor::traits::Convert;
+// use xcm_builder::{DescribeFamily, HashedDescription, ParentIsPreset, SiblingParachainConvertsVia};
 
 use xcm_config::RelayLocation;
 
@@ -107,7 +109,7 @@ use common_runtime::{
 };
 use primitives::{
 	AccountId, Address, Amount, AuraId, Balance, BlockNumber, EnsureProxy, Hash, Header, Index,
-	Signature, TransferCallCreator,
+	Signature, TransferCallCreator, DescribeAllTerminal,
 };
 
 // Custom pallet imports
@@ -1226,22 +1228,33 @@ impl_runtime_apis! {
 	}
 
 
-	// impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
-	// 	fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
-	// 		let parachain_id: u32 = ParachainInfo::parachain_id().into();
+	impl pallet_xcmp_handler_rpc_runtime_api::XcmpHandlerApi<Block, Balance> for Runtime {
+		fn cross_chain_account(account_id: AccountId32) -> Result<AccountId32, Vec<u8>> {
+			let parachain_id: u32 = ParachainInfo::parachain_id().into();
 
-	// 		let multiloc = MultiLocation::new(
-	// 			1,
-	// 			X2(
-	// 				Parachain(parachain_id),
-	// 				Junction::AccountId32 { network: None, id: account_id.into() },
-	// 			),
-	// 		);
+			let multiloc = MultiLocation::new(
+				1,
+				X2(
+					Parachain(parachain_id),
+					Junction::AccountId32 { network: None, id: account_id.into() },
+				),
+			);
 
-	// 		Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
-	// 			.map_err(|_| "unable to convert account".into())
-	// 	}
-	// }
+
+			// 将 Option 转换为 Result，明确指定错误类型
+			let hashed_description = HashedDescription::<AccountId, DescribeFamily<DescribeAllTerminal>>::convert_location(&multiloc)
+			.ok_or_else(|| Vec::from("unable to convert account"))?;
+	
+			Ok(hashed_description)
+
+			// xcm_builder::HashedDescriptionDescribeFamilyAllTerminal::<AccountId>::convert_location(
+			// 	&multiloc,
+			// ).map_err(|_| "unable to convert account".into())
+
+			// Account32Hash::<RelayNetwork, sp_runtime::AccountId32>::convert_ref(multiloc)
+			// 	.map_err(|_| "unable to convert account".into())
+		}
+	}
 
 	// impl pallet_automation_time_rpc_runtime_api::AutomationTimeApi<Block, AccountId, Hash, Balance> for Runtime {
 	// 	fn query_fee_details(

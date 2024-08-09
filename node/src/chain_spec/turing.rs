@@ -248,9 +248,13 @@ fn testnet_genesis(
 			code: turing_runtime::WASM_BINARY
 				.expect("WASM binary was not build, please build it!")
 				.to_vec(),
+			..Default::default()
 		},
 		balances: turing_runtime::BalancesConfig { balances: endowed_accounts },
-		parachain_info: turing_runtime::ParachainInfoConfig { parachain_id: para_id },
+		parachain_info: turing_runtime::ParachainInfoConfig {
+			parachain_id: para_id,
+			..Default::default()
+		},
 		session: turing_runtime::SessionConfig {
 			keys: invulnerables
 				.iter()
@@ -290,7 +294,10 @@ fn testnet_genesis(
 			phantom: Default::default(),
 		},
 		parachain_system: Default::default(),
-		polkadot_xcm: PolkadotXcmConfig { safe_xcm_version: Some(SAFE_XCM_VERSION) },
+		polkadot_xcm: PolkadotXcmConfig {
+			safe_xcm_version: Some(SAFE_XCM_VERSION),
+			..Default::default()
+		},
 		treasury: Default::default(),
 		// valve: ValveConfig { start_with_valve_closed: false, closed_gates: pallet_gates_closed },
 		// vesting: VestingConfig { vesting_schedule },

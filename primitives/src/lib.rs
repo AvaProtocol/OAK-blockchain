@@ -103,72 +103,10 @@ use codec::{Compact, Encode};
 use sp_io::hashing::blake2_256;
 use xcm_executor::traits::ConvertLocation;
 
-/// Means of converting a location into a stable and unique descriptive identifier.
-pub trait DescribeLocation {
-	/// Create a description of the given `location` if possible. No two locations should have the
-	/// same descriptor.
-	fn describe_location(location: &MultiLocation) -> Option<Vec<u8>>;
-}
-
-#[impl_trait_for_tuples::impl_for_tuples(30)]
-impl DescribeLocation for Tuple {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		for_tuples!( #(
-			match Tuple::describe_location(l) {
-				Some(result) => return Some(result),
-				None => {},
-			}
-		)* );
-		None
-	}
-}
-
-pub struct DescribeTerminus;
-impl DescribeLocation for DescribeTerminus {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		match (l.parents, &l.interior) {
-			(0, Here) => Some(Vec::new()),
-			_ => None,
-		}
-	}
-}
-
-pub struct DescribePalletTerminal;
-impl DescribeLocation for DescribePalletTerminal {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		match (l.parents, &l.interior) {
-			(0, X1(PalletInstance(i))) => {
-				Some((b"Pallet", Compact::<u32>::from(*i as u32)).encode())
-			},
-			_ => return None,
-		}
-	}
-}
-
-pub struct DescribeAccountId32Terminal;
-impl DescribeLocation for DescribeAccountId32Terminal {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		match (l.parents, &l.interior) {
-			(0, X1(AccountId32 { id, .. })) => Some((b"AccountId32", id).encode()),
-			_ => None,
-		}
-	}
-}
-
-pub struct DescribeAccountKey20Terminal;
-impl DescribeLocation for DescribeAccountKey20Terminal {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		match (l.parents, &l.interior) {
-			(0, X1(AccountKey20 { key, .. })) => Some((b"AccountKey20", key).encode()),
-			_ => None,
-		}
-	}
-}
-
-pub type DescribeAccountIdTerminal = (DescribeAccountId32Terminal, DescribeAccountKey20Terminal);
+pub type DescribeAccountIdTerminal = (xcm_builder::DescribeAccountId32Terminal, xcm_builder::DescribeAccountKey20Terminal);
 
 pub struct DescribeBodyTerminal;
-impl DescribeLocation for DescribeBodyTerminal {
+impl xcm_builder::DescribeLocation for DescribeBodyTerminal {
 	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
 		match (l.parents, &l.interior) {
 			(0, X1(Plurality { id, part })) => Some((b"Body", id, part).encode()),
@@ -178,40 +116,16 @@ impl DescribeLocation for DescribeBodyTerminal {
 }
 
 pub type DescribeAllTerminal = (
-	DescribeTerminus,
-	DescribePalletTerminal,
-	DescribeAccountId32Terminal,
-	DescribeAccountKey20Terminal,
+	xcm_builder::DescribeTerminus,
+	xcm_builder::DescribePalletTerminal,
+	xcm_builder::DescribeAccountId32Terminal,
+	xcm_builder::DescribeAccountKey20Terminal,
 	DescribeBodyTerminal,
 );
 
-pub struct DescribeFamily<DescribeInterior>(PhantomData<DescribeInterior>);
-impl<Suffix: DescribeLocation> DescribeLocation for DescribeFamily<Suffix> {
-	fn describe_location(l: &MultiLocation) -> Option<Vec<u8>> {
-		match (l.parents, l.interior.first()) {
-			(0, Some(Parachain(index))) => {
-				let tail = l.interior.split_first().0;
-				let interior = Suffix::describe_location(&tail.into())?;
-				Some((b"ChildChain", Compact::<u32>::from(*index), interior).encode())
-			},
-			(1, Some(Parachain(index))) => {
-				let tail = l.interior.split_first().0;
-				let interior = Suffix::describe_location(&tail.into())?;
-				Some((b"SiblingChain", Compact::<u32>::from(*index), interior).encode())
-			},
-			(1, _) => {
-				let tail = l.interior.into();
-				let interior = Suffix::describe_location(&tail)?;
-				Some((b"ParentChain", interior).encode())
-			},
-			_ => None,
-		}
-	}
-}
-
 pub struct HashedDescription<AccountId, Describe>(PhantomData<(AccountId, Describe)>);
 
-impl<AccountId: From<[u8; 32]> + Clone, Describe: DescribeLocation> ConvertLocation<AccountId>
+impl<AccountId: From<[u8; 32]> + Clone, Describe: xcm_builder::DescribeLocation> ConvertLocation<AccountId>
 	for HashedDescription<AccountId, Describe>
 {
 	fn convert_location(location: &MultiLocation) -> Option<AccountId> {

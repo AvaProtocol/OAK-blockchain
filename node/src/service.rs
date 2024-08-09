@@ -277,7 +277,7 @@ where
 		+ cumulus_primitives_core::CollectCollationInfo<Block>
 		+ pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>
 		+ substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
-		+ pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>
+		// + pallet_automation_time_rpc::AutomationTimeRuntimeApi<Block, AccountId, Hash, Balance>
 		+ pallet_automation_price_rpc::AutomationPriceRuntimeApi<Block, AccountId, Hash, Balance>
 		+ pallet_xcmp_handler_rpc::XcmpHandlerRuntimeApi<Block, Balance>,
 	sc_client_api::StateBackendFor<FullBackend, Block>: sp_api::StateBackend<BlakeTwo256>,

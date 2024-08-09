@@ -110,6 +110,16 @@ impl SubstrateCli for Cli {
 	}
 }
 
+impl Cli {
+	fn runtime_version(chain_spec: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
+		#[cfg(not(feature = "turing-node"))]
+		panic!("{}", service::TURING_RUNTIME_NOT_AVAILABLE);
+
+		#[cfg(feature = "turing-node")]
+		return &service::turing_runtime::VERSION;
+	}
+}
+
 impl SubstrateCli for RelayChainCli {
 	fn impl_name() -> String {
 		"OAK Collator".into()
@@ -268,17 +278,24 @@ pub fn run() -> Result<()> {
 			})
 		},
 		Some(Subcommand::ExportGenesisState(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			let chain_spec = &runner.config().chain_spec;
+			with_runtime_or_err!(chain_spec, {
+				{
+					runner.sync_run(|_config| {
+						let spec =
+							cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+						let state_version = Cli::runtime_version(&spec).state_version();
+						cmd.run::<Block>(&*spec, &state_version)
+					})
+				}
+			})
+
 			// let runner = cli.create_runner(cmd)?;
-			// let chain_spec = &runner.config().chain_spec;
-			// with_runtime_or_err!(chain_spec, {
-			// 	{
-			// 		runner.sync_run(|_config| {
-			// 			let spec =
-			// 				cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-			// 			let state_version = Cli::native_runtime_version(&spec).state_version();
-			// 			cmd.run::<Block>(&*spec, state_version)
-			// 		})
-			// 	}
+			// runner.sync_run(|_config| {
+			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+			// 	let state_version = Cli::native_runtime_version(&spec).state_version();
+			// 	cmd.run::<Block>(&*spec, &state_version)
 			// })
 			// let runner = cli.create_runner(cmd)?;
 			// runner.sync_run(|config| {
@@ -293,11 +310,19 @@ pub fn run() -> Result<()> {
 			// 	cmd.run(&*config.chain_spec, &*partials.client)
 			// })
 
-			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|_config| {
-				let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-				cmd.run(&*spec)
-			})
+			// let runner = cli.create_runner(cmd)?;
+			// runner.sync_run(|_config| {
+			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+			// 	let state_version = Cli::runtime_version(&spec).state_version();
+			// 	cmd.run::<turing_runtime::Block>(&*spec, &state_version)
+			// })
+
+			// let runner = cli.create_runner(cmd)?;
+			// runner.sync_run(|_config| {
+			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
+			// 	let state_version = Cli::native_runtime_version(&spec).state_version();
+			// 	cmd.run::<Block>(&*spec, state_version)
+			// })
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -315,7 +340,7 @@ pub fn run() -> Result<()> {
 					match cmd {
 						BenchmarkCmd::Pallet(cmd) => {
 							if cfg!(feature = "runtime-benchmarks") {
-								runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+								runner.sync_run(|config| cmd.run::<Block, ()>(config))
 							} else {
 								Err("Benchmarking wasn't enabled when building the node. \
 					You can enable it with `--features runtime-benchmarks`."

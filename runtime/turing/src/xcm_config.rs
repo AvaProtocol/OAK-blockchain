@@ -23,7 +23,7 @@ use xcm_builder::{
 	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
 	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
 	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
-	TakeWeightCredit, WithComputedOrigin,
+	TakeWeightCredit, WithComputedOrigin, DescribeFamily,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -38,7 +38,7 @@ use orml_xcm_support::{
 };
 
 use primitives::{
-	AbsoluteAndRelativeReserveProvider, DescribeAllTerminal, DescribeFamily, HashedDescription,
+	AbsoluteAndRelativeReserveProvider, DescribeAllTerminal, HashedDescription,
 };
 
 parameter_types! {
