@@ -20,10 +20,10 @@ use polkadot_parachain_primitives::primitives::Sibling;
 use xcm::latest::{prelude::*, Weight};
 use xcm_builder::{
 	AccountId32Aliases, AllowKnownQueryResponses, AllowSubscriptionsFrom,
-	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, EnsureXcmOrigin, FixedWeightBounds,
-	ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative, SiblingParachainConvertsVia,
-	SignedAccountId32AsNative, SignedToAccountId32, SovereignSignedViaLocation, TakeRevenue,
-	TakeWeightCredit, WithComputedOrigin, DescribeFamily,
+	AllowTopLevelPaidExecutionFrom, AllowUnpaidExecutionFrom, DescribeFamily, EnsureXcmOrigin,
+	FixedWeightBounds, ParentIsPreset, RelayChainAsNative, SiblingParachainAsNative,
+	SiblingParachainConvertsVia, SignedAccountId32AsNative, SignedToAccountId32,
+	SovereignSignedViaLocation, TakeRevenue, TakeWeightCredit, WithComputedOrigin,
 };
 use xcm_executor::{Config, XcmExecutor};
 
@@ -37,9 +37,7 @@ use orml_xcm_support::{
 	DepositToAlternative, IsNativeConcrete, MultiCurrencyAdapter, MultiNativeAsset,
 };
 
-use primitives::{
-	AbsoluteAndRelativeReserveProvider, DescribeAllTerminal, HashedDescription,
-};
+use primitives::{AbsoluteAndRelativeReserveProvider, DescribeAllTerminal, HashedDescription};
 
 parameter_types! {
 	pub const RelayLocation: MultiLocation = MultiLocation::parent();

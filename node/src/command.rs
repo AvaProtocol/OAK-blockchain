@@ -14,7 +14,8 @@ use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
 use crate::{
 	chain_spec::{self, IdentifyVariant},
 	cli::{Cli, RelayChainCli, Subcommand},
-	service, service::new_partial,
+	service,
+	service::new_partial,
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {

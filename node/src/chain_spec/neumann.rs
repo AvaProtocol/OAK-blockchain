@@ -9,7 +9,8 @@ use sp_runtime::{Perbill, Percent};
 
 use super::TELEMETRY_URL;
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed,
+	get_account_id_from_seed,
+	get_collator_keys_from_seed,
 	// inflation_config,
 	DummyChainSpec,
 	Extensions,
