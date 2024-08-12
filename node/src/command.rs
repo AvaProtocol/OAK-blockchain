@@ -10,6 +10,7 @@ use sc_cli::{
 use sc_service::config::{BasePath, PrometheusConfig};
 use sp_core::hexdisplay::HexDisplay;
 use sp_runtime::traits::{AccountIdConversion, Block as BlockT};
+use std::{io::Write, net::SocketAddr};
 
 use crate::{
 	chain_spec::{self, IdentifyVariant},
@@ -286,43 +287,24 @@ pub fn run() -> Result<()> {
 						let spec =
 							cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
 						let state_version = Cli::runtime_version(&spec).state_version();
-						cmd.run::<Block>(&*spec, &state_version)
+
+            let block: Block = generate_genesis_block(&*spec, state_version)?;
+            let raw_header = block.header().encode();
+            let output_buf = if cmd.raw {
+                raw_header
+            } else {
+                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
+            };
+            if let Some(output) = &cmd.output {
+                std::fs::write(output, output_buf)?;
+            } else {
+                std::io::stdout().write_all(&output_buf)?;
+            }
+
+            Ok(())
 					})
 				}
 			})
-
-			// let runner = cli.create_runner(cmd)?;
-			// runner.sync_run(|_config| {
-			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-			// 	let state_version = Cli::native_runtime_version(&spec).state_version();
-			// 	cmd.run::<Block>(&*spec, &state_version)
-			// })
-			// let runner = cli.create_runner(cmd)?;
-			// runner.sync_run(|config| {
-			// 	// let spec =
-			// 	// 	cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-			// 	let partials = service::new_partial::<RuntimeApi, Executor, _>(
-			// 		&config,
-			// 		crate::service::parachain_build_import_queue,
-			// 	)?;
-
-			// 	// cmd.run(partials.client)
-			// 	cmd.run(&*config.chain_spec, &*partials.client)
-			// })
-
-			// let runner = cli.create_runner(cmd)?;
-			// runner.sync_run(|_config| {
-			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-			// 	let state_version = Cli::runtime_version(&spec).state_version();
-			// 	cmd.run::<turing_runtime::Block>(&*spec, &state_version)
-			// })
-
-			// let runner = cli.create_runner(cmd)?;
-			// runner.sync_run(|_config| {
-			// 	let spec = cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
-			// 	let state_version = Cli::native_runtime_version(&spec).state_version();
-			// 	cmd.run::<Block>(&*spec, state_version)
-			// })
 		},
 		Some(Subcommand::ExportGenesisWasm(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
