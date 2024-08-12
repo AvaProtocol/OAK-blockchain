@@ -15,7 +15,8 @@ use std::{io::Write, net::SocketAddr};
 use crate::{
 	chain_spec::{self, IdentifyVariant},
 	cli::{Cli, RelayChainCli, Subcommand},
-	service, service::new_partial,
+	service,
+	service::new_partial,
 };
 
 fn load_spec(id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
@@ -288,20 +289,21 @@ pub fn run() -> Result<()> {
 							cli.load_spec(&cmd.shared_params.chain.clone().unwrap_or_default())?;
 						let state_version = Cli::runtime_version(&spec).state_version();
 
-            let block: Block = generate_genesis_block(&*spec, state_version)?;
-            let raw_header = block.header().encode();
-            let output_buf = if cmd.raw {
-                raw_header
-            } else {
-                format!("0x{:?}", HexDisplay::from(&block.header().encode())).into_bytes()
-            };
-            if let Some(output) = &cmd.output {
-                std::fs::write(output, output_buf)?;
-            } else {
-                std::io::stdout().write_all(&output_buf)?;
-            }
+						let block: Block = generate_genesis_block(&*spec, state_version)?;
+						let raw_header = block.header().encode();
+						let output_buf = if cmd.raw {
+							raw_header
+						} else {
+							format!("0x{:?}", HexDisplay::from(&block.header().encode()))
+								.into_bytes()
+						};
+						if let Some(output) = &cmd.output {
+							std::fs::write(output, output_buf)?;
+						} else {
+							std::io::stdout().write_all(&output_buf)?;
+						}
 
-            Ok(())
+						Ok(())
 					})
 				}
 			})

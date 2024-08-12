@@ -15,13 +15,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 #![cfg_attr(not(feature = "std"), no_std)]
-use frame_support::{
-	traits::Get, parameter_types,
-};
-use orml_traits::{
-	asset_registry::AssetMetadata,
-	currency::MutationHooks,
-};
+use frame_support::{parameter_types, traits::Get};
+use orml_traits::{asset_registry::AssetMetadata, currency::MutationHooks};
 use sp_std::marker::PhantomData;
 pub mod constants;
 pub mod fees;
@@ -48,7 +43,7 @@ pub mod config {
 
 	pub mod orml_asset_registry {
 		use crate::*;
-		use primitives::{Balance, assets::CustomMetadata};
+		use primitives::{assets::CustomMetadata, Balance};
 
 		parameter_types! {
 			pub const StringLimit: u32 = 50;

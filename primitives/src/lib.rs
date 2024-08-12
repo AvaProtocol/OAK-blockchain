@@ -103,7 +103,8 @@ use codec::{Compact, Encode};
 use sp_io::hashing::blake2_256;
 use xcm_executor::traits::ConvertLocation;
 
-pub type DescribeAccountIdTerminal = (xcm_builder::DescribeAccountId32Terminal, xcm_builder::DescribeAccountKey20Terminal);
+pub type DescribeAccountIdTerminal =
+	(xcm_builder::DescribeAccountId32Terminal, xcm_builder::DescribeAccountKey20Terminal);
 
 pub struct DescribeBodyTerminal;
 impl xcm_builder::DescribeLocation for DescribeBodyTerminal {
@@ -125,8 +126,8 @@ pub type DescribeAllTerminal = (
 
 pub struct HashedDescription<AccountId, Describe>(PhantomData<(AccountId, Describe)>);
 
-impl<AccountId: From<[u8; 32]> + Clone, Describe: xcm_builder::DescribeLocation> ConvertLocation<AccountId>
-	for HashedDescription<AccountId, Describe>
+impl<AccountId: From<[u8; 32]> + Clone, Describe: xcm_builder::DescribeLocation>
+	ConvertLocation<AccountId> for HashedDescription<AccountId, Describe>
 {
 	fn convert_location(location: &MultiLocation) -> Option<AccountId> {
 		if let Some(description) = Describe::describe_location(location) {

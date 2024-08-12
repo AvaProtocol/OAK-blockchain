@@ -4,26 +4,28 @@ use sp_core::sr25519;
 use sp_runtime::{Perbill, Percent};
 
 use crate::chain_spec::{
-	get_account_id_from_seed, get_collator_keys_from_seed,
+	get_account_id_from_seed,
+	get_collator_keys_from_seed,
 	// inflation_config,
 	DummyChainSpec,
 	Extensions,
 };
 use codec::Encode;
 use common_runtime::{
+	config::orml_asset_registry::{AssetMetadataOf, StringLimit},
 	constants::currency::{DOLLAR, TOKEN_DECIMALS},
-	config::orml_asset_registry::{StringLimit, AssetMetadataOf},
 };
+use frame_support::{traits::ConstU32, BoundedVec};
 use primitives::{assets::CustomMetadata, AccountId, AuraId, Balance, TokenId};
 use turing_runtime::{
-	AssetRegistryConfig, CouncilConfig, PolkadotXcmConfig, TechnicalMembershipConfig,
+	AssetRegistryConfig,
 	// ValveConfig, VestingConfig,
 	CollatorSelectionConfig,
+	CouncilConfig,
+	PolkadotXcmConfig,
+	TechnicalMembershipConfig,
 };
 use xcm::{prelude::*, VersionedMultiLocation::V3};
-use frame_support::{
-	traits::{  ConstU32 }, BoundedVec,
-};
 
 const TOKEN_SYMBOL: &str = "TUR";
 const SS_58_FORMAT: u32 = 51;

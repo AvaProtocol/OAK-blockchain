@@ -17,7 +17,8 @@ use cumulus_client_consensus_common::{
 };
 use cumulus_client_network::BlockAnnounceValidator;
 use cumulus_client_service::{
-	prepare_node_config, start_collator, start_full_node, StartCollatorParams, StartFullNodeParams, build_relay_chain_interface,
+	build_relay_chain_interface, prepare_node_config, start_collator, start_full_node,
+	StartCollatorParams, StartFullNodeParams,
 };
 use cumulus_primitives_core::ParaId;
 use cumulus_relay_chain_inprocess_interface::build_inprocess_relay_chain;
@@ -153,10 +154,7 @@ where
 		&Configuration,
 		Option<TelemetryHandle>,
 		&TaskManager,
-	) -> Result<
-		sc_consensus::DefaultImportQueue<Block>,
-		sc_service::Error,
-	>,
+	) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error>,
 {
 	let telemetry = config
 		.telemetry_endpoints
@@ -293,10 +291,8 @@ where
 			&Configuration,
 			Option<TelemetryHandle>,
 			&TaskManager,
-		) -> Result<
-			sc_consensus::DefaultImportQueue<Block>,
-			sc_service::Error,
-		> + 'static,
+		) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error>
+		+ 'static,
 	BIC: FnOnce(
 		ParachainBlockImport<RuntimeApi, Executor>,
 		Arc<FullClient<RuntimeApi, Executor>>,
@@ -472,10 +468,7 @@ pub fn parachain_build_import_queue<RuntimeApi, Executor>(
 	config: &Configuration,
 	telemetry: Option<TelemetryHandle>,
 	task_manager: &TaskManager,
-) -> Result<
-	sc_consensus::DefaultImportQueue<Block>,
-	sc_service::Error,
->
+) -> Result<sc_consensus::DefaultImportQueue<Block>, sc_service::Error>
 where
 	RuntimeApi:
 		ConstructRuntimeApi<Block, FullClient<RuntimeApi, Executor>> + Send + Sync + 'static,
