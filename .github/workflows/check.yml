@@ -1,4 +1,4 @@
-name: Check Set-Up, Build, Test
+name: Check Setup, Build, Test
 
 # Controls when the action will run.
 on:
