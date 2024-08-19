@@ -10,7 +10,7 @@ import os
 import toml
 
 if len(sys.argv) != 2:
-    print("needs the runtime folder.")
+    print("The runtime folder argument is required.")
     sys.exit(-1)
 
 runtime_dir = sys.argv[1]
